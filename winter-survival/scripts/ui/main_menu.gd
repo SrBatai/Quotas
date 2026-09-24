@@ -42,7 +42,12 @@ func _ready() -> void:
 	_menu_box.add_child(quit)
 	if GameState.best_days > 0:
 		_menu_box.add_child(UiTheme.spacer(4, 10))
-		_menu_box.add_child(UiTheme.label("Mejor marca: %d %s" % [GameState.best_days, "día" if GameState.best_days == 1 else "días"], 13, UiTheme.TEXT_2))
+		var best := UiTheme.label("Mejor marca: %d %s" % [GameState.best_days, "día" if GameState.best_days == 1 else "días"], 13, Color("#DCEBFA"), true)
+		best.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+		best.add_theme_constant_override("shadow_offset_x", 1)
+		best.add_theme_constant_override("shadow_offset_y", 1)
+		best.add_theme_constant_override("shadow_outline_size", 2)
+		_menu_box.add_child(best)
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -51,7 +56,10 @@ func _ready() -> void:
 	_controls.visible = false
 	_controls.back.connect(func() -> void: _controls.visible = false; _menu_box.visible = true)
 	center.add_child(_controls)
-	var version := UiTheme.label("Godot 4.7 · vertical slice", 10, Color("#93A6BF", 0.7))
+	var version := UiTheme.label("Godot 4.7 · vertical slice", 10, Color("#DCEBFA", 0.85))
+	version.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.6))
+	version.add_theme_constant_override("shadow_offset_x", 1)
+	version.add_theme_constant_override("shadow_offset_y", 1)
 	version.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	version.offset_left = -220
 	version.offset_top = -24
