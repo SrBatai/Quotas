@@ -43,7 +43,11 @@ func _ready() -> void:
 	UiTheme.add_ice_edge(self)
 	Events.quest_updated.connect(_on_quest_updated)
 	Events.quest_step_completed.connect(func(_i: int) -> void: _flash = 0.5)
-	_on_quest_updated(QuestManager.get_state())
+	var st: PlayerState = GameFlow.local_state()
+	if st != null and not st.quest_state.is_empty():
+		_on_quest_updated(st.quest_state)
+	else:
+		_on_quest_updated({"title_small": "", "title_big": "SOBREVIVE", "index": 0, "total": 0, "steps": [], "day_completed": false})
 
 
 func _process(delta: float) -> void:

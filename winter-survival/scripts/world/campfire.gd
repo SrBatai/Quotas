@@ -1,6 +1,7 @@
 class_name Campfire
 extends StaticBody3D
-## Placeable fire: heat zone, light, flames; fuel via FuelBurner; scares wolves.
+## Placeable fire: heat zone, light, flames; fuel via FuelBurner (server); scares wolves. Spawned through the
+## PlacedSpawner on every peer; lit/fuel travel as a world delta.
 
 @export var start_lit: bool = true
 
@@ -53,6 +54,8 @@ func _ready() -> void:
 		burner.add_fuel(Balance.CAMPFIRE_FUEL_START)
 	else:
 		_on_lit_changed(false)
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
 func _on_lit_changed(lit: bool) -> void:
@@ -66,27 +69,42 @@ func _on_lit_changed(lit: bool) -> void:
 	else:
 		remove_from_group("heat_source")
 		Events.campfire_extinguished.emit(self)
-		Events.notify.emit("La fogata se ha apagado", 3.0)
 		AudioManager.stop_loop(&"fire_loop", self)
 		AudioManager.play(&"fire_out", global_position)
+	if Net.is_server and is_inside_tree() and NetWorld.instance != null:
+		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": lit, "fuel": burner.fuel})
+		if not lit:
+			WorldState.instance.notify_all("La fogata se ha apagado", 3.0)
 
 
-func get_interact_label(_player: Node) -> String:
-	var n := Inventory.count(&"madera")
+func get_interact_label(player: Node) -> String:
+	var n: int = player.state.count(&"madera") if player is Player else 0
 	if n <= 0:
 		return "Sin leña"
 	return "Añadir leña (%d)" % n
 
 
-func can_interact(_player: Node) -> bool:
-	return Inventory.has(&"madera", 1)
+func can_interact(player: Node) -> bool:
+	return player is Player and player.state.has(&"madera", 1)
 
 
-func interact(_player: Node) -> void:
-	if burner.add_wood(1):
-		Events.notify.emit("Añades leña a la fogata", 2.0)
+## Server only.
+func interact(player: Node) -> void:
+	var p := player as Player
+	if p == null or not Net.is_server:
+		return
+	if burner.add_wood(p, 1):
+		p.state.notify("Añades leña a la fogata", 2.0)
 		AudioManager.play(&"fire_add_wood", global_position)
+		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": is_lit, "fuel": burner.fuel})
 
 
 func seconds_left() -> float:
 	return burner.seconds_left()
+
+
+func apply_net_delta(f: Dictionary) -> void:
+	if f.has("fuel"):
+		burner.fuel = float(f["fuel"])
+	if f.has("lit"):
+		burner.set_lit(bool(f["lit"]))

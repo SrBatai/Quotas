@@ -26,6 +26,8 @@ var snow_amount: float = 0.0
 ## Debug/tuning multipliers (screenshot flags use them).
 var sun_scale: float = 1.0
 var ambient_scale: float = 1.0
+## Hour shown when there is no WorldState (decorative world in the main menu).
+var menu_hour: float = 17.75
 
 
 func _ready() -> void:
@@ -35,7 +37,7 @@ func _ready() -> void:
 	env = parent.get_node_or_null("Env")
 	_setup()
 	Events.time_changed.connect(_on_time_changed)
-	apply(GameState.hour)
+	apply(WorldState.hour_now() if WorldState.instance != null else menu_hour)
 
 
 func _setup() -> void:
@@ -80,7 +82,7 @@ func _on_time_changed(_day: int, hour: float, _night: bool) -> void:
 
 func _process(_delta: float) -> void:
 	# keep the blizzard blend and the menu (no clock) in sync
-	apply(GameState.hour)
+	apply(WorldState.hour_now() if WorldState.instance != null else menu_hour)
 
 
 static func _lerp_keys(hour: float) -> Array:
@@ -140,5 +142,5 @@ func apply(hour: float) -> void:
 
 
 func is_dark() -> bool:
-	var t_sun := (GameState.hour - 6.0) / 12.0
+	var t_sun := (WorldState.hour_now() - 6.0) / 12.0
 	return sin(t_sun * PI) * 38.0 < 6.0

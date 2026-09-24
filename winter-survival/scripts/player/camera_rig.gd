@@ -27,8 +27,13 @@ static func active() -> CameraRig:
 
 func _ready() -> void:
 	top_level = true
-	_active = self
 	player = get_parent() as Node3D
+	# Only the local player's rig drives the viewport (remote players and the server strip this node anyway).
+	if player != null and player.get("is_local") != null and not bool(player.get("is_local")):
+		set_process(false)
+		set_process_unhandled_input(false)
+		return
+	_active = self
 	pivot.rotation_degrees.y = Balance.CAMERA_YAW_DEG
 	pitch.rotation_degrees.x = Balance.CAMERA_PITCH_DEG
 	camera.fov = Balance.CAMERA_FOV
@@ -68,7 +73,7 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameState.is_game_over:
+	if player != null and bool(player.get("dead")):
 		return
 	if event.is_action_pressed("rotate_cam_left"):
 		rotate_step(1)

@@ -1,6 +1,7 @@
 class_name Pickup
 extends InteractableComponent
-## Ground item (firewood, stone, meat, pelt). The Area3D itself is the interactable.
+## Ground item (firewood, stone, meat, pelt). The Area3D itself is the interactable. Seeded pickups exist on
+## both sides (taken = world delta "removed"); runtime drops live under World/Drops through the DropSpawner.
 
 @export var item_id: StringName = &"madera"
 @export var model: String = "firewood"
@@ -24,10 +25,13 @@ func _ready() -> void:
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
-	_visual.add_child(Assets.spawn_model(model))
+	if Net.has_client:
+		_visual.add_child(Assets.spawn_model(model))
 	_t = randf() * TAU
 	interact_range = Balance.INTERACT_RANGE
 	ring_radius = 0.5
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
 func _process(delta: float) -> void:
@@ -46,14 +50,32 @@ func _self_label(_player: Node) -> String:
 	return "Recoger %s" % Items.display_name(item_id).to_lower()
 
 
-func _self_interact(_player: Node) -> void:
-	var left := Inventory.add(item_id, amount)
+## Server only.
+func _self_interact(player: Node) -> void:
+	var p := player as Player
+	if p == null or not Net.is_server:
+		return
+	var left := p.state.inventory.add(item_id, amount)
 	if left == amount:
-		Events.notify.emit("Inventario lleno", 2.0)
+		p.state.notify("Inventario lleno", 2.0)
 		return
 	AudioManager.play(&"pickup", global_position)
+	var wid := WorldRegistry.wid_of(self)
 	if left > 0:
 		amount = left
+		NetWorld.instance.set_delta(wid, {"amount": amount})
 	else:
+		enabled = false
+		if get_parent() != null and get_parent().name != "Drops":
+			NetWorld.instance.set_delta(wid, {"removed": true})
+		queue_free()
+
+
+func apply_net_delta(f: Dictionary) -> void:
+	if f.is_empty():
+		return
+	if f.has("amount"):
+		amount = int(f["amount"])
+	if bool(f.get("removed", false)):
 		enabled = false
 		queue_free()

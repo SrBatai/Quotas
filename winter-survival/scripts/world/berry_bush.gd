@@ -1,5 +1,5 @@
 extends StaticBody3D
-## Berry bush: click → +3 berries, regrows after BUSH_REGROW seconds.
+## Berry bush: click → +3 berries, regrows after BUSH_REGROW seconds (server); state travels as a world delta.
 
 @onready var interactable: InteractableComponent = $Interactable
 
@@ -24,16 +24,23 @@ func _ready() -> void:
 	ish.radius = 0.75
 	interactable.set_shape(ish, Vector3(0, 0.35, 0))
 	interactable.ring_radius = 0.7
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
 func _process(delta: float) -> void:
-	if has_berries:
+	if has_berries or not Net.is_server:
 		return
 	_regrow -= delta
 	if _regrow <= 0.0:
-		has_berries = true
-		if _berries != null:
-			_berries.visible = true
+		_set_berries(true)
+		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"berries": true})
+
+
+func _set_berries(value: bool) -> void:
+	has_berries = value
+	if _berries != null:
+		_berries.visible = value
 
 
 func get_interact_label(_player: Node) -> String:
@@ -44,15 +51,21 @@ func can_interact(_player: Node) -> bool:
 	return has_berries
 
 
-func interact(_player: Node) -> void:
-	if not has_berries:
+## Server only.
+func interact(player: Node) -> void:
+	var p := player as Player
+	if not has_berries or p == null or not Net.is_server:
 		return
-	var left := Inventory.add(&"bayas", Balance.BERRIES_PER_BUSH)
+	var left := p.state.inventory.add(&"bayas", Balance.BERRIES_PER_BUSH)
 	if left == Balance.BERRIES_PER_BUSH:
-		Events.notify.emit("Inventario lleno", 2.0)
+		p.state.notify("Inventario lleno", 2.0)
 		return
-	has_berries = false
+	_set_berries(false)
 	_regrow = Balance.BUSH_REGROW
-	if _berries != null:
-		_berries.visible = false
+	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"berries": false})
 	AudioManager.play(&"pickup", global_position)
+
+
+func apply_net_delta(f: Dictionary) -> void:
+	if f.has("berries"):
+		_set_berries(bool(f["berries"]))

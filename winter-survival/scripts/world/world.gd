@@ -1,9 +1,14 @@
 class_name World
 extends Node3D
-## Builds the level: terrain → pads → fixed props → scatter. Emits Events.world_ready.
+## Builds the level: terrain → pads → fixed props → scatter. Emits Events.world_ready. Same scene on the server
+## and the client (deterministic from the seed); the server strips lights / sky / particles / footprints and the
+## client disables the spawners and the weather scheduler (decisions are the server's).
 
 @export var decorative_only: bool = false
 @export var world_seed: int = 0
+
+const PICKUP_SCENE := preload("res://scenes/world/pickup.tscn")
+const CAMPFIRE_SCENE := preload("res://scenes/world/campfire.tscn")
 
 @onready var terrain: Terrain = $Terrain
 @onready var cabin: Cabin = $Cabin
@@ -12,11 +17,17 @@ extends Node3D
 
 var is_ready: bool = false
 var _menu_camera: Camera3D
+var _drop_counter: int = 0
+var _placed_counter: int = 0
 
 
 func _ready() -> void:
 	add_to_group("world")
 	var s := world_seed if world_seed != 0 else Balance.TERRAIN_SEED
+	if not decorative_only and Net.is_dedicated:
+		s = int(Net.cfg_get("world", "seed", s))
+	if not decorative_only and WorldState.instance != null and Net.is_client:
+		s = WorldState.instance.world_seed if WorldState.instance.world_seed != 0 else s
 	var aframe := Regions.AFRAME_POS
 	var truck := Regions.TRUCK_POS
 	var pads := [
@@ -33,12 +44,22 @@ func _ready() -> void:
 		{"center": Regions.SIGNPOST_POS, "radius": 1.5},
 	]
 	$Scatter.generate(s, terrain, exclusions)
+	var server_side := Net.is_server and not decorative_only
+	$WolfSpawner.enabled = server_side
+	$DeerSpawner.enabled = server_side
+	$Respawner.set_process(server_side)
+	$Weather.scheduler_enabled = server_side
+	$RegionTracker.enabled = Net.has_client and not decorative_only
 	if decorative_only:
-		$WolfSpawner.enabled = false
-		$DeerSpawner.enabled = false
-		$RegionTracker.enabled = false
-		$Respawner.set_process(false)
 		_setup_menu_camera()
+	elif not Net.has_client:
+		# dedicated server: nothing to render (ARQ v2 §1.5)
+		for n in ["Sun", "Moon", "Env", "DayNight", "Snowfall", "Footprints"]:
+			var node := get_node_or_null(n)
+			if node != null:
+				remove_child(node)
+				node.queue_free()
+		footprints = null
 	call_deferred("_emit_ready")
 
 
@@ -61,6 +82,64 @@ func get_spawn_yaw() -> float:
 
 func region_at(x: float, z: float) -> String:
 	return Regions.name_at(x, z)
+
+
+# ------------------------------------------------------------------ replicated runtime objects (server calls)
+## Server: a ground item that did not exist in the seeded world (wolf drops, crafting overflow, dawn respawns).
+func spawn_drop(item_id: StringName, model: String, pos: Vector3, amount: int = 1) -> Node3D:
+	if not Net.is_server:
+		return null
+	_drop_counter += 1
+	var spawner: MultiplayerSpawner = get_parent().get_node_or_null("DropSpawner")
+	var data := {"name": "drop_%d" % _drop_counter, "item": String(item_id), "model": model,
+		"x": pos.x, "y": pos.y, "z": pos.z, "amount": amount, "yaw": randf() * TAU}
+	if spawner == null:
+		var n := spawn_drop_node(data)
+		$Drops.add_child(n)
+		return n
+	return spawner.spawn(data)
+
+
+## spawn_function of DropSpawner (runs on server and clients).
+func spawn_drop_node(data: Variant) -> Node:
+	var d: Dictionary = data
+	var p: Pickup = PICKUP_SCENE.instantiate()
+	p.name = str(d["name"])
+	p.item_id = StringName(str(d["item"]))
+	p.model = str(d["model"])
+	p.amount = int(d.get("amount", 1))
+	p.position = Vector3(float(d["x"]), float(d["y"]), float(d["z"]))
+	p.rotation.y = float(d.get("yaw", 0.0))
+	return p
+
+
+## Server: a placed structure (campfire; tent/box in P2).
+func spawn_placed(kind: String, pos: Vector3, yaw: float) -> Node3D:
+	if not Net.is_server:
+		return null
+	_placed_counter += 1
+	var spawner: MultiplayerSpawner = get_parent().get_node_or_null("PlacedSpawner")
+	var data := {"name": "%s_%d" % [kind, _placed_counter], "kind": kind, "x": pos.x, "y": pos.y, "z": pos.z, "yaw": yaw}
+	if spawner == null:
+		var n := spawn_placed_node(data)
+		$Placed.add_child(n)
+		return n
+	return spawner.spawn(data)
+
+
+## spawn_function of PlacedSpawner (runs on server and clients).
+func spawn_placed_node(data: Variant) -> Node:
+	var d: Dictionary = data
+	var node: Node3D
+	if str(d["kind"]) == "campfire":
+		node = CAMPFIRE_SCENE.instantiate()
+	else:
+		node = Node3D.new()
+		node.add_child(Assets.spawn_model(str(d["kind"])))
+	node.name = str(d["name"])
+	node.position = Vector3(float(d["x"]), float(d["y"]), float(d["z"]))
+	node.rotation.y = float(d.get("yaw", 0.0))
+	return node
 
 
 func _build_lake() -> void:

@@ -1,6 +1,6 @@
 class_name FuelBurner
 extends Node
-## Fuel in seconds; burns 1 s per second while lit.
+## Fuel in seconds; burns 1 s per second while lit (server only; clients mirror lit/fuel through world deltas).
 
 signal lit_changed(lit: bool)
 signal extinguished()
@@ -13,7 +13,7 @@ var is_lit: bool = false
 
 
 func _process(delta: float) -> void:
-	if not is_lit:
+	if not is_lit or not Net.is_server:
 		return
 	fuel -= delta
 	if fuel <= 0.0:
@@ -23,9 +23,9 @@ func _process(delta: float) -> void:
 		extinguished.emit()
 
 
-## Takes n wood from the inventory and adds fuel; relights when out. False if no wood.
-func add_wood(n: int = 1) -> bool:
-	if not Inventory.remove(&"madera", n):
+## Takes n wood from the player's inventory and adds fuel; relights when out. False if no wood.
+func add_wood(player: Player, n: int = 1) -> bool:
+	if player == null or player.state.inventory == null or not player.state.inventory.remove(&"madera", n):
 		return false
 	add_fuel(per_wood * n)
 	return true

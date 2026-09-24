@@ -37,11 +37,11 @@ func _ready() -> void:
 	_line2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_line2)
 	vb.add_child(UiTheme.spacer(4, 10))
-	_retry = UiTheme.menu_button("Reintentar")
-	_retry.pressed.connect(func() -> void: GameState.restart())
+	_retry = UiTheme.menu_button("Reaparecer")
+	_retry.pressed.connect(_on_retry)
 	vb.add_child(_retry)
 	var menu := UiTheme.menu_button("Menú principal")
-	menu.pressed.connect(func() -> void: GameState.to_main_menu())
+	menu.pressed.connect(func() -> void: GameFlow.to_main_menu())
 	vb.add_child(menu)
 	UiTheme.add_ice_edge(panel)
 	visible = false
@@ -55,19 +55,33 @@ static func cause_text(cause: StringName) -> String:
 	return "Frío"
 
 
+var _won_mode: bool = false
+
+
+## Death: the world keeps running (persistent server); "Reaparecer" asks the server for a respawn.
 func show_death(days: int, hours: int, cause: StringName) -> void:
+	_won_mode = false
 	_title.text = "HAS MUERTO"
 	_title.add_theme_color_override("font_color", UiTheme.DANGER)
 	_line1.text = "Sobreviviste %d %s y %d %s" % [days, "día" if days == 1 else "días", hours, "hora" if hours == 1 else "horas"]
 	_line2.text = "Causa: %s" % cause_text(cause)
-	_retry.text = "Reintentar"
+	_retry.text = "Reaparecer"
 	visible = true
 
 
+## Five days survived: an achievement in the persistent world, not an end.
 func show_win(_days: int) -> void:
+	_won_mode = true
 	_title.text = "¡HAS SOBREVIVIDO!"
 	_title.add_theme_color_override("font_color", UiTheme.ACCENT)
 	_line1.text = "Cinco días en el bosque helado."
-	_line2.text = "Mejor marca: %d días" % GameState.best_days
-	_retry.text = "Jugar de nuevo"
+	_line2.text = "Mejor marca: %d días" % GameFlow.best_days
+	_retry.text = "Seguir jugando"
 	visible = true
+
+
+func _on_retry() -> void:
+	if _won_mode:
+		visible = false
+	else:
+		GameFlow.request_respawn()

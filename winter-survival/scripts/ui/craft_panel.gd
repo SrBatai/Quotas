@@ -140,23 +140,22 @@ func _on_craft_pressed() -> void:
 	craft(selected["id"])
 
 
-## Public: craft by recipe id (also used by the smoke test).
+## Public: craft by recipe id (also used by the smoke test). The client checks with its inventory mirror and
+## asks the server (`request_craft`), which validates again with the authoritative inventory.
 func craft(recipe_id: StringName) -> bool:
 	var r := Recipes.by_id(recipe_id)
 	if r.is_empty():
 		return false
+	var st := Recipes.status(r, player)
+	if not st["ok"]:
+		Events.craft_failed.emit(st["text"])
+		Events.notify.emit(st["text"], 2.0)
+		return false
 	if r.has("place"):
-		var st := Recipes.status(r, player)
-		if not st["ok"]:
-			Events.craft_failed.emit(st["text"])
-			Events.notify.emit(st["text"], 2.0)
-			return false
 		if player != null:
 			player.placement.begin(r["place"], r)
 		close()
 		return true
-	var ok := Recipes.craft(r, player)
-	if not ok:
-		Events.notify.emit(Recipes.status(r, player)["text"], 2.0)
+	Net.rpc_server(NetWorld.instance, &"request_craft", [recipe_id])
 	_refresh_status()
-	return ok
+	return true

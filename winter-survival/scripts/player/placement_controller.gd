@@ -1,8 +1,7 @@
 class_name PlacementController
 extends Node
-## Ghost placement mode for the campfire (and P2 placeables).
-
-const CAMPFIRE_SCENE := preload("res://scenes/world/campfire.tscn")
+## Owner client: ghost placement mode for the campfire (and P2 placeables). The validity check is a static
+## function shared with the server (`NetWorld.request_place` revalidates with the same code).
 
 var active: bool = false
 var kind: String = ""
@@ -10,7 +9,7 @@ var recipe: Dictionary = {}
 var valid: bool = false
 var ghost: Node3D
 var ghost_pos: Vector3 = Vector3.ZERO
-var _player: Node3D
+var _player: Player
 var _has_hit: bool = false
 
 
@@ -28,8 +27,7 @@ func begin(place_kind: String, recipe_data: Dictionary) -> void:
 	var m := Assets.spawn_model(model_name)
 	ghost.add_child(m)
 	get_tree().current_scene.add_child(ghost)
-	var front: Vector3 = _player.facing() if _player.has_method("facing") else Vector3.MODEL_FRONT
-	ghost.global_position = _player.global_position + front * 2.0
+	ghost.global_position = _player.global_position + _player.facing() * 2.0
 	active = true
 	valid = false
 	_has_hit = false
@@ -65,7 +63,7 @@ func _process(_delta: float) -> void:
 	_has_hit = true
 	ghost_pos = hit.position
 	ghost.global_position = ghost_pos
-	valid = check_position(ghost_pos)
+	valid = check_position(_player, ghost_pos)
 	_apply_material()
 
 
@@ -74,8 +72,9 @@ func _apply_material() -> void:
 		Assets.override_all(ghost, Assets.get_ghost_material(valid))
 
 
-func check_position(pos: Vector3) -> bool:
-	var world := get_tree().get_first_node_in_group("world")
+## Shared validation (client preview and server authority): bounds, slope, distance, shelters, blockers.
+static func check_position(player: Node3D, pos: Vector3) -> bool:
+	var world := player.get_tree().get_first_node_in_group("world")
 	if world == null:
 		return false
 	var terrain: Terrain = world.terrain
@@ -83,15 +82,13 @@ func check_position(pos: Vector3) -> bool:
 		return false
 	if terrain.get_normal(pos.x, pos.z).y < cos(deg_to_rad(30.0)):
 		return false
-	var p := _player.global_position
+	var p := player.global_position
 	if Vector2(pos.x - p.x, pos.z - p.z).length() > 6.0:
 		return false
-	# not inside a shelter volume
-	for area in get_tree().get_nodes_in_group("shelter"):
+	for area in player.get_tree().get_nodes_in_group("shelter"):
 		var local: Vector3 = (area as Node3D).global_transform.affine_inverse() * pos
 		if absf(local.x) < 3.6 and absf(local.z) < 3.4 and local.y > -1.0 and local.y < 3.5:
 			return false
-	# 1.5 m clearance from blockers (layer 7) and any static body other than the terrain
 	var shape := SphereShape3D.new()
 	shape.radius = 1.5
 	var sq := PhysicsShapeQueryParameters3D.new()
@@ -99,8 +96,8 @@ func check_position(pos: Vector3) -> bool:
 	sq.transform = Transform3D(Basis.IDENTITY, pos + Vector3(0, 0.5, 0))
 	sq.collision_mask = 1 | 64
 	sq.collide_with_areas = false
-	sq.exclude = [_player.get_rid()]
-	var hits := _player.get_world_3d().direct_space_state.intersect_shape(sq, 16)
+	sq.exclude = [player.get_rid()]
+	var hits := player.get_world_3d().direct_space_state.intersect_shape(sq, 16)
 	for h in hits:
 		var c: Node = h.collider
 		if c is Terrain:
@@ -121,31 +118,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Places the object at `pos` if valid and the costs are available. Test hook + click path.
+## Asks the server to place the object at `pos` (local pre-check first). Test hook + click path.
 func confirm_at(pos: Vector3) -> bool:
-	if not check_position(pos):
+	if not check_position(_player, pos):
 		Events.notify.emit("No se puede colocar aquí", 2.0)
 		return false
-	if not Recipes.has_materials(recipe):
+	if not Recipes.has_materials(recipe, _player.state):
 		Events.notify.emit(Recipes.STATUS_MISSING, 2.0)
 		cancel()
 		return false
-	for id in recipe["cost"]:
-		Inventory.remove(id, int(recipe["cost"][id]))
-	var world := get_tree().get_first_node_in_group("world")
-	var node: Node3D
-	if kind == "campfire":
-		node = CAMPFIRE_SCENE.instantiate()
-	else:
-		node = Node3D.new()
-		node.add_child(Assets.spawn_model(kind))
-	world.get_node("Actors").add_child(node)
-	node.global_position = pos
-	node.rotation.y = randf() * TAU
-	if kind == "campfire":
-		Events.campfire_placed.emit(node)
-		Events.notify.emit("Fogata colocada", 2.5)
-	Events.crafted.emit(recipe["id"])
-	AudioManager.play(&"place", pos)
+	Net.rpc_server(NetWorld.instance, &"request_place", [kind, pos, randf() * TAU])
 	cancel()
 	return true

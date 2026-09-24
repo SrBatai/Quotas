@@ -19,7 +19,7 @@ func _ready() -> void:
 	var anchor: Node3D = _model.find_child("LightAnchor", true, false)
 	light.position = anchor.position if anchor != null else Vector3(0, -0.23, 0)
 	Events.time_changed.connect(_on_time)
-	_on_time(GameState.day, GameState.hour, GameState.is_night)
+	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:

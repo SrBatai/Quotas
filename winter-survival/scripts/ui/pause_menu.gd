@@ -29,11 +29,14 @@ func _ready() -> void:
 	var b1 := UiTheme.menu_button("Continuar")
 	b1.pressed.connect(func() -> void: resume())
 	vb.add_child(b1)
-	var b2 := UiTheme.menu_button("Reiniciar")
-	b2.pressed.connect(func() -> void: GameState.restart())
-	vb.add_child(b2)
+	var hint := UiTheme.label("El mundo sigue en el servidor mientras estás en pausa", 10, UiTheme.TEXT_2)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.visible = not Net.is_offline
+	vb.add_child(hint)
 	var b3 := UiTheme.menu_button("Menú principal")
-	b3.pressed.connect(func() -> void: GameState.to_main_menu())
+	b3.pressed.connect(func() -> void:
+		resume()
+		GameFlow.to_main_menu())
 	vb.add_child(b3)
 	var b4 := UiTheme.menu_button("Salir del juego")
 	b4.pressed.connect(func() -> void: get_tree().quit())
@@ -51,9 +54,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func open() -> void:
 	visible = true
-	GameState.set_paused(true)
+	GameFlow.set_paused(true)
 
 
 func resume() -> void:
 	visible = false
-	GameState.set_paused(false)
+	GameFlow.set_paused(false)

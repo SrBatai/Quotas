@@ -44,7 +44,20 @@ func _on_local_player_ready(player: Node) -> void:
 
 
 # ------------------------------------------------------------------ starting a game
-## Single player without a child process: the local server runs in this process (tests, fallback).
+## Whether this platform can launch the dedicated server as a child process (never on the web build).
+static func can_host_process() -> bool:
+	if OS.has_feature("web"):
+		return false
+	return not OS.get_cmdline_user_args().has("--offline")
+
+
+## Whether joining a remote server is possible (ENet/UDP does not exist on the web build).
+static func can_join_network() -> bool:
+	return not OS.has_feature("web")
+
+
+## Single player without a child process: the authoritative server logic runs in this process
+## (OfflineMultiplayerPeer, unique id 1, same server components). Used by tests, the web build and as fallback.
 func play_offline() -> void:
 	_won_shown = false
 	Net.start_offline()
@@ -55,6 +68,10 @@ func play_offline() -> void:
 ## in-process local server when the child cannot be launched.
 func play_solo(password: String = "") -> void:
 	_won_shown = false
+	if not can_host_process():
+		# Web export (no processes, no UDP) or an explicit request: the authoritative server runs in-process.
+		play_offline()
+		return
 	if not Net.host_from_game("Partida de %s" % Identity.player_name, password):
 		flow_message.emit("No se pudo lanzar el servidor local; modo sin red")
 		play_offline()

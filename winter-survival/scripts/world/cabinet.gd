@@ -1,5 +1,5 @@
 extends StaticBody3D
-## Cabinet container (6 slots).
+## Cabinet container (6 slots). Contents live on the server; opening is exclusive (NetWorld.open_storage).
 
 @onready var storage: Storage = $Storage
 @onready var interactable: InteractableComponent = $Interactable
@@ -23,16 +23,26 @@ func _ready() -> void:
 	interactable.interact_range = Balance.INTERACT_RANGE
 	storage.title = "ARMARIO"
 	storage.setup({&"lata_judias": 2, &"lata_sopa": 2})
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
-func get_interact_label(_player: Node) -> String:
+func get_interact_label(player: Node) -> String:
+	if storage.open_by != 0 and player is Player and storage.open_by != player.peer_id:
+		return "Armario en uso"
 	return "Armario abierto" if storage.is_open else "Abrir armario"
 
 
-func can_interact(_player: Node) -> bool:
-	return not storage.is_open
+func can_interact(player: Node) -> bool:
+	return not storage.is_open and (storage.open_by == 0 or (player is Player and storage.open_by == player.peer_id))
 
 
-func interact(_player: Node) -> void:
-	Events.storage_opened.emit(storage)
-	AudioManager.play(&"ui_open")
+## Server only.
+func interact(player: Node) -> void:
+	if player is Player and Net.is_server:
+		NetWorld.instance.open_storage(player, storage)
+
+
+func apply_net_delta(f: Dictionary) -> void:
+	if f.has("open_by"):
+		storage.open_by = int(f["open_by"])

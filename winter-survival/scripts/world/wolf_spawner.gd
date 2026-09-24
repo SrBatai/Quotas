@@ -1,12 +1,14 @@
 class_name WolfSpawner
 extends Node
-## Spawns wolves at night (GDD §12) and sends them away at dawn.
+## Server: spawns wolves at night (GDD §12) around a random player and sends them away at dawn. The
+## ActorSpawner replicates the bodies to the clients.
 
 const WOLF_SCENE := preload("res://scenes/actors/wolf.tscn")
 
 var enabled: bool = true
 var _to_spawn: int = 0
 var _timer: float = 0.0
+var _counter: int = 0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -17,7 +19,7 @@ func _ready() -> void:
 
 
 func _on_night_started(day: int) -> void:
-	if not enabled:
+	if not enabled or not Net.is_server:
 		return
 	var count: int = Balance.WOLVES_PER_NIGHT[mini(day - 1, Balance.WOLVES_PER_NIGHT.size() - 1)]
 	var now := int(ceil(float(count) / 2.0))
@@ -25,12 +27,14 @@ func _on_night_started(day: int) -> void:
 		spawn_wolf(_random_spawn_pos())
 	_to_spawn = count - now
 	_timer = 60.0
-	Events.notify.emit("Los lobos merodean…", 4.0)
+	WorldState.instance.notify_all("Los lobos merodean…", 4.0)
 	AudioManager.play(&"wolf_howl")
 	AudioManager.set_wind(0.5)
 
 
 func _on_day_started(_day: int) -> void:
+	if not Net.is_server:
+		return
 	_to_spawn = 0
 	for w in get_tree().get_nodes_in_group("wolves"):
 		if w.has_method("leave"):
@@ -39,7 +43,7 @@ func _on_day_started(_day: int) -> void:
 
 
 func _process(delta: float) -> void:
-	if _to_spawn <= 0 or not GameState.is_night:
+	if not enabled or _to_spawn <= 0 or not WorldState.is_night_now():
 		return
 	_timer -= delta
 	if _timer <= 0.0:
@@ -58,7 +62,7 @@ func _random_spawn_pos() -> Vector3:
 	var players := get_tree().get_nodes_in_group("player")
 	var origin := Vector3.ZERO
 	if not players.is_empty():
-		origin = (players[0] as Node3D).global_position
+		origin = (players[_rng.randi() % players.size()] as Node3D).global_position
 	for i in 40:
 		var ang := _rng.randf_range(0.0, TAU)
 		var d := _rng.randf_range(Balance.WOLF_SPAWN_MIN, Balance.WOLF_SPAWN_MAX)
@@ -74,9 +78,11 @@ func _random_spawn_pos() -> Vector3:
 
 
 func spawn_wolf(pos: Vector3) -> Node:
-	var wolf := WOLF_SCENE.instantiate()
+	var wolf: Wolf = WOLF_SCENE.instantiate()
+	_counter += 1
+	wolf.name = "wolf_%d" % _counter
+	wolf.net_position = pos + Vector3(0, 0.2, 0)
 	var actors := _world().get_node("Actors")
-	actors.add_child(wolf)
-	wolf.global_position = pos + Vector3(0, 0.2, 0)
+	actors.add_child(wolf, true)
 	Events.wolf_spawned.emit(wolf)
 	return wolf

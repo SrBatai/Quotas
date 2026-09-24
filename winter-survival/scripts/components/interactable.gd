@@ -24,6 +24,7 @@ func _ready() -> void:
 	var t := target_node()
 	t.add_to_group("interactable")
 	t.set_meta("interactable", self)
+	WorldRegistry.register(t)   # stable id for request_interact / world deltas (deterministic node paths)
 
 
 func target_node() -> Node:
@@ -41,8 +42,14 @@ func set_shape(shape: Shape3D, offset: Vector3 = Vector3.ZERO) -> void:
 	add_child(cs)
 
 
+static func _hand_of(player: Node) -> StringName:
+	if player is Player:
+		return (player as Player).state.hand_tool()
+	return &""
+
+
 func get_label(player: Node) -> String:
-	if requires_tool != &"" and Inventory.hand_tool() != requires_tool and no_tool_label != "":
+	if requires_tool != &"" and _hand_of(player) != requires_tool and no_tool_label != "":
 		return no_tool_label
 	if self_owned:
 		return _self_label(player)
@@ -55,7 +62,7 @@ func get_label(player: Node) -> String:
 func can_interact(player: Node) -> bool:
 	if not enabled:
 		return false
-	if requires_tool != &"" and Inventory.hand_tool() != requires_tool:
+	if requires_tool != &"" and _hand_of(player) != requires_tool:
 		return false
 	if self_owned:
 		return _self_can_interact(player)

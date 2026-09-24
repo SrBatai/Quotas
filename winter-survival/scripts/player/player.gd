@@ -1,197 +1,177 @@
 class_name Player
 extends CharacterBody3D
-## The survivor: camera-relative WASD movement, auto-walk to click targets, attack, flags for stats.
+## Player root (ARQ v2 §7). Node name = owning peer id. Replicated by ServerSync (authority = server):
+## ALWAYS 30 Hz `net_position` / `aim_yaw` / `aim_point`; ON_CHANGE the public flags below. The server-only
+## state lives in State/* (inventory, stats, quests, mirrored to the owner); presentation in View / Input /
+## Interactor / Placement / CameraRig, stripped at runtime where they do not belong.
 
-@onready var stats: PlayerStats = $Stats
-@onready var animator: PlayerAnimator = $Animator
-@onready var interactor: Interactor = $Interactor
-@onready var tool_holder: ToolHolder = $ToolHolder
-@onready var placement: PlacementController = $Placement
-@onready var camera_rig: CameraRig = $CameraRig
-@onready var visual: Node3D = $Visual
-@onready var breath: CPUParticles3D = $BreathParticles
+# --- replicated by ServerSync (written only by the server) ---
+@export var net_position: Vector3 = Vector3.ZERO
+@export var aim_yaw: float = 0.0
+@export var aim_point: Vector3 = Vector3.ZERO
+@export var display_name: String = ""
+@export var hand_tool: StringName = &"":
+	set(v):
+		hand_tool = v
+		if view != null:
+			view.on_tool_changed(v)
+@export var torch_lit: bool = false
+@export var running: bool = false
+@export var crouching: bool = false
+@export var dead: bool = false:
+	set(v):
+		dead = v
+		if view != null:
+			view.on_dead_changed(v)
+@export var in_house: bool = false
+@export var chop_seq: int = 0:
+	set(v):
+		var changed := v != chop_seq
+		chop_seq = v
+		if changed and view != null:
+			view.on_chop()
+@export var speed_mult: float = 1.0
+@export var can_run: bool = true
+@export var disconnected: bool = false
 
-var model: Node3D
-var auto_target: InteractableComponent
-var is_running: bool = false
-var in_house: bool = false
+var peer_id: int = 1
+var is_local: bool = false
+var token_hash: String = ""
+var pending_profile: Dictionary = {}
 var stove_on: bool = false
-var torch_lit: bool = false
+## World-space move direction of the last command (camera look-ahead).
 var move_dir: Vector3 = Vector3.ZERO
-var input_enabled: bool = true
-var _auto_timer: float = 0.0
+var input_enabled: bool = true:
+	set(v):
+		input_enabled = v
+		if input != null:
+			input.enabled = v
+
+@onready var state: PlayerState = $State
+@onready var net: PlayerNet = $Net
+var view: PlayerView
+var input: PlayerInput
+var interactor: Interactor
+var placement: PlacementController
+var camera_rig: CameraRig
+var model: Node3D:
+	get: return view.model if view != null else null
+var tool_holder: ToolHolder:
+	get: return view.tool_holder if view != null else null
+## Server-side stats component (null on a pure client; the mirror lives in `state`).
+var stats: StatsComponent:
+	get: return state.stats if state != null else null
+var auto_target: InteractableComponent:
+	get: return input.auto_target if input != null else null
+	set(v):
+		if input != null:
+			input.auto_target = v
+
 var _attack_cd: float = 0.0
-var _face_target: Vector3 = Vector3.INF
-var _face_timer: float = 0.0
-var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
-var _spawned: bool = false
+
+
+func _enter_tree() -> void:
+	# Children read these in their own _ready (which runs before ours).
+	peer_id = str(name).to_int()
+	if peer_id == 0:
+		peer_id = 1
+	is_local = Net.has_client and peer_id == Net.local_peer_id()
 
 
 func _ready() -> void:
 	add_to_group("player")
 	collision_layer = 2
 	collision_mask = 1 | 4
-	model = Assets.spawn_model("player")
-	visual.add_child(model)
-	animator.setup(model)
-	tool_holder.setup(model)
-	_setup_breath()
-	Events.shelter_changed.connect(func(inside: bool) -> void: in_house = inside)
-	Events.stove_changed.connect(func(lit: bool) -> void: stove_on = lit)
-	Events.world_ready.connect(_snap_to_spawn)
-	var world := get_tree().get_first_node_in_group("world")
-	if world != null and world.is_ready:
-		_snap_to_spawn()
-	var stoves := get_tree().get_nodes_in_group("stove")
-	if not stoves.is_empty():
-		stove_on = stoves[0].is_lit
-
-
-## Breath puffs (CPUParticles3D one-shot bursts, PLAN C4): parented to the visual so the direction is the
-## model's front (+Z) whatever the BreathAnchor's own orientation; position taken from the anchor.
-func _setup_breath() -> void:
-	var anchor: Node3D = model.find_child("BreathAnchor", true, false)
-	breath.amount = 6
-	breath.lifetime = 1.4
-	breath.explosiveness = 0.9
-	breath.direction = Vector3(0, 0.3, 1)
-	breath.spread = 15.0
-	breath.initial_velocity_min = 0.3
-	breath.initial_velocity_max = 0.5
-	breath.gravity = Vector3(0, 0.15, 0)
-	breath.scale_amount_min = 0.5
-	breath.scale_amount_max = 0.8
-	var sc := Curve.new()
-	sc.add_point(Vector2(0, 0.4))
-	sc.add_point(Vector2(1, 1.4))
-	breath.scale_amount_curve = sc
-	var g := Gradient.new()
-	g.set_color(0, Color(1, 1, 1, 0.35))
-	g.set_color(1, Color(1, 1, 1, 0.0))
-	breath.color_ramp = g
-	breath.mesh = FireEffect.make_quad(0.18, FireEffect.make_particle_material(false))
-	breath.emitting = false
-	breath.reparent(visual, false)
-	if anchor != null:
-		breath.position = visual.global_transform.affine_inverse() * anchor.global_position
-	else:
-		breath.position = Vector3(0, 1.52, 0.2)
-
-
-func _snap_to_spawn() -> void:
-	var world := get_tree().get_first_node_in_group("world")
-	if world == null:
-		return
-	global_position = world.get_spawn_point() + Vector3(0, 0.15, 0)
-	visual.rotation.y = world.get_spawn_yaw()
+	position = net_position
 	velocity = Vector3.ZERO
-	camera_rig.snap_to_player()
-	_spawned = true
+	view = get_node_or_null("View")
+	input = get_node_or_null("Input")
+	interactor = get_node_or_null("Interactor")
+	placement = get_node_or_null("Placement")
+	camera_rig = get_node_or_null("CameraRig")
+	if not Net.has_client:
+		_strip([view, input, interactor, placement, camera_rig])
+		view = null
+		input = null
+		interactor = null
+		placement = null
+		camera_rig = null
+	elif not is_local:
+		_strip([input, interactor, placement, camera_rig])
+		input = null
+		interactor = null
+		placement = null
+		camera_rig = null
+	if view != null:
+		view.setup(self)
+	if Net.is_server:
+		state.server_setup()
+		Events.stove_changed.connect(func(lit: bool) -> void: stove_on = lit)
+		var stoves := get_tree().get_nodes_in_group("stove")
+		if not stoves.is_empty():
+			stove_on = stoves[0].is_lit
+	if is_local:
+		camera_rig.snap_to_player()
+		Events.local_player_ready.emit(self)
+
+
+func _strip(nodes: Array) -> void:
+	for n in nodes:
+		if n != null:
+			remove_child(n)
+			n.queue_free()
 
 
 func _physics_process(delta: float) -> void:
-	_attack_cd = maxf(_attack_cd - delta, 0.0)
-	var input := Vector2.ZERO
-	var can_move := input_enabled and GameState.is_running and not GameState.is_game_over and not get_tree().paused
-	if can_move:
-		input = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	if input != Vector2.ZERO and auto_target != null:
-		auto_target = null
-		interactor.pending = null
-	var dir := Vector3.ZERO
-	if input != Vector2.ZERO:
-		dir = Vector3(input.x, 0, input.y).rotated(Vector3.UP, camera_rig.get_yaw()).normalized()
-	elif auto_target != null:
-		if not is_instance_valid(auto_target):
-			auto_target = null
-		else:
-			_auto_timer += delta
-			var tp := auto_target.global_position
-			var flat := Vector3(tp.x - global_position.x, 0, tp.z - global_position.z)
-			if flat.length() <= auto_target.interact_range * 0.9 or _auto_timer > Balance.AUTO_WALK_TIMEOUT:
-				var reached := flat.length() <= auto_target.interact_range
-				auto_target = null
-				_auto_timer = 0.0
-				if reached:
-					interactor.perform_pending()
-				else:
-					interactor.pending = null
-			else:
-				dir = flat.normalized()
-	if auto_target == null:
-		_auto_timer = 0.0
-	is_running = can_move and Input.is_action_pressed("run") and input != Vector2.ZERO and stats.hunger > 0.0
-	var speed := Balance.RUN_SPEED if is_running else Balance.WALK_SPEED
-	if stats.warmth < Balance.FREEZING_SLOW_BELOW:
-		speed *= Balance.FREEZING_SPEED_MULT
-	var target_vel := dir * speed
-	velocity.x = move_toward(velocity.x, target_vel.x, Balance.ACCEL * delta)
-	velocity.z = move_toward(velocity.z, target_vel.z, Balance.ACCEL * delta)
-	if is_on_floor():
-		velocity.y = -0.5
-	else:
-		velocity.y -= _gravity * delta
-	move_and_slide()
-	move_dir = dir
-	# facing
-	var face_dir := dir
-	if _face_timer > 0.0:
-		_face_timer -= delta
-		if _face_target != Vector3.INF:
-			var f := _face_target - global_position
-			f.y = 0.0
-			if f.length() > 0.05:
-				face_dir = f.normalized()
-	if face_dir.length() > 0.01:
-		var target_yaw := atan2(face_dir.x, face_dir.z)  # model front = +Z (Vector3.MODEL_FRONT)
-		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, 1.0 - exp(-Balance.TURN_SPEED * delta))
-	animator.speed = Vector2(velocity.x, velocity.z).length()
-	animator.running = is_running
-	breath.emitting = (GameState.is_night or GameState.weather == &"blizzard") and not in_house
+	if Net.is_server:
+		_attack_cd = maxf(_attack_cd - delta, 0.0)
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if not GameState.is_running or GameState.is_game_over:
-		return
-	if event.is_action_pressed("toggle_torch"):
-		Inventory.toggle_torch()
-	elif event.is_action_pressed("eat"):
-		Inventory.eat_best()
-
-
-func face_toward(pos: Vector3) -> void:
-	_face_target = pos
-	_face_timer = 0.6
-
-
-## World direction the survivor is looking at (the visual's +Z).
+## World direction the survivor is looking at (the model's +Z after the replicated yaw).
 func facing() -> Vector3:
-	return visual.global_basis.z
+	return Vector3(sin(aim_yaw), 0.0, cos(aim_yaw))
 
 
-## Chop animation + face the tree (called by trees on each hit).
+## Owner client: turn toward a point for a moment (interaction); travels to the server in the next command.
+func face_toward(pos: Vector3) -> void:
+	if input != null:
+		input.face_toward(pos)
+
+
+## Chop animation + face the tree (called by trees on each hit, server side).
 func play_chop(at: Vector3) -> void:
 	face_toward(at)
-	animator.chop()
+	chop_seq += 1
 
 
-func attack(wolf: Node) -> void:
-	if _attack_cd > 0.0:
+## Server: melee attack on an animal (null = swing in the air).
+func attack(target: Node) -> void:
+	if not Net.is_server or _attack_cd > 0.0 or dead:
 		return
-	var axe := Inventory.hand_tool() == &"hacha"
+	var axe := state.hand_tool() == &"hacha"
 	_attack_cd = Balance.AXE_COOLDOWN if axe else Balance.HAND_COOLDOWN
-	animator.chop()
-	if wolf != null and is_instance_valid(wolf):
-		face_toward(wolf.global_position)
+	chop_seq += 1
+	if target != null and is_instance_valid(target) and target.has_method("take_damage"):
+		face_toward(target.global_position)
 		var dmg := Balance.AXE_DAMAGE if axe else Balance.HAND_DAMAGE
-		wolf.take_damage(dmg, self)
-		Events.camera_shake.emit(0.1)
+		DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, peer_id),
+			DamageResolver.ref(DamageResolver.Kind.ANIMAL), target, dmg, DamageResolver.DamageKind.MELEE_SHARP,
+			WorldState.rules_now(), self)
+		fx(&"shake", 0.1)
 
 
+## Server: damage from wolves / other players (through DamageResolver).
 func take_damage(amount: float, source: StringName) -> void:
-	stats.take_damage(amount, source)
+	if not Net.is_server or state.stats == null:
+		return
+	state.stats.take_damage(amount, source)
 	if source == &"lobo":
-		Events.camera_shake.emit(0.35)
+		fx(&"shake", 0.35)
+
+
+## Server → owner presentation effect (camera shake, sounds).
+func fx(kind: StringName, value: float) -> void:
+	Net.rpc_to(net, &"_fx", peer_id, [kind, value])
 
 
 func is_near_fire() -> bool:
@@ -207,11 +187,66 @@ func is_in_house_with_stove_on() -> bool:
 	return in_house and stove_on
 
 
+## Server: overflow from crafting lands on the ground as drops.
 func drop_item(id: StringName, n: int) -> void:
-	var world := get_tree().get_first_node_in_group("world")
+	var world := get_tree().get_first_node_in_group("world") as World
 	if world == null:
 		return
-	var model_name := "firewood" if id == &"madera" else ("stone" if id == &"piedra" else "stone")
-	var scatter: Scatter = world.get_node("Scatter")
+	var model_name := "firewood" if id == &"madera" else "stone"
 	for i in n:
-		scatter.spawn_pickup(id, model_name, Vector2(global_position.x + randf_range(-1, 1), global_position.z + randf_range(-1, 1)))
+		var p := Vector2(global_position.x + randf_range(-1, 1), global_position.z + randf_range(-1, 1))
+		world.spawn_drop(id, model_name, Vector3(p.x, world.get_height(p.x, p.y), p.y), 1)
+
+
+func sim_params() -> Dictionary:
+	return {"can_run": can_run, "speed_mult": speed_mult}
+
+
+## Server: back to the spawn with fresh stats (persistent world: no game over, ARQ v2 §11.5 simplified).
+func respawn() -> void:
+	if not Net.is_server:
+		return
+	var world := get_tree().get_first_node_in_group("world") as World
+	if world != null:
+		net_position = world.get_spawn_point() + Vector3(0, 0.15, 0)
+		position = net_position
+		velocity = Vector3.ZERO
+	state.stats.revive()
+	dead = false
+	state.dead = false
+	state.death_cause = &""
+	state.mark(&"dead")
+	state.mark(&"stats")
+	print("[EVT] player %d respawned" % peer_id)
+
+
+# ------------------------------------------------------------------ persistence (server)
+func to_profile() -> Dictionary:
+	var inv := []
+	for s in state.slots:
+		inv.append({} if s.is_empty() else {"id": String(s["id"]), "count": int(s["count"])})
+	return {"name": display_name, "x": position.x, "y": position.y, "z": position.z, "yaw": aim_yaw,
+		"health": state.health, "warmth": state.warmth, "hunger": state.hunger, "dead": dead,
+		"cause": String(state.death_cause), "has_coat": state.has_coat, "slots": inv,
+		"torch": state.torch_seconds_left, "quest": state.quests.to_profile() if state.quests != null else {}}
+
+
+func apply_profile(p: Dictionary) -> void:
+	if p.is_empty():
+		return
+	state.health = float(p.get("health", Balance.HEALTH_MAX))
+	state.warmth = float(p.get("warmth", Balance.WARMTH_START))
+	state.hunger = float(p.get("hunger", Balance.HUNGER_START))
+	state.has_coat = bool(p.get("has_coat", false))
+	state.torch_seconds_left = float(p.get("torch", Balance.TORCH_DURATION))
+	dead = bool(p.get("dead", false))
+	state.dead = dead
+	state.death_cause = StringName(str(p.get("cause", "")))
+	var inv: Array = p.get("slots", [])
+	for i in mini(inv.size(), state.slots.size()):
+		var e: Dictionary = inv[i]
+		state.slots[i] = {} if e.is_empty() else {"id": StringName(str(e["id"])), "count": int(e["count"])}
+	if state.inventory != null:
+		state.inventory.after_load()
+	if state.quests != null:
+		state.quests.from_profile(p.get("quest", {}))

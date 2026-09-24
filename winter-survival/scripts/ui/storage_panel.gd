@@ -69,6 +69,8 @@ func open(s: Storage) -> void:
 
 func close() -> void:
 	if storage != null:
+		if storage.is_open and NetWorld.instance != null:
+			Net.rpc_server(NetWorld.instance, &"request_close_storage", [storage.wid()])
 		storage.is_open = false
 		if storage.changed.is_connected(refresh):
 			storage.changed.disconnect(refresh)
@@ -88,18 +90,18 @@ func refresh() -> void:
 
 
 func _on_slot_pressed(i: int, shift: bool) -> void:
-	if storage == null:
+	if storage == null or NetWorld.instance == null:
 		return
 	AudioManager.play(&"ui_click")
-	Inventory.take_from_container(storage, i, shift)
+	Net.rpc_server(NetWorld.instance, &"request_take", [storage.wid(), i, shift])
 
 
 func take_all() -> void:
-	if storage == null:
+	if storage == null or NetWorld.instance == null:
 		return
 	for i in storage.slots.size():
 		if not storage.slots[i].is_empty():
-			Inventory.take_from_container(storage, i, true)
+			Net.rpc_server(NetWorld.instance, &"request_take", [storage.wid(), i, true])
 
 
 func _process(_delta: float) -> void:

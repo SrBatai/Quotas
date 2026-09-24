@@ -22,13 +22,13 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body.is_in_group("player") and body.get("stats") != null:
-		body.stats.add_heat_source(self)
+	if body is Player and (body as Player).state.stats != null:
+		(body as Player).state.stats.add_heat_source(self)
 
 
 func _on_body_exited(body: Node) -> void:
-	if body.is_in_group("player") and body.get("stats") != null:
-		body.stats.remove_heat_source(self)
+	if body is Player and (body as Player).state.stats != null:
+		(body as Player).state.stats.remove_heat_source(self)
 
 
 func set_active(value: bool) -> void:

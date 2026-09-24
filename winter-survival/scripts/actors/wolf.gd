@@ -1,10 +1,19 @@
 class_name Wolf
 extends CharacterBody3D
-## Night predator state machine (GDD §12).
+## Night predator state machine (GDD §12). Server: AI + physics; clients: interpolated body replicated by the
+## ActorSpawner + ActorSync (net_position / net_yaw at 10 Hz, state on change). Damage goes through
+## DamageResolver (PLAN C24).
 
 enum State { ROAM, STALK, CHASE, ATTACK, FLEE, LEAVE, DEAD }
 
-const PICKUP_SCENE := preload("res://scenes/world/pickup.tscn")
+@export var net_position: Vector3 = Vector3.ZERO
+@export var net_yaw: float = 0.0
+@export var net_state: int = State.ROAM:
+	set(v):
+		var changed := v != net_state
+		net_state = v
+		if changed and not Net.is_server:
+			_apply_remote_state(v)
 
 @onready var health: HealthComponent = $Health
 @onready var steering: Steering = $Steering
@@ -23,6 +32,7 @@ var _stalk_radius: float = 10.0
 var _rng := RandomNumberGenerator.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 var _model: Node3D
+var _last_pos: Vector3 = Vector3.INF
 
 
 func _ready() -> void:
@@ -31,9 +41,10 @@ func _ready() -> void:
 	floor_max_angle = deg_to_rad(50.0)
 	add_to_group("wolves")
 	_rng.randomize()
-	_model = Assets.spawn_model("wolf")
-	visual.add_child(_model)
-	animator.setup(_model)
+	if Net.has_client:
+		_model = Assets.spawn_model("wolf")
+		visual.add_child(_model)
+		animator.setup(_model)
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.3
 	cap.height = 1.1
@@ -50,6 +61,13 @@ func _ready() -> void:
 	health.max_health = Balance.WOLF_HEALTH
 	health.health = Balance.WOLF_HEALTH
 	health.died.connect(_on_died)
+	global_position = net_position
+	if not Net.is_server:
+		set_physics_process(false)
+		collision_layer = 0
+		collision_mask = 0
+		_apply_remote_state(net_state)
+		return
 	for pair in [["WhiskerL", 25.0], ["WhiskerR", -25.0]]:
 		var ray := RayCast3D.new()
 		ray.name = pair[0]
@@ -59,22 +77,35 @@ func _ready() -> void:
 		ray.enabled = true
 		add_child(ray)
 	steering._ready()
-	var players := get_tree().get_nodes_in_group("player")
-	if not players.is_empty():
-		player = players[0]
+	player = _nearest_player()
 	_timer = _rng.randf_range(3.0, 6.0)
 	_stalk_radius = _rng.randf_range(Balance.WOLF_STALK_MIN, Balance.WOLF_STALK_MAX)
 	_stalk_dir = 1.0 if _rng.randf() < 0.5 else -1.0
 
 
-func get_interact_label(_player: Node) -> String:
-	return "Atacar lobo (hacha)" if Inventory.hand_tool() == &"hacha" else "Atacar lobo"
+func _nearest_player() -> Node3D:
+	var best: Node3D = null
+	var best_d := INF
+	for p in get_tree().get_nodes_in_group("player"):
+		if p is Player and ((p as Player).dead or (p as Player).disconnected):
+			continue
+		var d := _dist_to((p as Node3D).global_position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
+
+
+func get_interact_label(p: Node) -> String:
+	var axe := p is Player and (p as Player).state.hand_tool() == &"hacha"
+	return "Atacar lobo (hacha)" if axe else "Atacar lobo"
 
 
 func can_interact(_player: Node) -> bool:
 	return state != State.DEAD
 
 
+## Server only.
 func interact(p: Node) -> void:
 	if p.has_method("attack"):
 		p.attack(self)
@@ -82,6 +113,7 @@ func interact(p: Node) -> void:
 
 func _enter(s: State) -> void:
 	state = s
+	net_state = s
 	match s:
 		State.ROAM:
 			_timer = _rng.randf_range(4.0, 8.0)
@@ -92,7 +124,8 @@ func _enter(s: State) -> void:
 			AudioManager.play(&"wolf_growl", global_position)
 		State.FLEE:
 			_timer = Balance.WOLF_FLEE_TIME
-	animator.chasing = s == State.CHASE or s == State.ATTACK
+	if animator != null:
+		animator.chasing = s == State.CHASE or s == State.ATTACK
 
 
 func leave() -> void:
@@ -109,10 +142,12 @@ func _fear_source() -> Vector3:
 			if d < Balance.CAMPFIRE_FEAR_RADIUS and d < best_d:
 				best_d = d
 				best = c.global_position
-	if player != null and bool(player.get("torch_lit")):
-		var d := _dist_to(player.global_position)
-		if d < Balance.TORCH_FEAR_RADIUS and d < best_d:
-			best = player.global_position
+	for p in get_tree().get_nodes_in_group("player"):
+		if p is Player and (p as Player).torch_lit:
+			var d := _dist_to((p as Node3D).global_position)
+			if d < Balance.TORCH_FEAR_RADIUS and d < best_d:
+				best_d = d
+				best = (p as Node3D).global_position
 	return best
 
 
@@ -128,15 +163,15 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = -0.5
 	_bite_cd = maxf(_bite_cd - delta, 0.0)
-	if player == null or not is_instance_valid(player):
-		var players := get_tree().get_nodes_in_group("player")
-		player = players[0] if not players.is_empty() else null
+	if player == null or not is_instance_valid(player) or Engine.get_physics_frames() % 30 == 0:
+		player = _nearest_player()
 	var desired := Vector3.ZERO
 	var fear := _fear_source()
 	if fear != Vector3.INF and state != State.FLEE and state != State.LEAVE:
 		_flee_from = fear
 		_enter(State.FLEE)
 	var player_in_house: bool = player != null and bool(player.get("in_house"))
+	var player_dead: bool = player == null or bool(player.get("dead"))
 	var pdist := _dist_to(player.global_position) if player != null else INF
 	match state:
 		State.ROAM:
@@ -154,21 +189,21 @@ func _physics_process(delta: float) -> void:
 						_enter(State.STALK)
 		State.STALK:
 			_timer -= delta
-			if player_in_house:
+			if player_in_house or player == null:
 				_enter(State.ROAM)
 			else:
 				desired = _orbit(player.global_position, _stalk_radius, Balance.WOLF_WALK * 1.3)
-				if _timer <= 0.0 or GameState.is_game_over:
+				if _timer <= 0.0 or player_dead:
 					_enter(State.CHASE)
 		State.CHASE:
-			if player_in_house or GameState.is_game_over:
+			if player_in_house or player_dead:
 				_enter(State.ROAM)
 			elif pdist <= Balance.WOLF_BITE_RANGE:
 				_enter(State.ATTACK)
 			else:
 				desired = steering.seek(player.global_position, Balance.WOLF_RUN)
 		State.ATTACK:
-			if player_in_house or GameState.is_game_over:
+			if player_in_house or player_dead:
 				_enter(State.ROAM)
 			elif pdist > Balance.WOLF_BITE_RANGE * 1.3:
 				_enter(State.CHASE)
@@ -176,10 +211,13 @@ func _physics_process(delta: float) -> void:
 				_face(player.global_position, delta)
 				if _bite_cd <= 0.0:
 					_bite_cd = Balance.WOLF_BITE_COOLDOWN
-					animator.lunge()
+					if animator != null:
+						animator.lunge()
 					AudioManager.play(&"wolf_bite", global_position)
-					if player.has_method("take_damage"):
-						player.take_damage(Balance.WOLF_BITE, &"lobo")
+					if player is Player:
+						DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.ANIMAL),
+							DamageResolver.ref(DamageResolver.Kind.PLAYER, (player as Player).peer_id), player,
+							Balance.WOLF_BITE, DamageResolver.DamageKind.BITE, WorldState.rules_now(), self)
 		State.FLEE:
 			_timer -= delta
 			desired = steering.flee(_flee_from, Balance.WOLF_RUN)
@@ -200,8 +238,31 @@ func _physics_process(delta: float) -> void:
 	if hv.length() > 0.3 and state != State.ATTACK:
 		var target_yaw := atan2(velocity.x, velocity.z)  # model front = +Z
 		rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-8.0 * delta))
-	animator.speed = hv.length()
-	animator.running = hv.length() > 3.5
+	net_position = global_position
+	net_yaw = rotation.y
+	if animator != null:
+		animator.speed = hv.length()
+		animator.running = hv.length() > 3.5
+
+
+## Client: follow the replicated state (interpolation toward the 10 Hz samples).
+func _process(delta: float) -> void:
+	if Net.is_server or animator == null:
+		return
+	var prev := global_position
+	global_position = global_position.lerp(net_position, 1.0 - exp(-12.0 * delta))
+	rotation.y = lerp_angle(rotation.y, net_yaw, 1.0 - exp(-10.0 * delta))
+	var hv := Vector2(global_position.x - prev.x, global_position.z - prev.z).length() / maxf(delta, 0.001)
+	animator.speed = hv
+	animator.running = hv > 3.5
+
+
+func _apply_remote_state(s: int) -> void:
+	state = s as State
+	if animator != null:
+		animator.chasing = s == State.CHASE or s == State.ATTACK
+	if s == State.DEAD:
+		_die_visual()
 
 
 func _orbit(center: Vector3, radius: float, speed: float) -> Vector3:
@@ -222,11 +283,13 @@ func _face(target: Vector3, delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, atan2(d.x, d.z), 1.0 - exp(-10.0 * delta))
 
 
+## Server only (DamageResolver → HealthComponent).
 func take_damage(amount: float, from: Node) -> void:
-	if state == State.DEAD:
+	if state == State.DEAD or not Net.is_server:
 		return
 	health.take_damage(amount, from)
-	animator.hit()
+	if animator != null:
+		animator.hit()
 	AudioManager.play(&"wolf_hurt", global_position)
 	if from is Node3D:
 		var away := Steering.flat(global_position - from.global_position).normalized()
@@ -238,6 +301,7 @@ func take_damage(amount: float, from: Node) -> void:
 
 func _on_died(_killer: Node) -> void:
 	state = State.DEAD
+	net_state = State.DEAD
 	interactable.enabled = false
 	remove_from_group("wolves")
 	collision_layer = 0
@@ -246,22 +310,25 @@ func _on_died(_killer: Node) -> void:
 	Events.wolf_died.emit(self)
 	_drop(&"carne_cruda", 2)
 	_drop(&"piel", 1)
+	_die_visual()
+
+
+func _die_visual() -> void:
+	interactable.enabled = false
+	if is_in_group("wolves"):
+		remove_from_group("wolves")
 	var tw := create_tween()
 	tw.tween_property(visual, "scale", Vector3(0.05, 0.05, 0.05), 1.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	tw.tween_callback(queue_free)
+	if Net.is_server:
+		tw.tween_callback(queue_free)
 
 
 func _drop(id: StringName, n: int) -> void:
-	var world := get_tree().get_first_node_in_group("world")
-	var parent: Node = world.get_node("Actors") if world != null else get_parent()
+	var world := get_tree().get_first_node_in_group("world") as World
+	if world == null:
+		return
 	for i in n:
-		var p: Node3D = PICKUP_SCENE.instantiate()
-		p.item_id = id
-		p.model = "stone" if id == &"piel" else "firewood"
-		p.model = "pelt" if id == &"piel" else "meat"
-		parent.add_child(p)
 		var ang := _rng.randf_range(0.0, TAU)
 		var pos := global_position + Vector3(cos(ang) * 0.9, 0.0, sin(ang) * 0.9)
-		if world != null:
-			pos.y = world.get_height(pos.x, pos.z)
-		p.global_position = pos
+		pos.y = world.get_height(pos.x, pos.z)
+		world.spawn_drop(id, "pelt" if id == &"piel" else "meat", pos, 1)

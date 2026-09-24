@@ -20,7 +20,7 @@ func _ready() -> void:
 	_light.position = Vector3(0.7, 3.0, 3.9)  # outside the front window (+Z)
 	add_child(_light)
 	Events.time_changed.connect(_on_time)
-	_on_time(GameState.day, GameState.hour, GameState.is_night)
+	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:

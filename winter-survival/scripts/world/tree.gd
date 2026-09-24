@@ -1,9 +1,9 @@
 class_name ChoppableTree
 extends StaticBody3D
-## Pines, dead trees and fallen logs: chopped with the axe.
+## Pines, dead trees and fallen logs: chopped with the axe. Server authoritative (`interact` only runs there);
+## hits / felled travel as a world delta so every client (late joiners included) plays the same result.
 
 const STUMP_SCENE := preload("res://scenes/world/stump.tscn")
-const PICKUP_SCENE := preload("res://scenes/world/pickup.tscn")
 
 @export var variant: String = "pine_a"
 
@@ -57,6 +57,8 @@ func _ready() -> void:
 	interactable.interact_range = Balance.INTERACT_RANGE
 	interactable.requires_tool = &"hacha"
 	interactable.no_tool_label = "Necesitas un hacha"
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
 func _process(delta: float) -> void:
@@ -74,26 +76,35 @@ func can_interact(_player: Node) -> bool:
 	return not felled
 
 
+## Server only (validated by NetWorld.request_interact).
 func interact(player: Node) -> void:
-	if felled or _cooldown > 0.0:
+	if felled or _cooldown > 0.0 or not Net.is_server:
 		return
 	_cooldown = Balance.CHOP_COOLDOWN
 	hits += 1
 	if player != null and player.has_method("play_chop"):
 		player.play_chop(global_position)
-	_shake()
-	var puff_pos := global_position + Vector3(0, 1.0 if variant != "fallen_log" else 0.3, 0)
-	if player is Node3D:
-		puff_pos += (player.global_position - global_position).normalized() * 0.4
-	HitPuff.spawn(get_tree().current_scene, puff_pos)
-	Events.camera_shake.emit(0.15)
+	_hit_fx(player.global_position if player is Node3D else global_position)
 	Events.tree_hit.emit(self, hits, total_hits)
-	AudioManager.play(&"chop_hit", global_position)
 	if hits >= total_hits:
 		_fell(player)
+	else:
+		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"hits": hits})
+
+
+func _hit_fx(from: Vector3) -> void:
+	_shake()
+	if not Net.has_client:
+		return
+	var puff_pos := global_position + Vector3(0, 1.0 if variant != "fallen_log" else 0.3, 0)
+	puff_pos += (from - global_position).normalized() * 0.4
+	HitPuff.spawn(get_tree().current_scene, puff_pos)
+	AudioManager.play(&"chop_hit", global_position)
 
 
 func _shake() -> void:
+	if not Net.has_client:
+		return
 	var tw := create_tween()
 	var base := visual.rotation
 	tw.tween_property(visual, "rotation", base + Vector3(0.04, 0, 0.03), 0.06)
@@ -102,25 +113,35 @@ func _shake() -> void:
 
 
 func _fell(player: Node) -> void:
+	var away := Vector3.MODEL_FRONT
+	if player is Node3D:
+		away = (global_position - player.global_position)
+		away.y = 0.0
+		away = away.normalized() if away.length() > 0.01 else Vector3.MODEL_FRONT
+	var p := player as Player
+	if p != null:
+		var left := p.state.inventory.add(&"madera", wood)
+		if left > 0:
+			_drop_wood(left)
+		p.state.emit_sim(&"tree_felled", [variant])
+	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"hits": hits, "felled": true, "ax": away.x, "az": away.z})
+	_fell_visual(away)
+
+
+## Shared: disable, animate the fall, leave a stump, free.
+func _fell_visual(away: Vector3) -> void:
+	if felled:
+		return
 	felled = true
 	interactable.enabled = false
 	shape.set_deferred("disabled", true)
 	remove_from_group("choppable")
 	remove_from_group("tree")
-	var left := Inventory.add(&"madera", wood)
-	if left > 0:
-		_drop_wood(left)
 	AudioManager.play(&"tree_fall", global_position)
-	Events.tree_felled.emit(variant)
 	var tw := create_tween()
 	if variant == "fallen_log":
 		tw.tween_property(visual, "scale", Vector3(0.01, 0.01, 0.01), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	else:
-		var away := Vector3.MODEL_FRONT
-		if player is Node3D:
-			away = (global_position - player.global_position)
-			away.y = 0.0
-			away = away.normalized() if away.length() > 0.01 else Vector3.MODEL_FRONT
 		var axis := away.cross(Vector3.UP).normalized()
 		var local_axis := global_transform.basis.inverse() * axis
 		var target := Basis(local_axis.normalized(), deg_to_rad(-82.0)) * visual.basis
@@ -133,15 +154,25 @@ func _fell(player: Node) -> void:
 	tw.tween_callback(queue_free)
 
 
+## Client: replicated state (also the snapshot for late joiners).
+func apply_net_delta(f: Dictionary) -> void:
+	if f.is_empty():
+		return
+	var new_hits := int(f.get("hits", hits))
+	if new_hits > hits and not bool(f.get("felled", false)):
+		hits = new_hits
+		_hit_fx(global_position + Vector3.MODEL_FRONT)
+	hits = maxi(hits, new_hits)
+	if bool(f.get("felled", false)) and not felled:
+		_fell_visual(Vector3(float(f.get("ax", 0.0)), 0.0, float(f.get("az", 1.0))).normalized())
+
+
 func _drop_wood(n: int) -> void:
-	var world := get_tree().get_first_node_in_group("world")
-	var parent: Node = world.get_node("Scatter") if world != null else get_parent()
+	var world := get_tree().get_first_node_in_group("world") as World
+	if world == null:
+		return
 	for i in n:
-		var p: Node3D = PICKUP_SCENE.instantiate()
-		p.item_id = &"madera"
-		p.model = "firewood"
-		parent.add_child(p)
 		var ang := TAU * float(i) / float(maxi(n, 1))
-		p.global_position = global_position + Vector3(cos(ang) * 1.2, 0.0, sin(ang) * 1.2)
-		if world != null:
-			p.global_position.y = world.get_height(p.global_position.x, p.global_position.z)
+		var pos := global_position + Vector3(cos(ang) * 1.2, 0.0, sin(ang) * 1.2)
+		pos.y = world.get_height(pos.x, pos.z)
+		world.spawn_drop(&"madera", "firewood", pos, 1)

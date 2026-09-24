@@ -1,29 +1,33 @@
 class_name Interactor
 extends Node
-## Cursor raycast → hovered InteractableComponent; click to interact (auto-walk if far); attack.
+## Owner client: cursor raycast → hovered InteractableComponent; click → predicted auto-walk when far, then a
+## validated `NetWorld.request_interact(wid)`; attack → `request_attack`. Labels use the owner's state mirror.
 
 var target: InteractableComponent
 var pending: InteractableComponent
 var hover_text: String = ""
-var _player: Node
+var _player: Player
 var _ring: HoverRing
-var _hover_hold: bool = false
 
 
 func _ready() -> void:
 	_player = get_parent()
-	_ring = _player.get_node_or_null("HoverRing")
+	_ring = _player.get_node_or_null("View/HoverRing")
 
 
 func _camera() -> Camera3D:
 	return get_viewport().get_camera_3d()
 
 
+func _active() -> bool:
+	return GameFlow.in_game and not _player.dead
+
+
 func _physics_process(_delta: float) -> void:
-	if GameState.is_game_over or not GameState.is_running:
+	if not _active():
 		_set_hover(null, "")
 		return
-	if bool(_player.placement.active):
+	if _player.placement != null and _player.placement.active:
 		_set_hover(null, "")
 		return
 	if get_viewport().gui_get_hovered_control() != null:
@@ -54,7 +58,7 @@ func _physics_process(_delta: float) -> void:
 
 func _set_hover(found: InteractableComponent, text: String) -> void:
 	target = found
-	if _ring != null:
+	if _ring != null and is_instance_valid(_ring):
 		if found != null:
 			_ring.show_at(found.get_ring_position(), found.ring_radius, found.can_interact(_player))
 		else:
@@ -65,9 +69,9 @@ func _set_hover(found: InteractableComponent, text: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if GameState.is_game_over or not GameState.is_running:
+	if not _active():
 		return
-	if bool(_player.placement.active):
+	if _player.placement != null and _player.placement.active:
 		return
 	if event.is_action_pressed("interact_click"):
 		_click()
@@ -81,7 +85,6 @@ func _click() -> void:
 	if target == null or not is_instance_valid(target):
 		return
 	if not target.can_interact(_player):
-		# show why (e.g. needs an axe)
 		var t := target.get_label(_player)
 		if t != "":
 			Events.notify.emit(t, 1.5)
@@ -93,18 +96,22 @@ func _go_or_interact(comp: InteractableComponent) -> void:
 	if comp.distance_to(_player) <= comp.interact_range:
 		pending = null
 		_player.auto_target = null
-		_player.face_toward(comp.global_position)
-		comp.interact(_player)
+		_send_interact(comp)
 	else:
 		pending = comp
 		_player.auto_target = comp
 
 
-## Called by the player when auto-walk reaches the pending target.
+func _send_interact(comp: InteractableComponent) -> void:
+	_player.face_toward(comp.global_position)
+	var wid := WorldRegistry.wid_of(comp.target_node())
+	Net.rpc_server(NetWorld.instance, &"request_interact", [wid])
+
+
+## Called by the player input when auto-walk reaches the pending target.
 func perform_pending() -> void:
 	if pending != null and is_instance_valid(pending) and pending.can_interact(_player):
-		_player.face_toward(pending.global_position)
-		pending.interact(_player)
+		_send_interact(pending)
 	pending = null
 
 
@@ -134,4 +141,6 @@ func attack_nearest() -> void:
 		if d < best_d:
 			best_d = d
 			best = w
-	_player.attack(best)
+	if best != null:
+		_player.face_toward(best.global_position)
+	Net.rpc_server(NetWorld.instance, &"request_attack", [WorldRegistry.wid_of(best) if best != null else 0])

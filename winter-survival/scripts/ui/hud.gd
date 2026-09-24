@@ -35,7 +35,9 @@ func _ready() -> void:
 	Events.hover_changed.connect(_on_hover)
 	Events.placement_mode.connect(_on_placement)
 	Events.weather_changed.connect(func(_w: StringName) -> void: _update_weather())
-	Events.inventory_changed.connect(func() -> void: coat_icon.visible = Inventory.has_coat)
+	Events.inventory_changed.connect(func() -> void:
+		var st: PlayerState = GameFlow.local_state()
+		coat_icon.visible = st != null and st.has_coat)
 	_update_weather()
 
 
@@ -201,7 +203,7 @@ func _update_context() -> void:
 
 
 func _update_weather() -> void:
-	weather_label.visible = GameState.weather == &"blizzard"
+	weather_label.visible = WorldState.weather_now() == &"blizzard"
 
 
 func _process(delta: float) -> void:

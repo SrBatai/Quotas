@@ -79,3 +79,9 @@ script = ExtResource("15")
 [node name="Footprints" parent="." instance=ExtResource("16")]
 
 [node name="Actors" type="Node3D" parent="."]
+
+[node name="Players" type="Node3D" parent="."]
+
+[node name="Drops" type="Node3D" parent="."]
+
+[node name="Placed" type="Node3D" parent="."]

@@ -66,23 +66,29 @@ func _ready() -> void:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body.is_in_group("player"):
-		player_inside = true
-		cutaway.set_active(true)
-		if lantern != null:
-			lantern.visible = false  # hangs from the porch roof, which is part of Roof in the glb
-		smoke.visible = false  # would float over the opened room
-		Events.shelter_changed.emit(true)
+	if body is Player:
+		if Net.is_server:
+			body.in_house = true   # authoritative (stats)
+		if body.is_local:
+			player_inside = true
+			cutaway.set_active(true)
+			if lantern != null:
+				lantern.visible = false  # hangs from the porch roof, which is part of Roof in the glb
+			smoke.visible = false  # would float over the opened room
+			Events.shelter_changed.emit(true)
 
 
 func _on_body_exited(body: Node) -> void:
-	if body.is_in_group("player"):
-		player_inside = false
-		cutaway.set_active(false)
-		if lantern != null:
-			lantern.visible = true
-		smoke.visible = true
-		Events.shelter_changed.emit(false)
+	if body is Player:
+		if Net.is_server:
+			body.in_house = false
+		if body.is_local:
+			player_inside = false
+			cutaway.set_active(false)
+			if lantern != null:
+				lantern.visible = true
+			smoke.visible = true
+			Events.shelter_changed.emit(false)
 
 
 func _on_stove_changed(lit: bool) -> void:
@@ -95,7 +101,7 @@ func _on_time(_day: int, _hour: float, _night: bool) -> void:
 
 
 func _update_lighting() -> void:
-	var hour := GameState.hour
+	var hour := WorldState.hour_now()
 	var dark := hour >= 17.5 or hour < 6.5
 	var glow := stove_on and dark
 	if glow != _glow_on:

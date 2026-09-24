@@ -1,6 +1,6 @@
 class_name Hotbar
 extends PanelContainer
-## 10-slot bar bound to the Inventory autoload (slot 0 = MANO).
+## 10-slot bar bound to the local player's inventory mirror (slot 0 = MANO). Actions are server requests.
 
 var slots: Array[HotbarSlot] = []
 var open_storage: Storage
@@ -27,25 +27,34 @@ func _ready() -> void:
 			sep.custom_minimum_size = Vector2(4, 4)
 			row.add_child(sep)
 	Events.inventory_changed.connect(refresh)
+	GameFlow.local_player_changed.connect(func(_p: Node) -> void: refresh())
 	refresh()
 	UiTheme.add_ice_edge(self)
 
 
 func refresh() -> void:
+	var st: PlayerState = GameFlow.local_state()
 	for i in slots.size():
-		slots[i].set_item(Inventory.slots[i])
+		slots[i].set_item(st.slots[i] if st != null and i < st.slots.size() else {})
 
 
 func _on_slot_pressed(i: int, shift: bool) -> void:
 	AudioManager.play(&"ui_click")
-	if open_storage != null and is_instance_valid(open_storage) and open_storage.is_open:
-		Inventory.deposit_to_container(open_storage, i, shift)
+	if NetWorld.instance == null:
 		return
-	Inventory.use_slot(i)
+	if open_storage != null and is_instance_valid(open_storage) and open_storage.is_open:
+		Net.rpc_server(NetWorld.instance, &"request_deposit", [open_storage.wid(), i, shift])
+		return
+	Net.rpc_server(NetWorld.instance, &"request_use_slot", [i])
+
+
+func _active() -> bool:
+	var p: Player = GameFlow.local_player()
+	return GameFlow.in_game and p != null and not p.dead
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not GameState.is_running or GameState.is_game_over:
+	if not _active():
 		return
 	for i in range(1, 10):
 		if event.is_action_pressed("hotbar_%d" % i):
@@ -65,7 +74,8 @@ func _process(delta: float) -> void:
 		_hold_time += delta
 		if _hold_time >= 0.4 and not _held:
 			_held = true
-			Inventory.toggle_torch()
+			if NetWorld.instance != null:
+				Net.rpc_server(NetWorld.instance, &"request_toggle_torch", [])
 	else:
 		_hold_time = 0.0
 		_held = false

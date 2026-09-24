@@ -1,6 +1,7 @@
 class_name WoodStove
 extends StaticBody3D
-## The cabin's iron stove: heats the whole house while lit.
+## The cabin's iron stove: heats the whole house while lit. The burner ticks on the server; lit/fuel travel
+## as a world delta so every client shows the same fire.
 
 @onready var burner: FuelBurner = $Burner
 @onready var interactable: InteractableComponent = $Interactable
@@ -55,6 +56,8 @@ func _ready() -> void:
 	burner.per_wood = Balance.STOVE_FUEL_PER_WOOD
 	burner.lit_changed.connect(_on_lit_changed)
 	burner.add_fuel(Balance.STOVE_FUEL_START)
+	if not Net.is_server and NetWorld.instance != null:
+		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
 
 func _on_lit_changed(lit: bool) -> void:
@@ -68,33 +71,48 @@ func _on_lit_changed(lit: bool) -> void:
 		AudioManager.start_loop(&"stove_loop", self)
 	else:
 		AudioManager.stop_loop(&"stove_loop", self)
-		Events.notify.emit("La estufa se ha apagado. La casa se enfría.", 4.0)
+	if Net.is_server and is_inside_tree() and NetWorld.instance != null:
+		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": lit, "fuel": burner.fuel})
+		if not lit:
+			WorldState.instance.notify_all("La estufa se ha apagado. La casa se enfría.", 4.0)
 
 
-func get_interact_label(_player: Node) -> String:
-	var n := Inventory.count(&"madera")
+func get_interact_label(player: Node) -> String:
+	var n: int = player.state.count(&"madera") if player is Player else 0
 	if is_lit:
 		return "Alimentar estufa (%d)" % n
 	return "Estufa apagada · Añadir leña (%d)" % n
 
 
-func can_interact(_player: Node) -> bool:
-	return Inventory.has(&"madera", 1)
+func can_interact(player: Node) -> bool:
+	return player is Player and player.state.has(&"madera", 1)
 
 
+## Server only.
 func interact(player: Node) -> void:
 	add_wood_from_player(player)
 
 
-func add_wood_from_player(_player: Node) -> bool:
-	if not burner.add_wood(1):
-		Events.notify.emit("Sin leña", 2.0)
+func add_wood_from_player(player: Node) -> bool:
+	var p := player as Player
+	if p == null or not Net.is_server:
 		return false
-	Events.stove_fueled.emit()
-	Events.notify.emit("Alimentas la estufa", 2.0)
+	if not burner.add_wood(p, 1):
+		p.state.notify("Sin leña", 2.0)
+		return false
+	p.state.emit_sim(&"stove_fueled", [])
+	p.state.notify("Alimentas la estufa", 2.0)
 	AudioManager.play(&"fire_add_wood", global_position)
+	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": is_lit, "fuel": burner.fuel})
 	return true
 
 
 func seconds_left() -> float:
 	return burner.seconds_left()
+
+
+func apply_net_delta(f: Dictionary) -> void:
+	if f.has("fuel"):
+		burner.fuel = float(f["fuel"])
+	if f.has("lit"):
+		burner.set_lit(bool(f["lit"]))

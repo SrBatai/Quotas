@@ -27,7 +27,7 @@ func _ready() -> void:
 	_moon.visible = false
 	add_child(_moon)
 	Events.time_changed.connect(_on_time)
-	_on_time(GameState.day, GameState.hour, GameState.is_night)
+	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 
 
 func _on_time(day: int, hour: float, night: bool) -> void:

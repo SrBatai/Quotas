@@ -11,7 +11,7 @@ func _ready() -> void:
 	_hour_hand = find_child("HourHand", true, false)
 	_minute_hand = find_child("MinuteHand", true, false)
 	Events.time_changed.connect(_on_time)
-	_on_time(GameState.day, GameState.hour, GameState.is_night)
+	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:
