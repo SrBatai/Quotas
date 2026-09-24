@@ -170,9 +170,14 @@ func start_server(path: String) -> Error:
 	print("[NET] server '%s' listening UDP %d | max_players=%d | pvp=%s friendly_fire=%s | godot=%s | dedicated_server=%s" % [
 		str(cfg.get_value("server", "name", "Ventisca")), port, max_players, rules["pvp"], rules["friendly_fire"],
 		Engine.get_version_info()["string"], OS.has_feature("dedicated_server")])
-	if get_tree().current_scene == null or get_tree().current_scene.scene_file_path != GAME_SCENE:
-		get_tree().change_scene_to_file(GAME_SCENE)
+	# The game scene is loaded by the boot scene (dedicated build) or by the test runner: an autoload's _ready
+	# runs while the root is still adding children, where change_scene_to_file is refused.
 	return OK
+
+
+## Loads game.tscn on the next idle frame (safe from _ready / autoload setup).
+func load_game_scene() -> void:
+	get_tree().change_scene_to_file.call_deferred(GAME_SCENE)
 
 
 ## Called by game.gd once the world exists: accept connections.
@@ -195,6 +200,17 @@ func _wire_signals() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	multiplayer.peer_packet.connect(_on_peer_packet)
+
+
+## Raw packets (SceneMultiplayer.send_bytes): first byte = type (Packets.PKT_*).
+func _on_peer_packet(from: int, packet: PackedByteArray) -> void:
+	if packet.is_empty():
+		return
+	if packet[0] == Packets.PKT_STATE and from == 1 and role == Role.CLIENT:
+		var p: Node = GameFlow.local_player()
+		if p != null:
+			p.net.on_state_bytes(packet)
 
 
 func _on_peer_authenticating(id: int) -> void:
@@ -261,6 +277,8 @@ func _password_ok(id: int, hmac_hex: String) -> bool:
 
 
 static func hmac_hex_for(password: String, nonce: PackedByteArray) -> String:
+	if password == "" or nonce.is_empty():
+		return ""   # open server: no proof needed (mbedTLS refuses an empty HMAC key)
 	var h := HMACContext.new()
 	h.start(HashingContext.HASH_SHA256, password.to_utf8_buffer())
 	h.update(nonce)
@@ -324,9 +342,9 @@ func join(host: String, port: int, password: String, player_name: String) -> Err
 
 
 func _client_auth(_id: int, data: PackedByteArray) -> void:
-	var s := data.get_string_from_utf8()
-	if data.size() != 16 and s.begins_with("ERR:"):
-		last_error = s.substr(4)
+	# the server sends either a 16-byte nonce or "ERR:<reason>" (only decode text in the latter case)
+	if data.size() > 4 and data.slice(0, 4) == "ERR:".to_utf8_buffer():
+		last_error = data.slice(4).get_string_from_utf8()
 		print("[NET] auth rejected: %s" % last_error)
 		auth_failed.emit(last_error)
 		return

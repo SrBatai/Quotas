@@ -11,7 +11,8 @@ var _body: RefCounted
 
 func _initialize() -> void:
 	Engine.max_fps = 60
-	var opts := {"server": false, "name": "?", "scenario": "basic", "duration": 60.0, "port": Net.DEFAULT_PORT,
+	# no autoload references here: this script compiles before the autoloads exist (-s mode)
+	var opts := {"server": false, "name": "?", "scenario": "basic", "duration": 60.0, "port": 7777,
 		"password": "", "host": "127.0.0.1", "clients": 4}
 	var args := OS.get_cmdline_user_args()
 	var i := 0

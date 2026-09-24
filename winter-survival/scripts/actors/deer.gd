@@ -44,6 +44,7 @@ func _ready() -> void:
 		collision_layer = 0
 		collision_mask = 0
 		return
+	ActorInterest.install($ActorSync, self, 60.0)   # only peers with a player within 60 m receive it
 	for pair in [["WhiskerL", 25.0], ["WhiskerR", -25.0]]:
 		var ray := RayCast3D.new()
 		ray.name = pair[0]

@@ -68,6 +68,7 @@ func _ready() -> void:
 		collision_mask = 0
 		_apply_remote_state(net_state)
 		return
+	ActorInterest.install($ActorSync, self, 70.0)
 	for pair in [["WhiskerL", 25.0], ["WhiskerR", -25.0]]:
 		var ray := RayCast3D.new()
 		ray.name = pair[0]

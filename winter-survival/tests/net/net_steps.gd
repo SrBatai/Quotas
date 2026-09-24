@@ -49,6 +49,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	client_name = str(opts["name"])
 	scenario = str(opts["scenario"])
 	duration = float(opts["duration"])
+	# _initialize runs before the autoloads enter the tree: wait one frame so Net/GameFlow are ready
+	await tree.process_frame
 	_t0 = Time.get_ticks_msec()
 	if is_server:
 		tag = "[SERVER]"
@@ -66,6 +68,9 @@ func _run_server() -> void:
 		return
 	tree.process_frame.connect(func() -> void: _frames += 1)
 	Net.server_ready.connect(func() -> void: _log("world ready; accepting connections"))
+	await tree.process_frame
+	if tree.current_scene == null:
+		Net.load_game_scene()   # -s mode: no main scene; the boot scene does this in the real build
 	_phys0 = Engine.get_physics_frames()
 	while true:
 		await tree.create_timer(5.0).timeout
@@ -228,8 +233,8 @@ func _finish(lp: Player) -> void:
 	bw_avg = bw_avg / maxf(_bw_samples.size(), 1.0)
 	var bw_ok := bw_avg <= 5.0
 	var ok := _local_seen and _remote_spawned >= expected_remote and bw_ok
-	if scenario == "basic":
-		ok = ok and moved >= mini(expected_remote, 1) and _chat_from_others >= 1 and _hit_sent >= 1 and _hit_blocked >= 1
+	if scenario == "basic" and expected_remote > 0:
+		ok = ok and moved >= 1 and _chat_from_others >= 1 and _hit_sent >= 1 and _hit_blocked >= 1
 		if client_name == "A":
 			ok = ok and _reconnect_ok
 	var corr: int = lp.net.corrections if lp != null else -1

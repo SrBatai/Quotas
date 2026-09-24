@@ -2,7 +2,9 @@ class_name Packets
 ## Custom binary packets (ARQ v2 §6.3): input commands and the owner state ack. StreamPeerBuffer, no Variants.
 
 const CMD_SIZE := 18
-const STATE_SIZE := 4 + 12 + 12
+## Raw packet types (SceneMultiplayer.send_bytes, first byte).
+const PKT_STATE := 1
+const STATE_SIZE := 1 + 4 + 12 + 6
 
 # button bits (u16)
 const BTN_RUN := 1
@@ -58,27 +60,29 @@ static func unpack_cmds(bytes: PackedByteArray, pos: Vector3) -> Array[Dictionar
 	return out
 
 
-## Owner state ack: u32 ack_seq | 3 × f32 pos | 3 × f32 vel (28 B).
+## Owner state ack (raw packet, no Variant headers): u8 PKT_STATE | u32 ack_seq | 3 × f32 pos | 3 × i16 vel cm/s (23 B).
 static func pack_state(ack: int, pos: Vector3, vel: Vector3) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
+	b.put_u8(PKT_STATE)
 	b.put_u32(ack)
 	b.put_float(pos.x)
 	b.put_float(pos.y)
 	b.put_float(pos.z)
-	b.put_float(vel.x)
-	b.put_float(vel.y)
-	b.put_float(vel.z)
+	b.put_16(clampi(int(round(vel.x * 100.0)), -32767, 32767))
+	b.put_16(clampi(int(round(vel.y * 100.0)), -32767, 32767))
+	b.put_16(clampi(int(round(vel.z * 100.0)), -32767, 32767))
 	return b.data_array
 
 
 static func unpack_state(bytes: PackedByteArray) -> Dictionary:
-	if bytes.size() < STATE_SIZE:
+	if bytes.size() < STATE_SIZE or bytes[0] != PKT_STATE:
 		return {}
 	var b := StreamPeerBuffer.new()
 	b.data_array = bytes
+	b.get_u8()
 	var ack := b.get_u32()
 	var pos := Vector3(b.get_float(), b.get_float(), b.get_float())
-	var vel := Vector3(b.get_float(), b.get_float(), b.get_float())
+	var vel := Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
 	return {"ack": ack, "pos": pos, "vel": vel}
 
 

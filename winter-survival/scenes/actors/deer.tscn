@@ -22,8 +22,8 @@ script = ExtResource("1")
 
 [node name="ActorSync" type="MultiplayerSynchronizer" parent="."]
 replication_config = SubResource("actor_cfg")
-replication_interval = 0.1
-delta_interval = 0.1
+replication_interval = 0.25
+delta_interval = 0.25
 
 [node name="Visual" type="Node3D" parent="."]
 

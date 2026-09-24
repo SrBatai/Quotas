@@ -135,13 +135,16 @@ func request_hit_player(victim_peer: int, dmg: float) -> void:
 		return
 	var result := {"applied": 0.0, "blocked": true, "reason": "no_victim"}
 	if victim != null and victim != attacker:
-		var d := attacker.global_position.distance_to(victim.global_position)
-		if d <= Balance.ATTACK_RANGE + Balance.NET_INTERACT_TOLERANCE:
-			result = DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, peer),
-				DamageResolver.ref(DamageResolver.Kind.PLAYER, victim_peer), victim,
-				clampf(dmg, 0.0, Balance.AXE_DAMAGE), DamageResolver.DamageKind.MELEE_SHARP, WorldState.rules_now(), attacker)
-		else:
+		var a_ref := DamageResolver.ref(DamageResolver.Kind.PLAYER, peer)
+		var v_ref := DamageResolver.ref(DamageResolver.Kind.PLAYER, victim_peer)
+		var kind := DamageResolver.DamageKind.MELEE_SHARP
+		# policy first (PLAN C20), then the M1 sanity range (M4 replaces it by the validated melee cone/reach)
+		if DamageResolver.player_vs_player_mult(WorldState.rules_now(), a_ref, v_ref, kind) <= 0.0:
+			result["reason"] = "friendly_fire"
+		elif attacker.global_position.distance_to(victim.global_position) > Balance.NET_MAX_AIM_DIST:
 			result["reason"] = "lejos"
+		else:
+			result = DamageResolver.apply(a_ref, v_ref, victim, clampf(dmg, 0.0, Balance.AXE_DAMAGE), kind, WorldState.rules_now(), attacker)
 	print("[EVT] request_hit_player from %d on %d dmg=%.0f -> %s" % [peer, victim_peer, dmg,
 		"BLOCKED (%s)" % result["reason"] if result["blocked"] else "applied %.0f" % result["applied"]])
 	Net.rpc_to(self, &"hit_result", peer, [victim_peer, bool(result["blocked"]), str(result["reason"])])
@@ -335,7 +338,8 @@ func _storage_opened(wid: int, title: String, slots: Array) -> void:
 	if st == null:
 		return
 	st.title = title
-	st.set_slots_from(slots)
+	if not Net.is_server:
+		st.set_slots_from(slots)   # offline: the local node already holds the authoritative slots
 	st.is_open = true
 	st.open_by = Net.local_peer_id()
 	Events.storage_opened.emit(st)
@@ -344,8 +348,8 @@ func _storage_opened(wid: int, title: String, slots: Array) -> void:
 
 @rpc("authority", "call_remote", "reliable", 1)
 func _storage_slots(wid: int, slots: Array) -> void:
-	if Net.is_dedicated:
-		return
+	if Net.is_server:
+		return   # dedicated: nothing to show; offline: the panel already listens to the authoritative Storage.changed
 	var st := _local_storage(wid)
 	if st != null:
 		st.set_slots_from(slots)

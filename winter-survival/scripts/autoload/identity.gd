@@ -21,10 +21,15 @@ func _ready() -> void:
 	if token.size() != 32:
 		token = Crypto.new().generate_random_bytes(32)
 		_save()
-	# tests / headless clients can force a name from the command line
+	# tests / headless clients can force a name from the command line; several test clients share this user://
+	# directory, so such a client derives a distinct (deterministic) identity token from its name
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--name="):
 			player_name = a.substr(7)
+			var h := HashingContext.new()
+			h.start(HashingContext.HASH_SHA256)
+			h.update(("test-identity-" + player_name).to_utf8_buffer())
+			token = h.finish()
 
 
 func token_hex() -> String:

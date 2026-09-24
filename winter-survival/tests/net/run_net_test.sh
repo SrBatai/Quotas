@@ -23,7 +23,7 @@ done
 ADMIN_PORT=$((PORT + 1))
 OUT="${NET_TEST_OUT:-/tmp/ventisca_net}"
 mkdir -p "$OUT"
-rm -f "$OUT"/*.log
+rm -f "$OUT"/*.log "$OUT"/world_save.json
 CFG="$OUT/server.cfg"
 TOKEN="m1test"
 cat > "$CFG" <<EOF
@@ -42,38 +42,47 @@ autosave_seconds=30
 pvp=$PVP
 friendly_fire="$FF"
 EOF
-admin() { printf '%s\n%s\n' "$TOKEN" "$1" | timeout 6 nc -q 2 -w 5 127.0.0.1 "$ADMIN_PORT" 2>/dev/null || printf '%s\n%s\n' "$TOKEN" "$1" | timeout 6 nc -w 5 127.0.0.1 "$ADMIN_PORT" 2>/dev/null; }
-filter() { grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev"; }
-godot --headless --path . --import > "$OUT/import.log" 2>&1 || true
+NOISE="ALSA lib|pulse|XDG_RUNTIME|libudev|udev"
+admin() { printf '%s\n%s\n' "$TOKEN" "$1" | timeout 6 nc -q 2 -w 5 127.0.0.1 "$ADMIN_PORT" 2>/dev/null; }
+SRV_PID=""
+CLIENT_PIDS=()
+cleanup() {
+  for p in "${CLIENT_PIDS[@]:-}"; do [ -n "$p" ] && kill "$p" 2>/dev/null; done
+  [ -n "$SRV_PID" ] && kill "$SRV_PID" 2>/dev/null
+}
+trap cleanup EXIT
+godot --headless --path . --import > "$OUT/import.log" 2>&1 < /dev/null || true
 
 echo "== net test: $CLIENTS clients, $DURATION s, scenario=$SCENARIO, soak=$SOAK s, port=$PORT, friendly_fire=$FF pvp=$PVP"
-godot --headless --path . -s tests/net/net_smoke.gd ++ --server --config "$CFG" --duration 0 2>&1 | filter > "$OUT/server.log" &
-SRV_PIPE=$!
+T_START=$(date +%s)
+timeout $((SOAK + 120)) godot --headless --path . -s tests/net/net_smoke.gd ++ --server --config "$CFG" --duration 0 > "$OUT/server.log" 2>&1 < /dev/null &
+SRV_PID=$!
 # wait for the world (READY banner)
-for i in $(seq 1 120); do grep -q "\[NET\] READY" "$OUT/server.log" 2>/dev/null && break; sleep 0.5; done
-if ! grep -q "\[NET\] READY" "$OUT/server.log"; then echo "NET TEST FAILED: server never became ready"; tail -n 20 "$OUT/server.log"; exit 1; fi
+for i in $(seq 1 120); do grep -q "\[NET\] READY" "$OUT/server.log" 2>/dev/null && break; kill -0 "$SRV_PID" 2>/dev/null || break; sleep 0.5; done
+if ! grep -q "\[NET\] READY" "$OUT/server.log"; then
+  echo "NET TEST FAILED: server never became ready"; grep -v -E "$NOISE" "$OUT/server.log" | tail -n 20; exit 1
+fi
 STATUS=$(admin status)
 echo "admin status -> ${STATUS%%$'\n'*}"
 NAMES=(A B C D E F G H)
-PIDS=()
 for ((i=0; i<CLIENTS; i++)); do
   n=${NAMES[$i]}
-  godot --headless --path . -s tests/net/net_smoke.gd ++ --client "--name=$n" --scenario "$SCENARIO" --port "$PORT" --duration "$DURATION" --clients "$CLIENTS" 2>&1 | filter > "$OUT/client_$n.log" &
-  PIDS+=($!)
+  timeout $((DURATION + 90)) godot --headless --path . -s tests/net/net_smoke.gd ++ --client "--name=$n" --scenario "$SCENARIO" --port "$PORT" --duration "$DURATION" --clients "$CLIENTS" > "$OUT/client_$n.log" 2>&1 < /dev/null &
+  CLIENT_PIDS+=($!)
   sleep 0.7
 done
 FAIL=0
-for p in "${PIDS[@]}"; do wait "$p" || FAIL=1; done
+for p in "${CLIENT_PIDS[@]}"; do wait "$p" || FAIL=1; done
 # soak: keep the server alive until SOAK seconds have passed since launch, then stop it through the admin socket
-SRV_START=$(stat -c %Y "$CFG")
-while [ $(( $(date +%s) - SRV_START )) -lt "$SOAK" ]; do sleep 1; done
+while [ $(( $(date +%s) - T_START )) -lt "$SOAK" ]; do kill -0 "$SRV_PID" 2>/dev/null || break; sleep 1; done
 STATUS2=$(admin status)
 echo "admin status (end) -> ${STATUS2%%$'\n'*}"
 QUIT=$(admin save-and-quit)
 echo "admin save-and-quit -> ${QUIT%%$'\n'*}"
-for i in $(seq 1 30); do kill -0 "$SRV_PIPE" 2>/dev/null || break; sleep 0.5; done
-if kill -0 "$SRV_PIPE" 2>/dev/null; then echo "server did not exit after save-and-quit"; pkill -f "net_smoke.gd ++ --server" ; FAIL=1; fi
-wait "$SRV_PIPE" 2>/dev/null
+for i in $(seq 1 30); do kill -0 "$SRV_PID" 2>/dev/null || break; sleep 0.5; done
+if kill -0 "$SRV_PID" 2>/dev/null; then echo "!! server did not exit after save-and-quit"; kill "$SRV_PID"; FAIL=1; fi
+wait "$SRV_PID" 2>/dev/null
+SRV_PID=""
 echo "--- results ---"
 grep -h "RESULT" "$OUT"/client_*.log "$OUT/server.log"
 grep -h "alive" "$OUT/server.log" | tail -n 3
@@ -82,7 +91,9 @@ case "$STATUS" in OK*) ;; *) echo "!! admin status did not answer OK"; FAIL=1;; 
 case "$QUIT" in OK*) ;; *) echo "!! admin save-and-quit did not answer OK"; FAIL=1;; esac
 grep -q "SERVER RESULT OK" "$OUT/server.log" || { echo "!! server soak result missing/failed"; FAIL=1; }
 for ((i=0; i<CLIENTS; i++)); do grep -q "RESULT OK" "$OUT/client_${NAMES[$i]}.log" || FAIL=1; done
-if grep -qE "SCRIPT ERROR|ERROR:" "$OUT"/*.log; then echo "!! errors found in logs"; grep -hE "SCRIPT ERROR|ERROR:" "$OUT"/*.log | sort | uniq -c | head -n 20; FAIL=1; fi
-if grep -qE "WARNING:" "$OUT"/*.log; then echo "(warnings)"; grep -hE "WARNING:" "$OUT"/*.log | sort | uniq -c | head -n 10; fi
+if grep -v -E "$NOISE" "$OUT"/*.log | grep -qE "SCRIPT ERROR|ERROR:"; then
+  echo "!! errors found in logs"; grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" | sort | uniq -c | head -n 20; FAIL=1
+fi
+if grep -hE "WARNING:" "$OUT"/*.log | grep -qv -E "$NOISE"; then echo "(warnings)"; grep -hE "WARNING:" "$OUT"/*.log | grep -v -E "$NOISE" | sort | uniq -c | head -n 10; fi
 [ "$FAIL" -eq 0 ] && echo "NET TEST PASSED" || echo "NET TEST FAILED"
 exit $FAIL

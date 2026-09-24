@@ -62,8 +62,10 @@ func _server_step(dt: float) -> void:
 	body.move_dir = Vector3(move.x, 0.0, move.y)
 	_last_cmd = cmd
 	_tick += 1
-	if not body.is_local and _tick % Balance.NET_STATE_EVERY == 0:
-		Net.rpc_to(self, &"_state", owner_peer, [Packets.pack_state(int(cmd.get("seq", 0)), body.position, body.velocity)])
+	if not body.is_local and _tick % Balance.NET_STATE_EVERY == 0 and multiplayer.get_peers().has(owner_peer):
+		# raw packet (no Variant / RPC headers): 23 B at 30 Hz, unreliable ordered on channel 0
+		multiplayer.send_bytes(Packets.pack_state(int(cmd.get("seq", 0)), body.position, body.velocity), owner_peer,
+			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
 	body.state.flush_mirror()
 
 
@@ -103,8 +105,8 @@ func _client_step(dt: float) -> void:
 		_inputs.rpc_id(1, Packets.pack_cmds(_recent))
 
 
-@rpc("authority", "call_remote", "unreliable_ordered", 0)
-func _state(bytes: PackedByteArray) -> void:
+## Owner: server ack + authoritative pos/vel (raw packet routed by Net.peer_packet).
+func on_state_bytes(bytes: PackedByteArray) -> void:
 	if Net.is_server or not body.is_local:
 		return
 	var s := Packets.unpack_state(bytes)
