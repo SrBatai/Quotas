@@ -2,6 +2,9 @@ class_name Weather
 extends Node
 ## Blizzard scheduler (GDD §7): hourly roll, warning, duration, fog/snow/wind blending.
 
+## Random blizzard rolls (tests/screenshots turn this off for determinism).
+var scheduler_enabled: bool = true
+
 var _rng := RandomNumberGenerator.new()
 var _active: bool = false
 var _time_left: float = 0.0
@@ -32,7 +35,7 @@ func _on_time_changed(day: int, hour: float, _night: bool) -> void:
 	if h == _last_roll_hour:
 		return
 	_last_roll_hour = h
-	if _active or _warning_left >= 0.0:
+	if not scheduler_enabled or _active or _warning_left >= 0.0:
 		return
 	if day < Balance.BLIZZARD_FIRST_DAY or (day == Balance.BLIZZARD_FIRST_DAY and hour < Balance.BLIZZARD_FIRST_HOUR):
 		return

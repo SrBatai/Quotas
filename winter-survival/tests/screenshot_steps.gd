@@ -32,6 +32,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		var player: Player = game.get_node("Player")
 		var world: World = game.get_node("World")
 		Events.notify.emit("", 0.1)
+		(world.get_node("Weather") as Weather).scheduler_enabled = false  # deterministic shots
 		match preset:
 			"day":
 				GameState.set_time(1, 11.0)

@@ -3,6 +3,14 @@
 *Sobrevive cinco días en el bosque helado.* Juego de supervivencia invernal low-poly hecho con **Godot 4.7.2** (GDScript).
 
 Documentación de diseño y técnica en `docs/` (`GDD.md`, `ARCHITECTURE.md`, `ASSET_SPEC.md`).
+El plan para la versión de mundo abierto con zombis y cooperativo de 1–4 jugadores está en
+`docs/PLAN_MAESTRO.md` (con el diseño, la arquitectura y el contrato de arte v2 en `docs/v2/`).
+
+| Día | Noche | Interior (corte) |
+|---|---|---|
+| ![Día](docs/screenshots/day.png) | ![Noche](docs/screenshots/night.png) | ![Interior](docs/screenshots/interior.png) |
+| **Ventisca** | **Menú** | |
+| ![Ventisca](docs/screenshots/blizzard.png) | ![Menú](docs/screenshots/menu.png) | |
 
 ## Abrir el proyecto
 
