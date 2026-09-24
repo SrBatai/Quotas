@@ -1,0 +1,344 @@
+<title>Ventisca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500&family=Sofia+Sans:wght@400;600;700&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --night: #0e1620;
+    --night-2: #131e2b;
+    --panel: #1e2a3a;
+    --line: rgba(143, 166, 192, 0.32);
+    --snow: #eaf2ff;
+    --frost: #9fb1c8;
+    --ice: #dcebfa;
+    --ember: #ffb454;
+    --ember-deep: #e8893a;
+    --danger: #ff7a7a;
+    --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+    --body: "Sofia Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  [hidden] { display: none !important; }
+  html, body { background: var(--night); }
+  body {
+    color: var(--snow);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+  }
+  .wrap { max-width: 1240px; margin-inline: auto; display: grid; gap: 28px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 32px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--frost); margin: 0 0 6px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 800; font-size: clamp(48px, 9vw, 104px);
+    line-height: 0.86; letter-spacing: 0.02em; margin: 0; text-wrap: balance;
+    color: var(--snow);
+    text-shadow: 0 2px 0 #2a3a50;
+  }
+  .lede { margin: 10px 0 0; max-width: 46ch; color: var(--frost); font-size: 17px; }
+  .lede strong { color: var(--snow); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em;
+    padding: 5px 10px; border: 1px solid var(--line); border-radius: 3px; color: var(--ice);
+    background: var(--night-2);
+  }
+
+  .stage {
+    position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 9;
+    background: #0b1119 url("poster.png") center / cover no-repeat;
+    border: 1px solid var(--line); border-top: 2px solid var(--ice);
+    border-radius: 4px; overflow: hidden;
+  }
+  .stage:fullscreen { border: 0; border-radius: 0; aspect-ratio: auto; }
+  #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; background: #000; }
+  .cover {
+    position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px;
+    padding: 16px; text-align: center;
+    background: linear-gradient(180deg, rgba(14, 22, 32, 0.15) 0%, rgba(14, 22, 32, 0.72) 70%, rgba(14, 22, 32, 0.9) 100%);
+  }
+  .play {
+    font-family: var(--display); font-weight: 800; font-size: clamp(22px, 3.2vw, 32px);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: #1e2a3a; background: var(--ember); border: 0; border-radius: 3px;
+    padding: 12px 34px 10px; cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(255, 180, 84, 0.35), 0 10px 40px rgba(255, 150, 60, 0.35);
+  }
+  .play:hover { background: #ffc473; }
+  .play:focus-visible, .btn:focus-visible { outline: 2px solid var(--ice); outline-offset: 3px; }
+  .play[disabled] { opacity: 0.6; cursor: progress; }
+  .cover-note { margin: 0; color: var(--ice); font-size: 14px; max-width: 44ch; }
+  .cover-note.warn { color: var(--ember); }
+  .bar { width: min(360px, 70vw); height: 6px; background: rgba(220, 235, 250, 0.18); border-radius: 3px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 0%; background: var(--ice); transition: width 0.2s linear; }
+  .error { color: var(--danger); font-size: 14px; max-width: 52ch; margin: 0; }
+
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-top: -14px; }
+  .btn {
+    font-family: var(--body); font-weight: 600; font-size: 14px; color: var(--snow);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 7px 14px; cursor: pointer;
+  }
+  .btn:hover { border-color: var(--ice); }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--frost); }
+
+  .info { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: start; }
+  section.card { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px 20px; }
+  h2 {
+    font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: 0.06em; text-transform: uppercase;
+    margin: 0 0 12px; line-height: 1; color: var(--snow);
+  }
+  h2 small { display: block; font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; color: var(--frost); margin-bottom: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 6px 0; border-top: 1px solid rgba(143, 166, 192, 0.16); vertical-align: top; }
+  tr:first-child td { border-top: 0; }
+  td:first-child { color: var(--frost); padding-right: 12px; }
+  td:last-child { text-align: right; white-space: nowrap; }
+  kbd {
+    font-family: var(--mono); font-size: 12px; color: var(--snow);
+    background: var(--night-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px;
+    padding: 1px 6px; margin-left: 3px; display: inline-block;
+  }
+  ol.quests { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: q; }
+  ol.quests li { counter-increment: q; display: grid; grid-template-columns: 26px 1fr; gap: 2px 8px; }
+  ol.quests li::before {
+    content: counter(q); grid-row: span 2; font-family: var(--mono); font-size: 12px; color: var(--ember);
+    border: 1px solid rgba(255, 180, 84, 0.45); border-radius: 50%; width: 22px; height: 22px; display: grid; place-items: center;
+  }
+  ol.quests b { font-weight: 600; }
+  ol.quests span { color: var(--frost); font-size: 14px; }
+  ul.plain { margin: 0; padding-left: 18px; display: grid; gap: 7px; color: var(--ice); }
+  ul.plain li::marker { color: var(--ember); }
+  .meta { font-family: var(--mono); font-size: 12px; color: var(--frost); margin: 14px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .bar > span { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">Demo jugable · Hito M0 · un jugador</p>
+      <h1>VENTISCA</h1>
+      <p class="lede">Sobrevive <strong>cinco días</strong> en el bosque helado: leña, estufa, hacha, fogata y lobos de noche. Se juega en el navegador con teclado y ratón.</p>
+    </div>
+    <div class="chips" aria-label="Datos de la versión">
+      <span class="chip">Godot 4.7.2</span>
+      <span class="chip">Web · Compatibility</span>
+      <span class="chip">~11 MB de descarga</span>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="canvas" tabindex="0" hidden>Tu navegador no soporta canvas.</canvas>
+    <div class="cover" id="cover">
+      <button class="play" id="play" type="button">Jugar la demo</button>
+      <div class="bar" id="bar" hidden><span id="barFill"></span></div>
+      <p class="cover-note" id="note">Descarga unos 11 MB y arranca en el navegador. Día 1, 06:00, en la puerta de la cabaña.</p>
+      <p class="error" id="error" hidden></p>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="fs" type="button">Pantalla completa</button>
+    <button class="btn" id="restart" type="button">Reiniciar</button>
+    <span class="status" id="status">Listo para cargar.</span>
+  </div>
+
+  <div class="info">
+    <section class="card" aria-labelledby="h-controls">
+      <h2 id="h-controls"><small>Teclado y ratón</small>Controles</h2>
+      <table>
+        <tr><td>Moverse</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td></tr>
+        <tr><td>Correr</td><td><kbd>Mayús</kbd></td></tr>
+        <tr><td>Interactuar o atacar bajo el cursor</td><td><kbd>Clic izq.</kbd></td></tr>
+        <tr><td>Interactuar con lo más cercano</td><td><kbd>R</kbd></td></tr>
+        <tr><td>Atacar al lobo más cercano</td><td><kbd>Espacio</kbd></td></tr>
+        <tr><td>Fabricación</td><td><kbd>Tab</kbd></td></tr>
+        <tr><td>Ranuras de la barra</td><td><kbd>1</kbd>–<kbd>9</kbd></td></tr>
+        <tr><td>Antorcha</td><td><kbd>T</kbd></td></tr>
+        <tr><td>Comer lo mejor que tengas</td><td><kbd>F</kbd></td></tr>
+        <tr><td>Girar cámara · zoom</td><td><kbd>Q</kbd><kbd>E</kbd> · <kbd>Rueda</kbd></td></tr>
+        <tr><td>Cerrar panel · pausa</td><td><kbd>Clic der.</kbd><kbd>Esc</kbd></td></tr>
+      </table>
+      <p class="meta">También funciona con mando.</p>
+    </section>
+
+    <section class="card" aria-labelledby="h-day">
+      <h2 id="h-day"><small>Misiones del día 1</small>Primer día</h2>
+      <ol class="quests">
+        <li><b>Recoge leña</b><span>Haz clic en la leña del suelo</span></li>
+        <li><b>Entra en casa y alimenta la estufa</b><span>Si la estufa se apaga, la casa se enfría</span></li>
+        <li><b>Fabrica un hacha</b><span>Herramientas → Hacha de piedra</span></li>
+        <li><b>Tala un árbol</b><span>Haz clic en un árbol con el hacha</span></li>
+        <li><b>Come algo</b><span>Busca latas en el armario</span></li>
+        <li><b>Fabrica una fogata</b><span>Fuego → Fogata, colócala cerca de casa</span></li>
+        <li><b>Fabrica una antorcha</b><span>Los lobos temen al fuego</span></li>
+        <li><b>Sobrevive hasta el amanecer</b><span>Quédate cerca del fuego</span></li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="h-about">
+      <h2 id="h-about"><small>Qué estás probando</small>Esta versión</h2>
+      <ul class="plain">
+        <li>Un día dura 7 minutos. Ganas al amanecer del día 6.</li>
+        <li>El calor baja en el frío, más rápido de noche y en ventisca. Recupéralo junto a la estufa o una fogata.</li>
+        <li>Los lobos salen de noche y huyen del fuego y de la antorcha.</li>
+        <li>En el navegador se usa el renderizador Compatibility: las sombras y la niebla se ven algo más simples que en la versión de escritorio.</li>
+        <li>Aún no hay sonido ni multijugador. El cooperativo de 1 a 4 jugadores llega con el hito M1 en la versión de escritorio.</li>
+      </ul>
+      <p class="meta">Build de la rama claude/winter-survival-game-txs1nx, commit 3b36b3d.</p>
+    </section>
+  </div>
+</div>
+
+<script src="index.js"></script>
+<script>
+(function () {
+  // Artifact hosting serves text but not .pck/.gz files, so the engine (gzipped) and the
+  // game data ship as base64 text and are rebuilt in the browser before Godot sees them.
+  const WASM_TXT = 'index.wasm.gz.txt';
+  const WASM_TXT_BYTES = 13445732;
+  const PCK_TXT = 'index.pck.txt';
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('canvas');
+  const cover = document.getElementById('cover');
+  const playBtn = document.getElementById('play');
+  const bar = document.getElementById('bar');
+  const barFill = document.getElementById('barFill');
+  const note = document.getElementById('note');
+  const errorEl = document.getElementById('error');
+  const statusEl = document.getElementById('status');
+  let started = false;
+
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (coarse) {
+    note.textContent = 'Esta demo necesita teclado y ratón. Ábrela en un ordenador para jugarla.';
+    note.classList.add('warn');
+  }
+
+  function setStatus(text) { statusEl.textContent = text; }
+  function showError(text) {
+    errorEl.textContent = text;
+    errorEl.hidden = false;
+    bar.hidden = true;
+    playBtn.disabled = false;
+    playBtn.textContent = 'Reintentar';
+    setStatus('La carga falló.');
+  }
+
+  async function readText(url, totalBytes, label) {
+    const res = await nativeFetch(url);
+    if (!res.ok) throw new Error('No se pudo descargar ' + label + ' (' + res.status + ').');
+    if (!totalBytes || !res.body) return res.text();
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      got += value.length;
+      text += decoder.decode(value, { stream: true });
+      const pct = Math.min(100, (got / totalBytes) * 100);
+      barFill.style.width = pct.toFixed(1) + '%';
+      setStatus('Descargando ' + label + '… ' + (got / 1048576).toFixed(1) + ' / ' + (totalBytes / 1048576).toFixed(1) + ' MB');
+    }
+    return text + decoder.decode();
+  }
+
+  function fromBase64(text) {
+    const bin = atob(text.replace(/\s+/g, ''));
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function loadWasm() {
+    const packed = fromBase64(await readText(WASM_TXT, WASM_TXT_BYTES, 'el motor'));
+    let bytes = packed;
+    if (packed[0] === 0x1f && packed[1] === 0x8b) {
+      if (!('DecompressionStream' in window)) throw new Error('Tu navegador no puede descomprimir el juego. Prueba con Chrome, Edge o Firefox actualizados.');
+      setStatus('Descomprimiendo el motor…');
+      bytes = await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    }
+    setStatus('Arrancando…');
+    return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/wasm' } });
+  }
+
+  async function loadPck() {
+    const bytes = fromBase64(await readText(PCK_TXT, 0, 'los datos del juego'));
+    return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/octet-stream' } });
+  }
+
+  const nativeFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    const url = typeof input === 'string' ? input : (input && input.url) || '';
+    if (/(^|\/)index\.wasm(\?|$)/.test(url)) return loadWasm();
+    if (/(^|\/)index\.pck(\?|$)/.test(url)) return loadPck();
+    return nativeFetch(input, init);
+  };
+
+  function fitCanvas() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const w = Math.max(320, Math.round(r.width * dpr));
+    const h = Math.max(180, Math.round(r.height * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  }
+
+  function start() {
+    if (started) return;
+    errorEl.hidden = true;
+    if (typeof Engine === 'undefined') { showError('No se pudo cargar el cargador del juego (index.js).'); return; }
+    const missing = Engine.getMissingFeatures({ threads: false });
+    if (missing.length) { showError('A tu navegador le falta: ' + missing.join(', ') + '. Prueba con Chrome, Edge o Firefox actualizados.'); return; }
+    started = true;
+    playBtn.disabled = true;
+    playBtn.textContent = 'Cargando…';
+    bar.hidden = false;
+    canvas.hidden = false;
+    fitCanvas();
+    new ResizeObserver(fitCanvas).observe(stage);
+    const engine = new Engine({
+      args: [],
+      canvas: canvas,
+      canvasResizePolicy: 0,
+      ensureCrossOriginIsolationHeaders: false,
+      executable: 'index',
+      experimentalVK: false,
+      fileSizes: { 'index.pck': 636224, 'index.wasm': 39514754 },
+      focusCanvas: true,
+      gdextensionLibs: []
+    });
+    engine.startGame({
+      onProgress: function (current, total) {
+        if (total > 0 && current >= total) setStatus('Arrancando…');
+      }
+    }).then(function () {
+      cover.remove();
+      canvas.focus();
+      setStatus('En juego. Haz clic en el juego si el teclado no responde.');
+    }, function (err) {
+      started = false;
+      console.error(err);
+      showError((err && err.message) ? err.message : 'El juego no pudo arrancar en este navegador.');
+    });
+  }
+
+  playBtn.addEventListener('click', start);
+  document.getElementById('restart').addEventListener('click', function () { location.reload(); });
+  document.getElementById('fs').addEventListener('click', function () {
+    const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if (!req) { setStatus('Tu navegador no permite pantalla completa aquí.'); return; }
+    Promise.resolve(req.call(stage)).then(function () { canvas.focus(); }, function () {
+      setStatus('Tu navegador no permite pantalla completa aquí.');
+    });
+  });
+  stage.addEventListener('click', function () { if (started) canvas.focus(); });
+})();
+</script>
