@@ -17,7 +17,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	if bool(opts["placeholders"]):
 		Assets.force_placeholders = true
 	Events.world_ready.connect(func() -> void: _ready = true)
-	tree.change_scene_to_file("res://scenes/main/game.tscn")
+	GameFlow.play_offline()   # M1: the authoritative local server runs in-process
 	var waited := 0
 	while not _ready and waited < 900:
 		await tree.process_frame
@@ -26,20 +26,28 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		print("FAIL: world never became ready")
 		tree.quit(1)
 		return
+	waited = 0
+	while GameFlow.local_player() == null and waited < 600:
+		await tree.process_frame
+		waited += 1
 	await tree.process_frame
 	await tree.process_frame
 	var game := tree.current_scene
-	var player: Node3D = game.get_node("Player")
+	var player: Node3D = GameFlow.local_player()
 	var world: Node = game.get_node("World")
+	if player == null:
+		print("FAIL: no local player")
+		tree.quit(1)
+		return
 	# Fixed conditions: day 1 11:00, clear, no scheduler, no wolves, player still at the porch spawn.
-	GameState.set_time(1, 11.0)
+	WorldState.instance.set_time(1, 11.0)
 	world.get_node("Weather").scheduler_enabled = false
 	world.get_node("WolfSpawner").enabled = false
 	Events.notify.emit("", 0.1)
 	var spawn: Vector3 = world.get_spawn_point()
 	player.global_position = spawn + Vector3(0, 0.15, 0)
 	player.set("input_enabled", false)
-	GameState.is_running = false
+	WorldState.instance.running = false
 	var rig := CameraRig.active()
 	if rig != null:
 		rig.snap_to_player()

@@ -21,8 +21,11 @@ var _last_category: StringName = &"herramientas"
 var _ui: CanvasLayer
 
 
+func _enter_tree() -> void:
+	WorldRegistry.reset()   # before any child registers (World builds in its own _ready, before ours)
+
+
 func _ready() -> void:
-	WorldRegistry.reset()
 	if Net.role == Net.Role.NONE:
 		Net.start_offline()   # scene run directly (F6): offline local server
 	drop_spawner.spawn_function = world.spawn_drop_node

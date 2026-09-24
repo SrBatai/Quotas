@@ -5,6 +5,7 @@ const DEER_SCENE := preload("res://scenes/actors/deer.tscn")
 
 var enabled: bool = true
 var _timer: float = 120.0
+var _counter: int = 0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -33,6 +34,8 @@ func _process(delta: float) -> void:
 func _spawn() -> void:
 	var terrain: Terrain = get_parent().get_node("Terrain")
 	var pos := terrain.random_point(_rng, 45.0)
-	var deer := DEER_SCENE.instantiate()
-	get_parent().get_node("Actors").add_child(deer)
-	deer.global_position = pos + Vector3(0, 0.2, 0)
+	var deer: Deer = DEER_SCENE.instantiate()
+	_counter += 1
+	deer.name = "deer_%d" % _counter
+	deer.net_position = pos + Vector3(0, 0.2, 0)
+	get_parent().get_node("Actors").add_child(deer, true)

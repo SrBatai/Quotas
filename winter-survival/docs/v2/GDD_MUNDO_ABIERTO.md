@@ -201,7 +201,7 @@ Muerte: Salud = 0 → **Derribado** (§12.2); tercer derribo sin descanso o desa
 
 ## 6. Zombis
 
-Jugador de referencia: 100 PV, andar 3.0, correr 6.0, agachado 1.5 m/s.
+Jugador de referencia: 100 PV, andar **2.2**, correr **6.0**, agachado **1.3** m/s (decisión M1, PLAN C19: las animaciones de locomoción se autoran a estas velocidades; el caminante a 1.2 m/s sigue siendo más lento que andar).
 
 ### 6.1 Roster
 

@@ -68,7 +68,7 @@ func _server_step(dt: float) -> void:
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", 0)
-func _input(bytes: PackedByteArray) -> void:
+func _inputs(bytes: PackedByteArray) -> void:
 	if not multiplayer.is_server() or Net.sender() != owner_peer:
 		return
 	for cmd in Packets.unpack_cmds(bytes, body.position):
@@ -100,7 +100,7 @@ func _client_step(dt: float) -> void:
 	body.running = (btn & Packets.BTN_RUN) != 0 and move != Vector2.ZERO and body.can_run
 	_tick += 1
 	if _tick % Balance.NET_SEND_EVERY == 0:
-		_input.rpc_id(1, Packets.pack_cmds(_recent))
+		_inputs.rpc_id(1, Packets.pack_cmds(_recent))
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 0)

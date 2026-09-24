@@ -37,7 +37,7 @@ func _process(delta: float) -> void:
 			_corr_per_s = float(c - _corrections_last)
 			_corrections_last = c
 	var s := Net.stats
-	var role := {Net.Role.NONE: "none", Net.Role.OFFLINE: "offline (local server)", Net.Role.SERVER: "server", Net.Role.CLIENT: "client"}[Net.role]
+	var role: String = {Net.Role.NONE: "none", Net.Role.OFFLINE: "offline (local server)", Net.Role.SERVER: "server", Net.Role.CLIENT: "client"}[Net.role]
 	var lines := ["RED: %s  peers=%d" % [role, int(s["peers"])]]
 	if Net.is_client:
 		lines.append("RTT %.0f ms  pérdida %.1f %%" % [float(s["rtt"]), float(s["loss"])])

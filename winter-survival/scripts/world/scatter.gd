@@ -12,6 +12,14 @@ var _rng := RandomNumberGenerator.new()
 var _terrain: Terrain
 var _placed: Array[Vector2] = []
 var _exclusions: Array = []  # [{"center": Vector2, "radius": float}]
+## Deterministic child names (tree_12, pickup_7, …): the same on server and clients, so WorldRegistry ids match.
+var _counters: Dictionary = {}
+
+
+func _next_name(prefix: String) -> String:
+	var n: int = int(_counters.get(prefix, 0)) + 1
+	_counters[prefix] = n
+	return "%s_%d" % [prefix, n]
 
 
 func generate(seed_value: int, terrain: Terrain, exclusions: Array) -> void:
@@ -128,6 +136,7 @@ func _sample(spacing: float, cabin_r: float, avoid_lake: bool, allow_lake_shore:
 func _spawn_tree(variant: String, p: Vector2, s: float) -> void:
 	var t := TREE_SCENE.instantiate()
 	t.variant = variant
+	t.name = _next_name("tree")
 	add_child(t)
 	t.global_position = Vector3(p.x, _terrain.get_height(p.x, p.y), p.y)
 	t.rotation.y = _rng.randf_range(0.0, TAU)
@@ -139,6 +148,7 @@ func _spawn_simple(scene: PackedScene, p: Vector2, props: Dictionary, s: float) 
 	var n: Node3D = scene.instantiate()
 	for k in props:
 		n.set(k, props[k])
+	n.name = _next_name(String(n.name).to_lower())
 	add_child(n)
 	n.global_position = Vector3(p.x, _terrain.get_height(p.x, p.y), p.y)
 	n.rotation.y = _rng.randf_range(0.0, TAU)
@@ -147,21 +157,27 @@ func _spawn_simple(scene: PackedScene, p: Vector2, props: Dictionary, s: float) 
 	return n
 
 
+## Seeded pickup (generation time, identical on every peer).
 func spawn_pickup(item_id: StringName, model: String, p: Vector2, amount: int = 1) -> Node3D:
 	var n: Node3D = PICKUP_SCENE.instantiate()
 	n.item_id = item_id
 	n.model = model
 	n.amount = amount
+	n.name = _next_name("pickup")
 	add_child(n)
 	n.global_position = Vector3(p.x, _terrain.get_height(p.x, p.y), p.y)
 	n.rotation.y = _rng.randf_range(0.0, TAU)
 	return n
 
 
+## Server: a pickup that appears after generation (dawn respawn) → replicated drop.
 func spawn_random_pickup(item_id: StringName, model: String) -> void:
 	var p := _sample(1.0, 9.0, false, false)
-	if p != Vector2.INF:
-		spawn_pickup(item_id, model, p)
+	if p == Vector2.INF:
+		return
+	var world := get_parent() as World
+	if world != null:
+		world.spawn_drop(item_id, model, Vector3(p.x, _terrain.get_height(p.x, p.y), p.y), 1)
 
 
 func count_pickups(item_id: StringName) -> int:

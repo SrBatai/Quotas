@@ -32,6 +32,13 @@ else
   echo "xvfb-run not found: perf probe skipped"
 fi
 
+step "net test (M1: 1 headless server + 4 headless clients, soak 90 s)"
+if tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90 > /tmp/ventisca_net_all.log 2>&1; then
+  grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_all.log
+else
+  grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_all.log | head -n 30; status=1
+fi
+
 if [ "$SHOTS" -eq 1 ]; then
   step "screenshots"
   tests/run_screenshots.sh "${SHOTS_DIR:-/tmp/ventisca_shots}" > /tmp/ventisca_shots_all.log 2>&1 || status=1
