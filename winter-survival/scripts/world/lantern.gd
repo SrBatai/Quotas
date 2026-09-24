@@ -11,9 +11,9 @@ func _ready() -> void:
 	add_child(_model)
 	light = LightFlicker.new()
 	light.light_color = Color("#FFB454")
-	light.base_energy = 1.4
-	light.omni_range = 7.0
-	light.omni_attenuation = 1.2
+	light.base_energy = 3.0
+	light.omni_range = 9.0
+	light.omni_attenuation = 1.1
 	light.amount = 0.12
 	add_child(light)
 	var anchor: Node3D = _model.find_child("LightAnchor", true, false)
@@ -23,6 +23,6 @@ func _ready() -> void:
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:
-	var dark := hour >= 18.5 or hour < 6.5
+	var dark := hour >= 17.5 or hour < 6.5
 	light.visible = dark
 	Assets.override_named(_model, "window", Assets.get_glow_material() if dark else null)

@@ -9,7 +9,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	GameState.is_running = false
 	GameState.is_game_over = false
-	GameState.set_time(1, 19.3)
+	GameState.set_time(1, 17.75)
 	var layer := $UI as CanvasLayer
 	var root := Control.new()
 	root.theme = UiTheme.get_theme()

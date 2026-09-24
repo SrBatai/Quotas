@@ -38,8 +38,8 @@ func _on_tool_changed(id: StringName) -> void:
 	if is_torch:
 		torch_fire = FireEffect.new()
 		torch_fire.scale_factor = 0.35
-		torch_fire.light_range = 6.0
-		torch_fire.light_energy = 1.6
+		torch_fire.light_range = 7.0
+		torch_fire.light_energy = 2.5
 		var anchor: Node3D = tool_model.find_child("FlameAnchor", true, false)
 		if anchor != null:
 			anchor.add_child(torch_fire)

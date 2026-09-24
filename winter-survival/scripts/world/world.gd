@@ -116,10 +116,10 @@ func _add_fence(scene: PackedScene, p: Vector2, yaw_deg: float) -> void:
 func _setup_menu_camera() -> void:
 	_menu_camera = Camera3D.new()
 	_menu_camera.name = "MenuCamera"
-	_menu_camera.fov = 32.0
+	_menu_camera.fov = 34.0
 	add_child(_menu_camera)
-	var focus := Vector3(-2.0, terrain.get_height(0, 0) + 1.5, 2.0)
-	var offset := Vector3(0.36, 0.72, 0.51).normalized() * 26.0
+	var focus := Vector3(-3.0, terrain.get_height(0, 0) + 1.0, 1.0)
+	var offset := Vector3(0.54, 0.62, 0.54).normalized() * 30.0
 	_menu_camera.global_position = focus + offset
 	_menu_camera.look_at(focus, Vector3.UP)
 	_menu_camera.current = true

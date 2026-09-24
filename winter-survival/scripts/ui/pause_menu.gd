@@ -42,6 +42,13 @@ func _ready() -> void:
 	visible = false
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	# game.gd is pausable, so the resume key is handled here (process_mode ALWAYS)
+	if visible and event.is_action_pressed("pause"):
+		resume()
+		get_viewport().set_input_as_handled()
+
+
 func open() -> void:
 	visible = true
 	GameState.set_paused(true)

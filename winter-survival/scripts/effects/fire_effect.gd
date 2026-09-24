@@ -3,8 +3,8 @@ extends Node3D
 ## Flames + smoke (CPUParticles3D) + flickering OmniLight. Works in Compatibility.
 
 @export var scale_factor: float = 1.0
-@export var light_range: float = 9.0
-@export var light_energy: float = 2.0
+@export var light_range: float = 11.0
+@export var light_energy: float = 4.5
 
 var flames: CPUParticles3D
 var smoke: CPUParticles3D
@@ -12,9 +12,28 @@ var light: LightFlicker
 var _active: bool = true
 
 
+static var _soft_tex: ImageTexture
+
+
+## 32x32 radial soft dot (alpha) so untextured quads read as flakes / glows.
+static func soft_dot_texture() -> ImageTexture:
+	if _soft_tex != null:
+		return _soft_tex
+	var img := Image.create(32, 32, false, Image.FORMAT_RGBA8)
+	for y in 32:
+		for x in 32:
+			var d := Vector2(x + 0.5, y + 0.5).distance_to(Vector2(16, 16)) / 16.0
+			var a := clampf(1.0 - d, 0.0, 1.0)
+			a = a * a * (3.0 - 2.0 * a)
+			img.set_pixel(x, y, Color(1, 1, 1, a))
+	_soft_tex = ImageTexture.create_from_image(img)
+	return _soft_tex
+
+
 static func make_particle_material(additive: bool) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_texture = soft_dot_texture()
 	m.vertex_color_use_as_albedo = true
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if additive else BaseMaterial3D.BLEND_MODE_MIX
@@ -88,7 +107,7 @@ func _ready() -> void:
 	light.light_color = Color("#FFB454")
 	light.base_energy = light_energy
 	light.omni_range = light_range
-	light.omni_attenuation = 1.4
+	light.omni_attenuation = 1.1
 	light.position = Vector3(0, 0.5 * scale_factor, 0)
 	add_child(light)
 	set_active(_active)

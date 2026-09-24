@@ -13,7 +13,7 @@ const AFRAME_POS := Vector2(-21, -13)
 const LAKE_CENTER := Vector2(-42, 30)
 const LAKE_RADIUS := 20.0
 const TRUCK_POS := Vector2(-11, -3)
-const SIGNPOST_POS := Vector2(-7, 8)
+const SIGNPOST_POS := Vector2(-6.5, 9.5)
 
 
 static func name_at(x: float, z: float) -> String:

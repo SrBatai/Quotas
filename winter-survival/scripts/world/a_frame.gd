@@ -14,8 +14,8 @@ func _ready() -> void:
 			Vector3(-3.0, 0, 3.5), Vector3(3.0, 0, 3.5), Vector3(0, 6.0, 3.5)]))
 	_light = OmniLight3D.new()
 	_light.light_color = Color("#FFB454")
-	_light.omni_range = 6.0
-	_light.light_energy = 1.2
+	_light.omni_range = 8.0
+	_light.light_energy = 2.5
 	_light.shadow_enabled = false
 	_light.position = Vector3(-0.7, 3.0, -3.9)
 	add_child(_light)
@@ -24,6 +24,6 @@ func _ready() -> void:
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:
-	var dark := hour >= 18.5 or hour < 6.5
+	var dark := hour >= 17.5 or hour < 6.5
 	_light.visible = dark
 	Assets.override_named(_model, "window", Assets.get_glow_material() if dark else null)

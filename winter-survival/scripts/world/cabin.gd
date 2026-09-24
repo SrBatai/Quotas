@@ -93,7 +93,7 @@ func _on_time(_day: int, _hour: float, _night: bool) -> void:
 
 func _update_lighting() -> void:
 	var hour := GameState.hour
-	var dark := hour >= 18.5 or hour < 6.5
+	var dark := hour >= 17.5 or hour < 6.5
 	var glow := stove_on and dark
 	if glow != _glow_on:
 		_glow_on = glow
@@ -104,10 +104,10 @@ func _update_lighting() -> void:
 	smoke.set_active(stove_on)
 	if dark:
 		interior_light.visible = true
-		interior_light.light_energy = 0.9 if stove_on else 0.15
+		interior_light.light_energy = 1.8 if stove_on else 0.3
 	else:
 		interior_light.visible = stove_on
-		interior_light.light_energy = 0.35
+		interior_light.light_energy = 0.6
 
 
 func get_door_anchor() -> Node3D:

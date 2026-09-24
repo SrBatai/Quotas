@@ -2,6 +2,7 @@ extends RefCounted
 ## Screenshot preset body (loaded at runtime by tests/screenshot.gd).
 
 var tree: SceneTree
+var flags: Array[String] = []  # debug flags: noshadow, noambient
 
 var preset: String = "day"
 var out_path: String = "/tmp/ventisca_shot.png"
@@ -59,11 +60,19 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				Inventory.add(&"hacha", 1)
 				Inventory.add(&"madera", 6)
 				Inventory.add(&"piedra", 6)
-				player.global_position = world.cabin.global_position + Vector3(0.6, 0.6, -0.4)
-				player.get_node("Visual").rotation.y = PI * 0.5
+				player.global_position = world.cabin.global_position + Vector3(-1.3, 0.6, 0.5)
+				player.get_node("Visual").rotation.y = -PI * 0.5
 				world.get_node("WolfSpawner").enabled = false
 				var storage_panel: StoragePanel = game.get_node("UI/StoragePanel")
 				storage_panel.open(world.cabin.get_node("Cabinet").get_node("Storage"))
+		if flags.has("noshadow"):
+			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
+		if flags.has("noambient"):
+			(world.get_node("Env") as WorldEnvironment).environment.ambient_light_energy = 0.0
+		var sun := world.get_node("Sun") as DirectionalLight3D
+		print("sun dir=%s energy=%.2f visible=%s shadow=%s color=%s" % [-sun.global_transform.basis.z, sun.light_energy, sun.visible, sun.shadow_enabled, sun.light_color])
+		var env := (world.get_node("Env") as WorldEnvironment).environment
+		print("ambient=%s energy=%.2f fog=%.3f" % [env.ambient_light_color, env.ambient_light_energy, env.fog_density])
 		GameState.is_running = false  # freeze the clock for a stable shot
 		var rig := CameraRig.active()
 		if rig != null:

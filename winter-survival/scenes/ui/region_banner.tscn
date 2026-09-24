@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" path="res://scripts/ui/region_banner.gd" id="1"]
 
-[node name="RegionBanner" type="PanelContainer"]
+[node name="RegionBanner" type="Control"]
 script = ExtResource("1")

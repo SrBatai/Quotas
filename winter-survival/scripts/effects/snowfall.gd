@@ -10,7 +10,8 @@ var _wind_yaw: float = 0.0
 func _ready() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color("#F1F5FA", 0.9)
+	mat.albedo_color = Color("#F1F5FA", 0.95)
+	mat.albedo_texture = FireEffect.soft_dot_texture()
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.disable_receive_shadows = true
@@ -29,7 +30,7 @@ func _make(amount: int, lifetime: float, gravity: Vector3, vel: float, smin: flo
 	p.lifetime = lifetime
 	p.preprocess = lifetime
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = Vector3(20, 10, 20)
+	p.emission_box_extents = Vector3(22, 7, 22)
 	p.direction = Vector3(0, -1, 0)
 	p.spread = 30.0
 	p.initial_velocity_min = vel * 0.5
@@ -37,7 +38,7 @@ func _make(amount: int, lifetime: float, gravity: Vector3, vel: float, smin: flo
 	p.gravity = gravity
 	p.scale_amount_min = 1.0
 	p.scale_amount_max = 1.6
-	p.mesh = FireEffect.make_quad((smin + smax) * 0.5 * 1.6, mat)
+	p.mesh = FireEffect.make_quad((smin + smax) * 0.5 * 2.2, mat)
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return p
 
@@ -61,4 +62,4 @@ func _process(_delta: float) -> void:
 		target = rig.global_position
 	else:
 		target = cam.global_position + (-cam.global_basis.z) * 12.0
-	global_position = Vector3(target.x, target.y + 8.0, target.z)
+	global_position = Vector3(target.x, target.y + 6.0, target.z)
