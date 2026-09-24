@@ -4,13 +4,13 @@ extends Node
 
 const KEYS := {
 	# hour: sky_top, sky_horizon, ground, ambient, ambient_energy, fog_color, fog_density, sky_energy
-	0.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#4A5C82"), 0.9, Color("#1C2A47"), 0.020, 0.25],
-	5.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#4A5C82"), 0.9, Color("#1C2A47"), 0.020, 0.25],
-	6.5: [Color("#3E4C7A"), Color("#E0A886"), Color("#7C8AA6"), Color("#7C8CB0"), 0.85, Color("#9FA9C2"), 0.014, 0.6],
-	12.0: [Color("#7FB3E6"), Color("#D6E6F5"), Color("#C9D8EA"), Color("#8EB0DC"), 0.95, Color("#C9D8EA"), 0.010, 1.0],
-	18.5: [Color("#7FA6DC"), Color("#E8D8C8"), Color("#B8C6DA"), Color("#8AA6D0"), 0.9, Color("#C0CCDE"), 0.011, 0.9],
+	0.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
+	5.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
+	6.5: [Color("#3E4C7A"), Color("#E0A886"), Color("#7C8AA6"), Color("#7C8CB0"), 0.8, Color("#9FA9C2"), 0.014, 0.6],
+	12.0: [Color("#7FB3E6"), Color("#D6E6F5"), Color("#C9D8EA"), Color("#8EB0DC"), 0.8, Color("#C9D8EA"), 0.010, 1.0],
+	18.5: [Color("#7FA6DC"), Color("#E8D8C8"), Color("#B8C6DA"), Color("#8AA6D0"), 0.8, Color("#C0CCDE"), 0.011, 0.9],
 	19.5: [Color("#4E4A80"), Color("#E8A470"), Color("#7E7C98"), Color("#7E86A8"), 0.75, Color("#A9AEC4"), 0.014, 0.6],
-	20.8: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#4A5C82"), 0.9, Color("#1C2A47"), 0.020, 0.25],
+	20.8: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
 }
 const BLIZZARD_FOG := Color("#B8C4D3")
 const BLIZZARD_FOG_DENSITY := 0.06
@@ -105,7 +105,7 @@ func apply(hour: float) -> void:
 	if sun != null:
 		sun.rotation_degrees = Vector3(-maxf(elev, 2.0), 205.0 + t_sun * 40.0 - 20.0, 0)
 		var energy := clampf(elev / 38.0, 0.0, 1.0)
-		energy = sqrt(energy) * 1.25
+		energy = sqrt(energy) * 0.62
 		sun.light_energy = energy * (1.0 - 0.8 * blizzard_blend)
 		sun.visible = energy > 0.01
 		var warm := clampf(elev / 8.0, 0.0, 1.0)
