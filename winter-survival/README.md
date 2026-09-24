@@ -64,6 +64,23 @@ server/admin.sh status | players | save | save-and-quit | "say hola" | "rule fri
 semilla, `day_length_sec`, y las reglas `pvp` / `friendly_fire` (`off|reduced|full`) que solo lee `DamageResolver`.
 El apagado limpio es siempre por el socket de admin (`save-and-quit`): el headless muere al instante con SIGTERM.
 
+### Probar el cooperativo con amigos (hasta 4)
+
+1. **Descarga la versión de escritorio.** En GitHub, pestaña *Actions* → última ejecución de **VENTISCA** del PR →
+   sección *Artifacts* → `ventisca-windows` (o `ventisca-linux`). Descomprime y abre `Ventisca.exe`
+   (`ventisca.x86_64` en Linux). Cada cambio del PR genera una versión nueva.
+2. **Anfitrión:** pulsa **Jugar**. El juego arranca un servidor dedicado propio en segundo plano (UDP 7777). En
+   Windows, acepta el aviso del cortafuegos para las redes privadas.
+3. **Amigos en la misma red:** **Unirse a servidor** → IP local del anfitrión (`ipconfig` en Windows) → puerto 7777.
+4. **Amigos por internet**, una de estas tres:
+   - una VPN de juego (Tailscale, ZeroTier o Radmin VPN) y la IP que os dé;
+   - redirigir **UDP 7777** del router al PC del anfitrión y usar su IP pública;
+   - un servidor dedicado en un VPS Linux: `./ventisca.x86_64 --headless -- --server --config server.cfg`
+     (plantilla en `server/server.cfg.example`; ponle contraseña).
+5. Todos deben usar **la misma versión** (el servidor rechaza versiones distintas). `F3` muestra ping y tráfico.
+
+La demo del navegador es solo para un jugador: el navegador no puede abrir conexiones UDP.
+
 ## Pruebas
 
 ```bash
