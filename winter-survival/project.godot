@@ -10,17 +10,18 @@ config/name="Ventisca"
 config/description="Sobrevive cinco días en el bosque helado."
 run/main_scene="res://scenes/main/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+run/flush_stdout_on_print=true
 config/icon="res://icon.svg"
 
 [autoload]
 
 Events="*res://scripts/autoload/events.gd"
-GameState="*res://scripts/autoload/game_state.gd"
-Inventory="*res://scripts/autoload/inventory.gd"
+Identity="*res://scripts/autoload/identity.gd"
+Net="*res://scripts/autoload/net.gd"
 Assets="*res://scripts/autoload/assets.gd"
 Quality="*res://scripts/autoload/quality.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
-QuestManager="*res://scripts/autoload/quest_manager.gd"
+GameFlow="*res://scripts/autoload/game_flow.gd"
 
 [display]
 
@@ -146,6 +147,18 @@ toggle_torch={
 eat={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":70)]
+}
+crouch={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194326), Object(InputEventJoypadButton,"button_index":8)]
+}
+chat={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194309), Object(InputEventKey,"physical_keycode":4194310)]
+}
+net_debug={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":4194334)]
 }
 
 [filesystem]

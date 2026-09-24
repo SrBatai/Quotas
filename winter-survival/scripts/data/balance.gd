@@ -36,9 +36,10 @@ const FREEZING_SPEED_MULT := 0.8
 const HUNGRY_WARN := 25.0
 const LOW_HEALTH := 25.0
 
-# --- movement / camera ---
-const WALK_SPEED := 4.0
+# --- movement / camera (PLAN C19, M1 decision: walk 2.2 / run 6.0 / crouch 1.3 m/s, matched by the skeletal locomotion) ---
+const WALK_SPEED := 2.2
 const RUN_SPEED := 6.0
+const CROUCH_SPEED := 1.3
 const ACCEL := 12.0
 const TURN_SPEED := 12.0
 const INTERACT_RANGE := 2.2
@@ -129,3 +130,24 @@ const RESPAWN_STONE_PER_DAY := 12
 const MAX_FIREWOOD := 60
 const MAX_STONES := 40
 const PROCEDURAL_AUDIO := false
+
+# --- network (PLAN C10/C11, ARQ v2 §6) ---
+const NET_TICK := 60                    # physics / input generation rate
+const NET_SEND_EVERY := 2               # inputs packed 2 per packet -> 30 Hz
+const NET_INPUT_REDUNDANCY := 2         # the 2 previous commands travel again in each packet
+const NET_STATE_EVERY := 2              # ack + pos/vel to the owner at 30 Hz
+const NET_SYNC_INTERVAL := 0.0333       # MultiplayerSynchronizer interval for players (30 Hz)
+const NET_ACTOR_SYNC_INTERVAL := 0.1    # wolves / deer (10 Hz)
+const NET_INTERP_DELAY := 0.1           # remote players rendered 100 ms in the past
+const NET_EXTRAPOLATE_MAX := 0.1
+const NET_RECONCILE_THRESHOLD := 0.05   # 5 cm
+const NET_MAX_INPUT_QUEUE := 6          # server jitter buffer cap
+const NET_MAX_AIM_DIST := 40.0
+const NET_INTERACT_TOLERANCE := 1.0     # m over the interactable range (latency)
+const NET_GRACE_SECONDS := 60.0         # body stays after a disconnect
+const NET_CHAT_MAX_CHARS := 200
+const NET_CHAT_PER_SECOND := 2.0
+const NET_INTERACT_PER_SECOND := 5.0
+const NET_CRAFT_PER_SECOND := 3.0
+const NET_WORLDSTATE_SYNC_SECONDS := 5.0
+const NET_INFRACTIONS_KICK := 30

@@ -100,6 +100,11 @@ def joints(p=None):
         j[side + "Foot"] = Vector((sx * 0.11 * W, 0.02 * s, ank))
         j[side + "Toes"] = Vector((sx * 0.11 * W, -0.10 * s, 0.035 * s))
         j[side + "ToesTip"] = Vector((sx * 0.11 * W, -0.19 * s, 0.035 * s))
+        # sole contact points (not bones): heel (on Foot), ball and toe tip (on Toes), all at z = 0.
+        # The boot mesh must touch the ground exactly there (gait generator pivots, verify_chars metrics).
+        j[side + "Heel"] = Vector((sx * 0.11 * W, 0.10 * s, 0.0))
+        j[side + "Ball"] = Vector((sx * 0.11 * W, -0.10 * s, 0.0))
+        j[side + "TipSole"] = Vector((sx * 0.11 * W, -0.19 * s, 0.0))
     j["BackSocket"] = Vector((0, 0.14 * s, hip + 0.38 * T))
     j["HipSocketR"] = Vector((-0.16 * W, 0, hip))
     j["HeadSocket"] = Vector((0, 0, j["Head"].z + 0.06 * s))
@@ -109,6 +114,69 @@ def joints(p=None):
 def leg_lengths(p=None):
     j = joints(p)
     return ((j["LeftUpperLeg"] - j["LeftLowerLeg"]).length, (j["LeftLowerLeg"] - j["LeftFoot"]).length)
+
+
+def arm_lengths(p=None):
+    j = joints(p)
+    return ((j["LeftUpperArm"] - j["LeftLowerArm"]).length, (j["LeftLowerArm"] - j["LeftHand"]).length)
+
+
+def rest_heads(p=None):
+    """{bone: rest head (Blender armature space)} for the 22 profile bones and the 5 sockets."""
+    j = joints(p)
+    out = {b: j[_HEAD_TAIL[b][0]].copy() for b in BONE_NAMES}
+    for s, par in SOCKETS.items():
+        out[s] = (j[s] if s in j else j[s.replace("HandSocket", "Fist")]).copy()
+    return out
+
+
+# Sole contact points used by the gait generator and verify_chars: (bone that carries it, joint key).
+CONTACT_POINTS = {"Heel": "Foot", "Ball": "Toes", "TipSole": "Toes"}
+
+
+# ------------------------------------------------------------------------------------------------
+# Godot BoneMap (identity SkeletonProfileHumanoid -> our names), ASSET_SPEC_V2 §2.9 / §7 (9)
+# ------------------------------------------------------------------------------------------------
+# SkeletonProfileHumanoid bone order (Godot 4.7.2); fingers, eyes, jaw and UpperChest stay unmapped.
+PROFILE_HUMANOID = (
+    ["Root", "Hips", "Spine", "Chest", "UpperChest", "Neck", "Head", "LeftEye", "RightEye", "Jaw"]
+    + [s + b for s in ("Left",) for b in ("Shoulder", "UpperArm", "LowerArm", "Hand")]
+    + ["Left" + f + k for f, ks in (("Thumb", ("Metacarpal", "Proximal", "Distal")),
+                                    ("Index", ("Proximal", "Intermediate", "Distal")),
+                                    ("Middle", ("Proximal", "Intermediate", "Distal")),
+                                    ("Ring", ("Proximal", "Intermediate", "Distal")),
+                                    ("Little", ("Proximal", "Intermediate", "Distal"))) for k in ks]
+    + [s + b for s in ("Right",) for b in ("Shoulder", "UpperArm", "LowerArm", "Hand")]
+    + ["Right" + f + k for f, ks in (("Thumb", ("Metacarpal", "Proximal", "Distal")),
+                                     ("Index", ("Proximal", "Intermediate", "Distal")),
+                                     ("Middle", ("Proximal", "Intermediate", "Distal")),
+                                     ("Ring", ("Proximal", "Intermediate", "Distal")),
+                                     ("Little", ("Proximal", "Intermediate", "Distal"))) for k in ks]
+    + ["LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes", "RightUpperLeg", "RightLowerLeg", "RightFoot",
+       "RightToes"])
+
+
+def bonemap_tres_text():
+    """Text of humanoid_bonemap.tres (same content Godot's ResourceSaver writes for the identity map; the
+    PoC generated it with make_bonemap.gd). Every one of our 22 bones maps to the profile bone of the same
+    name; the other profile bones map to nothing."""
+    ours = set(BONE_NAMES)
+    lines = ['[gd_resource type="BoneMap" format=3]', "",
+             '[sub_resource type="SkeletonProfileHumanoid" id="SkeletonProfileHumanoid_ygixm"]', "",
+             "[resource]", 'profile = SubResource("SkeletonProfileHumanoid_ygixm")']
+    for b in PROFILE_HUMANOID:
+        lines.append('bone_map/%s = &"%s"' % (b, b if b in ours else ""))
+    return "\n".join(lines) + "\n"
+
+
+def write_bonemap(path):
+    from pathlib import Path
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = bonemap_tres_text()
+    if not path.exists() or path.read_text() != text:
+        path.write_text(text)
+    return path
 
 
 def _roll(b):

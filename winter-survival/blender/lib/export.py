@@ -19,6 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]          # winter-survival/
 BLENDER_DIR = ROOT / "blender"
 SOURCES_DIR = BLENDER_DIR / "sources"
 MODELS_DIR = ROOT / "assets" / "models"
+# Identity BoneMap for the humanoid retarget (ASSET_SPEC_V2 §2.9). M1 deviation: it lives under assets/models/rig/
+# (the art agent's folder) instead of assets/rig/; every char/anim .import template points here.
+BONEMAP_PATH = MODELS_DIR / "rig" / "humanoid_bonemap.tres"
+BONEMAP_RES = "res://assets/models/rig/humanoid_bonemap.tres"
 
 
 def export_kwargs(has_armature=False, has_actions=False):
@@ -164,6 +168,10 @@ def save_and_export(name, subdir=""):
 # ------------------------------------------------------------------------------------------------
 # Godot .import templates (ASSET_SPEC_V2 §2.9). Only for NEW asset families: the 33 slice models keep the
 # .import files Godot already generated. Godot fills in uid / dest_files on the next --import.
+#   char : importer "scene", no animations, humanoid retarget -> Skeleton3D renamed GeneralSkeleton
+#   anim : importer "animation_library" (30 fps, rest pose as RESET), same retarget so the tracks target
+#          %GeneralSkeleton:<Bone>; `-loop` names -> LOOP_LINEAR (Godot strips the suffix)
+# `except_bone_transform` stays OFF: Godot bug #123782 (with it on, retargeted libraries keep 1 track).
 # ------------------------------------------------------------------------------------------------
 _SCENE_PARAMS = [
     'nodes/root_type=""', 'nodes/root_name=""', 'nodes/apply_root_scale=true', 'nodes/root_scale=1.0',
@@ -176,7 +184,7 @@ _SCENE_PARAMS = [
 _RETARGET = '''_subresources={
 "nodes": {
 "PATH:Armature/Skeleton3D": {
-"retarget/bone_map": Resource("res://assets/rig/humanoid_bonemap.tres"),
+"retarget/bone_map": Resource("%s"),
 "retarget/bone_renamer/rename_bones": true,
 "retarget/bone_renamer/unique_node/make_unique": true,
 "retarget/bone_renamer/unique_node/skeleton_name": "GeneralSkeleton",
@@ -184,12 +192,13 @@ _RETARGET = '''_subresources={
 "retarget/remove_tracks/unimportant_positions": true,
 "retarget/remove_tracks/unmapped_bones": 0,
 "retarget/rest_fixer/apply_node_transforms": true,
+"retarget/rest_fixer/fix_silhouette/enable": false,
 "retarget/rest_fixer/normalize_position_tracks": true,
 "retarget/rest_fixer/reset_all_bone_poses_after_import": true,
 "retarget/rest_fixer/retarget_method": 1
 }
 }
-}'''
+}''' % BONEMAP_RES
 IMPORT_KINDS = ("prop", "char", "anim")
 
 
