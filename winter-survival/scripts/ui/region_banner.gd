@@ -23,14 +23,13 @@ func _ready() -> void:
 	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_name_label)
 	var icon := UiIcons.make("mountain", 22, Color("#DCEBFA"))
-	icon.position = Vector2(-11, -14)
-	icon.size = Vector2(22, 22)
 	icon.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	icon.offset_left = -11
 	icon.offset_right = 11
 	icon.offset_top = -13
 	icon.offset_bottom = 9
-	add_child(icon)
+	icon.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child.call_deferred(icon)
 	UiTheme.add_ice_edge(self)
 	modulate.a = 0.55
 	Events.region_changed.connect(show_region)

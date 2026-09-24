@@ -45,12 +45,13 @@ const INTERACT_RANGE := 2.2
 const AUTO_WALK_TIMEOUT := 8.0
 const CAMERA_PITCH_DEG := -52.0
 const CAMERA_YAW_DEG := 35.0
-const CAMERA_DIST := 22.0
-const CAMERA_DIST_MIN := 14.0
-const CAMERA_DIST_MAX := 30.0
-const CAMERA_FOV := 35.0
+const CAMERA_DIST := 27.0
+const CAMERA_DIST_MIN := 16.0
+const CAMERA_DIST_MAX := 38.0
+const CAMERA_FOV := 36.0
 const CAMERA_FOLLOW := 6.0
 const CAMERA_LOOKAHEAD := 1.5
+const CAMERA_FORWARD_OFFSET := 3.0
 const CAMERA_YAW_STEP := 45.0
 
 # --- fire ---

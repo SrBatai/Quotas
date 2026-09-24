@@ -22,19 +22,21 @@ func generate(seed_value: int, terrain: Terrain, exclusions: Array) -> void:
 	var pine_weights := {"pine_a": 0.5, "pine_b": 0.3, "pine_c": 0.2}
 	var placed_trees := 0
 	var attempts := 0
-	while placed_trees < 330 and attempts < 20000:
+	while placed_trees < 420 and attempts < 30000:
 		attempts += 1
-		var p := _sample(2.6, 11.5, true, true)
+		var p := _sample(2.4, 8.5, true, true)
 		if p == Vector2.INF:
 			continue
+		if _in_porch_wedge(p):
+			continue
 		var edge := maxf(absf(p.x), absf(p.y)) > 66.0
-		if not edge and _rng.randf() < 0.28:
-			continue  # thinner interior; ring stays dense
+		if not edge and _rng.randf() < 0.15:
+			continue  # slightly thinner interior; ring stays dense
 		_spawn_tree(_pick(pine_weights), p, _rng.randf_range(0.9, 1.15))
 		placed_trees += 1
 	for i in 40:
-		var p := _sample(2.2, 11.5, true, true)
-		if p != Vector2.INF:
+		var p := _sample(2.2, 9.0, true, true)
+		if p != Vector2.INF and not _in_porch_wedge(p):
 			_spawn_tree("dead_tree", p, _rng.randf_range(0.9, 1.15))
 	for i in 15:
 		var p := _sample(1.5, 9.0, true, false)
@@ -80,6 +82,11 @@ func generate(seed_value: int, terrain: Terrain, exclusions: Array) -> void:
 		var p := _sample(1.5, 9.0, false, false)
 		if p != Vector2.INF:
 			_spawn_tree("fallen_log", p, 1.0)
+
+
+## Keeps the area in front of the porch (world +Z side of the cabin) open.
+func _in_porch_wedge(p: Vector2) -> bool:
+	return p.y > 1.0 and p.y < 16.0 and absf(p.x) < 7.0 + (p.y - 1.0) * 0.5
 
 
 func _pick(weights: Dictionary) -> String:

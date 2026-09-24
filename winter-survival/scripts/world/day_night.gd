@@ -38,8 +38,8 @@ func _setup() -> void:
 		sun.directional_shadow_split_1 = 0.35
 		sun.directional_shadow_fade_start = 0.85
 		sun.shadow_blur = 1.5
-		sun.shadow_bias = 0.05
-		sun.shadow_normal_bias = 1.5
+		sun.shadow_bias = 0.1
+		sun.shadow_normal_bias = 2.5
 	if moon != null:
 		moon.shadow_enabled = false
 		moon.light_color = Color("#7D9BD1")

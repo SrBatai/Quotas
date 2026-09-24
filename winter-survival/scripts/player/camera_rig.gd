@@ -51,7 +51,8 @@ func _process(delta: float) -> void:
 	if player == null:
 		return
 	var move_dir: Vector3 = player.get("move_dir") if player.get("move_dir") != null else Vector3.ZERO
-	var target := player.global_position + move_dir * Balance.CAMERA_LOOKAHEAD
+	var forward := Vector3(0, 0, -1).rotated(Vector3.UP, pivot.rotation.y)
+	var target := player.global_position + move_dir * Balance.CAMERA_LOOKAHEAD + forward * Balance.CAMERA_FORWARD_OFFSET
 	if not _snapped:
 		global_position = target
 		_snapped = true

@@ -19,11 +19,14 @@ func _ready() -> void:
 		b.custom_minimum_size = Vector2(42, 42)
 		b.focus_mode = Control.FOCUS_NONE
 		b.tooltip_text = Recipes.TITLES[cat].capitalize()
-		var icon := UiIcons.make(Recipes.CATEGORY_ICONS[cat], 22, Color.WHITE)
-		icon.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-		icon.position = Vector2(10, 10)
-		icon.size = Vector2(22, 22)
-		b.add_child(icon)
+		var tex := UiIcons.tex(Recipes.CATEGORY_ICONS[cat])
+		if tex != null:
+			b.icon = tex
+			b.expand_icon = true
+			b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			b.add_theme_constant_override("icon_max_width", 22)
+		else:
+			b.text = Recipes.TITLES[cat].substr(0, 1)
 		b.pressed.connect(func() -> void: category_pressed.emit(cat))
 		col.add_child(b)
 		_buttons[cat] = b
