@@ -129,17 +129,12 @@ static func menu_button(text: String, min_width: float = 220.0) -> Button:
 	return b
 
 
-## 2 px "ice edge" line at the top of a panel.
+## 2 px "ice edge" line along the top of a panel. Drawn in the panel's draw signal
+## (a child ColorRect would be stretched to a full fill by containers).
 static func add_ice_edge(panel: Control) -> void:
-	var edge := ColorRect.new()
-	edge.color = ICE
-	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	edge.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	edge.offset_left = 6
-	edge.offset_right = -6
-	edge.offset_top = 0
-	edge.offset_bottom = 2
-	panel.add_child(edge)
+	panel.draw.connect(func() -> void:
+		panel.draw_rect(Rect2(6.0, 0.0, maxf(panel.size.x - 12.0, 0.0), 2.0), ICE))
+	panel.queue_redraw()
 
 
 static func spacer(h: float = 4.0, v: float = 4.0) -> Control:

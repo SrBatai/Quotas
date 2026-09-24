@@ -70,6 +70,7 @@ func _on_body_entered(body: Node) -> void:
 		cutaway.set_active(true)
 		if lantern != null:
 			lantern.visible = false  # hangs from the porch roof, which is part of Roof in the glb
+		smoke.visible = false  # would float over the opened room
 		Events.shelter_changed.emit(true)
 
 
@@ -79,6 +80,7 @@ func _on_body_exited(body: Node) -> void:
 		cutaway.set_active(false)
 		if lantern != null:
 			lantern.visible = true
+		smoke.visible = true
 		Events.shelter_changed.emit(false)
 
 
