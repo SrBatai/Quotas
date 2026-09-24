@@ -1,0 +1,9 @@
+# Godot 4 cache / editor state
+.godot/
+# Local exports and temp files
+/export/
+/tmp/
+*.tmp
+# Blender backups
+blender/sources/*.blend1
+__pycache__/
