@@ -108,6 +108,9 @@ jobs:
       - name: Check the Linux build boots headless
         run: timeout 60 ./export/linux/ventisca.x86_64 --headless --quit-after 300
 
+      - name: Check the exported dedicated server starts and shuts down cleanly
+        run: SERVER_BIN=export/linux/ventisca.x86_64 tests/net/run_net_test.sh --quick --port 17777
+
       - uses: actions/upload-artifact@v4
         with:
           name: ventisca-windows
