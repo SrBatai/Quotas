@@ -7,6 +7,14 @@ enum State { GRAZE, WANDER, FLEE }
 
 @export var net_position: Vector3 = Vector3.ZERO
 @export var net_yaw: float = 0.0
+## Quantized position + yaw in one int (Packets.pack_pose): the only ALWAYS property (12 B on the wire).
+@export var net_pose: int = 0:
+	set(v):
+		net_pose = v
+		if not Net.is_server:
+			var d := Packets.unpack_pose(v)
+			net_position = d["pos"]
+			net_yaw = d["yaw"]
 @export var net_state: int = State.GRAZE
 
 @onready var steering: Steering = $Steering
@@ -108,6 +116,7 @@ func _physics_process(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-8.0 * delta))  # model front = +Z
 	net_position = global_position
 	net_yaw = rotation.y
+	net_pose = Packets.pack_pose(global_position, rotation.y)
 	net_state = state
 	if animator != null:
 		animator.speed = hv.length()

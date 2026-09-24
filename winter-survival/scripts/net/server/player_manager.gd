@@ -102,6 +102,25 @@ func _on_peer_left(id: int) -> void:
 		Chat.instance.server_broadcast("SERVIDOR", "%s se ha ido" % p.display_name)
 
 
+## 30 Hz: every connected client gets ONE unreliable packet with every player's quantized pose plus its own
+## ack/velocity (ARQ v2 §6.2, C10). Runs after the players' _physics_process (PlayerManager is a later sibling).
+func _physics_process(_delta: float) -> void:
+	if not Net.is_dedicated or Engine.get_physics_frames() % Balance.NET_STATE_EVERY != 0:
+		return
+	var all := players()
+	if all.is_empty():
+		return
+	var entries := []
+	for p in all:
+		entries.append({"peer": p.peer_id, "pos": p.position, "yaw": p.aim_yaw})
+	var peers := multiplayer.get_peers()
+	for p in all:
+		if p.disconnected or not peers.has(p.peer_id):
+			continue
+		multiplayer.send_bytes(Packets.pack_poses(p.net.last_applied_seq, p.velocity, entries), p.peer_id,
+			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
+
+
 func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for th in _grace.keys():

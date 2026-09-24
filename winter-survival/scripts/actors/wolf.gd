@@ -8,6 +8,14 @@ enum State { ROAM, STALK, CHASE, ATTACK, FLEE, LEAVE, DEAD }
 
 @export var net_position: Vector3 = Vector3.ZERO
 @export var net_yaw: float = 0.0
+## Quantized position + yaw in one int (Packets.pack_pose): the only ALWAYS property (12 B on the wire).
+@export var net_pose: int = 0:
+	set(v):
+		net_pose = v
+		if not Net.is_server:
+			var d := Packets.unpack_pose(v)
+			net_position = d["pos"]
+			net_yaw = d["yaw"]
 @export var net_state: int = State.ROAM:
 	set(v):
 		var changed := v != net_state
@@ -241,6 +249,7 @@ func _physics_process(delta: float) -> void:
 		rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-8.0 * delta))
 	net_position = global_position
 	net_yaw = rotation.y
+	net_pose = Packets.pack_pose(global_position, rotation.y)
 	if animator != null:
 		animator.speed = hv.length()
 		animator.running = hv.length() > 3.5

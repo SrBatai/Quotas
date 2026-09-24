@@ -205,12 +205,24 @@ func _wire_signals() -> void:
 
 ## Raw packets (SceneMultiplayer.send_bytes): first byte = type (Packets.PKT_*).
 func _on_peer_packet(from: int, packet: PackedByteArray) -> void:
-	if packet.is_empty():
+	if packet.is_empty() or from != 1 or role != Role.CLIENT:
 		return
-	if packet[0] == Packets.PKT_STATE and from == 1 and role == Role.CLIENT:
-		var p: Node = GameFlow.local_player()
-		if p != null:
-			p.net.on_state_bytes(packet)
+	if packet[0] == Packets.PKT_POSES:
+		var d := Packets.unpack_poses(packet)
+		if d.is_empty():
+			return
+		var world := get_tree().get_first_node_in_group("world")
+		var players: Node = world.get_node_or_null("Players") if world != null else null
+		if players == null:
+			return
+		for e in d["poses"]:
+			var p: Node = players.get_node_or_null(str(int(e["peer"])))
+			if p == null:
+				continue
+			if p.is_local:
+				p.net.on_state(int(d["ack"]), e["pos"], d["vel"])
+			else:
+				p.net.on_remote_pose(e["pos"], float(e["yaw"]))
 
 
 func _on_peer_authenticating(id: int) -> void:

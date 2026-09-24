@@ -28,6 +28,13 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	if Net.role == Net.Role.NONE:
 		Net.start_offline()   # scene run directly (F6): offline local server
+	# The spawners sit BEFORE World in the scene on purpose: the tree is torn down in reverse child order, so
+	# every spawned node leaves the tree (and untracks itself through its one-shot tree_exiting) before its
+	# spawner's NOTIFICATION_EXIT_TREE runs. The other order makes the release template print "Attempt to
+	# disconnect a nonexistent connection … tree_exiting" for every tracked node at shutdown. Because they enter
+	# the tree before World exists, their spawn paths are resolved again here.
+	for sp in [player_spawner, $ActorSpawner, drop_spawner, placed_spawner]:
+		(sp as MultiplayerSpawner).spawn_path = (sp as MultiplayerSpawner).spawn_path
 	drop_spawner.spawn_function = world.spawn_drop_node
 	placed_spawner.spawn_function = world.spawn_placed_node
 	if Net.has_client:

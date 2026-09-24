@@ -3,8 +3,9 @@ class_name Packets
 
 const CMD_SIZE := 18
 ## Raw packet types (SceneMultiplayer.send_bytes, first byte).
-const PKT_STATE := 1
-const STATE_SIZE := 1 + 4 + 12 + 6
+const PKT_POSES := 2
+const POSES_HEADER := 1 + 4 + 6 + 1
+const POSE_SIZE := 4 + 8
 
 # button bits (u16)
 const BTN_RUN := 1
@@ -60,30 +61,68 @@ static func unpack_cmds(bytes: PackedByteArray, pos: Vector3) -> Array[Dictionar
 	return out
 
 
-## Owner state ack (raw packet, no Variant headers): u8 PKT_STATE | u32 ack_seq | 3 × f32 pos | 3 × i16 vel cm/s (23 B).
-static func pack_state(ack: int, pos: Vector3, vel: Vector3) -> PackedByteArray:
+## Player poses, one raw packet per client per tick (replaces a 30 Hz MultiplayerSynchronizer stream per player
+## and the separate ack): u8 PKT_POSES | u32 ack_seq (owner's last applied command) | 3 × i16 owner vel cm/s |
+## u8 n | n × { u32 peer | i16 x_cm | i16 y_cm | i16 z_cm | i16 yaw } = 12 + 12 n bytes (60 B with 4 players).
+static func pack_poses(ack: int, vel: Vector3, entries: Array) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
-	b.put_u8(PKT_STATE)
+	b.put_u8(PKT_POSES)
 	b.put_u32(ack)
-	b.put_float(pos.x)
-	b.put_float(pos.y)
-	b.put_float(pos.z)
-	b.put_16(clampi(int(round(vel.x * 100.0)), -32767, 32767))
-	b.put_16(clampi(int(round(vel.y * 100.0)), -32767, 32767))
-	b.put_16(clampi(int(round(vel.z * 100.0)), -32767, 32767))
+	b.put_16(_cm(vel.x))
+	b.put_16(_cm(vel.y))
+	b.put_16(_cm(vel.z))
+	b.put_u8(mini(entries.size(), 255))
+	for e in entries:
+		var d: Dictionary = e
+		var pos: Vector3 = d["pos"]
+		b.put_u32(int(d["peer"]) & 0xFFFFFFFF)
+		b.put_16(_cm(pos.x))
+		b.put_16(_cm(pos.y))
+		b.put_16(_cm(pos.z))
+		b.put_16(_yaw16(float(d["yaw"])))
 	return b.data_array
 
 
-static func unpack_state(bytes: PackedByteArray) -> Dictionary:
-	if bytes.size() < STATE_SIZE or bytes[0] != PKT_STATE:
+static func unpack_poses(bytes: PackedByteArray) -> Dictionary:
+	if bytes.size() < POSES_HEADER or bytes[0] != PKT_POSES:
 		return {}
 	var b := StreamPeerBuffer.new()
 	b.data_array = bytes
 	b.get_u8()
 	var ack := b.get_u32()
-	var pos := Vector3(b.get_float(), b.get_float(), b.get_float())
 	var vel := Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
-	return {"ack": ack, "pos": pos, "vel": vel}
+	var n := b.get_u8()
+	if bytes.size() < POSES_HEADER + n * POSE_SIZE:
+		return {}
+	var poses := []
+	for i in n:
+		var peer := b.get_u32()
+		var pos := Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
+		poses.append({"peer": peer, "pos": pos, "yaw": float(b.get_16()) / 32767.0 * PI})
+	return {"ack": ack, "vel": vel, "poses": poses}
+
+
+## Actor pose (wolves, deer) in ONE int for the synchronizer: 16 bits each x_cm | y_cm | z_cm | yaw.
+## 12 B on the wire instead of 24 B for Vector3 + float.
+static func pack_pose(pos: Vector3, yaw: float) -> int:
+	return ((_cm(pos.x) & 0xFFFF) << 48) | ((_cm(pos.y) & 0xFFFF) << 32) | ((_cm(pos.z) & 0xFFFF) << 16) | (_yaw16(yaw) & 0xFFFF)
+
+
+static func unpack_pose(v: int) -> Dictionary:
+	return {"pos": Vector3(_s16((v >> 48) & 0xFFFF), _s16((v >> 32) & 0xFFFF), _s16((v >> 16) & 0xFFFF)) / 100.0,
+		"yaw": _s16(v & 0xFFFF) / 32767.0 * PI}
+
+
+static func _cm(v: float) -> int:
+	return clampi(int(round(v * 100.0)), -32768, 32767)
+
+
+static func _yaw16(yaw: float) -> int:
+	return clampi(int(round(wrapf(yaw, -PI, PI) / PI * 32767.0)), -32768, 32767)
+
+
+static func _s16(u: int) -> float:
+	return float(u - 65536 if u >= 32768 else u)
 
 
 ## Inventory mirror: u16 id_index | u8 count per slot (ids indexed in Items.DB order).

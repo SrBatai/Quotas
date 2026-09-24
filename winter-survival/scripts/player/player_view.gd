@@ -29,9 +29,7 @@ func setup(p: Player) -> void:
 	visual.rotation.y = _target_yaw
 	if not player.is_local:
 		hover_ring.queue_free()
-		var sync: MultiplayerSynchronizer = player.get_node_or_null("ServerSync")
-		if sync != null:
-			sync.synchronized.connect(_on_synchronized)
+		# remote poses arrive through the poses packet (PlayerNet.on_remote_pose → interp.push)
 		_label = Label3D.new()
 		_label.text = player.display_name
 		_label.font_size = 40
@@ -76,10 +74,6 @@ func _setup_breath() -> void:
 		breath.position = visual.global_transform.affine_inverse() * anchor.global_position
 	else:
 		breath.position = Vector3(0, 1.52, 0.2)
-
-
-func _on_synchronized() -> void:
-	interp.push(player.net_position, player.aim_yaw, player.aim_point)
 
 
 func _process(delta: float) -> void:

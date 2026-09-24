@@ -9,6 +9,8 @@ var owner_peer: int = 1
 var corrections: int = 0
 var last_error: float = 0.0
 var last_ack: int = 0
+## Server: sequence of the last command applied (acked to the owner in the poses packet).
+var last_applied_seq: int = 0
 
 var _pending: Array[Dictionary] = []   # owner: commands not yet acknowledged (with pos_after)
 var _recent: Array[Dictionary] = []    # owner: last commands (redundancy window)
@@ -61,11 +63,9 @@ func _server_step(dt: float) -> void:
 	body.crouching = (btn & Packets.BTN_CROUCH) != 0
 	body.move_dir = Vector3(move.x, 0.0, move.y)
 	_last_cmd = cmd
+	last_applied_seq = int(cmd.get("seq", 0))
 	_tick += 1
-	if not body.is_local and _tick % Balance.NET_STATE_EVERY == 0 and multiplayer.get_peers().has(owner_peer):
-		# raw packet (no Variant / RPC headers): 23 B at 30 Hz, unreliable ordered on channel 0
-		multiplayer.send_bytes(Packets.pack_state(int(cmd.get("seq", 0)), body.position, body.velocity), owner_peer,
-			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
+	# poses + ack for every client travel in ONE packet per tick, sent by PlayerManager.broadcast_poses()
 	body.state.flush_mirror()
 
 
@@ -105,17 +105,14 @@ func _client_step(dt: float) -> void:
 		_inputs.rpc_id(1, Packets.pack_cmds(_recent))
 
 
-## Owner: server ack + authoritative pos/vel (raw packet routed by Net.peer_packet).
-func on_state_bytes(bytes: PackedByteArray) -> void:
+## Owner: server ack + authoritative pos/vel (from the poses packet routed by Net.peer_packet).
+func on_state(ack: int, pos: Vector3, vel: Vector3) -> void:
 	if Net.is_server or not body.is_local:
 		return
-	var s := Packets.unpack_state(bytes)
-	if s.is_empty():
-		return
-	var ack := int(s["ack"])
 	if ack <= last_ack:
 		return
 	last_ack = ack
+	body.net_position = pos
 	var predicted := Vector3.INF
 	while not _pending.is_empty() and int(_pending[0]["seq"]) <= ack:
 		var c: Dictionary = _pending.pop_front()
@@ -123,16 +120,24 @@ func on_state_bytes(bytes: PackedByteArray) -> void:
 			predicted = c["pos_after"]
 	if predicted == Vector3.INF:
 		return   # ack for a command we no longer hold (e.g. before the first send)
-	var err: float = (predicted - (s["pos"] as Vector3)).length()
+	var err: float = (predicted - pos).length()
 	last_error = err
 	if err > Balance.NET_RECONCILE_THRESHOLD:
 		corrections += 1
-		body.position = s["pos"]
-		body.velocity = s["vel"]
+		body.position = pos
+		body.velocity = vel
 		for c in _pending:
 			PlayerSim.step(body, c, 1.0 / Balance.NET_TICK, body.sim_params())
 			c["pos_after"] = body.position
 			c["vel_after"] = body.velocity
+
+
+## Client: a remote player's authoritative pose from the poses packet (interpolated by the view).
+func on_remote_pose(pos: Vector3, yaw: float) -> void:
+	body.net_position = pos
+	body.aim_yaw = yaw
+	if body.view != null:
+		body.view.interp.push(pos, yaw, body.aim_point)
 
 
 # ------------------------------------------------------------------ owner-only mirror + effects (server → owner)
