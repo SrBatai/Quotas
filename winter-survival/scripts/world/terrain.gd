@@ -118,15 +118,16 @@ func _face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, cnoise: FastNois
 	var dl := Vector2(center.x, center.z).distance_to(lake_center)
 	if dl < lake_radius * 0.72:
 		col = Color("#BFE3F0")
+	# Godot's front faces are clockwise: emit a, c, b so the face looks toward `nrm`.
 	st.set_normal(nrm)
 	st.set_color(col)
 	st.add_vertex(a)
 	st.set_normal(nrm)
 	st.set_color(col)
-	st.add_vertex(b)
+	st.add_vertex(c)
 	st.set_normal(nrm)
 	st.set_color(col)
-	st.add_vertex(c)
+	st.add_vertex(b)
 
 
 func _build_collision() -> void:

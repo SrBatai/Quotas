@@ -13,6 +13,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	preset = p_preset
 	out_path = p_out
 	await tree.process_frame
+	if flags.has("placeholders"):
+		Assets.force_placeholders = true
 	if preset == "menu":
 		tree.change_scene_to_file("res://scenes/main/main_menu.tscn")
 	else:
@@ -38,6 +40,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				Inventory.add(&"piedra", 6)
 			"night":
 				GameState.set_time(1, 22.5)
+				world.cabin.stove.burner.add_fuel(600.0)
 				Inventory.add(&"madera", 6)
 				Inventory.add(&"piedra", 6)
 				Inventory.add(&"lata_sopa", 1)
@@ -57,6 +60,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				world.get_node("DayNight").blizzard_blend = 1.0
 			"interior":
 				GameState.set_time(1, 21.0)
+				world.cabin.stove.burner.add_fuel(600.0)
 				Inventory.add(&"hacha", 1)
 				Inventory.add(&"madera", 6)
 				Inventory.add(&"piedra", 6)
@@ -69,6 +73,13 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		if flags.has("noambient"):
 			(world.get_node("Env") as WorldEnvironment).environment.ambient_light_energy = 0.0
+		if flags.has("magenta"):
+			var e := (world.get_node("Env") as WorldEnvironment).environment
+			e.background_mode = Environment.BG_COLOR
+			e.background_color = Color.MAGENTA
+			e.fog_enabled = false
+		if flags.has("nosun"):
+			(world.get_node("Sun") as DirectionalLight3D).visible = false
 		var sun := world.get_node("Sun") as DirectionalLight3D
 		print("sun dir=%s energy=%.2f visible=%s shadow=%s color=%s" % [-sun.global_transform.basis.z, sun.light_energy, sun.visible, sun.shadow_enabled, sun.light_color])
 		var env := (world.get_node("Env") as WorldEnvironment).environment

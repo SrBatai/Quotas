@@ -20,6 +20,9 @@ const PALETTE := {
 	"can_red": "#C23B3B", "can_blue": "#3B6BC2", "fire_orange": "#FF8C2A", "fire_yellow": "#FFD166",
 }
 
+## Test hook: ignore the .glb files and always build placeholders.
+var force_placeholders: bool = false
+
 var _cache: Dictionary = {}
 var _materials: Dictionary = {}
 var _glow: StandardMaterial3D
@@ -40,7 +43,7 @@ func has_model(model_name: String) -> bool:
 func spawn_model(model_name: String) -> Node3D:
 	var path := model_path(model_name)
 	var root: Node3D = null
-	if ResourceLoader.exists(path, "PackedScene"):
+	if not force_placeholders and ResourceLoader.exists(path, "PackedScene"):
 		var scene: PackedScene = _cache.get(path)
 		if scene == null:
 			scene = load(path) as PackedScene
@@ -53,7 +56,7 @@ func spawn_model(model_name: String) -> Node3D:
 	else:
 		root = Placeholders.build(model_name)
 		root.set_meta("placeholder", true)
-		if not _missing_warned.has(model_name) and not PLACEHOLDER_ONLY.has(model_name):
+		if not _missing_warned.has(model_name) and not PLACEHOLDER_ONLY.has(model_name) and not force_placeholders:
 			_missing_warned[model_name] = true
 			push_warning("Model %s missing; using placeholder" % model_name)
 	_ensure_anchors(model_name, root)

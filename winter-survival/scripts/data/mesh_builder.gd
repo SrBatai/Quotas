@@ -26,13 +26,14 @@ func tri(mat: String, a: Vector3, b: Vector3, c: Vector3, outward: Vector3 = Vec
 		b = c
 		c = t
 		n = -n
+	# Godot's front faces are clockwise: emit a, c, b so the face looks toward `n`.
 	var st := _st(mat)
 	st.set_normal(n)
 	st.add_vertex(a)
 	st.set_normal(n)
-	st.add_vertex(b)
-	st.set_normal(n)
 	st.add_vertex(c)
+	st.set_normal(n)
+	st.add_vertex(b)
 
 
 func quad(mat: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, outward: Vector3 = Vector3.ZERO) -> void:
