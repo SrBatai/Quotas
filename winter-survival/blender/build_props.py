@@ -1,4 +1,14 @@
-"""a_frame_cabin, pickup_truck, signpost, fence (ASSET_SPEC §4.17-4.20). All face +Y."""
+"""a_frame_cabin, pickup_truck, signpost, fence (slice ASSET_SPEC §4.17-4.20; ASSET_SPEC_V2 §17).
+
+* a_frame_cabin, pickup_truck: written in the slice convention (+Y front) and built with
+  new_scene(authored_front="+Y") -> exported facing -Y (MODEL_FRONT); BedAnchor (0, 1.35, 1.0).
+  The A-frame window trim lives in `Front`; `WindowsFront` is only the pane (material `window`).
+  The truck keeps the slice `window` material on its glass (same look); the vehicle material `glass`
+  (v2 §2.5/§11) comes with the M7 vehicles/pickup.glb.
+* signpost: authored directly in v2 (no rotation): the boards still point to +X, their text face looks
+  toward -Y, TextTop/TextBottom at y = -0.125 with rotation (0, 0, 0) (Label3D +Z = -Y Blender).
+* fence: no front; unchanged orientation (rails on the +Y side of the posts, as in the slice).
+"""
 import math
 import os
 import sys
@@ -27,7 +37,7 @@ def quad_on(corners, u0, u1, v0, v1, off, normal):
 
 # ------------------------------------------------------------------------------------------------
 def build_pickup_truck():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     body = lp.MeshBuilder()
     paint = "truck_paint"
     # frame under the body, visible between the wheels
@@ -108,23 +118,25 @@ def build_pickup_truck():
 
 
 # ------------------------------------------------------------------------------------------------
-def arrow_board(z0, z1, tip_x=0.85, base_x=-0.25):
-    """Arrow board (pointed end at +X), y 0.06..0.12, text face toward +Y: wood_dark back with a
-    0.02 border around a wood_light face, snow on top."""
+def arrow_board(z0, z1, tip_x=0.85, base_x=-0.25, s=-1):
+    """Arrow board (pointed end at +X), |y| 0.06..0.12 on the side s (-1 = -Y), text face toward s*Y:
+    wood_dark back with a 0.02 border around a wood_light face, snow on top."""
     mb = lp.MeshBuilder()
     zc = (z0 + z1) / 2
     h = (z1 - z0) / 2
     shoulder = tip_x - h * 0.55
 
     def pent(inset, y):
+        y *= s
         return [Vector((base_x + inset, y, z0 + inset)), Vector((shoulder - inset * 0.4, y, z0 + inset)),
                 Vector((tip_x - inset * 1.4, y, zc)), Vector((shoulder - inset * 0.4, y, z1 - inset)),
                 Vector((base_x + inset, y, z1 - inset))]
-    mb.prism(pent(0.0, 0.06), (0, 0.06, 0), (0, 0.105, 0), "wood_dark", snow=True)
-    mb.prism(pent(0.02, 0.105), (0, 0.105, 0), (0, 0.12, 0), "wood_light")
+    mb.prism(pent(0.0, 0.06), (0, s * 0.06, 0), (0, s * 0.105, 0), "wood_dark", snow=True)
+    mb.prism(pent(0.02, 0.105), (0, s * 0.105, 0), (0, s * 0.12, 0), "wood_light")
     mb.snow(0.55)
     # snow strip along the top edge
-    mb.box((base_x, 0.055, z1), (shoulder, 0.125, z1 + 0.035), "snow", skip=('-z',))
+    y0, y1 = sorted((s * 0.055, s * 0.125))
+    mb.box((base_x, y0, z1), (shoulder, y1, z1 + 0.035), "snow", skip=('-z',))
     return mb
 
 
@@ -138,9 +150,10 @@ def build_signpost():
     lp.to_object(post, "Post")
     top = lp.to_object(arrow_board(1.70, 1.98), "BoardTop", (0, 0, 1.84))
     bottom = lp.to_object(arrow_board(1.30, 1.58), "BoardBottom", (0, 0, 1.44))
-    # text anchors: local +Z (Godot) faces the board front (+Y Blender), text reads left-to-right
-    lp.add_empty("TextTop", (0.28, 0.125, 1.84), parent=top, rotation_deg=(0, 0, 180))
-    lp.add_empty("TextBottom", (0.28, 0.125, 1.44), parent=bottom, rotation_deg=(0, 0, 180))
+    # text anchors, unrotated: local +Z (Godot) = -Y Blender = the board's text face; +X (the arrow tip) is
+    # the reader's right, so a Label3D child with identity transform reads left-to-right toward the tip
+    lp.add_empty("TextTop", (0.28, -0.125, 1.84), parent=top)
+    lp.add_empty("TextBottom", (0.28, -0.125, 1.44), parent=bottom)
     export.save_and_export("signpost")
 
 
@@ -160,7 +173,7 @@ def build_fence():
 
 # ------------------------------------------------------------------------------------------------
 def build_a_frame_cabin():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     H, W, D = 6.0, 3.0, 3.5          # ridge height, half width, half depth
     t = 0.2
     body = lp.MeshBuilder()
@@ -228,19 +241,20 @@ def build_a_frame_cabin():
     for (a0, a1, b0, b1) in ((u0 - 0.08, u0, z0, z1 + 0.08), (u1, u1 + 0.08, z0, z1 + 0.08), (u0, u1, z1, z1 + 0.08)):
         front.box((a0, yf, b0), (a1, yf + 0.04, b1), "cabin_trim", skip=('-y',))
     front.box((0.88, yf + 0.01, 1.2), (0.94, yf + 0.05, 1.3), "iron", skip=('-y',))        # door handle
+    # window trim + mullions (palette colours, part of Front; the pane alone is WindowsFront)
+    wu0, wu1, wz0, wz1 = -1.2, -0.2, 2.5, 3.5
+    w = 0.08
+    for (a0, a1, b0, b1) in ((wu0 - w, wu0, wz0 - w, wz1 + w), (wu1, wu1 + w, wz0 - w, wz1 + w),
+                             (wu0, wu1, wz1, wz1 + w), (wu0, wu1, wz0 - w, wz0)):
+        front.box((a0, yf, b0), (a1, yf + 0.04, b1), "cabin_trim", skip=('-y',))
+    front.box((-0.72, yf, wz0), (-0.68, yf + 0.025, wz1), "cabin_trim", skip=('-y',))
+    front.box((wu0, yf, 2.98), (wu1, yf + 0.025, 3.02), "cabin_trim", skip=('-y',))
     lp.clamp_ground(front)
     fo = lp.to_object(front, "Front")
 
     wmb = lp.MeshBuilder()
-    wu0, wu1, wz0, wz1 = -1.2, -0.2, 2.5, 3.5
     wmb.poly([(wu0, yf + 0.01, wz0), (wu1, yf + 0.01, wz0), (wu1, yf + 0.01, wz1), (wu0, yf + 0.01, wz1)], "window",
              facing=(0, 1, 0))
-    w = 0.08
-    for (a0, a1, b0, b1) in ((wu0 - w, wu0, wz0 - w, wz1 + w), (wu1, wu1 + w, wz0 - w, wz1 + w),
-                             (wu0, wu1, wz1, wz1 + w), (wu0, wu1, wz0 - w, wz0)):
-        wmb.box((a0, yf, b0), (a1, yf + 0.04, b1), "cabin_trim", skip=('-y',))
-    wmb.box((-0.72, yf, wz0), (-0.68, yf + 0.025, wz1), "cabin_trim", skip=('-y',))
-    wmb.box((wu0, yf, 2.98), (wu1, yf + 0.025, 3.02), "cabin_trim", skip=('-y',))
     lp.to_object(wmb, "WindowsFront", parent=fo)
 
     deck = lp.MeshBuilder()

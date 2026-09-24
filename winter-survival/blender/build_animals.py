@@ -1,5 +1,8 @@
-"""wolf, deer (ASSET_SPEC §4.2-4.3). Same rigid-part hierarchy: Body > Head (> Muzzle), Tail, Leg*.
-Faces +Y. Underside faces (normal z < -0.3) get the belly colour."""
+"""wolf, deer (slice ASSET_SPEC §4.2-4.3; ASSET_SPEC_V2 §5.3/§17). Same rigid-part hierarchy:
+Body > Head (> Muzzle), Tail, Leg*. Underside faces (normal z < -0.3) get the belly colour.
+
+Written in the slice convention (+Y front, left = -X) and built with new_scene(authored_front="+Y"): the
+exported animals face -Y (MODEL_FRONT), Muzzle at y < 0, LegFL/BL (the animal's left) at +X."""
 import math
 import os
 import sys
@@ -39,7 +42,7 @@ def eye_quads(mb, pts_list, mat, facing):
 
 # ------------------------------------------------------------------------------------------------
 def build_wolf():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     fur, pale = "wolf_fur", "wolf_belly"
     # Body: tapered, deepest at the chest, tucked belly; 0.36 wide, y -0.45..0.45, z 0.36..0.74
     body = lp.MeshBuilder()
@@ -109,7 +112,7 @@ def build_wolf():
 
 # ------------------------------------------------------------------------------------------------
 def build_deer():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     fur, pale = "deer_fur", "deer_belly"
     body = lp.MeshBuilder()
     rings = [lp.body_ring(-0.55, 0.15, 0.82, 1.09, 0.06),

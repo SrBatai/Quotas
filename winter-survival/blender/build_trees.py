@@ -1,4 +1,5 @@
-"""pine_a, pine_b, pine_c, dead_tree, stump (ASSET_SPEC §4.4-4.6)."""
+"""pine_a, pine_b, pine_c, dead_tree, stump (slice ASSET_SPEC §4.4-4.6; ASSET_SPEC_V2 §13/§17: one object,
+one palette_vcol surface, no front -> authored in the final orientation, shapes unchanged)."""
 import math
 import os
 import sys

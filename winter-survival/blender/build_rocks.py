@@ -1,4 +1,5 @@
-"""rock_a, rock_b, rock_c, stone (ASSET_SPEC §4.7-4.8)."""
+"""rock_a, rock_b, rock_c, stone (slice ASSET_SPEC §4.7-4.8; ASSET_SPEC_V2 §13/§17: one palette_vcol surface,
+no front, shapes unchanged)."""
 import os
 import sys
 

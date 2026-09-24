@@ -1,4 +1,6 @@
-"""campfire, torch, lantern (ASSET_SPEC §4.12, 4.14, 4.21)."""
+"""campfire, torch, lantern (slice ASSET_SPEC §4.12, 4.14, 4.21; ASSET_SPEC_V2 §17). No front: authored
+in the final orientation (no front turn). Torch: weapon convention (grip at the origin, handle +Z). Lantern:
+glass = material `window` (second surface), LightAnchor unchanged."""
 import math
 import os
 import sys

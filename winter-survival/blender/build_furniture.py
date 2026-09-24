@@ -1,6 +1,10 @@
-"""bed, desk, chair, shelf, clock, cabinet, wood_stove (ASSET_SPEC §4.16). All face +Y.
+"""bed, desk, chair, shelf, clock, cabinet, wood_stove (slice ASSET_SPEC §4.16; ASSET_SPEC_V2 §9/§17).
 Ground furniture: origin at the footprint centre on the floor. Wall furniture (shelf, clock): origin at
-the wall contact point, protruding toward +Y."""
+the wall contact point.
+
+Written in the slice convention (+Y = the side a person uses / wall furniture protrudes toward +Y) and built
+with new_scene(authored_front="+Y"): exported furniture faces -Y (MODEL_FRONT), shelf and clock protrude
+toward -Y, the stove Door/StoveAnchor are at y < 0 and its Pipe at y > 0."""
 import os
 import sys
 
@@ -15,7 +19,7 @@ Y = (0, 1, 0)
 
 
 def build_wood_stove():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     body = lp.MeshBuilder()
     body.box((-0.30, -0.30, 0.15), (0.30, 0.30, 0.85), "iron", skip=('+z',))
     for sx in (-1, 1):
@@ -52,7 +56,7 @@ def build_wood_stove():
 
 
 def build_cabinet():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.43, -0.25, 0.0), (0.43, 0.23, 0.06), "wood_dark", skip=('-z',))       # plinth
     mb.box((-0.45, -0.25, 0.06), (0.45, 0.25, 1.75), "wood")                          # carcass
@@ -66,7 +70,7 @@ def build_cabinet():
 
 
 def build_bed():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.5, -1.0, 0.0), (0.5, -0.94, 0.95), "wood", skip=('-z',))              # headboard (-Y)
     mb.box((-0.5, -1.0, 0.95), (0.5, -0.92, 0.99), "wood_dark")                      # headboard cap
@@ -83,7 +87,7 @@ def build_bed():
 
 
 def build_desk():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.70, -0.30, 0.70), (0.70, 0.30, 0.75), "wood")                          # top
     for sx in (-1, 1):
@@ -102,7 +106,7 @@ def build_desk():
 
 
 def build_chair():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.225, -0.225, 0.41), (0.225, 0.225, 0.45), "wood")                      # seat
     for sx in (-1, 1):
@@ -116,7 +120,7 @@ def build_chair():
 
 
 def build_shelf():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.45, 0.0, 0.0), (0.45, 0.25, 0.05), "wood")
     for x in (-0.30, 0.30):                                                           # brackets
@@ -133,7 +137,7 @@ def build_shelf():
 
 
 def build_clock():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.cylinder((0, 0, 0), (0, 0.06, 0), 0.18, 0.18, 12, "wood", cap0=False, phase=15)
     mb.poly(lp.ring((0, 0.061, 0), Y, 0.15, 12, 15), "paper", facing=Y)

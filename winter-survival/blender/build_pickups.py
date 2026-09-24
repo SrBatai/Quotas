@@ -1,4 +1,4 @@
-"""firewood, fallen_log (ASSET_SPEC §4.10-4.11)."""
+"""firewood, fallen_log (slice ASSET_SPEC §4.10-4.11; ASSET_SPEC_V2 §13/§17: one palette_vcol surface, no front)."""
 import math
 import os
 import sys

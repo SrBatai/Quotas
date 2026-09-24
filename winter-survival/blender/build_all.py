@@ -1,4 +1,5 @@
-"""Build every VENTISCA asset (ASSET_SPEC §1), then run verify_assets.py.
+"""Build every VENTISCA asset (ASSET_SPEC_V2 §1), run the lib self-tests (lib/rig.py, lib/anim.py),
+then verify_assets.py.
 
     cd winter-survival/blender && python3 build_all.py        # exit code 0 = everything built and ALL OK
 """
@@ -30,10 +31,21 @@ def main():
             traceback.print_exc()
             failed.append(name)
     print("build finished in %.1fs" % (time.time() - t0))
+    lib_failed = []
+    for mod in ("lib.rig", "lib.anim"):
+        try:
+            if importlib.import_module(mod).selftest():
+                lib_failed.append(mod)
+        except Exception:
+            traceback.print_exc()
+            lib_failed.append(mod)
     import verify_assets
     code = verify_assets.main()
     if failed:
         print("BUILD SCRIPT FAILURES: %s" % ", ".join(failed))
+        code = code or 1
+    if lib_failed:
+        print("LIB SELFTEST FAILURES: %s" % ", ".join(lib_failed))
         code = code or 1
     return code
 

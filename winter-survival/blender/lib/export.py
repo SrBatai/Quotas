@@ -1,4 +1,11 @@
-"""Save .blend + export .glb (ASSET_SPEC §2.9), plus scene sanity checks and a re-import helper."""
+"""Save .blend + export .glb (ASSET_SPEC_V2 §2.8), scene sanity checks, re-import helper and
+`write_import` (Godot .import templates, §1/§2.9).
+
+Deviation from the literal §2.8 call (reported): `export_image_format='AUTO'` instead of 'NONE'. The
+Blender 5.0.1 exporter only follows the Base Color link to the `Col` attribute when the image format is not
+'NONE' (io_scene_gltf2/blender/exp/material/pbr_metallic_roughness.py); with 'NONE' no COLOR_0 is written.
+No asset contains images, so nothing else changes.
+"""
 import math
 import re
 from pathlib import Path
@@ -6,25 +13,37 @@ from pathlib import Path
 import bpy
 
 from . import lowpoly
+from . import palette
 
 ROOT = Path(__file__).resolve().parents[2]          # winter-survival/
 BLENDER_DIR = ROOT / "blender"
 SOURCES_DIR = BLENDER_DIR / "sources"
 MODELS_DIR = ROOT / "assets" / "models"
 
-EXPORT_KW = dict(
-    export_format='GLB', export_yup=True, export_apply=True,
-    export_animations=False, export_skins=False, export_morph=False,
-    export_materials='EXPORT', export_image_format='NONE',
-    export_normals=True, export_texcoords=False,
-    export_cameras=False, export_lights=False, export_extras=False,
-    use_selection=False, use_visible=False, use_active_collection=False)
 
-# Empties allowed to carry a rotation (ASSET_SPEC §2.3).
-ROTATED_SOCKETS = {"ToolSocket": (-90.0, 0.0, 0.0), "TextTop": (0.0, 0.0, 180.0),
-                   "TextBottom": (0.0, 0.0, 180.0)}
+def export_kwargs(has_armature=False, has_actions=False):
+    """ASSET_SPEC_V2 §2.8 exporter options."""
+    return dict(
+        export_format='GLB', export_yup=True,
+        export_apply=(not has_armature),                       # with an Armature: do NOT apply modifiers
+        export_animations=has_actions, export_animation_mode='ACTIONS',
+        export_force_sampling=True, export_frame_step=1, export_optimize_animation_size=True,
+        export_anim_single_armature=True, export_reset_pose_bones=True, export_rest_position_armature=True,
+        export_def_bones=False,                                  # keeps the non-deforming socket bones
+        export_leaf_bone=False, export_skins=has_armature, export_morph=False,
+        export_vertex_color='MATERIAL', export_all_vertex_colors=False,   # a single COLOR_0
+        export_materials='EXPORT',
+        export_image_format='AUTO',                              # see module docstring ('NONE' drops COLOR_0)
+        export_texcoords=False, export_normals=True,
+        export_cameras=False, export_lights=False, export_extras=True,
+        use_selection=False, use_visible=False, use_active_collection=False)
 
-NAME_RE = re.compile(r"^[A-Za-z0-9]+(-convcolonly)?$")
+
+# Empties allowed to carry a rotation, as final (FRONT = -Y) Blender XYZ Euler degrees. ToolSocket is the
+# slice's (-90, 0, 0) turned 180 degrees about Z with the player: its local +Z still points forward (-Y).
+ROTATED_SOCKETS = {"ToolSocket": (-90.0, 0.0, 180.0)}
+
+NAME_RE = re.compile(r"^[A-Za-z0-9_]+(-convcolonly|-colonly)?$")
 
 
 def ensure_gltf():
@@ -33,30 +52,56 @@ def ensure_gltf():
         addon_utils.enable("io_scene_gltf2", default_set=True)
 
 
+def is_col(name):
+    return name.startswith("Col") and (name.endswith("-convcolonly") or name.endswith("-colonly"))
+
+
+def allowed_materials():
+    return {palette.VCOL_MATERIAL} | set(palette.EXCEPTIONS) | set(palette.OPTIONAL_EXCEPTIONS)
+
+
 def sanity_check_scene(name):
     problems = []
+    from mathutils import Euler
     for o in bpy.data.objects:
         if o.name not in bpy.context.scene.objects:
             problems.append("orphan object %s" % o.name)
-        if o.type not in ('MESH', 'EMPTY'):
+        if o.type not in ('MESH', 'EMPTY', 'ARMATURE'):
             problems.append("stray %s object %s" % (o.type, o.name))
         if not NAME_RE.match(o.name):
             problems.append("bad name %r" % o.name)
-        if o.name.endswith("-convcolonly") and (o.parent is not None or not o.name.startswith("Col")):
+        if ("-" in o.name) and (o.parent is not None or not is_col(o.name)):
             problems.append("collision object %s must be top-level Col*" % o.name)
-        expected = ROTATED_SOCKETS.get(o.name, (0.0, 0.0, 0.0))
-        if any(abs(math.degrees(a) - e) > 1e-4 for a, e in zip(o.rotation_euler, expected)):
-            problems.append("rotation on %s" % o.name)
-        if any(abs(s - 1.0) > 1e-6 for s in o.scale):
-            problems.append("scale on %s" % o.name)
+        if o.type != 'ARMATURE':
+            expected = ROTATED_SOCKETS.get(o.name, (0.0, 0.0, 0.0))
+            want = Euler(tuple(math.radians(a) for a in expected), 'XYZ').to_matrix()
+            got = o.matrix_basis.to_3x3().normalized()
+            if any(abs(got[i][j] - want[i][j]) > 1e-4 for i in range(3) for j in range(3)):
+                problems.append("rotation on %s" % o.name)
+            if any(abs(s - 1.0) > 1e-6 for s in o.scale):
+                problems.append("scale on %s" % o.name)
         if o.type == 'MESH':
             me = o.data
             if any(p.use_smooth for p in me.polygons):
                 problems.append("smooth faces on %s" % o.name)
-            if len(me.uv_layers) or len(me.color_attributes):
-                problems.append("uv/colour data on %s" % o.name)
-            if not o.name.endswith("-convcolonly") and len(me.materials) == 0:
+            if len(me.uv_layers):
+                problems.append("uv data on %s" % o.name)
+            if is_col(o.name):
+                if len(me.materials) or len(me.color_attributes):
+                    problems.append("collision %s must have no material/colours" % o.name)
+                continue
+            if len(me.materials) == 0:
                 problems.append("no material on %s" % o.name)
+            bad = [m.name for m in me.materials if m is None or m.name not in allowed_materials()]
+            if bad:
+                problems.append("materials %s on %s not allowed" % (bad, o.name))
+            if len(me.materials) > 2:
+                problems.append("%d materials on %s (max 2)" % (len(me.materials), o.name))
+            names = [a.name for a in me.color_attributes]
+            if names != [palette.VCOL_ATTR]:
+                problems.append("colour attributes %s on %s (want ['Col'])" % (names, o.name))
+            elif me.color_attributes[0].domain != 'CORNER':
+                problems.append("Col on %s is not per corner" % o.name)
     if len(bpy.data.images):
         problems.append("image datablocks present")
     if problems:
@@ -71,9 +116,13 @@ def _purge_orphans():
             break
 
 
-def export_gltf(glb_path):
+def export_gltf(glb_path, has_armature=None, has_actions=None):
     ensure_gltf()
-    kw = dict(EXPORT_KW, filepath=str(glb_path))
+    if has_armature is None:
+        has_armature = any(o.type == 'ARMATURE' for o in bpy.context.scene.objects)
+    if has_actions is None:
+        has_actions = len(bpy.data.actions) > 0
+    kw = dict(export_kwargs(has_armature, has_actions), filepath=str(glb_path))
     while True:
         try:
             bpy.ops.export_scene.gltf(**kw)
@@ -87,14 +136,15 @@ def export_gltf(glb_path):
                 raise
 
 
-def save_and_export(name):
-    """Sanity-check the scene, save sources/<name>.blend, export assets/models/<name>.glb."""
+def save_and_export(name, subdir=""):
+    """Sanity-check the scene, save sources/<name>.blend, export assets/models/[subdir/]<name>.glb."""
     sanity_check_scene(name)
     _purge_orphans()
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir = MODELS_DIR / subdir if subdir else MODELS_DIR
+    out_dir.mkdir(parents=True, exist_ok=True)
     blend = SOURCES_DIR / ("%s.blend" % name)
-    glb = MODELS_DIR / ("%s.glb" % name)
+    glb = out_dir / ("%s.glb" % name)
     try:
         bpy.context.preferences.filepaths.save_version = 0   # no .blend1 backups
     except Exception:
@@ -105,10 +155,73 @@ def save_and_export(name):
     for stale in SOURCES_DIR.glob("*.blend1"):
         stale.unlink()
     tris = lowpoly.scene_tris()
-    print("built %-14s tris=%-5d -> %s" % (name, tris, glb.relative_to(ROOT)))
+    surfaces = sum(len(o.data.materials) for o in bpy.context.scene.objects
+                   if o.type == 'MESH' and not is_col(o.name))
+    print("built %-14s tris=%-5d surfaces=%-3d -> %s" % (name, tris, surfaces, glb.relative_to(ROOT)))
     return glb
 
 
+# ------------------------------------------------------------------------------------------------
+# Godot .import templates (ASSET_SPEC_V2 §2.9). Only for NEW asset families: the 33 slice models keep the
+# .import files Godot already generated. Godot fills in uid / dest_files on the next --import.
+# ------------------------------------------------------------------------------------------------
+_SCENE_PARAMS = [
+    'nodes/root_type=""', 'nodes/root_name=""', 'nodes/apply_root_scale=true', 'nodes/root_scale=1.0',
+    'nodes/import_as_skeleton_bones=false', 'nodes/use_name_suffixes=true', 'nodes/use_node_type_suffixes=true',
+    'meshes/ensure_tangents=true', 'meshes/generate_lods=true', 'meshes/create_shadow_meshes=true',
+    'meshes/light_baking=1', 'meshes/lightmap_texel_size=0.2', 'meshes/force_disable_compression=false',
+    'skins/use_named_skins=true', 'import_script/path=""', 'materials/extract=0',
+    'gltf/naming_version=2', 'gltf/embedded_image_handling=1',
+]
+_RETARGET = '''_subresources={
+"nodes": {
+"PATH:Armature/Skeleton3D": {
+"retarget/bone_map": Resource("res://assets/rig/humanoid_bonemap.tres"),
+"retarget/bone_renamer/rename_bones": true,
+"retarget/bone_renamer/unique_node/make_unique": true,
+"retarget/bone_renamer/unique_node/skeleton_name": "GeneralSkeleton",
+"retarget/remove_tracks/except_bone_transform": false,
+"retarget/remove_tracks/unimportant_positions": true,
+"retarget/remove_tracks/unmapped_bones": 0,
+"retarget/rest_fixer/apply_node_transforms": true,
+"retarget/rest_fixer/normalize_position_tracks": true,
+"retarget/rest_fixer/reset_all_bone_poses_after_import": true,
+"retarget/rest_fixer/retarget_method": 1
+}
+}
+}'''
+IMPORT_KINDS = ("prop", "char", "anim")
+
+
+def import_file_text(kind):
+    if kind not in IMPORT_KINDS:
+        raise ValueError("kind must be one of %s" % (IMPORT_KINDS,))
+    if kind == "anim":
+        head = '[remap]\n\nimporter="animation_library"\nimporter_version=1\ntype="AnimationLibrary"\n'
+        params = _SCENE_PARAMS + ['animation/import=true', 'animation/fps=30', 'animation/trimming=false',
+                                  'animation/remove_immutable_tracks=true', 'animation/import_rest_as_RESET=true',
+                                  _RETARGET]
+    else:
+        head = '[remap]\n\nimporter="scene"\nimporter_version=1\ntype="PackedScene"\n'
+        params = list(_SCENE_PARAMS)
+        if kind == "char":
+            params += ['animation/import=false', _RETARGET]
+        else:
+            params += ['animation/import=false', '_subresources={}']
+    return head + "\n[params]\n\n" + "\n".join(params) + "\n"
+
+
+def write_import(glb_path, kind, overwrite=False):
+    """Write <glb>.import from a template (kind: prop | char | anim). Never touches an existing file unless
+    overwrite=True. Returns the path, or None when it already existed."""
+    path = Path(str(glb_path) + ".import")
+    if path.exists() and not overwrite:
+        return None
+    path.write_text(import_file_text(kind))
+    return path
+
+
+# ------------------------------------------------------------------------------------------------
 class _Quiet:
     """Silence C-level and Python stdout (the glTF add-on is chatty)."""
 

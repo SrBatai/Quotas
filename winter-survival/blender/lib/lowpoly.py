@@ -1,9 +1,17 @@
-"""Low-poly construction helpers (ASSET_SPEC §2).
+"""Low-poly construction helpers (ASSET_SPEC_V2 §2).
 
 Everything is built in *world* (asset) coordinates with a `MeshBuilder`, then turned into an object
 whose origin is the requested pivot (`to_object`). Faces are auto-oriented outward (away from the
 solid's centre, or toward an explicit `facing` direction for open quads), so winding mistakes cannot
-produce inverted normals. All polygons are flat shaded; there are no UVs or colour attributes.
+produce inverted normals. All polygons are flat shaded; there are no UVs. Colour = the palette name of
+each face, baked by `palette.assign` into the `Col` corner attribute + one `palette_vcol` material
+(named exceptions such as `window` / `ember` keep their own material).
+
+Front axis (decision C1): every asset with a front faces FRONT = -Y Blender (= +Z Godot = MODEL_FRONT).
+Scripts written for the slice convention (+Y front) call `new_scene(authored_front="+Y")`: every mesh,
+empty, pivot and collision object is then rotated 180 degrees about Z when it is created (to_object /
+add_empty / collision_*), so the asset keeps its exact shape and handedness and its front ends up at -Y.
+New scripts author directly in -Y (the default) and nothing is rotated.
 """
 import math
 import random
@@ -13,21 +21,42 @@ from mathutils import Matrix, Vector
 
 from . import palette
 
+FRONT = Vector((0.0, -1.0, 0.0))          # v2: -Y Blender = +Z Godot (Vector3.MODEL_FRONT)
+RIGHT = Vector((-1.0, 0.0, 0.0))          # character's right = -X (left = +X, like SkeletonProfileHumanoid)
+LEGACY_FRONT = Vector((0.0, 1.0, 0.0))    # slice convention (+Y), converted by new_scene(authored_front="+Y")
+
 # World-space pivot of every object created through this module (reset by new_scene()).
 _PIVOTS = {}
+# Transform applied when objects are created (identity, or 180 deg about Z for +Y-authored scripts).
+_STATE = {"xf": Matrix.Identity(4), "authored_front": "-Y"}
 
 
 # ---------------------------------------------------------------------------------------------
 # scene
 # ---------------------------------------------------------------------------------------------
-def new_scene():
-    """Empty scene, metric units, 1 BU = 1 m."""
+def new_scene(authored_front="-Y"):
+    """Empty scene, metric units, 1 BU = 1 m. `authored_front`: "-Y" (v2 default, geometry already
+    faces FRONT) or "+Y" (slice-era script: rotate everything 180 degrees about Z at creation)."""
+    if authored_front not in ("-Y", "+Y"):
+        raise ValueError("authored_front must be '-Y' or '+Y'")
     bpy.ops.wm.read_factory_settings(use_empty=True)
     _PIVOTS.clear()
+    _STATE["authored_front"] = authored_front
+    _STATE["xf"] = Matrix.Rotation(math.pi, 4, 'Z') if authored_front == "+Y" else Matrix.Identity(4)
     scene = bpy.context.scene
     scene.unit_settings.system = 'METRIC'
     scene.unit_settings.scale_length = 1.0
     return scene
+
+
+def front_xf():
+    """The creation transform of the current scene (identity or 180 degrees about Z)."""
+    return _STATE["xf"].copy()
+
+
+def to_front(p):
+    """Map a point given in the script's authoring convention to final (FRONT = -Y) coordinates."""
+    return _STATE["xf"] @ vec(p)
 
 
 def rng(seed):
@@ -311,7 +340,7 @@ class MeshBuilder:
                 f[1] = mat
 
     def snow(self, threshold=0.55, faces=None, mat='snow'):
-        """ASSET_SPEC §2.5 snow rule on the faces flagged snowable."""
+        """ASSET_SPEC_V2 §2.5 snow rule on the faces flagged snowable."""
         self.recolor(lambda n, c, m: n.z > threshold, mat, faces, snowable_only=True)
 
     def extend(self, other):
@@ -362,6 +391,7 @@ class MeshBuilder:
 # objects
 # ---------------------------------------------------------------------------------------------
 def world_pivot(obj):
+    """Final (FRONT = -Y) world pivot of an object created by this module."""
     return _PIVOTS[obj.name].copy()
 
 
@@ -378,25 +408,23 @@ def _link(obj, parent, pivot):
         obj.location = vec(pivot)
 
 
-def to_object(mb, name, pivot=(0, 0, 0), parent=None, keep_materials_order=None):
-    """Create a mesh object from builder `mb` (world coords) with its origin at `pivot`."""
+def to_object(mb, name, pivot=(0, 0, 0), parent=None):
+    """Create a mesh object from builder `mb` (world coords of the authoring convention) with its origin
+    at `pivot`. Colours: palette_vcol + `Col` corner colours, exceptions as extra materials. `mb` itself is
+    not modified (the front transform is applied to copies)."""
     if bpy.data.objects.get(name) is not None:
         raise RuntimeError("object %s already exists" % name)
-    pv = vec(pivot)
+    xf = _STATE["xf"]
+    pv = xf @ vec(pivot)
     mb.triangulate_nonplanar()
     me = bpy.data.meshes.new(name)
-    me.from_pydata([v - pv for v in mb.verts], [], [f[0] for f in mb.faces])
-    names = list(keep_materials_order or [])
-    for f in mb.faces:
-        if f[1] is not None and f[1] not in names:
-            names.append(f[1])
-    for n in names:
-        me.materials.append(palette.get_material(n))
-    if names:
-        me.polygons.foreach_set('material_index', [names.index(f[1]) if f[1] else 0 for f in mb.faces])
+    me.from_pydata([(xf @ v) - pv for v in mb.verts], [], [f[0] for f in mb.faces])
     me.polygons.foreach_set('use_smooth', [False] * len(me.polygons))
     if me.validate(verbose=False):
         print("WARNING: mesh %s needed validation fixes" % name)
+    if len(me.polygons) != len(mb.faces):
+        raise RuntimeError("mesh %s lost faces during validation" % name)
+    palette.assign(me, [f[1] for f in mb.faces])
     me.update()
     obj = bpy.data.objects.new(name, me)
     if obj.name != name:
@@ -405,19 +433,32 @@ def to_object(mb, name, pivot=(0, 0, 0), parent=None, keep_materials_order=None)
     return obj
 
 
-def add_empty(name, pivot, parent=None, rotation_deg=(0, 0, 0), size=0.1):
+def add_empty(name, pivot, parent=None, rotation_deg=(0, 0, 0), size=0.1, final_rotation_deg=None):
+    """Empty at `pivot` (authoring convention).
+
+    `rotation_deg` is relative to the model's own front convention, so it is conjugated by the front turn:
+    an unrotated anchor stays unrotated (its local -Y = the model front in v2). `final_rotation_deg` sets
+    the exported XYZ Euler rotation directly (for sockets whose children are NOT front-converted, e.g. the
+    player's ToolSocket holding tools authored in the weapon convention)."""
+    from mathutils import Euler
     obj = bpy.data.objects.new(name, None)
     if obj.name != name:
         raise RuntimeError("name collision %s -> %s" % (name, obj.name))
     obj.empty_display_type = 'PLAIN_AXES'
     obj.empty_display_size = size
-    _link(obj, parent, pivot)
-    obj.rotation_euler = tuple(math.radians(a) for a in rotation_deg)
+    xf = _STATE["xf"]
+    _link(obj, parent, xf @ vec(pivot))
+    if final_rotation_deg is not None:
+        r = Euler(tuple(math.radians(a) for a in final_rotation_deg), 'XYZ').to_matrix()
+    else:
+        x3 = xf.to_3x3()
+        r = x3 @ Euler(tuple(math.radians(a) for a in rotation_deg), 'XYZ').to_matrix() @ x3.inverted()
+    obj.rotation_euler = r.to_euler('XYZ')
     return obj
 
 
 def collision_box(name, mn, mx):
-    """Invisible-in-Godot convex collision box (`<name>-convcolonly`), top level, no material."""
+    """Convex collision box (`<name>-convcolonly`), top level, no material (authoring coordinates)."""
     mb = MeshBuilder()
     mb.box(mn, mx, None)
     return _collision(mb, name)
@@ -431,8 +472,9 @@ def collision_prism(name, pts, faces):
 
 def _collision(mb, name):
     full = name if name.endswith("-convcolonly") else name + "-convcolonly"
+    xf = _STATE["xf"]
     me = bpy.data.meshes.new(full)
-    me.from_pydata(list(mb.verts), [], [f[0] for f in mb.faces])
+    me.from_pydata([xf @ v for v in mb.verts], [], [f[0] for f in mb.faces])
     me.polygons.foreach_set('use_smooth', [False] * len(me.polygons))
     me.validate(verbose=False)
     me.update()
@@ -474,7 +516,7 @@ def clamp_ground(mb, verts_from=0, z=0.0):
 
 
 def stone_rule(mb, faces=None, snow=0.55, dark=0.1):
-    """Rock colouring (ASSET_SPEC §4.7): snow on top, stone_dark on steep/under faces, stone else."""
+    """Rock colouring (slice ASSET_SPEC §4.7): snow on top, stone_dark on steep/under faces, stone else."""
     rng_ = range(len(mb.faces)) if faces is None else faces
     for fi in rng_:
         nz = mb.normal(fi).z

@@ -1,6 +1,15 @@
-"""cabin (ASSET_SPEC §4.15): the hunter's house. Faces +Y (porch side). Walls x +-3.0, y +-2.5,
-floor top z 0.30, eaves 3.0, ridge 4.6, chimney top 5.3. Separate top-level parts for the cutaway,
-windows parented to their walls, embedded `-convcolonly` collision boxes.
+"""cabin (slice ASSET_SPEC §4.15; ASSET_SPEC_V2 §17, replaced in M6a by the kit template house_hunter):
+the hunter's house. Walls x +-3.0, y +-2.5, floor top z 0.30, eaves 3.0, ridge 4.6, chimney top 5.3.
+Separate top-level parts for the cutaway, windows parented to their walls, embedded `-convcolonly`
+collision boxes.
+
+v2 (M0): the coordinates below are the slice ones (porch toward +Y); new_scene(authored_front="+Y") turns
+the whole house 180 degrees about Z, so the exported cabin faces -Y (MODEL_FRONT): WallFront/porch at -Y,
+WallLeft + chimney at +X, DoorAnchor (0.9, -3.2, 0.30), LanternSocket (1.6, -4.3, 2.35). Placed with
+rotation 0 in Godot it looks exactly like the slice cabin placed with rotation 180.
+Surfaces: one `palette_vcol` surface per cutaway part (Floor, WallBack, WallLeft, WallRight, WallFront,
+Roof, Chimney, Porch) + one `window` surface per window object = 10 (slice: 34). The window trim and
+mullions are part of the wall they sit on; WindowsFront / WindowsLeft contain only the panes.
 
 Notes / deliberate choices (reported to the code agent):
 * Wall *inner* faces use `wood` (warm plank interior like the reference); outer faces `cabin_wall`.
@@ -84,13 +93,19 @@ def face_box(mb, face, u0, u1, z0, z1, d0, d1, mat, skip_back=True):
     return mb.box(mn, mx, mat, skip=skip)
 
 
-def window(face, u0, u1, z0=1.3, z1=2.3):
-    """Painted-on window: pane quad (material `window`) 0.01 proud, trim frame 0.08 wide / 0.04 proud,
-    one vertical + one horizontal mullion, and a sill."""
+def window_pane(face, u0, u1, z0=1.3, z1=2.3):
+    """Painted-on window pane: quad (material `window`) 0.01 proud of the wall."""
     mb = lp.MeshBuilder()
     f = face
     mb.poly([f.p(u0, z0, 0.01), f.p(u1, z0, 0.01), f.p(u1, z1, 0.01), f.p(u0, z1, 0.01)], "window",
             facing=f.n)
+    return mb
+
+
+def window_trim(mb, face, u0, u1, z0=1.3, z1=2.3):
+    """Window trim frame 0.08 wide / 0.04 proud, one vertical + one horizontal mullion and a sill, added to
+    the wall's own builder `mb`."""
+    f = face
     w = 0.08
     face_box(mb, f, u0 - w, u0, z0 - w, z1 + w, 0, 0.04, "cabin_trim")
     face_box(mb, f, u1, u1 + w, z0 - w, z1 + w, 0, 0.04, "cabin_trim")
@@ -100,7 +115,6 @@ def window(face, u0, u1, z0=1.3, z1=2.3):
     face_box(mb, f, um - 0.02, um + 0.02, z0, z1, 0.0, 0.025, "cabin_trim")
     face_box(mb, f, u0, u1, zm - 0.02, zm + 0.02, 0.0, 0.025, "cabin_trim")
     face_box(mb, f, u0 - w - 0.06, u1 + w + 0.06, z0 - w - 0.06, z0 - w, 0, 0.09, "cabin_trim")   # sill
-    return mb
 
 
 def wall_box(mb, mn, mx, inner):
@@ -155,6 +169,7 @@ def build_walls():
     wall_box(left, (-3.0, -2.5, Z0), (-3.0 + T, 2.5, ZE), '+x')
     fl = WallFace('x', -3.0, -1)
     siding(left, fl, -2.4, 2.4, [(-1.98 - 0.06, -0.62 + 0.06, 1.16, 2.38), (0.25, 0.95, 0.0, 9.0)])
+    window_trim(left, fl, -1.9, -0.7)
     walls["WallLeft"] = left
 
     right = lp.MeshBuilder()
@@ -180,6 +195,7 @@ def build_walls():
     for x in (-3.0, 2.9):     # front corner trims
         front.box((x - 0.03 if x < 0 else x, 2.40, Z0), (x + 0.1 if x < 0 else x + 0.13, 2.53, ZE - 0.005),
                   "cabin_trim")
+    window_trim(front, ff, 0.8, 2.0)
     walls["WallFront"] = front
     return walls, ff, fl
 
@@ -333,15 +349,15 @@ def build_collision():
 
 
 def build_cabin():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     lp.to_object(build_floor(), "Floor")
     walls, face_front, face_left = build_walls()
     lp.to_object(walls["WallBack"], "WallBack")
     wl = lp.to_object(walls["WallLeft"], "WallLeft")
-    lp.to_object(window(WallFace('x', -3.0, -1), -1.9, -0.7), "WindowsLeft", parent=wl)
+    lp.to_object(window_pane(face_left, -1.9, -0.7), "WindowsLeft", parent=wl)
     lp.to_object(walls["WallRight"], "WallRight")
     wf = lp.to_object(walls["WallFront"], "WallFront")
-    lp.to_object(window(WallFace('y', 2.5, 1), 0.8, 2.0), "WindowsFront", parent=wf)
+    lp.to_object(window_pane(face_front, 0.8, 2.0), "WindowsFront", parent=wf)
     lp.to_object(build_roof(), "Roof")
     lp.to_object(build_chimney(), "Chimney")
     lp.to_object(build_porch(), "Porch")

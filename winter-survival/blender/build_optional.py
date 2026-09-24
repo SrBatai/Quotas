@@ -1,4 +1,6 @@
-"""P2: tent, storage_box (ASSET_SPEC §4.22)."""
+"""tent, storage_box (slice ASSET_SPEC §4.22; ASSET_SPEC_V2 §17). Written in the slice convention (tent
+open at +Y, crate latch at +Y) and built with new_scene(authored_front="+Y"): both face -Y (MODEL_FRONT);
+tent ColBack-convcolonly ends up at y 1.2..1.3 (the back)."""
 import os
 import sys
 
@@ -13,7 +15,7 @@ from lib import lowpoly as lp  # noqa: E402
 
 def build_tent():
     """Triangular prism 2.4 x 2.6 x 1.7, open at +Y: cloth slopes with snow, closed back, wood poles."""
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     W, D, H, t = 1.2, 1.3, 1.7, 0.035
     for sx in (-1, 1):
@@ -45,7 +47,7 @@ def build_tent():
 
 def build_storage_box():
     """Wooden crate 0.8 x 0.6 x 0.6: wood panels with wood_dark edge battens."""
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     mb = lp.MeshBuilder()
     mb.box((-0.38, -0.28, 0.0), (0.38, 0.28, 0.58), "wood", skip=('-z',))
     for sx in (-1, 1):

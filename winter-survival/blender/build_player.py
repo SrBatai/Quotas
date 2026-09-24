@@ -1,5 +1,11 @@
-"""player (ASSET_SPEC §4.1): rigid parts parented in a hierarchy, each with its origin at its joint.
-Faces +Y (Blender) = -Z (Godot forward). Right = +X."""
+"""player (slice ASSET_SPEC §4.1, regenerated for ASSET_SPEC_V2 §17): rigid parts parented in a hierarchy,
+each with its origin at its joint. Retired in M2 (replaced by the skeletal chars/survivor_*.glb).
+
+The coordinates below are written in the slice convention (faces +Y, right = +X); the script calls
+new_scene(authored_front="+Y") so lib.lowpoly turns everything 180 degrees about Z: the exported player
+faces -Y Blender = +Z Godot (MODEL_FRONT), right = -X. E.g. ArmR pivot (-0.36, 0, 1.32), BreathAnchor
+(0, -0.20, 1.52), ToolSocket (-0.36, -0.05, 0.80) with rotation (-90, 0, 180) deg: its local +Z still
+points forward, so tools parented with identity hold the handle forward and the blade/head up."""
 import os
 import sys
 
@@ -68,15 +74,17 @@ def leg_mesh(sx):
 
 
 def build_player():
-    lp.new_scene()
+    lp.new_scene(authored_front="+Y")
     hips = lp.add_empty("Hips", (0, 0, 0.80))
     torso = lp.to_object(torso_mesh(), "Torso", (0, 0, 0.80), parent=hips)
     head = lp.to_object(head_mesh(), "Head", (0, 0, 1.36), parent=torso)
     lp.add_empty("BreathAnchor", (0, 0.20, 1.52), parent=head)
     lp.to_object(arm_mesh(-1), "ArmL", (-0.36, 0, 1.32), parent=torso)
     arm_r = lp.to_object(arm_mesh(1), "ArmR", (0.36, 0, 1.32), parent=torso)
-    # local +Z of the socket points along world +Y (forward): tools parented with identity transform
-    lp.add_empty("ToolSocket", (0.36, 0.05, 0.80), parent=arm_r, rotation_deg=(-90, 0, 0))
+    # Slice socket (-90, 0, 0) carried along with the 180-degree body turn: local +Z points forward (-Y),
+    # local -Y up, local +X = the player's right (-X). Tools (not front-converted: weapon convention, useful
+    # end at -Y) parented with identity hold the handle forward and the blade/head up, as in the slice.
+    lp.add_empty("ToolSocket", (0.36, 0.05, 0.80), parent=arm_r, final_rotation_deg=(-90, 0, 180))
     lp.to_object(leg_mesh(-1), "LegL", (-0.12, 0, 0.80), parent=hips)
     lp.to_object(leg_mesh(1), "LegR", (0.12, 0, 0.80), parent=hips)
     export.save_and_export("player")

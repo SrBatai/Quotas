@@ -1,4 +1,4 @@
-"""berry_bush (ASSET_SPEC §4.9)."""
+"""berry_bush (slice ASSET_SPEC §4.9; ASSET_SPEC_V2 §13/§17: keeps the child `Berries` the code hides; no front)."""
 import math
 import os
 import sys

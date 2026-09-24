@@ -1,4 +1,6 @@
-"""stone_axe (ASSET_SPEC §4.13). Origin at the grip, handle along +Z, blade toward -Y."""
+"""stone_axe (slice ASSET_SPEC §4.13; ASSET_SPEC_V2 §12 weapon convention). Origin at the grip, handle along
++Z Blender (+Y Godot), useful end (blade) toward -Y Blender (+Z Godot); symmetric in X. Authored directly in
+the final orientation (no front turn): it hangs from the player's ToolSocket / RightHandSocket with identity."""
 import os
 import sys
 
