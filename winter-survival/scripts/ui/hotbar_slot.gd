@@ -69,7 +69,7 @@ func set_item(entry: Dictionary) -> void:
 		add_child(_icon)
 		move_child(_icon, 0)
 		var n := int(entry["count"])
-		_count.text = str(n) if n > 1 or not Items.is_tool(_item) else ""
+		_count.text = str(n) if n > 1 or not Items.is_tool_item(_item) else ""
 		if is_hand and n <= 1:
 			_count.text = ""
 		tooltip_text = Items.describe(_item)

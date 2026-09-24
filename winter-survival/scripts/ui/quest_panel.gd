@@ -103,12 +103,9 @@ func _row(step: Dictionary, kind: int) -> Control:
 		var strike := ColorRect.new()
 		strike.color = UiTheme.TEXT_2
 		strike.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		strike.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-		strike.offset_top = 8
-		strike.offset_bottom = 9
-		strike.offset_right = 0
+		strike.position = Vector2(0, 8)
+		strike.size = Vector2(title.get_theme_font("font").get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, 1)
 		title.add_child(strike)
-		title.resized.connect(func() -> void: strike.size.x = minf(title.get_theme_font("font").get_string_size(title.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 11).x, title.size.x))
 	if kind == 1:
 		var hint := UiTheme.label(step["hint"], 9, UiTheme.TEXT_2)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

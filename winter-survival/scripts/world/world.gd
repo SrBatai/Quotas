@@ -20,7 +20,7 @@ func _ready() -> void:
 	var aframe := Regions.AFRAME_POS
 	var truck := Regions.TRUCK_POS
 	var pads := [
-		{"center": Vector2.ZERO, "radius": 12.0},
+		{"center": Vector2.ZERO, "radius": 14.0},
 		{"center": aframe, "radius": 8.0},
 		{"center": truck, "radius": 4.0},
 	]

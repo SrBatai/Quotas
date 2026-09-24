@@ -50,7 +50,7 @@ static func is_food(id: StringName) -> bool:
 	return DB.has(id) and DB[id]["kind"] == "food"
 
 
-static func is_tool(id: StringName) -> bool:
+static func is_tool_item(id: StringName) -> bool:
 	return DB.has(id) and DB[id]["kind"] == "tool"
 
 
@@ -80,6 +80,6 @@ static func describe(id: StringName) -> String:
 			parts.append("Salud %+d" % int(hp))
 		if not parts.is_empty():
 			text += " · " + " · ".join(parts)
-	elif is_tool(id):
+	elif is_tool_item(id):
 		text += " · Herramienta"
 	return text

@@ -3,6 +3,8 @@ extends Node
 ## Always guarantees the anchor nodes from ASSET_SPEC §5 exist.
 
 const MODELS_DIR := "res://assets/models/"
+## Models that only exist as placeholders (no glb is expected): no warning.
+const PLACEHOLDER_ONLY := ["meat", "pelt"]
 
 ## Palette (ASSET_SPEC §3)
 const PALETTE := {
@@ -51,7 +53,7 @@ func spawn_model(model_name: String) -> Node3D:
 	else:
 		root = Placeholders.build(model_name)
 		root.set_meta("placeholder", true)
-		if not _missing_warned.has(model_name):
+		if not _missing_warned.has(model_name) and not PLACEHOLDER_ONLY.has(model_name):
 			_missing_warned[model_name] = true
 			push_warning("Model %s missing; using placeholder" % model_name)
 	_ensure_anchors(model_name, root)

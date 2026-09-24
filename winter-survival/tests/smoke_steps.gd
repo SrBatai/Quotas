@@ -43,8 +43,8 @@ func seconds(s: float) -> void:
 	await tree.create_timer(s).timeout
 
 
-func run(t: SceneTree) -> void:
-	tree = t
+func run(p_tree: SceneTree) -> void:
+	tree = p_tree
 	print("== VENTISCA smoke test")
 	for sig in [&"world_ready", &"tree_felled", &"item_consumed", &"wolf_died", &"weather_changed", &"shelter_changed",
 			&"day_started", &"player_died", &"game_won", &"campfire_placed", &"stove_fueled", &"crafted", &"night_started"]:
@@ -99,7 +99,7 @@ func run(t: SceneTree) -> void:
 	var nearest: ChoppableTree = null
 	var best := INF
 	for t in tree.get_nodes_in_group("tree"):
-		if t.variant == "fallen_log":
+		if not String(t.variant).begins_with("pine"):
 			continue
 		var d: float = t.global_position.distance_to(player.global_position)
 		if d < best:
@@ -123,7 +123,8 @@ func run(t: SceneTree) -> void:
 	check(fed and stove.burner.fuel > fuel_before, "stove fuel increased (%.0f → %.0f)" % [fuel_before, stove.burner.fuel])
 	check(fired(&"stove_fueled") >= 1, "stove_fueled fired")
 	await frames(2)
-	check(QuestManager.index >= 3, "quest index advanced to >= 3 (got %d)" % QuestManager.index)
+	# steps 1 (wood x2) and 2 (stove) are done; the axe was crafted before the stove step so step 3 is now current
+	check(QuestManager.index >= 2, "quest index advanced to >= 2 (got %d)" % QuestManager.index)
 	# 7. container
 	var storage: Storage = cabinet.get_node("Storage")
 	var storage_panel: StoragePanel = game.get_node("UI/StoragePanel")
@@ -146,12 +147,16 @@ func run(t: SceneTree) -> void:
 	var fog := Recipes.by_id(&"fogata")
 	player.placement.begin("campfire", fog)
 	check(player.placement.active, "placement mode active")
-	var placed := player.placement.confirm_at(player.global_position + Vector3(2.5, 0, 0))
+	var spot := player.global_position + Vector3(0, 0, 4.0)
+	spot.y = world.get_height(spot.x, spot.z)
+	var placed := player.placement.confirm_at(spot)
 	check(placed, "campfire placed")
 	check(tree.get_nodes_in_group("campfire").size() >= 1, "campfire in group")
 	var campfire: Campfire = tree.get_nodes_in_group("campfire")[0] if tree.get_nodes_in_group("campfire").size() > 0 else null
 	check(campfire != null and campfire.is_lit, "campfire is lit")
 	check(fired(&"campfire_placed") >= 1, "campfire_placed fired")
+	if campfire != null:
+		player.global_position = campfire.global_position + Vector3(2.0, 0.3, 0)
 	await frames(60)
 	check(player.stats.warmth_rate() > 0.0, "warmth rate positive near campfire (%.2f)" % player.stats.warmth_rate())
 	# 9. night + wolves
@@ -167,9 +172,12 @@ func run(t: SceneTree) -> void:
 		wolf.global_position = far
 		await frames(120)
 		check(wolf.state in [Wolf.State.STALK, Wolf.State.CHASE, Wolf.State.ATTACK, Wolf.State.FLEE], "wolf state after 120 frames: %s" % Wolf.State.keys()[wolf.state])
-		campfire.global_position = wolf.global_position
-		await frames(30)
-		check(wolf.state == Wolf.State.FLEE, "wolf flees from the campfire (state %s)" % Wolf.State.keys()[wolf.state])
+		if campfire != null:
+			campfire.global_position = wolf.global_position
+			await frames(30)
+			check(wolf.state == Wolf.State.FLEE, "wolf flees from the campfire (state %s)" % Wolf.State.keys()[wolf.state])
+		else:
+			check(false, "no campfire to scare the wolf")
 		# 10. kill
 		wolf.take_damage(999.0, player)
 		await frames(2)

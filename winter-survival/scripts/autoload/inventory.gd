@@ -52,7 +52,7 @@ func add(id: StringName, n: int, silent: bool = false) -> int:
 		return n
 	var left := n
 	var stack := Items.stack_max(id)
-	if Items.is_tool(id):
+	if Items.is_tool_item(id):
 		# Tools: stack in the hand if it holds the same tool, else take the hand if free.
 		if slots[0].is_empty():
 			var put := mini(left, stack)
@@ -127,7 +127,7 @@ func can_add_result(result: Dictionary, cost: Dictionary) -> bool:
 	for id in result:
 		var need: int = int(result[id])
 		var stack := Items.stack_max(id)
-		if Items.is_tool(id) and (sim[0].is_empty() or (sim[0]["id"] == id and int(sim[0]["count"]) < stack)):
+		if Items.is_tool_item(id) and (sim[0].is_empty() or (sim[0]["id"] == id and int(sim[0]["count"]) < stack)):
 			need -= 1
 		for i in range(1, sim.size()):
 			if need <= 0:
@@ -154,7 +154,7 @@ func equip_from_slot(i: int) -> void:
 	if i <= 0 or i >= slots.size():
 		return
 	var s := slots[i]
-	if not s.is_empty() and not Items.is_tool(s["id"]):
+	if not s.is_empty() and not Items.is_tool_item(s["id"]):
 		return
 	var hand := slots[0]
 	slots[0] = s
@@ -182,7 +182,7 @@ func use_slot(i: int) -> void:
 	if i < 0 or i >= slots.size() or slots[i].is_empty():
 		return
 	var id: StringName = slots[i]["id"]
-	if Items.is_tool(id):
+	if Items.is_tool_item(id):
 		if i == 0:
 			unequip_hand()
 		else:

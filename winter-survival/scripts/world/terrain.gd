@@ -36,8 +36,11 @@ func generate(seed_value: int, pads: Array) -> void:
 	noise2.fractal_type = FastNoiseLite.FRACTAL_NONE
 	noise2.frequency = 0.004
 	heights.resize(n * n)
+	# gentle rolling clearing near the cabin, hills further out
 	var raw := func(x: float, z: float) -> float:
-		return noise.get_noise_2d(x, z) * 6.0 + noise2.get_noise_2d(x, z) * 3.0
+		var d := Vector2(x, z).length()
+		var amp := 0.3 + 0.7 * (1.0 - _smooth(45.0, 14.0, d))
+		return (noise.get_noise_2d(x, z) * 6.0 + noise2.get_noise_2d(x, z) * 3.0) * amp
 	lake_level = raw.call(lake_center.x, lake_center.y) - 1.0
 	var pad_heights: Array[float] = []
 	for p in pads:

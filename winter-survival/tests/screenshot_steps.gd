@@ -7,8 +7,8 @@ var preset: String = "day"
 var out_path: String = "/tmp/ventisca_shot.png"
 
 
-func run(t: SceneTree, p_preset: String, p_out: String) -> void:
-	tree = t
+func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
+	tree = p_tree
 	preset = p_preset
 	out_path = p_out
 	await tree.process_frame

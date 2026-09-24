@@ -15,5 +15,13 @@ func _initialize() -> void:
 			out_path = a.substr(6)
 	Engine.max_fps = 60
 	var script: GDScript = load("res://tests/screenshot_steps.gd")
+	if script == null or not script.can_instantiate():
+		print("FAIL: cannot load screenshot_steps.gd")
+		quit(1)
+		return
 	_body = script.new()
 	_body.run(self, preset, out_path)
+	var t := create_timer(600.0)
+	t.timeout.connect(func() -> void:
+		print("FAIL: screenshot watchdog timeout")
+		quit(1))
