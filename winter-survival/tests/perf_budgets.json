@@ -25,14 +25,21 @@
       "mesh_surfaces": 2735
     },
     "after_m0": {
-      "note": "M0: Jolt, v2 assets (COLOR_0 + palette_vcol -> shared world_vcol ShaderMaterial), camera far 70, no shadows on small props / interior furniture, GPUParticles3D. draw_calls_max = 60 % of before_m0 (PLAN M0 acceptance).",
+      "note": "M0 final (tests/run_all.sh): Jolt, v2 assets (COLOR_0 + palette_vcol -> shared world_vcol ShaderMaterial), camera far 70, compat preset (2048 atlas, 2 splits, 60 m), no shadows on small props / interior furniture, GPUParticles3D. draw_calls_max = 60 % of before_m0 (PLAN M0 acceptance).",
       "rendering_method": "gl_compatibility",
-      "draw_calls_median": 295,
-      "objects_median": 391,
-      "primitives_median": 74472,
+      "draw_calls_median": 363,
+      "objects_median": 459,
+      "primitives_median": 86012,
       "mesh_surfaces": 906,
       "nodes": 5257,
-      "ratio_vs_before": 0.251
+      "ratio_vs_before": 0.309
+    },
+    "new_code_old_v1_assets": {
+      "note": "Same M0 code but the pre-M0 v1 .glb files (legacy per-colour surfaces merged at load by Assets._merge_legacy), compat shadows at 45 m: shows the code-side share of the gain.",
+      "draw_calls_median": 287,
+      "objects_median": 383,
+      "primitives_median": 72660,
+      "mesh_surfaces": 909
     }
   }
 }
