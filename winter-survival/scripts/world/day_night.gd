@@ -4,16 +4,16 @@ extends Node
 
 const KEYS := {
 	# hour: sky_top, sky_horizon, ground, ambient, ambient_energy, fog_color, fog_density, sky_energy
-	0.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
-	5.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
-	6.5: [Color("#3E4C7A"), Color("#E0A886"), Color("#7C8AA6"), Color("#7C8CB0"), 0.8, Color("#9FA9C2"), 0.014, 0.6],
-	12.0: [Color("#7FB3E6"), Color("#D6E6F5"), Color("#C9D8EA"), Color("#8EB0DC"), 0.8, Color("#C9D8EA"), 0.010, 1.0],
-	18.5: [Color("#7FA6DC"), Color("#E8D8C8"), Color("#B8C6DA"), Color("#8AA6D0"), 0.8, Color("#C0CCDE"), 0.011, 0.9],
-	19.5: [Color("#4E4A80"), Color("#E8A470"), Color("#7E7C98"), Color("#7E86A8"), 0.75, Color("#A9AEC4"), 0.014, 0.6],
-	20.8: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.020, 0.25],
+	0.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.014, 0.25],
+	5.0: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.014, 0.25],
+	6.5: [Color("#3E4C7A"), Color("#E0A886"), Color("#7C8AA6"), Color("#7C8CB0"), 0.8, Color("#9FA9C2"), 0.010, 0.6],
+	12.0: [Color("#7FB3E6"), Color("#D6E6F5"), Color("#C9D8EA"), Color("#8EB0DC"), 0.8, Color("#C9D8EA"), 0.006, 1.0],
+	18.5: [Color("#7FA6DC"), Color("#E8D8C8"), Color("#B8C6DA"), Color("#8AA6D0"), 0.8, Color("#C0CCDE"), 0.007, 0.9],
+	19.5: [Color("#4E4A80"), Color("#E8A470"), Color("#7E7C98"), Color("#7E86A8"), 0.75, Color("#A9AEC4"), 0.010, 0.6],
+	20.8: [Color("#0B1A33"), Color("#1F3358"), Color("#16233B"), Color("#3C4D78"), 0.85, Color("#182640"), 0.014, 0.25],
 }
 const BLIZZARD_FOG := Color("#B8C4D3")
-const BLIZZARD_FOG_DENSITY := 0.06
+const BLIZZARD_FOG_DENSITY := 0.045
 const NIGHT_BLIZZARD_FOG := Color("#3A4556")
 
 var sun: DirectionalLight3D
@@ -21,6 +21,9 @@ var moon: DirectionalLight3D
 var env: WorldEnvironment
 var sky_mat: ProceduralSkyMaterial
 var blizzard_blend: float = 0.0
+## Debug/tuning multipliers (screenshot flags use them).
+var sun_scale: float = 1.0
+var ambient_scale: float = 1.0
 
 
 func _ready() -> void:
@@ -105,8 +108,8 @@ func apply(hour: float) -> void:
 	if sun != null:
 		sun.rotation_degrees = Vector3(-maxf(elev, 2.0), 205.0 + t_sun * 40.0 - 20.0, 0)
 		var energy := clampf(elev / 38.0, 0.0, 1.0)
-		energy = sqrt(energy) * 0.62
-		sun.light_energy = energy * (1.0 - 0.8 * blizzard_blend)
+		energy = sqrt(energy) * 0.26
+		sun.light_energy = energy * (1.0 - 0.8 * blizzard_blend) * sun_scale
 		sun.visible = energy > 0.01
 		var warm := clampf(elev / 8.0, 0.0, 1.0)
 		sun.light_color = Color("#FFB070").lerp(Color("#FFF4E0"), warm)
@@ -126,7 +129,7 @@ func apply(hour: float) -> void:
 	sky_mat.ground_horizon_color = (k[1] as Color).lerp(blizzard_fog, blizzard_blend)
 	sky_mat.sky_energy_multiplier = k[7]
 	e.ambient_light_color = (k[3] as Color).lerp(blizzard_fog, blizzard_blend * 0.5)
-	e.ambient_light_energy = lerpf(k[4], k[4] * 1.1, blizzard_blend)
+	e.ambient_light_energy = lerpf(k[4], k[4] * 1.1, blizzard_blend) * ambient_scale
 	e.fog_light_color = (k[5] as Color).lerp(blizzard_fog, blizzard_blend)
 	e.fog_density = lerpf(k[6], BLIZZARD_FOG_DENSITY, blizzard_blend)
 

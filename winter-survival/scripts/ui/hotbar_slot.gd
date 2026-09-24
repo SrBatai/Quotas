@@ -31,9 +31,11 @@ func _ready() -> void:
 	add_child(_caption)
 	_count = UiTheme.label("", 11, UiTheme.TEXT, true)
 	_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_count.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_count.position = Vector2(20, 34)
+	_count.position = Vector2(20, 33)
 	_count.size = Vector2(28, 16)
+	_count.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
+	_count.add_theme_constant_override("shadow_offset_x", 1)
+	_count.add_theme_constant_override("shadow_offset_y", 1)
 	add_child(_count)
 	_bonus = UiTheme.label("", 9, UiTheme.ACCENT, true)
 	_bonus.position = Vector2(3, 2)

@@ -24,7 +24,8 @@ func _ready() -> void:
 	storage_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	storage_panel.offset_left = -190
 	storage_panel.offset_right = 190
-	storage_panel.offset_top = -250
+	storage_panel.offset_top = -290
+	storage_panel.offset_bottom = -118
 	storage_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	hud.category_bar.category_pressed.connect(_on_category)
 	craft_panel.opened.connect(func(cat: StringName) -> void:

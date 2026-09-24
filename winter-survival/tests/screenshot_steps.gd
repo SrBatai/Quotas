@@ -71,19 +71,24 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				storage_panel.open(world.cabin.get_node("Cabinet").get_node("Storage"))
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
+		var dn: DayNight = world.get_node("DayNight")
 		if flags.has("noambient"):
-			(world.get_node("Env") as WorldEnvironment).environment.ambient_light_energy = 0.0
+			dn.ambient_scale = 0.0
+		if flags.has("halfsun"):
+			dn.sun_scale = 0.5
+		if flags.has("halfambient"):
+			dn.ambient_scale = 0.5
 		if flags.has("magenta"):
 			var e := (world.get_node("Env") as WorldEnvironment).environment
 			e.background_mode = Environment.BG_COLOR
 			e.background_color = Color.MAGENTA
 			e.fog_enabled = false
 		if flags.has("nosun"):
-			(world.get_node("Sun") as DirectionalLight3D).visible = false
+			dn.sun_scale = 0.0
 		var sun := world.get_node("Sun") as DirectionalLight3D
 		print("sun dir=%s energy=%.2f visible=%s shadow=%s color=%s" % [-sun.global_transform.basis.z, sun.light_energy, sun.visible, sun.shadow_enabled, sun.light_color])
 		var env := (world.get_node("Env") as WorldEnvironment).environment
-		print("ambient=%s energy=%.2f fog=%.3f" % [env.ambient_light_color, env.ambient_light_energy, env.fog_density])
+		print("ambient=%s energy=%.2f fog=%.3f source=%d bg=%d" % [env.ambient_light_color, env.ambient_light_energy, env.fog_density, env.ambient_light_source, env.background_mode])
 		GameState.is_running = false  # freeze the clock for a stable shot
 		var rig := CameraRig.active()
 		if rig != null:
