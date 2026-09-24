@@ -1,0 +1,17 @@
+; Minimal Godot 4.7.2 networking proof of concept (headless server + headless clients)
+config_version=5
+
+[application]
+
+config/name="netpoc"
+run/main_scene="res://main.tscn"
+run/flush_stdout_on_print=true
+config/features=PackedStringArray("4.7")
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
