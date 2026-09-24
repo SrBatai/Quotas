@@ -147,7 +147,8 @@ def build_walls():
     fb = WallFace('y', -2.5, -1)
     siding(back, fb, -2.9, 2.9, [])
     for x in (-3.0, 2.9):     # back corner trims (0.1 wide, 0.03 proud of both faces)
-        back.box((x - 0.03 if x < 0 else x, -2.53, Z0), (x + 0.1 if x < 0 else x + 0.13, -2.40, ZE), "cabin_trim")
+        back.box((x - 0.03 if x < 0 else x, -2.53, Z0), (x + 0.1 if x < 0 else x + 0.13, -2.40, ZE - 0.005),
+                 "cabin_trim")   # top kept 5 mm under the wall tops (no z-fighting in the cutaway)
     walls["WallBack"] = back
 
     left = lp.MeshBuilder()
@@ -177,7 +178,8 @@ def build_walls():
     front.box((-0.42, y0 - 0.01, Z0), (-0.4, y1, 2.40), "cabin_trim", skip=('+x',))
     front.box((-1.4, y0 - 0.01, 2.38), (-0.4, y1, 2.40), "cabin_trim", skip=('+z',))
     for x in (-3.0, 2.9):     # front corner trims
-        front.box((x - 0.03 if x < 0 else x, 2.40, Z0), (x + 0.1 if x < 0 else x + 0.13, 2.53, ZE), "cabin_trim")
+        front.box((x - 0.03 if x < 0 else x, 2.40, Z0), (x + 0.1 if x < 0 else x + 0.13, 2.53, ZE - 0.005),
+                  "cabin_trim")
     walls["WallFront"] = front
     return walls, ff, fl
 

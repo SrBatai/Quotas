@@ -55,7 +55,7 @@ def build_cabinet():
     lp.new_scene()
     mb = lp.MeshBuilder()
     mb.box((-0.43, -0.25, 0.0), (0.43, 0.23, 0.06), "wood_dark", skip=('-z',))       # plinth
-    mb.box((-0.45, -0.25, 0.06), (0.45, 0.25, 1.75), "wood", skip=('-z',))           # carcass
+    mb.box((-0.45, -0.25, 0.06), (0.45, 0.25, 1.75), "wood")                          # carcass
     mb.box((-0.48, -0.25, 1.75), (0.48, 0.31, 1.80), "cabin_trim")                   # cornice 0.96x0.56x0.05
     for x0, x1 in ((-0.42, -0.02), (0.02, 0.42)):                                     # door panels
         mb.box((x0, 0.25, 0.15), (x1, 0.27, 1.65), "wood_dark", skip=('-y',))
@@ -73,7 +73,7 @@ def build_bed():
     mb.box((-0.5, 0.94, 0.0), (0.5, 1.0, 0.60), "wood", skip=('-z',))                # footboard
     for x0, x1 in ((-0.5, -0.44), (0.44, 0.5)):                                       # side rails
         mb.box((x0, -0.94, 0.15), (x1, 0.94, 0.35), "wood", skip=('-y', '+y'))
-    mb.box((-0.46, -0.94, 0.33), (0.46, 0.94, 0.50), "cloth", skip=('-y', '+y', '-z'))  # mattress
+    mb.box((-0.46, -0.94, 0.33), (0.46, 0.94, 0.50), "cloth", skip=('-y', '+y'))         # mattress
     # blanket (navy) over the foot end; the pillow end stays uncovered (see report)
     mb.box((-0.49, -0.55, 0.36), (0.49, 0.94, 0.535), "hat", skip=('+y', '-z'))
     mb.box((-0.49, -0.62, 0.36), (0.49, -0.55, 0.545), "paper", skip=('-z',))       # sheet fold

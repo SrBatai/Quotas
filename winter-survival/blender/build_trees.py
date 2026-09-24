@@ -111,7 +111,7 @@ def build_dead_tree():
 
     # (height, azimuth deg, elevation deg, length, forked)
     specs = [(1.9, 20, 38, 1.5, True), (2.4, 150, 45, 1.35, False), (2.9, 265, 40, 1.6, True),
-             (3.3, 75, 55, 1.2, True), (3.7, 200, 50, 1.05, False), (4.0, 320, 60, 0.95, False),
+             (3.3, 75, 55, 1.2, False), (3.7, 200, 50, 1.05, False), (4.0, 320, 60, 0.95, False),
              (2.15, 300, 35, 0.9, False)]
     for (z, az, el, length, forked) in specs:
         a, e = math.radians(az), math.radians(el)

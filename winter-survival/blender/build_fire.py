@@ -19,7 +19,7 @@ def build_campfire():
     for i in range(8):
         a = 2 * math.pi * i / 8 + rnd.uniform(-0.12, 0.12)
         r = rnd.uniform(0.12, 0.145)
-        rr = 0.47 + rnd.uniform(-0.02, 0.02)
+        rr = 0.48 + rnd.uniform(-0.015, 0.015)
         stones.blob((rr * math.cos(a), rr * math.sin(a), 0.02), (r * 1.1, r, r * 0.8), "stone", subdiv=0,
                     jitter=0.12, rnd=rnd, clamp_z=0.0, drop_bottom=True)
     lp.stone_rule(stones, snow=0.85, dark=-0.2)
