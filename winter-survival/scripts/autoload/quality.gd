@@ -15,14 +15,14 @@ const PRESETS := {
 		"snow_amount_max": 0.7,
 	},
 	&"medio": {
-		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 1.5,
+		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.5,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "msaa": Viewport.MSAA_2X,
 		"particles": 0.6, "glow": false, "ssao": false, "volumetric_fog": false, "omni_shadows": 3,
 		"snow_amount_max": 0.7,
 	},
 	&"compat": {
-		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 45.0, "shadow_blur": 1.5,
-		"soft_shadow": RenderingServer.SHADOW_QUALITY_HARD, "msaa": Viewport.MSAA_2X,
+		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.5,
+		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "msaa": Viewport.MSAA_2X,
 		"particles": 0.35, "glow": false, "ssao": false, "volumetric_fog": false, "omni_shadows": 0,
 		"snow_amount_max": 0.6,
 	},

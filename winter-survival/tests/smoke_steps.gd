@@ -100,6 +100,18 @@ func run(p_tree: SceneTree) -> void:
 	check(not is_nan(player.stats.health) and not is_nan(player.stats.warmth) and not is_nan(player.stats.hunger), "stats are numbers")
 	check(player.stats.hunger < Balance.HUNGER_START, "hunger draining (%.2f)" % player.stats.hunger)
 	check(player.is_on_floor(), "player on floor (y=%.2f)" % player.global_position.y)
+	# Jolt + HeightMapShape3D (scaled 2 m cells) + porch collision: the capsule rests on the surface, not in it
+	var ground_y: float = world.get_height(player.global_position.x, player.global_position.z)
+	check(player.global_position.y > ground_y - 0.15 and player.global_position.y < ground_y + 1.2, "player resting on terrain/porch under Jolt (dy=%.2f)" % (player.global_position.y - ground_y))
+	var deer_ok := true
+	var deer_info := ""
+	for d in tree.get_nodes_in_group("deer"):
+		var dy: float = d.global_position.y - world.get_height(d.global_position.x, d.global_position.z)
+		deer_info += " [dy=%.2f floor=%s v=%.1f]" % [dy, d.is_on_floor(), d.velocity.length()]
+		# the deer capsule (r 0.35, lying along Z, centre y 0.7) rests with its origin ~0.35 m under the surface
+		if not d.is_on_floor() or dy < -0.5 or dy > 0.8:
+			deer_ok = false
+	check(deer_ok, "deer resting on the heightmap under Jolt%s" % deer_info)
 	# 4. inventory + craft axe
 	Inventory.add(&"madera", 2)
 	Inventory.add(&"piedra", 3)
