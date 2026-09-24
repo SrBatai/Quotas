@@ -17,7 +17,7 @@ func _ready() -> void:
 	_light.omni_range = 8.0
 	_light.light_energy = 2.5
 	_light.shadow_enabled = false
-	_light.position = Vector3(-0.7, 3.0, -3.9)
+	_light.position = Vector3(0.7, 3.0, 3.9)  # outside the front window (+Z)
 	add_child(_light)
 	Events.time_changed.connect(_on_time)
 	_on_time(GameState.day, GameState.hour, GameState.is_night)

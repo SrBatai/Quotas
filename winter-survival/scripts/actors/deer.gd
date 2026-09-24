@@ -36,7 +36,7 @@ func _ready() -> void:
 		var ray := RayCast3D.new()
 		ray.name = pair[0]
 		ray.position = Vector3(0, 0.7, 0)
-		ray.target_position = Vector3(0, 0, -2.5).rotated(Vector3.UP, deg_to_rad(pair[1]))
+		ray.target_position = Vector3(0, 0, 2.5).rotated(Vector3.UP, deg_to_rad(pair[1]))  # whiskers ahead (+Z front)
 		ray.collision_mask = 1
 		add_child(ray)
 	steering._ready()
@@ -86,6 +86,6 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	var hv := Vector2(velocity.x, velocity.z)
 	if hv.length() > 0.3:
-		rotation.y = lerp_angle(rotation.y, atan2(-velocity.x, -velocity.z), 1.0 - exp(-8.0 * delta))
+		rotation.y = lerp_angle(rotation.y, atan2(velocity.x, velocity.z), 1.0 - exp(-8.0 * delta))  # model front = +Z
 	animator.speed = hv.length()
 	animator.running = hv.length() > 3.5

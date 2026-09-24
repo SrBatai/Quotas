@@ -34,7 +34,7 @@ func _ready() -> void:
 	camera.fov = Balance.CAMERA_FOV
 	camera.position = Vector3(0, 0, dist)
 	camera.near = 0.3
-	camera.far = 260.0
+	camera.far = Balance.CAMERA_FAR
 	camera.current = true
 	Events.camera_shake.connect(shake)
 	if player != null:

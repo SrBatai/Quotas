@@ -1,39 +1,45 @@
 class_name Placeholders
-## Primitive stand-ins for every asset in ASSET_SPEC, with identical node names and anchors.
-## Godot coords: Blender (x, y, z) -> (x, z, -y). Forward = -Z.
+## Primitive stand-ins for every asset in ASSET_SPEC v2, with identical node names and anchors.
+## Godot coords: Blender (x, y, z) -> (x, z, -y). Front = +Z (Vector3.MODEL_FRONT), character right = -X.
+## The part builders below are still written with the slice's -Z front; build() turns every fronted asset
+## 180° about Y (meshes through MeshBuilder.yaw180, nodes through _yaw180_nodes) so the result is v2.
 
-## Anchor table: asset -> [ [node, parent ("" = root), position, rotation_degrees], ... ]
+## Assets with a front: built in the old frame and turned 180° at the end of build().
+const FRONT_FACING := ["player", "wolf", "deer", "cabin", "wood_stove", "cabinet", "bed", "desk", "chair", "shelf",
+	"a_frame_cabin", "pickup_truck", "tent"]
+
+## Anchor table (v2 frame): asset -> [ [node, parent ("" = root), position, rotation_degrees], ... ]
 const ANCHORS := {
 	"player": [
 		["Hips", "", Vector3(0, 0.80, 0), Vector3.ZERO],
 		["Torso", "Hips", Vector3.ZERO, Vector3.ZERO],
 		["Head", "Torso", Vector3(0, 0.56, 0), Vector3.ZERO],
-		["BreathAnchor", "Head", Vector3(0, 0.16, -0.20), Vector3.ZERO],
-		["ArmL", "Torso", Vector3(-0.36, 0.52, 0), Vector3.ZERO],
-		["ArmR", "Torso", Vector3(0.36, 0.52, 0), Vector3.ZERO],
-		["ToolSocket", "ArmR", Vector3(0, -0.52, -0.05), Vector3(-90, 0, 0)],
-		["LegL", "Hips", Vector3(-0.12, 0, 0), Vector3.ZERO],
-		["LegR", "Hips", Vector3(0.12, 0, 0), Vector3.ZERO],
+		["BreathAnchor", "Head", Vector3(0, 0.16, 0.20), Vector3.ZERO],
+		["ArmL", "Torso", Vector3(0.36, 0.52, 0), Vector3.ZERO],
+		["ArmR", "Torso", Vector3(-0.36, 0.52, 0), Vector3.ZERO],
+		["ToolSocket", "ArmR", Vector3(0, -0.52, 0.05), Vector3(-90, 180, 0)],
+		["LegL", "Hips", Vector3(0.12, 0, 0), Vector3.ZERO],
+		["LegR", "Hips", Vector3(-0.12, 0, 0), Vector3.ZERO],
 	],
 	"wolf": [
 		["Body", "", Vector3(0, 0.55, 0), Vector3.ZERO],
-		["Head", "Body", Vector3(0, 0.07, -0.45), Vector3.ZERO],
-		["Muzzle", "Head", Vector3(0, -0.04, -0.48), Vector3.ZERO],
-		["Tail", "Body", Vector3(0, 0.07, 0.45), Vector3.ZERO],
-		["LegFL", "Body", Vector3(-0.13, -0.13, -0.30), Vector3.ZERO],
-		["LegFR", "Body", Vector3(0.13, -0.13, -0.30), Vector3.ZERO],
-		["LegBL", "Body", Vector3(-0.13, -0.13, 0.30), Vector3.ZERO],
-		["LegBR", "Body", Vector3(0.13, -0.13, 0.30), Vector3.ZERO],
+		["Head", "Body", Vector3(0, 0.07, 0.45), Vector3.ZERO],
+		["Muzzle", "Head", Vector3(0, -0.04, 0.48), Vector3.ZERO],
+		["Tail", "Body", Vector3(0, 0.07, -0.45), Vector3.ZERO],
+		["LegFL", "Body", Vector3(0.13, -0.13, 0.30), Vector3.ZERO],
+		["LegFR", "Body", Vector3(-0.13, -0.13, 0.30), Vector3.ZERO],
+		["LegBL", "Body", Vector3(0.13, -0.13, -0.30), Vector3.ZERO],
+		["LegBR", "Body", Vector3(-0.13, -0.13, -0.30), Vector3.ZERO],
 	],
 	"deer": [
 		["Body", "", Vector3(0, 0.90, 0), Vector3.ZERO],
-		["Head", "Body", Vector3(0, 0.10, -0.60), Vector3.ZERO],
-		["Muzzle", "Head", Vector3(0, 0.35, -0.45), Vector3.ZERO],
-		["Tail", "Body", Vector3(0, 0.15, 0.55), Vector3.ZERO],
-		["LegFL", "Body", Vector3(-0.14, -0.20, -0.42), Vector3.ZERO],
-		["LegFR", "Body", Vector3(0.14, -0.20, -0.42), Vector3.ZERO],
-		["LegBL", "Body", Vector3(-0.14, -0.20, 0.42), Vector3.ZERO],
-		["LegBR", "Body", Vector3(0.14, -0.20, 0.42), Vector3.ZERO],
+		["Head", "Body", Vector3(0, 0.10, 0.60), Vector3.ZERO],
+		["Muzzle", "Head", Vector3(0, 0.35, 0.45), Vector3.ZERO],
+		["Tail", "Body", Vector3(0, 0.15, -0.55), Vector3.ZERO],
+		["LegFL", "Body", Vector3(0.14, -0.20, 0.42), Vector3.ZERO],
+		["LegFR", "Body", Vector3(-0.14, -0.20, 0.42), Vector3.ZERO],
+		["LegBL", "Body", Vector3(0.14, -0.20, -0.42), Vector3.ZERO],
+		["LegBR", "Body", Vector3(-0.14, -0.20, -0.42), Vector3.ZERO],
 	],
 	"pine_a": [["Tree", "", Vector3.ZERO, Vector3.ZERO]],
 	"pine_b": [["Tree", "", Vector3.ZERO, Vector3.ZERO]],
@@ -58,27 +64,27 @@ const ANCHORS := {
 		["WallLeft", "", Vector3.ZERO, Vector3.ZERO], ["WindowsLeft", "WallLeft", Vector3.ZERO, Vector3.ZERO],
 		["WallRight", "", Vector3.ZERO, Vector3.ZERO], ["Roof", "", Vector3.ZERO, Vector3.ZERO],
 		["Chimney", "", Vector3.ZERO, Vector3.ZERO], ["Porch", "", Vector3.ZERO, Vector3.ZERO],
-		["DoorAnchor", "", Vector3(-0.9, 0.30, -3.2), Vector3.ZERO],
-		["LanternSocket", "", Vector3(-1.6, 2.35, -4.3), Vector3.ZERO],
+		["DoorAnchor", "", Vector3(0.9, 0.30, 3.2), Vector3.ZERO],
+		["LanternSocket", "", Vector3(1.6, 2.35, 4.3), Vector3.ZERO],
 	],
 	"wood_stove": [["Body", "", Vector3.ZERO, Vector3.ZERO], ["Door", "", Vector3.ZERO, Vector3.ZERO],
-		["Pipe", "", Vector3.ZERO, Vector3.ZERO], ["StoveAnchor", "", Vector3(0, 0.45, -0.35), Vector3.ZERO],
-		["PipeTop", "", Vector3(0, 2.70, 0.15), Vector3.ZERO]],
+		["Pipe", "", Vector3.ZERO, Vector3.ZERO], ["StoveAnchor", "", Vector3(0, 0.45, 0.35), Vector3.ZERO],
+		["PipeTop", "", Vector3(0, 2.70, -0.15), Vector3.ZERO]],
 	"cabinet": [["Cabinet", "", Vector3.ZERO, Vector3.ZERO]],
 	"bed": [["Bed", "", Vector3.ZERO, Vector3.ZERO]],
 	"desk": [["Desk", "", Vector3.ZERO, Vector3.ZERO]],
 	"chair": [["Chair", "", Vector3.ZERO, Vector3.ZERO]],
 	"shelf": [["Shelf", "", Vector3.ZERO, Vector3.ZERO]],
-	"clock": [["Clock", "", Vector3.ZERO, Vector3.ZERO], ["HourHand", "", Vector3(0, 0, -0.07), Vector3.ZERO],
-		["MinuteHand", "", Vector3(0, 0, -0.075), Vector3.ZERO]],
+	"clock": [["Clock", "", Vector3.ZERO, Vector3.ZERO], ["HourHand", "", Vector3(0, 0, 0.07), Vector3.ZERO],
+		["MinuteHand", "", Vector3(0, 0, 0.075), Vector3.ZERO]],
 	"a_frame_cabin": [["Body", "", Vector3.ZERO, Vector3.ZERO], ["Front", "", Vector3.ZERO, Vector3.ZERO],
 		["WindowsFront", "Front", Vector3.ZERO, Vector3.ZERO], ["Deck", "", Vector3.ZERO, Vector3.ZERO]],
 	"pickup_truck": [["Body", "", Vector3.ZERO, Vector3.ZERO], ["Wheels", "", Vector3.ZERO, Vector3.ZERO],
-		["Snow", "", Vector3.ZERO, Vector3.ZERO], ["BedAnchor", "", Vector3(0, 1.0, 1.35), Vector3.ZERO]],
+		["Snow", "", Vector3.ZERO, Vector3.ZERO], ["BedAnchor", "", Vector3(0, 1.0, -1.35), Vector3.ZERO]],
 	"signpost": [["Post", "", Vector3.ZERO, Vector3.ZERO],
 		["BoardTop", "", Vector3(0, 1.84, 0), Vector3.ZERO], ["BoardBottom", "", Vector3(0, 1.44, 0), Vector3.ZERO],
-		["TextTop", "BoardTop", Vector3(0.28, 0, -0.125), Vector3(0, 180, 0)],
-		["TextBottom", "BoardBottom", Vector3(0.28, 0, -0.125), Vector3(0, 180, 0)]],
+		["TextTop", "BoardTop", Vector3(0.28, 0, 0.125), Vector3.ZERO],
+		["TextBottom", "BoardBottom", Vector3(0.28, 0, 0.125), Vector3.ZERO]],
 	"fence": [["Fence", "", Vector3.ZERO, Vector3.ZERO]],
 	"lantern": [["Lantern", "", Vector3.ZERO, Vector3.ZERO], ["LightAnchor", "", Vector3(0, -0.23, 0), Vector3.ZERO]],
 	"tent": [["Tent", "", Vector3.ZERO, Vector3.ZERO]],
@@ -86,11 +92,22 @@ const ANCHORS := {
 }
 
 static var _mesh_cache: Dictionary = {}
+## True while a FRONT_FACING asset is being built (MeshBuilder.yaw180 for every mesh made meanwhile).
+static var _flip: bool = false
 
 
 static func build(asset_name: String) -> Node3D:
 	var root := Node3D.new()
 	root.name = asset_name.to_pascal_case()
+	_flip = FRONT_FACING.has(asset_name)
+	_build_parts(root, asset_name)
+	if _flip:
+		_yaw180_nodes(root)
+	_flip = false
+	return root
+
+
+static func _build_parts(root: Node3D, asset_name: String) -> void:
 	match asset_name:
 		"player": _build_player(root)
 		"wolf": _build_quadruped(root, false)
@@ -129,9 +146,9 @@ static func build(asset_name: String) -> Node3D:
 		"clock":
 			_mesh_node(root, "Clock", asset_name)
 			var hh := _mesh_node(root, "HourHand", "hour_hand")
-			hh.position = Vector3(0, 0, -0.07)
+			hh.position = Vector3(0, 0, 0.07)
 			var mh := _mesh_node(root, "MinuteHand", "minute_hand")
-			mh.position = Vector3(0, 0, -0.075)
+			mh.position = Vector3(0, 0, 0.075)
 		"a_frame_cabin": _build_aframe(root)
 		"pickup_truck": _build_truck(root)
 		"signpost": _build_signpost(root)
@@ -145,10 +162,37 @@ static func build(asset_name: String) -> Node3D:
 		"pelt": _mesh_node(root, "Pelt", asset_name)
 		_:
 			push_warning("Placeholders: unknown asset '%s'" % asset_name)
-	return root
 
 
 # ---------------------------------------------------------------- helpers
+
+static func _old(v: Vector3) -> Vector3:
+	## v2-frame position -> the old (-Z front) frame the builders are written in (180° about Y is its own inverse).
+	return MeshBuilder.flip(v)
+
+
+## Turns a built asset 180° about Y so its front is +Z. Meshes were already turned by MeshBuilder.yaw180, so
+## nodes with geometry/children are conjugated (position turned, basis kept) and leaf anchors that carry a
+## rotation (ToolSocket) are composed with the turn, exactly like a regenerated .glb.
+static func _yaw180_nodes(node: Node3D) -> void:
+	var r := Basis(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, -1))
+	for c in node.get_children():
+		if not (c is Node3D):
+			continue
+		var n := c as Node3D
+		var leaf_anchor := n.get_child_count() == 0 and not (n is MeshInstance3D) and not (n is CollisionObject3D) and not (n is CollisionShape3D)
+		if leaf_anchor and not n.basis.is_equal_approx(Basis.IDENTITY):
+			n.transform = Transform3D(r, Vector3.ZERO) * n.transform
+			continue
+		n.transform = Transform3D(r * n.basis * r, r * n.position)
+		if n is CollisionShape3D and (n as CollisionShape3D).shape is ConvexPolygonShape3D:
+			var shape := (n as CollisionShape3D).shape as ConvexPolygonShape3D
+			var pts := PackedVector3Array()
+			for p in shape.points:
+				pts.append(r * p)
+			shape.points = pts
+		_yaw180_nodes(n)
+
 
 static func _mesh_node(parent: Node3D, node_name: String, mesh_key: String) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()
@@ -162,6 +206,7 @@ static func _mesh(key: String) -> ArrayMesh:
 	if _mesh_cache.has(key):
 		return _mesh_cache[key]
 	var b := MeshBuilder.new()
+	b.yaw180 = _flip
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(key)
 	match key:
@@ -272,8 +317,9 @@ static func _mesh(key: String) -> ArrayMesh:
 			for i in 3:
 				b.cone(mats[i], Vector3(-0.25 + 0.25 * i, 0.05, -0.12), 0.06, 0.06, 0.14, 8, {"cap_top": "iron"})
 		"clock":
+			# v2 frame: origin at the wall contact, body protrudes toward +Z, face at z = 0.06 looking to +Z
 			b.cone("wood", Vector3(0, 0, 0), 0.18, 0.18, 0.06, 12, {"xform": Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, 0)), "cap_bottom": "wood", "cap_top": "wood"})
-			b.cone("paper", Vector3(0, 0, 0), 0.15, 0.15, 0.004, 12, {"xform": Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.06)), "cap_top": "paper", "cap_bottom": "paper"})
+			b.cone("paper", Vector3(0, 0, 0), 0.15, 0.15, 0.004, 12, {"xform": Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, 0.06)), "cap_top": "paper", "cap_bottom": "paper"})
 		"hour_hand": b.box("iron", Vector3(-0.01, -0.01, -0.005), Vector3(0.01, 0.09, 0.005))
 		"minute_hand": b.box("iron", Vector3(-0.0075, -0.01, -0.005), Vector3(0.0075, 0.13, 0.005))
 		"fence":
@@ -359,6 +405,7 @@ static func _part(parent: Node3D, node_name: String, pos: Vector3, build: Callab
 	mi.name = node_name
 	mi.position = pos
 	var b := MeshBuilder.new()
+	b.yaw180 = _flip
 	build.call(b)
 	mi.mesh = b.commit()
 	parent.add_child(mi)
@@ -409,7 +456,7 @@ static func _build_quadruped(root: Node3D, deer: bool) -> void:
 	var fur := "deer_fur" if deer else "wolf_fur"
 	var belly := "deer_belly" if deer else "wolf_belly"
 	var anchors: Array = ANCHORS["deer" if deer else "wolf"]
-	var body_pos: Vector3 = anchors[0][2]
+	var body_pos: Vector3 = _old(anchors[0][2])
 	var body := _part(root, "Body", body_pos, func(b: MeshBuilder) -> void:
 		if deer:
 			b.box(fur, Vector3(-0.20, -0.20, -0.65), Vector3(0.20, 0.25, 0.55))
@@ -419,7 +466,7 @@ static func _build_quadruped(root: Node3D, deer: bool) -> void:
 				[Vector3(-0.17, 0.19, -0.45), Vector3(0.17, 0.19, -0.45), Vector3(0.15, 0.17, 0.45), Vector3(-0.15, 0.17, 0.45)],
 				[Vector3(-0.18, -0.19, -0.45), Vector3(0.18, -0.19, -0.45), Vector3(0.14, -0.15, 0.45), Vector3(-0.14, -0.15, 0.45)])
 			b.box(belly, Vector3(-0.14, -0.23, -0.35), Vector3(0.14, -0.18, 0.35)))
-	var head_pos: Vector3 = anchors[1][2]
+	var head_pos: Vector3 = _old(anchors[1][2])
 	var head := _part(body, "Head", head_pos, func(b: MeshBuilder) -> void:
 		if deer:
 			b.box(fur, Vector3(-0.08, -0.05, -0.25), Vector3(0.08, 0.35, 0.0))
@@ -443,9 +490,9 @@ static func _build_quadruped(root: Node3D, deer: bool) -> void:
 				b.quad("eyes", Vector3(ex - 0.02, 0.02, -0.302), Vector3(ex + 0.02, 0.02, -0.302), Vector3(ex + 0.02, 0.06, -0.302), Vector3(ex - 0.02, 0.06, -0.302), Vector3.FORWARD))
 	var muzzle := Node3D.new()
 	muzzle.name = "Muzzle"
-	muzzle.position = anchors[2][2]
+	muzzle.position = _old(anchors[2][2])
 	head.add_child(muzzle)
-	_part(body, "Tail", anchors[3][2], func(b: MeshBuilder) -> void:
+	_part(body, "Tail", _old(anchors[3][2]), func(b: MeshBuilder) -> void:
 		if deer:
 			b.box(fur, Vector3(-0.04, -0.02, 0.0), Vector3(0.04, 0.06, 0.12))
 		else:
@@ -456,7 +503,7 @@ static func _build_quadruped(root: Node3D, deer: bool) -> void:
 	var leg_build := func(b: MeshBuilder) -> void:
 		b.box(fur, Vector3(-lw, -leg_len, -lw * 1.2), Vector3(lw, 0.0, lw * 1.2))
 	for i in range(4, 8):
-		_part(body, anchors[i][0], anchors[i][2], leg_build)
+		_part(body, anchors[i][0], _old(anchors[i][2]), leg_build)
 
 
 # ---------------------------------------------------------------- architecture
@@ -659,14 +706,15 @@ static func _build_truck(root: Node3D) -> void:
 	_col_box(root, "ColCab", Vector3(-0.95, 1.3, -1.0), Vector3(0.95, 2.0, 0.2))
 
 
+## v2 frame (ASSET_SPEC v2 §17): boards point to +X, the text face looks to +Z, Text* anchors with no rotation.
 static func _build_signpost(root: Node3D) -> void:
 	_part(root, "Post", Vector3.ZERO, func(b: MeshBuilder) -> void:
 		b.box("wood", Vector3(-0.06, 0, -0.06), Vector3(0.06, 2.2, 0.06), "snow"))
 	var board_build := func(b: MeshBuilder) -> void:
-		var pts_front := [Vector3(-0.25, -0.14, -0.12), Vector3(0.65, -0.14, -0.12), Vector3(0.85, 0.0, -0.12), Vector3(0.65, 0.14, -0.12), Vector3(-0.25, 0.14, -0.12)]
+		var pts_front := [Vector3(-0.25, -0.14, 0.12), Vector3(0.65, -0.14, 0.12), Vector3(0.85, 0.0, 0.12), Vector3(0.65, 0.14, 0.12), Vector3(-0.25, 0.14, 0.12)]
 		var pts_back := []
 		for p in pts_front:
-			pts_back.append(p + Vector3(0, 0, 0.06))
+			pts_back.append(p - Vector3(0, 0, 0.06))
 		var faces := [pts_front, pts_back]
 		var mats := ["wood_light", "wood_light"]
 		for i in 5:
@@ -674,12 +722,11 @@ static func _build_signpost(root: Node3D) -> void:
 			faces.append([pts_front[i], pts_front[j], pts_back[j], pts_back[i]])
 			mats.append("wood_dark")
 		b.solid("wood_dark", faces, mats)
-		b.box("snow", Vector3(-0.25, 0.14, -0.13), Vector3(0.65, 0.18, -0.05))
+		b.box("snow", Vector3(-0.25, 0.14, 0.05), Vector3(0.65, 0.18, 0.13))
 	var top := _part(root, "BoardTop", Vector3(0, 1.84, 0), board_build)
 	var bottom := _part(root, "BoardBottom", Vector3(0, 1.44, 0), board_build)
 	for pair in [[top, "TextTop"], [bottom, "TextBottom"]]:
 		var t := Node3D.new()
 		t.name = pair[1]
-		t.position = Vector3(0.28, 0, -0.125)
-		t.rotation_degrees = Vector3(0, 180, 0)
+		t.position = Vector3(0.28, 0, 0.125)
 		pair[0].add_child(t)

@@ -116,11 +116,11 @@ func _fell(player: Node) -> void:
 	if variant == "fallen_log":
 		tw.tween_property(visual, "scale", Vector3(0.01, 0.01, 0.01), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	else:
-		var away := Vector3.FORWARD
+		var away := Vector3.MODEL_FRONT
 		if player is Node3D:
 			away = (global_position - player.global_position)
 			away.y = 0.0
-			away = away.normalized() if away.length() > 0.01 else Vector3.FORWARD
+			away = away.normalized() if away.length() > 0.01 else Vector3.MODEL_FRONT
 		var axis := away.cross(Vector3.UP).normalized()
 		var local_axis := global_transform.basis.inverse() * axis
 		var target := Basis(local_axis.normalized(), deg_to_rad(-82.0)) * visual.basis

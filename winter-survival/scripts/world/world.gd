@@ -79,15 +79,16 @@ func _build_lake() -> void:
 
 func _place_props(aframe: Vector2, truck: Vector2) -> void:
 	var h0 := terrain.get_height(0, 0)
+	# v2 models face +Z (Vector3.MODEL_FRONT): the cabin's porch faces the camera with no rotation
 	cabin.position = Vector3(0, h0, 0)
-	cabin.rotation_degrees.y = 180.0
+	cabin.rotation_degrees.y = 0.0
 	var af := $AFrame as Node3D
 	af.position = Vector3(aframe.x, terrain.get_height(aframe.x, aframe.y), aframe.y)
 	var to_lake := terrain.lake_center - aframe
-	af.rotation.y = atan2(-to_lake.x, -to_lake.y)  # -Z (front) toward the lake
+	af.rotation.y = atan2(to_lake.x, to_lake.y)  # +Z (front) toward the lake
 	var tr := $Truck as Node3D
 	tr.position = Vector3(truck.x, terrain.get_height(truck.x, truck.y), truck.y)
-	tr.rotation_degrees.y = 155.0
+	tr.rotation_degrees.y = -25.0  # hood (+Z) points where the slice's 155° put it
 	var sp := $Signpost as Node3D
 	var spos := Regions.SIGNPOST_POS
 	sp.position = Vector3(spos.x, terrain.get_height(spos.x, spos.y), spos.y)

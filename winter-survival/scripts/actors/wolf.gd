@@ -54,7 +54,7 @@ func _ready() -> void:
 		var ray := RayCast3D.new()
 		ray.name = pair[0]
 		ray.position = Vector3(0, 0.5, 0)
-		ray.target_position = Vector3(0, 0, -2.5).rotated(Vector3.UP, deg_to_rad(pair[1]))
+		ray.target_position = Vector3(0, 0, 2.5).rotated(Vector3.UP, deg_to_rad(pair[1]))  # whiskers ahead (+Z front)
 		ray.collision_mask = 1
 		ray.enabled = true
 		add_child(ray)
@@ -198,7 +198,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	var hv := Vector2(velocity.x, velocity.z)
 	if hv.length() > 0.3 and state != State.ATTACK:
-		var target_yaw := atan2(-velocity.x, -velocity.z)
+		var target_yaw := atan2(velocity.x, velocity.z)  # model front = +Z
 		rotation.y = lerp_angle(rotation.y, target_yaw, 1.0 - exp(-8.0 * delta))
 	animator.speed = hv.length()
 	animator.running = hv.length() > 3.5
@@ -208,7 +208,7 @@ func _orbit(center: Vector3, radius: float, speed: float) -> Vector3:
 	var to_me := Steering.flat(global_position - center)
 	var d := to_me.length()
 	if d < 0.1:
-		to_me = Vector3.FORWARD
+		to_me = Vector3.MODEL_FRONT
 		d = 1.0
 	var radial := to_me / d
 	var tangent := Vector3(-radial.z, 0, radial.x) * _stalk_dir
@@ -219,7 +219,7 @@ func _orbit(center: Vector3, radius: float, speed: float) -> Vector3:
 func _face(target: Vector3, delta: float) -> void:
 	var d := Steering.flat(target - global_position)
 	if d.length() > 0.05:
-		rotation.y = lerp_angle(rotation.y, atan2(-d.x, -d.z), 1.0 - exp(-10.0 * delta))
+		rotation.y = lerp_angle(rotation.y, atan2(d.x, d.z), 1.0 - exp(-10.0 * delta))
 
 
 func take_damage(amount: float, from: Node) -> void:

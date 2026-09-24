@@ -34,7 +34,8 @@ func stamp(pos: Vector3, yaw: float, left: bool) -> void:
 	var mi := _pool[_next]
 	_ages[_next] = 0.0
 	_next = (_next + 1) % _pool.size()
-	var side := Vector3(cos(yaw), 0, -sin(yaw)) * (-0.15 if left else 0.15)
+	# character right = -X of a +Z-facing model, yawed
+	var side := Vector3(-cos(yaw), 0, sin(yaw)) * (-0.15 if left else 0.15)
 	mi.global_position = pos + side + Vector3(0, 0.012, 0)
 	mi.rotation = Vector3(0, yaw, 0)
 	mi.scale = Vector3(0.9, 1.0, 1.3)

@@ -75,6 +75,26 @@ func run(p_tree: SceneTree) -> void:
 	check(GameState.day == 1, "day == 1")
 	check(absf(GameState.hour - 8.0) < 0.2, "hour ≈ 8 (%.2f)" % GameState.hour)
 	check(tree.get_nodes_in_group("deer").size() >= 1, "deer spawned: %d" % tree.get_nodes_in_group("deer").size())
+	# 2b. M0 conventions: Jolt, MODEL_FRONT (+Z), shared vertex-colour material, GPU particles, snow global
+	check(str(ProjectSettings.get_setting("physics/3d/physics_engine", "")) == "Jolt Physics", "physics engine is Jolt")
+	check(is_zero_approx(world.cabin.rotation.y), "cabin yaw is 0 (porch = +Z = MODEL_FRONT)")
+	var door: Node3D = world.cabin.get_door_anchor()
+	check(door != null and (door.global_position - world.cabin.global_position).z > 2.0, "cabin DoorAnchor in front (+Z)")
+	var to_door := (door.global_position - player.global_position) if door != null else Vector3.MODEL_FRONT
+	to_door.y = 0.0
+	check(player.facing().dot(to_door.normalized()) > 0.9, "player spawns facing the door with +basis.z")
+	check(Assets.count_unshared_vcol(world.cabin.model) == 0 and Assets.count_unshared_vcol(player.model) == 0, "palette_vcol replaced by the shared material")
+	var shared_surfaces := 0
+	for mi in Assets._mesh_instances(player.model):
+		for i in mi.mesh.get_surface_count():
+			if mi.mesh.surface_get_material(i) == Assets.get_shared_material():
+				shared_surfaces += 1
+	check(shared_surfaces >= 1, "player model uses the shared world_vcol material (%d surfaces)" % shared_surfaces)
+	check(world.get_node("Snowfall").light_snow is GPUParticles3D, "snowfall is GPUParticles3D")
+	check(world.cabin.smoke is GPUParticles3D, "chimney smoke is GPUParticles3D")
+	check(ProjectSettings.has_setting("shader_globals/snow_amount"), "snow_amount global shader parameter declared")
+	check(Quality.preset in [&"alto", &"medio", &"compat"], "Quality preset set (%s, detected %s)" % [Quality.preset, Quality.detected])
+	check(player.camera_rig.camera.far <= 70.0, "camera far <= 70 (%.0f)" % player.camera_rig.camera.far)
 	# 3. run a bit
 	await frames(120)
 	check(not is_nan(player.stats.health) and not is_nan(player.stats.warmth) and not is_nan(player.stats.hunger), "stats are numbers")
@@ -194,8 +214,13 @@ func run(p_tree: SceneTree) -> void:
 	await frames(2)
 	check(GameState.weather == &"blizzard", "weather == blizzard")
 	check(fired(&"weather_changed") >= 1, "weather_changed fired")
-	await seconds(6.0)
+	var dn: DayNight = world.get_node("DayNight")
+	var snow_peak := 0.0
+	for i in 360:
+		await tree.process_frame
+		snow_peak = maxf(snow_peak, dn.snow_amount)
 	check(GameState.weather == &"clear", "weather back to clear")
+	check(snow_peak > 0.05, "snow_amount rose during the blizzard (%.2f)" % snow_peak)
 	# 12. cutaway
 	var shelter_before := fired(&"shelter_changed")
 	player.global_position = world.cabin.global_position + Vector3(0, 0.6, 0)

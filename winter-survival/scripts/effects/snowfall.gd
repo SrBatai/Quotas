@@ -1,9 +1,10 @@
 class_name Snowfall
 extends Node3D
-## Constant light snow + heavy wind-driven emitter during blizzards. Follows the active camera.
+## Constant light snow + heavy wind-driven emitter during blizzards. GPUParticles3D (PLAN C4), follows the
+## active camera. Amount scales with the Quality preset; the server/headless never instantiates this scene.
 
-var light_snow: CPUParticles3D
-var heavy_snow: CPUParticles3D
+var light_snow: GPUParticles3D
+var heavy_snow: GPUParticles3D
 var _wind_yaw: float = 0.0
 
 
@@ -22,25 +23,39 @@ func _ready() -> void:
 	heavy_snow.name = "Heavy"
 	heavy_snow.emitting = false
 	add_child(heavy_snow)
+	Quality.preset_changed.connect(func(_p: StringName) -> void: _apply_quality())
+	_apply_quality()
 
 
-func _make(amount: int, lifetime: float, gravity: Vector3, vel: float, smin: float, smax: float, mat: Material) -> CPUParticles3D:
-	var p := CPUParticles3D.new()
+func _make(amount: int, lifetime: float, gravity: Vector3, vel: float, smin: float, smax: float, mat: Material) -> GPUParticles3D:
+	var p := GPUParticles3D.new()
+	var pm := ParticleProcessMaterial.new()
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	pm.emission_box_extents = Vector3(22, 7, 22)
+	pm.direction = Vector3(0, -1, 0)
+	pm.spread = 30.0
+	pm.initial_velocity_min = vel * 0.5
+	pm.initial_velocity_max = vel
+	pm.gravity = gravity
+	pm.scale_min = 1.0
+	pm.scale_max = 1.6
+	p.process_material = pm
 	p.amount = amount
 	p.lifetime = lifetime
 	p.preprocess = lifetime
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = Vector3(22, 7, 22)
-	p.direction = Vector3(0, -1, 0)
-	p.spread = 30.0
-	p.initial_velocity_min = vel * 0.5
-	p.initial_velocity_max = vel
-	p.gravity = gravity
-	p.scale_amount_min = 1.0
-	p.scale_amount_max = 1.6
-	p.mesh = FireEffect.make_quad((smin + smax) * 0.5 * 2.2, mat)
+	p.draw_pass_1 = FireEffect.make_quad((smin + smax) * 0.5 * 2.2, mat)
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# flakes fall well below the emitter over their lifetime: keep them from being culled
+	p.visibility_aabb = AABB(Vector3(-45, -70, -45), Vector3(90, 90, 90))
 	return p
+
+
+func _apply_quality() -> void:
+	var ratio := Quality.particle_ratio()
+	if light_snow != null:
+		light_snow.amount_ratio = ratio
+	if heavy_snow != null:
+		heavy_snow.amount_ratio = ratio
 
 
 func set_blizzard(active: bool, wind_yaw: float = 0.0) -> void:
@@ -48,8 +63,8 @@ func set_blizzard(active: bool, wind_yaw: float = 0.0) -> void:
 	if heavy_snow == null:
 		return
 	heavy_snow.emitting = active
-	heavy_snow.gravity = Vector3(-4.0, -3.0, 0).rotated(Vector3.UP, wind_yaw)
-	light_snow.gravity = Vector3(-1.5, -1.6, 0).rotated(Vector3.UP, wind_yaw) if active else Vector3(0, -1.6, 0)
+	(heavy_snow.process_material as ParticleProcessMaterial).gravity = Vector3(-4.0, -3.0, 0).rotated(Vector3.UP, wind_yaw)
+	(light_snow.process_material as ParticleProcessMaterial).gravity = Vector3(-1.5, -1.6, 0).rotated(Vector3.UP, wind_yaw) if active else Vector3(0, -1.6, 0)
 
 
 func _process(_delta: float) -> void:

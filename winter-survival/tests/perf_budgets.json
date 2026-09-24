@@ -1,0 +1,38 @@
+{
+  "_doc": "Budgets checked by tests/perf_probe.gd (medians over 180 frames of the fixed clearing scene: day 1 11:00, clear, camera at the porch spawn, yaw 45, pitch -48, dist 27, far 70). GPU timings (frame_ms_*) are only enforced when enforce_gpu is true: under xvfb + llvmpipe they are meaningless. See ARQ v2 §17.1 / §18.",
+  "perf_probe": {
+    "draw_calls_max": 704,
+    "objects_max": 800,
+    "primitives_max": 120000,
+    "nodes_max": 6500,
+    "frame_ms_p99_max": 16.6,
+    "enforce_gpu": false
+  },
+  "baseline": {
+    "before_m0": {
+      "note": "Committed pre-M0 slice (GodotPhysics, v1 assets with one StandardMaterial3D per palette colour, camera far 260, CPUParticles3D). Measured with tests/perf_probe.gd on the untouched copy.",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 1174,
+      "objects_median": 1270,
+      "primitives_median": 96342,
+      "mesh_surfaces": 2826,
+      "nodes": 5256
+    },
+    "before_m0_placeholders": {
+      "draw_calls_median": 1133,
+      "objects_median": 1229,
+      "primitives_median": 85482,
+      "mesh_surfaces": 2735
+    },
+    "after_m0": {
+      "note": "M0: Jolt, v2 assets (COLOR_0 + palette_vcol -> shared world_vcol ShaderMaterial), camera far 70, no shadows on small props / interior furniture, GPUParticles3D. draw_calls_max = 60 % of before_m0 (PLAN M0 acceptance).",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 295,
+      "objects_median": 391,
+      "primitives_median": 74472,
+      "mesh_surfaces": 906,
+      "nodes": 5257,
+      "ratio_vs_before": 0.251
+    }
+  }
+}

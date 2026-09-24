@@ -7,7 +7,7 @@ extends StaticBody3D
 
 var is_lit: bool = false
 var light: LightFlicker
-var embers: CPUParticles3D
+var embers: GPUParticles3D
 var _model: Node3D
 var _door: MeshInstance3D
 
@@ -38,21 +38,12 @@ func _ready() -> void:
 	light.omni_range = 6.0
 	light.omni_attenuation = 1.2
 	add_child(light)
-	embers = CPUParticles3D.new()
-	embers.amount = 10
-	embers.lifetime = 1.2
-	embers.direction = Vector3(0, 1, -1)
-	embers.spread = 20.0
-	embers.initial_velocity_min = 0.2
-	embers.initial_velocity_max = 0.5
-	embers.gravity = Vector3(0, 0.4, 0)
-	embers.scale_amount_min = 0.3
-	embers.scale_amount_max = 0.5
 	var g := Gradient.new()
 	g.set_color(0, Color("#FFD166"))
 	g.set_color(1, Color("#E63B12", 0.0))
-	embers.color_ramp = g
-	embers.mesh = FireEffect.make_quad(0.12, FireEffect.make_particle_material(true))
+	# embers drift up and out of the door (+Z, the stove's front)
+	embers = FireEffect.make_emitter(10, 1.2, 0.02, Vector3(0, 1, 1), 20.0, 0.2, 0.5, Vector3(0, 0.4, 0), 0.3, 0.5, null, g, 0.12, true)
+	embers.name = "Embers"
 	add_child(embers)
 	if anchor != null:
 		light.global_position = anchor.global_position + Vector3(0, 0.15, 0)

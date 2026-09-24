@@ -109,7 +109,7 @@ Si una clave falla (`TypeError`), quitarla y seguir. Guardar el `.blend` antes d
 | `chars/*.glb`, `zombies/*.glb` | `scene` | `animation/import=false`; retarget: `retarget/bone_map=res://assets/rig/humanoid_bonemap.tres`, `bone_renamer/unique_node/make_unique=true`, `skeleton_name="GeneralSkeleton"`, `rest_fixer/apply_node_transforms=true`, `rest_fixer/retarget_method=1` (Overwrite Axis), `rest_fixer/normalize_position_tracks=true`, `remove_tracks/unimportant_positions=true`, **`remove_tracks/except_bone_transform=false`** (bug #123782), `remove_tracks/unmapped_bones=0` |
 | `anims/humanoid_*.glb` | `animation_library` | `animation/fps=30`, `remove_immutable_tracks=true`, `import_rest_as_RESET=true`, mismo retarget |
 
-`Assets.spawn_model` sustituye el material `palette_vcol` por el `ShaderMaterial` compartido del juego; las excepciones se mantienen.
+`Assets.spawn_model` sustituye el material `palette_vcol` por el `ShaderMaterial` compartido del juego; las excepciones se mantienen. Nota (verificado en M0): el importador glTF de Godot elimina el sufijo heredado `_vcol`, así que el `StandardMaterial3D` importado se llama `palette` (albedo blanco, `vertex_color_use_as_albedo`); el código y `tests/inspect_models.gd` reconocen ambos nombres. En el `.glb` el material sigue llamándose `palette_vcol`.
 
 ---
 

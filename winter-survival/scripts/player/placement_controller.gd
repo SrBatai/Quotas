@@ -28,7 +28,8 @@ func begin(place_kind: String, recipe_data: Dictionary) -> void:
 	var m := Assets.spawn_model(model_name)
 	ghost.add_child(m)
 	get_tree().current_scene.add_child(ghost)
-	ghost.global_position = _player.global_position + Vector3(0, 0, -2)
+	var front: Vector3 = _player.facing() if _player.has_method("facing") else Vector3.MODEL_FRONT
+	ghost.global_position = _player.global_position + front * 2.0
 	active = true
 	valid = false
 	_has_hit = false

@@ -66,7 +66,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				Inventory.add(&"madera", 6)
 				Inventory.add(&"piedra", 6)
 				player.global_position = world.cabin.global_position + Vector3(-1.3, 0.6, 0.5)
-				player.get_node("Visual").rotation.y = -PI * 0.5
+				player.get_node("Visual").rotation.y = PI * 0.5  # face +X (front = +Z yawed 90°)
 				world.get_node("WolfSpawner").enabled = false
 				var storage_panel: StoragePanel = game.get_node("UI/StoragePanel")
 				storage_panel.open(world.cabin.get_node("Cabinet").get_node("Storage"))

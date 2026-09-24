@@ -51,7 +51,13 @@ Genera `assets/models/*.glb` y ejecuta `verify_assets.py`. Después, reimporta e
 
 ```bash
 cd winter-survival
+./tests/run_all.sh [--shots]         # todas las puertas de M0: import, parse, humo (Jolt), contrato de arte, perf [, capturas]
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED)
 ./tests/run_screenshots.sh [carpeta] # capturas day/night/blizzard/interior/menu con xvfb + OpenGL
-godot --headless --path . -s tests/inspect_models.gd   # árbol de nodos de cada .glb
+./tests/run_perf.sh [--placeholders] # sonda de rendimiento (draw calls, objetos, ms) → tests/perf/last.json vs tests/perf_budgets.json
+godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]  # contrato ASSET_SPEC v2 de cada .glb (o de los placeholders)
 ```
+
+Convenciones v2 (`docs/v2/`): frente de los modelos = **+Z** (`Vector3.MODEL_FRONT`), color de vértice + material
+compartido `assets/materials/world_vcol.tres` (`snow_amount` global), física **Jolt**, partículas GPU y presets de
+calidad `alto/medio/compat` (autoload `Quality`, `user://settings.cfg`).

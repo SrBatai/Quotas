@@ -34,6 +34,10 @@ func _on_tool_changed(id: StringName) -> void:
 		tool_model = Assets.spawn_model(model_name)
 		socket.add_child(tool_model)
 		tool_model.transform = Transform3D.IDENTITY
+		# Tools: handle along +Y, useful end (blade, flame) toward +Z (ASSET_SPEC v2 §12). The socket must point the
+		# handle forward; if its roll leaves the blade hanging down, half a turn about the handle fixes it.
+		if (socket.global_basis * Vector3(0, 0, 1)).y < -0.5:
+			tool_model.rotation.y = PI
 	var is_torch := id == &"antorcha"
 	if is_torch:
 		torch_fire = FireEffect.new()

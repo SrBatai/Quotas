@@ -2,5 +2,5 @@
 
 [ext_resource type="Script" path="res://scripts/effects/smoke_effect.gd" id="1"]
 
-[node name="SmokeEffect" type="CPUParticles3D"]
+[node name="SmokeEffect" type="GPUParticles3D"]
 script = ExtResource("1")

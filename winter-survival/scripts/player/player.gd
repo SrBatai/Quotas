@@ -47,12 +47,14 @@ func _ready() -> void:
 		stove_on = stoves[0].is_lit
 
 
+## Breath puffs (CPUParticles3D one-shot bursts, PLAN C4): parented to the visual so the direction is the
+## model's front (+Z) whatever the BreathAnchor's own orientation; position taken from the anchor.
 func _setup_breath() -> void:
 	var anchor: Node3D = model.find_child("BreathAnchor", true, false)
 	breath.amount = 6
 	breath.lifetime = 1.4
 	breath.explosiveness = 0.9
-	breath.direction = Vector3(0, 0.3, -1)
+	breath.direction = Vector3(0, 0.3, 1)
 	breath.spread = 15.0
 	breath.initial_velocity_min = 0.3
 	breath.initial_velocity_max = 0.5
@@ -69,9 +71,11 @@ func _setup_breath() -> void:
 	breath.color_ramp = g
 	breath.mesh = FireEffect.make_quad(0.18, FireEffect.make_particle_material(false))
 	breath.emitting = false
+	breath.reparent(visual, false)
 	if anchor != null:
-		breath.reparent(anchor, false)
-		breath.position = Vector3.ZERO
+		breath.position = visual.global_transform.affine_inverse() * anchor.global_position
+	else:
+		breath.position = Vector3(0, 1.52, 0.2)
 
 
 func _snap_to_spawn() -> void:
@@ -139,7 +143,7 @@ func _physics_process(delta: float) -> void:
 			if f.length() > 0.05:
 				face_dir = f.normalized()
 	if face_dir.length() > 0.01:
-		var target_yaw := atan2(-face_dir.x, -face_dir.z)
+		var target_yaw := atan2(face_dir.x, face_dir.z)  # model front = +Z (Vector3.MODEL_FRONT)
 		visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, 1.0 - exp(-Balance.TURN_SPEED * delta))
 	animator.speed = Vector2(velocity.x, velocity.z).length()
 	animator.running = is_running
@@ -158,6 +162,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func face_toward(pos: Vector3) -> void:
 	_face_target = pos
 	_face_timer = 0.6
+
+
+## World direction the survivor is looking at (the visual's +Z).
+func facing() -> Vector3:
+	return visual.global_basis.z
 
 
 ## Chop animation + face the tree (called by trees on each hit).

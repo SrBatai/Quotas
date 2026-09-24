@@ -24,7 +24,7 @@ func seek(target: Vector3, speed: float) -> Vector3:
 func flee(from: Vector3, speed: float) -> Vector3:
 	var d := flat(_body.global_position - from)
 	if d.length() < 0.05:
-		d = Vector3.FORWARD
+		d = Vector3.MODEL_FRONT
 	return avoid(d.normalized()) * speed
 
 

@@ -18,6 +18,7 @@ Events="*res://scripts/autoload/events.gd"
 GameState="*res://scripts/autoload/game_state.gd"
 Inventory="*res://scripts/autoload/inventory.gd"
 Assets="*res://scripts/autoload/assets.gd"
+Quality="*res://scripts/autoload/quality.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 QuestManager="*res://scripts/autoload/quest_manager.gd"
 
@@ -163,6 +164,7 @@ import/blender/enabled=false
 
 [physics]
 
+3d/physics_engine="Jolt Physics"
 common/physics_ticks_per_second=60
 3d/default_gravity=9.8
 
@@ -171,7 +173,14 @@ common/physics_ticks_per_second=60
 renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/anisotropic_filtering_level=0
-lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/size=4096
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
 anti_aliasing/quality/msaa_3d=1
 environment/defaults/default_clear_color=Color(0.79, 0.85, 0.92, 1)
+
+[shader_globals]
+
+snow_amount={
+"type": "float",
+"value": 0.0
+}

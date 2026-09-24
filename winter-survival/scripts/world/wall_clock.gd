@@ -15,8 +15,8 @@ func _ready() -> void:
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:
-	# Hands extend along +Y and the face looks toward -Z: a positive rotation about Z reads clockwise from the room.
+	# Hands extend along +Y and the face looks toward +Z (v2 front): a negative rotation about Z reads clockwise from the room.
 	if _hour_hand != null:
-		_hour_hand.rotation.z = TAU * fmod(hour, 12.0) / 12.0
+		_hour_hand.rotation.z = -TAU * fmod(hour, 12.0) / 12.0
 	if _minute_hand != null:
-		_minute_hand.rotation.z = TAU * (hour - floor(hour))
+		_minute_hand.rotation.z = -TAU * (hour - floor(hour))

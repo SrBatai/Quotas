@@ -21,6 +21,8 @@ var moon: DirectionalLight3D
 var env: WorldEnvironment
 var sky_mat: ProceduralSkyMaterial
 var blizzard_blend: float = 0.0
+## Last value written to the `snow_amount` global shader parameter (readable headless, where the dummy renderer keeps nothing).
+var snow_amount: float = 0.0
 ## Debug/tuning multipliers (screenshot flags use them).
 var sun_scale: float = 1.0
 var ambient_scale: float = 1.0
@@ -39,13 +41,11 @@ func _ready() -> void:
 func _setup() -> void:
 	if sun != null:
 		sun.shadow_enabled = true
-		sun.directional_shadow_max_distance = 70.0
-		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 		sun.directional_shadow_split_1 = 0.35
 		sun.directional_shadow_fade_start = 0.85
-		sun.shadow_blur = 1.5
 		sun.shadow_bias = 0.1
 		sun.shadow_normal_bias = 2.5
+		Quality.apply_to_sun(sun)  # 2 splits, 4096 atlas (alto), 45–60 m
 	if moon != null:
 		moon.shadow_enabled = false
 		moon.light_color = Color("#7D9BD1")
@@ -70,6 +70,8 @@ func _setup() -> void:
 		e.fog_aerial_perspective = 0.0
 		e.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 		env.environment = e
+		Quality.apply_to_environment(e)
+		env.add_to_group("quality_env")
 
 
 func _on_time_changed(_day: int, hour: float, _night: bool) -> void:
@@ -132,6 +134,9 @@ func apply(hour: float) -> void:
 	e.ambient_light_energy = lerpf(k[4], k[4] * 1.1, blizzard_blend) * ambient_scale
 	e.fog_light_color = (k[5] as Color).lerp(blizzard_fog, blizzard_blend)
 	e.fog_density = lerpf(k[6], BLIZZARD_FOG_DENSITY, blizzard_blend)
+	# snow accumulates on upward faces of every world_vcol surface while the blizzard blows (PLAN C17)
+	snow_amount = blizzard_blend * Quality.snow_amount_max()
+	RenderingServer.global_shader_parameter_set("snow_amount", snow_amount)
 
 
 func is_dark() -> bool:

@@ -1,9 +1,21 @@
 class_name MeshBuilder
 extends RefCounted
-## Builds flat-shaded low-poly ArrayMeshes from primitives, one surface per palette material.
+## Builds flat-shaded low-poly ArrayMeshes following ASSET_SPEC v2 §2.5: every palette colour goes into the
+## vertex colour of ONE `palette_vcol` surface (rendered with the shared world_vcol ShaderMaterial); only the
+## named exception materials (window, ember, glass, …) get a surface of their own.
+
+const VCOL := "palette_vcol"
+
+## When true every emitted point is turned 180° about Y (x, z → −x, −z): the placeholder builders are
+## written with the slice's −Z front and this bakes the v2 +Z front (Vector3.MODEL_FRONT) into the mesh.
+var yaw180: bool = false
 
 var _tools: Dictionary = {}
 var _order: Array[String] = []
+
+
+static func flip(v: Vector3) -> Vector3:
+	return Vector3(-v.x, v.y, -v.z)
 
 
 func _st(mat: String) -> SurfaceTool:
@@ -17,6 +29,11 @@ func _st(mat: String) -> SurfaceTool:
 
 ## Triangle with a flat normal. If `outward` is given the winding is flipped to face it.
 func tri(mat: String, a: Vector3, b: Vector3, c: Vector3, outward: Vector3 = Vector3.ZERO) -> void:
+	if yaw180:
+		a = flip(a)
+		b = flip(b)
+		c = flip(c)
+		outward = flip(outward)
 	var n := (b - a).cross(c - a)
 	if n.length_squared() < 1e-12:
 		return
@@ -26,14 +43,15 @@ func tri(mat: String, a: Vector3, b: Vector3, c: Vector3, outward: Vector3 = Vec
 		b = c
 		c = t
 		n = -n
+	var exception := Assets.is_exception_material(mat)
+	var st := _st(mat if exception else VCOL)
+	var col := Assets.palette_linear(mat)
 	# Godot's front faces are clockwise: emit a, c, b so the face looks toward `n`.
-	var st := _st(mat)
-	st.set_normal(n)
-	st.add_vertex(a)
-	st.set_normal(n)
-	st.add_vertex(c)
-	st.set_normal(n)
-	st.add_vertex(b)
+	for p in [a, c, b]:
+		if not exception:
+			st.set_color(col)
+		st.set_normal(n)
+		st.add_vertex(p)
 
 
 func quad(mat: String, a: Vector3, b: Vector3, c: Vector3, d: Vector3, outward: Vector3 = Vector3.ZERO) -> void:
@@ -226,6 +244,10 @@ func commit(mesh: ArrayMesh = null) -> ArrayMesh:
 		mesh = ArrayMesh.new()
 	for mat in _order:
 		var st: SurfaceTool = _tools[mat]
-		st.set_material(Assets.material(mat))
+		if mat == VCOL:
+			st.set_material(Assets.get_shared_material())
+		else:
+			st.set_material(Assets.material(mat))
 		st.commit(mesh)
+		mesh.surface_set_name(mesh.get_surface_count() - 1, mat)
 	return mesh
