@@ -68,6 +68,8 @@ func _on_body_entered(body: Node) -> void:
 	if body.is_in_group("player"):
 		player_inside = true
 		cutaway.set_active(true)
+		if lantern != null:
+			lantern.visible = false  # hangs from the porch roof, which is part of Roof in the glb
 		Events.shelter_changed.emit(true)
 
 
@@ -75,6 +77,8 @@ func _on_body_exited(body: Node) -> void:
 	if body.is_in_group("player"):
 		player_inside = false
 		cutaway.set_active(false)
+		if lantern != null:
+			lantern.visible = true
 		Events.shelter_changed.emit(false)
 
 
