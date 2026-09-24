@@ -9,7 +9,8 @@
 * Proportions by parameters (height, width, leg_len, torso_len, arm_len); `hunch`/`lean` are carried in
   the parameters for the animation generator only (the rest pose is shared).
 
-Not used by any asset yet (M1+). Self-test (builds a test humanoid in memory, nothing is written to the repo):
+Used by chars/build_survivor.py (M1) and anims/build_loco.py. Self-test (builds a test humanoid in memory,
+nothing is written to the repo):
     cd winter-survival/blender && python3 -m lib.rig --selftest
 """
 import sys
@@ -169,12 +170,19 @@ def bonemap_tres_text():
     return "\n".join(lines) + "\n"
 
 
+def bonemap_mapping(text):
+    import re
+    return dict(re.findall(r'^bone_map/(\w+) = &"(\w*)"$', text, re.M))
+
+
 def write_bonemap(path):
+    """(Re)write the BoneMap only when its mapping differs (a uid the Godot editor may add is kept)."""
     from pathlib import Path
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     text = bonemap_tres_text()
-    if not path.exists() or path.read_text() != text:
+    if (not path.exists() or bonemap_mapping(path.read_text()) != bonemap_mapping(text)
+            or 'type="SkeletonProfileHumanoid"' not in path.read_text()):
         path.write_text(text)
     return path
 
@@ -443,6 +451,14 @@ def selftest(verbose=True):
             problems.append("reference joint %s %s != %s" % (k, tuple(round(c, 4) for c in j[k]), v))
     if abs(j["LeftFoot"].z - 0.09) > 1e-6 or abs((j["LeftFoot"].y - j["LeftToes"].y) - 0.12) > 1e-6:
         problems.append("ankle z / toes offset")
+    for side in ("Left", "Right"):
+        for key in CONTACT_POINTS:
+            if abs(j[side + key].z) > 1e-9 or abs(j[side + key].x - j[side + "Foot"].x) > 1e-9:
+                problems.append("contact point %s%s not under the foot at z 0" % (side, key))
+    import re
+    bm = re.findall(r'^bone_map/(\w+) = &"(\w*)"$', bonemap_tres_text(), re.M)
+    if len(bm) != 56 or sorted(v for _k, v in bm if v) != sorted(BONE_NAMES) or any(k != v for k, v in bm if v):
+        problems.append("bonemap: %d profile bones, mapping not the identity of our 22 bones" % len(bm))
     for p in (params(), params(height=1.70, width=0.88, leg_len=1.06, arm_len=1.08, hunch=25.0),
               params(height=1.80 * 1.6, width=1.4)):
         lp.new_scene()

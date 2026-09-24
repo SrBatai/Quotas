@@ -30,6 +30,8 @@ and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, ver
 | `build_furniture.py` | bed, desk, chair, shelf, clock, cabinet, wood_stove | slice +Y → turned to −Y |
 | `build_props.py` | a_frame_cabin, pickup_truck (turned), signpost (authored −Y), fence (unchanged) | |
 | `build_optional.py` | tent, storage_box | slice +Y → turned to −Y |
+| `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1) | −Y |
+| `anims/build_loco.py` | anims/humanoid_loco (Loco_Idle/Idle_Cold/Walk/Run, Crouch_Idle/Walk) | −Y |
 
 ## Conventions (v2, milestone M0)
 
@@ -55,8 +57,21 @@ and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, ver
 - `lib/export.py` — scene checks, save + export, re-import, `.import` templates.
 - `lib/rig.py` — humanoid armature (SkeletonProfileHumanoid names, 22 bones + 5 sockets, T-pose facing −Y),
   rigid per-part skinning. `python3 -m lib.rig --selftest`
-- `lib/anim.py` — `ActionWriter`, cyclic locomotion generator (analytic IK), key-pose actions, foot
+- `lib/anim.py` — `Pose` (FK) + `ActionWriter`, 3D two-bone IK, heel-toe locomotion generator with
+  contact-point locking and automatic pelvis drop (`LOCO_GAITS`), standing loops, key-pose actions, contact
   metrics, action-name rules. `python3 -m lib.anim --selftest`
+- `lib/gltf_anim.py` — reads exported `.glb` skeletons/animations and evaluates them (FK) for the verifiers.
+
+## Characters and animations (M1)
+
+- `verify_chars.py` (run by `build_all.py`) checks the exported files: 27 bones/sockets, rest pose, rigid
+  skin, one `palette_vcol` surface with `COLOR_0`, `.import` templates, BoneMap, and for every `Loco_*` /
+  `Crouch_*` cycle the loop, duration, channels, ankle height and the stance speed of the ground-contact
+  points (walk 2.2, run 6.0, crouch-walk 1.3 m/s; sliding < 5 %).
+- Godot import: each `.glb` in `chars/` / `anims/` has its `.import` (`export.write_import(glb, "char"|"anim")`,
+  retarget through `../assets/models/rig/humanoid_bonemap.tres` → `GeneralSkeleton`, Except Bone Transform
+  off, animation-library key optimizer off). `save_and_export` leaves `.glb`/`.blend` untouched when the
+  export is byte-identical.
 
 ## Verify
 

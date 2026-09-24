@@ -69,8 +69,8 @@ def idle_cold(arm_obj, p, name="Loco_Idle_Cold-loop", period=2.0):
         # hands hug the opposite upper arms, forearms stacked in front of the chest (left above right)
         cw = pose.world("Chest")
         c0 = pose.head("Chest")
-        for side, hand, pole in (("Left", (-0.19, -0.235, 0.155), (0.9, -0.4, -1.0)),
-                                 ("Right", (0.19, -0.255, 0.075), (-0.9, -0.4, -1.0))):
+        for side, hand, pole in (("Left", (-0.20, -0.250, 0.100), (0.9, -0.4, -1.0)),
+                                 ("Right", (0.20, -0.268, 0.025), (-0.9, -0.4, -1.0))):
             s = 1 if side == "Left" else -1
             target = c0 + cw @ Vector((hand[0], hand[1], hand[2] + 0.004 * sh))
             anim.solve_arm(pose, side, target, cw @ Vector(pole))

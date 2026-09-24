@@ -141,7 +141,14 @@ def export_gltf(glb_path, has_armature=None, has_actions=None):
 
 
 def save_and_export(name, subdir=""):
-    """Sanity-check the scene, save sources/<name>.blend, export assets/models/[subdir/]<name>.glb."""
+    """Sanity-check the scene, save sources/<name>.blend, export assets/models/[subdir/]<name>.glb.
+
+    The .glb export is byte-deterministic but a .blend save is not (timestamps): when the freshly exported
+    .glb equals the existing one and the .blend exists, both files are left untouched (no churn in the repo
+    when nothing changed)."""
+    import filecmp
+    import shutil
+    import tempfile
     sanity_check_scene(name)
     _purge_orphans()
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,15 +160,23 @@ def save_and_export(name, subdir=""):
         bpy.context.preferences.filepaths.save_version = 0   # no .blend1 backups
     except Exception:
         pass
+    tmp_dir = tempfile.mkdtemp(prefix="ventisca_export_")
+    tmp_glb = Path(tmp_dir) / glb.name
     with quiet():
-        bpy.ops.wm.save_as_mainfile(filepath=str(blend), compress=True, check_existing=False)
-        export_gltf(glb)
+        export_gltf(tmp_glb)
+    unchanged = glb.exists() and blend.exists() and filecmp.cmp(str(tmp_glb), str(glb), shallow=False)
+    if not unchanged:
+        with quiet():
+            bpy.ops.wm.save_as_mainfile(filepath=str(blend), compress=True, check_existing=False)
+        shutil.copyfile(str(tmp_glb), str(glb))
+    shutil.rmtree(tmp_dir, ignore_errors=True)
     for stale in SOURCES_DIR.glob("*.blend1"):
         stale.unlink()
     tris = lowpoly.scene_tris()
     surfaces = sum(len(o.data.materials) for o in bpy.context.scene.objects
                    if o.type == 'MESH' and not is_col(o.name))
-    print("built %-14s tris=%-5d surfaces=%-3d -> %s" % (name, tris, surfaces, glb.relative_to(ROOT)))
+    print("built %-14s tris=%-5d surfaces=%-3d -> %s%s" % (name, tris, surfaces, glb.relative_to(ROOT),
+                                                           " (unchanged)" if unchanged else ""))
     return glb
 
 
@@ -172,6 +187,8 @@ def save_and_export(name, subdir=""):
 #   anim : importer "animation_library" (30 fps, rest pose as RESET), same retarget so the tracks target
 #          %GeneralSkeleton:<Bone>; `-loop` names -> LOOP_LINEAR (Godot strips the suffix)
 # `except_bone_transform` stays OFF: Godot bug #123782 (with it on, retargeted libraries keep 1 track).
+# anim also turns OFF the AnimationPlayer key optimizer (M1): Godot's default lossy key reduction (91 -> 45 keys
+# on Loco_Idle) made planted feet drift up to 0.8 mm per frame; with it off Godot plays the exact keys.
 # ------------------------------------------------------------------------------------------------
 _SCENE_PARAMS = [
     'nodes/root_type=""', 'nodes/root_name=""', 'nodes/apply_root_scale=true', 'nodes/root_scale=1.0',
@@ -199,6 +216,10 @@ _RETARGET = '''_subresources={
 }
 }
 }''' % BONEMAP_RES
+_ANIM_PLAYER = '''"PATH:AnimationPlayer": {
+"optimizer/enabled": false
+},
+'''
 IMPORT_KINDS = ("prop", "char", "anim")
 
 
@@ -209,7 +230,7 @@ def import_file_text(kind):
         head = '[remap]\n\nimporter="animation_library"\nimporter_version=1\ntype="AnimationLibrary"\n'
         params = _SCENE_PARAMS + ['animation/import=true', 'animation/fps=30', 'animation/trimming=false',
                                   'animation/remove_immutable_tracks=true', 'animation/import_rest_as_RESET=true',
-                                  _RETARGET]
+                                  _RETARGET.replace('"nodes": {\n', '"nodes": {\n' + _ANIM_PLAYER, 1)]
     else:
         head = '[remap]\n\nimporter="scene"\nimporter_version=1\ntype="PackedScene"\n'
         params = list(_SCENE_PARAMS)

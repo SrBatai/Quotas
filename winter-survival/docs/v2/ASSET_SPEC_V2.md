@@ -605,3 +605,14 @@ Verificación de la migración: `verify_assets.py` v2 **ALL OK** + `tests/inspec
 | M10 | `snowplow`, `heavy_truck`, convoy de evacuación, `Emote_*`, `Act_Repair/Chains/Siphon/Jump_Start`, componentes de radio, mods de armas |
 
 Regla de prioridad dentro de un pase: P0 del hito → verificación → renders → P1 → P2. Entregar P0 verificado antes de pulir nada.
+
+---
+
+## M1 — desviaciones (Opus, M1)
+
+- **Velocidades (decisión vinculante de M1, sustituye C19 y §6.2)**: `Loco_Walk-loop` **2.2 m/s, 0.8 s** (24 fr), `Loco_Run-loop` **6.0 m/s, 0.667 s** (20 fr), `Crouch_Walk-loop` **1.3 m/s, 1.0 s** (30 fr); `Loco_Idle-loop` 3.0 s, `Loco_Idle_Cold-loop` 2.0 s (v0), `Crouch_Idle-loop` 3.0 s. `TimeScale = v_real / v_autorada`. Tabla contractual: `blender/anims/build_loco.py::LOCO_TABLE` (la comprueba `verify_chars.py`); cada animación lleva además `extras` glTF informativos (`authored_speed`, `period`, `drop`).
+- **Pisada**: el generador (`lib/anim.py`) bloquea al suelo los **puntos de contacto** (`rig.CONTACT_POINTS`: talón en `Foot` y+0.10, bola y punta en `Toes` y−0.10/−0.19, z 0) con balanceo talón‑punta; la velocidad de apoyo y el deslizamiento se miden sobre esos puntos en el `.glb` exportado (andar 2.200, correr 6.000, agachado 1.300 m/s; deslizamiento ≤ 0.6 %). Caída de pelvis resultante: andar 0.067, correr 0.085 (+ bote), agachado 0.35 (§6.2). Las botas del personaje deben tocar el suelo exactamente en esos puntos.
+- **BoneMap** en `res://assets/models/rig/humanoid_bonemap.tres` (no `assets/rig/`: el agente de arte solo escribe en `assets/models/**`). Si se mueve, cambiar `lib/export.py::BONEMAP_RES` y los `.import`.
+- **Plantillas `.import`**: no hay `assets/import_templates/`; cada `.glb` de `chars/` y `anims/` lleva su `.import` (tipos `char`/`anim` de `lib/export.py::import_file_text`, ya normalizados por Godot 4.7.2 con uid estable). La plantilla `anim` añade `"PATH:AnimationPlayer": {"optimizer/enabled": false}`: el optimizador por defecto de Godot quitaba claves (Loco_Idle 91 → 45 por pista) y los pies plantados derivaban hasta 0.8 mm/frame.
+- **Variantes**: gorro `hat` (roja), `hivis_orange` (azul), `jacket` (verde), `hat` (mostaza); la variante mostaza lleva bufanda y manoplas `jacket` para no fundirse con la chaqueta. Pantalón y cremallera `hat` en todas. Altura con pompón 1.838 m (copa del gorro 1.775).
+- **Nota para M2 (AnimationTree)**: con la raíz a la velocidad autorada, el deslizamiento medido en Godot a 60 fps es 0.7 % (andar) y 1.6 % (correr); entre puntos del `BlendSpace1D` (p. ej. 1.3 o 4.0 m/s) mezclar dos ciclos desliza (21–75 %): usar el `TimeScale` del ciclo dominante en vez de posiciones intermedias.
