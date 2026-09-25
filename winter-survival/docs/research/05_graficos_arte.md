@@ -20,7 +20,7 @@
 | ¿Comprar/descargar assets mejores? | **No como base.** Ningún paquete compatible en licencia tiene el estilo de la referencia *y* nuestro contrato (partes de corte, anclas, colisión, esqueleto `SkeletonProfileHumanoid`, color de vértice sin texturas). Kenney/KayKit/Quaternius (CC0) son más *juguete* que lo que ya tenemos; Poly Pizza mezcla licencias (≈ 69 % CC‑BY); Poly Haven es fotorrealista; Synty es de pago con EULA que prohíbe redistribuir y restringe el uso con programas de IA generativa. Además, **desde este entorno solo GitHub (raw/releases), npm y PyPI son accesibles**: kenney.nl, quaternius.com, itch.io, poly.pizza, polyhaven y syntystore devuelven 403. |
 | Recomendación | **Procedural HD en `bpy` (estrategia a) para todas las familias visibles**, con reglas nuevas (guía v2.1, §4): chaflanes con normales endurecidas en lo duro, nieve como "almohadas" subdivididas con bordes gruesos redondeados y cornisas, sombreado suave en nieve/tela/corteza, **AO horneada en `COLOR_0.a`**, paleta v2.1 desaturada. Externo solo donde ya estaba decidido: **Quaternius UAL (CC0, espejo en GitHub descargable aquí) para animaciones difíciles**, y CC0 de Kenney/KayKit **solo como *blockout* temporal**. |
 | ¿Funciona? | Sí: PoC con cabaña, 2 pinos, árbol desnudo, loseta de terreno con camino/bermas/ventisqueros/huellas y superviviente de proporciones naturales (4 variantes) **en el mismo esqueleto**: `humanoid_loco.glb` se reproduce sin cambios (verificado en Blender y en importación Godot 4.7.2, 0 errores). Comparación antes/después: `compare_old_vs_new_gamecam24.png` (§3.4). |
-| Coste de migración | 33 assets actuales: **≈ 28 h de agente (3–4 pases de Opus)** + librería/verificadores ≈ 6 h. Plan futuro (zombis, kit de pueblo, vehículos, props): **+8–10 días de agente** sobre el plan v2 (≈ +25–40 % por familia). Rendimiento: tris ×3–12 por asset, superficies/draw calls iguales (§5). |
+| Coste de migración | 33 assets actuales: **≈ 26–28 h de agente** + librería/verificadores ≈ 6 h = **32–34 h (4–5 pases de Opus)**; solo los "héroes" del claro ≈ 10 h. Plan futuro (zombis, kit de pueblo, vehículos, props): **+8–10 días de agente** sobre el plan v2 (≈ +25–40 % por familia). Rendimiento: tris ×3–12 por asset, superficies/draw calls iguales (§5). |
 
 ---
 
@@ -205,6 +205,7 @@ Carpeta: `/tmp/claude-0/-home-user-Quotas/3c3b507e-0838-5643-8cd6-6e5a40202a08/s
 | Fichero | Qué muestra |
 |---|---|
 | `compare_old_vs_new_gamecam24.png` | **Antes \| después** con la misma cámara, luz y disposición (assets de hoy sobre las mismas alturas a 1 m facetadas vs HD) |
+| `ref_vs_hd_dusk.png`, `ref_vs_hd_day.png` | **Referencia \| HD** lado a lado (uso interno). Lo que queda de diferencia es sobre todo luz/exposición (06) y que la referencia usa la cámara más cerca (≈ 18–20 m frente a nuestros 27 m por defecto; recomendación a código/diseño: probar 20–22 m por defecto) |
 | `scene_hd_day_gamecam24.png`, `scene_hd_day_gamecam16.png` | Escena HD de día (contraluz bajo como la referencia) |
 | `scene_hd_dusk_gamecam24.png` | Escena HD al atardecer con ventanas encendidas |
 | `scene_old_day_gamecam24.png` | Escena actual equivalente |

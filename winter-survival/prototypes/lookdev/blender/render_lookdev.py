@@ -356,10 +356,18 @@ def p_compare(samples, res):
     """old | new side by side (same camera, layout, light) -> compare_old_vs_new_gamecam24.png"""
     p_scene_old(samples, res)
     p_scene_day(samples, res)
+    compose_compare()
+
+
+def compose_compare():
     try:
-        from PIL import Image, ImageDraw
+        from PIL import Image, ImageDraw, ImageFont
     except ImportError:
         return
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 30)
+    except Exception:
+        font = None
     a = Image.open(os.path.join(OUT, "scene_old_day_gamecam24.png")).convert("RGB")
     b = Image.open(os.path.join(OUT, "scene_hd_day_gamecam24.png")).convert("RGB")
     w, h = a.size
@@ -367,9 +375,11 @@ def p_compare(samples, res):
     im.paste(a, (0, 0))
     im.paste(b, (w + 12, 0))
     d = ImageDraw.Draw(im)
-    for x, t in ((20, "ANTES (assets actuales, terreno 1 m facetado)"), (w + 32, "DESPUES (HD v2.1: bisel, nieve suave, AO)")):
-        d.rectangle((x - 8, 14, x + 8 * len(t) + 8, 44), fill=(20, 24, 30))
-        d.text((x, 22), t, fill=(235, 240, 245))
+    for x, t in ((24, "ANTES: assets actuales, terreno 1 m facetado"),
+                 (w + 36, "DESPUES: HD v2.1 (chaflan, nieve suave, AO)")):
+        tw = d.textlength(t, font=font) if font else 8 * len(t)
+        d.rectangle((x - 12, 16, x + tw + 12, 62), fill=(20, 24, 30))
+        d.text((x, 22), t, fill=(235, 240, 245), font=font)
     im.save(os.path.join(OUT, "compare_old_vs_new_gamecam24.png"))
     print("rendered", os.path.join(OUT, "compare_old_vs_new_gamecam24.png"))
 
