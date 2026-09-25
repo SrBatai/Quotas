@@ -90,6 +90,7 @@ func _physics_process(delta: float) -> void:
 		speed = Vector2(interp.last_velocity.x, interp.last_velocity.z).length()
 		_speed = lerpf(_speed, speed, 1.0 - exp(-14.0 * delta))
 	visual.set_motion(0.0 if player.dead else _speed, player.running, player.crouching, player.cold, player.dead)
+	visual.advance(delta)
 
 
 func _process(delta: float) -> void:

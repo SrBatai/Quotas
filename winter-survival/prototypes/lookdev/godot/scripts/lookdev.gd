@@ -669,12 +669,21 @@ func _capture_sequence() -> void:
 	var base_tag: String = args.get("tag", "")
 	var rid := get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(rid, true)
+	var cli_tonemap = args.get("tonemap")
+	var cli_exposure = args.get("exposure")
 	for entry in list:
 		var parts: PackedStringArray = entry.split(":")
 		var name := parts[0]
 		var tag := base_tag
-		args.erase("tonemap")
-		args.erase("exposure")
+		# per-entry tonemap/exposure override the command line ones, which are restored for the next entry
+		if cli_tonemap != null:
+			args["tonemap"] = cli_tonemap
+		else:
+			args.erase("tonemap")
+		if cli_exposure != null:
+			args["exposure"] = cli_exposure
+		else:
+			args.erase("exposure")
 		if parts.size() > 1 and parts[1] != "":
 			args["tonemap"] = parts[1]
 			tag += "_" + parts[1]

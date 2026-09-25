@@ -16,4 +16,4 @@ def sheet(out, rows):
 sheet("sheet_final_day.png", [[("ANTES: juego (Compatibility)", L+"before_day_game_compat.png"), ("REFERENCIA dia", L+"ref_day.jpg"), ("DESPUES: look-dev Forward+", L+"day_forward_plus.png")],
                              [("DESPUES: look-dev Compatibility", L+"day_filmic_e0.28_compat.png"), ("REFERENCIA atardecer", L+"ref_dusk.jpg"), ("DESPUES: atardecer Forward+", L+"dusk_forward_plus.png")]])
 sheet("sheet_final_night.png", [[("ANTES: juego noche (Compatibility)", L+"before_night_game_compat.png"), ("REFERENCIA noche", L+"ref_night.jpg"), ("DESPUES: noche Forward+", L+"night_forward_plus.png")],
-                               [("DESPUES: noche Compatibility", L+"night_filmic_e0.35_compat.png"), ("ANTES: ventisca (juego)", L+"before_blizzard_game_compat.png"), ("DESPUES: ventisca Forward+ (volumetrica)", L+"blizzard_forward_plus.png")]])
+                               [("DESPUES: noche Compatibility", L+"night_filmic_e0.20_compat.png"), ("ANTES: ventisca (juego)", L+"before_blizzard_game_compat.png"), ("DESPUES: ventisca Forward+ (volumetrica)", L+"blizzard_forward_plus.png")]])

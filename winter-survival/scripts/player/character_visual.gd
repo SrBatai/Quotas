@@ -122,9 +122,10 @@ func _setup_skeletal() -> void:
 	look_at.target_node = look_at.get_path_to(aim_target)
 	look_at.influence = 1.0
 	aim_target.global_position = global_position + global_basis * Vector3(0, 1.5, 4.0)
-	# animation and modifiers advance with the physics tick, like the body they follow (no feet jitter between
-	# the 60 Hz simulation and a free-running render loop; the feet metric of the smoke test measures per tick)
-	tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
+	# The tree is advanced by hand from PlayerView._physics_process (`advance(dt)`) right after the tick's ground
+	# displacement set the TimeScale: the cycle and the body move in the same tick with the same speed (no feet
+	# jitter between the 60 Hz simulation and a free-running render loop; the smoke test measures per tick).
+	tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 	skeleton.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_PHYSICS
 	tree.tree_root = _build_tree()
 	tree.active = true
@@ -254,6 +255,12 @@ func set_motion(p_speed: float, running: bool, crouching: bool, cold: bool, dead
 		time_scale = 0.0 if dead else 1.0
 	if look_at != null:
 		look_at.active = not dead and not _look_disabled
+
+
+## Advances the animation graph (called once per physics tick by the owner view after set_motion).
+func advance(dt: float) -> void:
+	if is_skeletal and tree.active:
+		tree.advance(dt)
 
 
 func _set_state(next: StringName, force: bool = false) -> void:
