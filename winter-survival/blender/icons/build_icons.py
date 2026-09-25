@@ -27,6 +27,7 @@ import random
 import struct
 import sys
 import tempfile
+import warnings
 import zlib
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -477,7 +478,7 @@ def can(label, spot):
                 if s in (3, 8):
                     mb.faces[fi][1] = "brass"
     # lid: concentric rings stepping down to a recessed centre
-    lid = [(R * 0.93, 0.117), (R * 0.80, 0.114), (R * 0.72, 0.1165), (R * 0.55, 0.114)]
+    lid = [(R * 0.80, 0.114), (R * 0.72, 0.1165), (R * 0.55, 0.114)]
     lrings = [lp.ring((0, 0, z), (0, 0, 1), r, sides, 90.0 + 180.0 / sides) for r, z in lid]
     mb.loft([rings[-1]] + lrings, metal, cap_start=False, cap_end=True, seg_facing=[(0, 0, 1)] * len(lrings))
     mb.poly(rings[0], metal, facing=(0, 0, -1))
@@ -725,7 +726,9 @@ def setup_render(ground_z):
     sc.display_settings.display_device = 'sRGB'
     # world: dim cool ambient
     w = bpy.data.worlds.new("IconWorld")
-    w.use_nodes = True
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        w.use_nodes = True
     bg = w.node_tree.nodes.get("Background")
     bg.inputs["Color"].default_value = WORLD[0] + (1.0,)
     bg.inputs["Strength"].default_value = WORLD[1]
