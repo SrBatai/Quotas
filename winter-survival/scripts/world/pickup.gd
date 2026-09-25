@@ -1,7 +1,8 @@
 class_name Pickup
 extends InteractableComponent
-## Ground item (firewood, stone, meat, pelt). The Area3D itself is the interactable. Seeded pickups exist on
-## both sides (taken = world delta "removed"); runtime drops live under World/Drops through the DropSpawner.
+## Ground item (firewood, stone, meat, pelt). The Area3D itself is the interactable (action `take`). Seeded
+## pickups exist on both sides (taken = world delta "removed"); runtime drops live under World/Drops through the
+## DropSpawner (taken = despawn + drops table). The owner client hides it while the request travels.
 
 @export var item_id: StringName = &"madera"
 @export var model: String = "firewood"
@@ -14,6 +15,7 @@ var _base_y: float = 0.0
 
 func _init() -> void:
 	self_owned = true
+	default_action = &"take"
 
 
 func _ready() -> void:
@@ -41,6 +43,10 @@ func _process(delta: float) -> void:
 		_visual.rotation.y += delta * 0.4
 
 
+func is_drop() -> bool:
+	return get_parent() != null and get_parent().name == "Drops"
+
+
 func _self_label(_player: Node) -> String:
 	match item_id:
 		&"madera": return "Recoger leña"
@@ -51,24 +57,40 @@ func _self_label(_player: Node) -> String:
 
 
 ## Server only.
-func _self_interact(player: Node) -> void:
+func _self_interact(player: Node, action: StringName, _arg: int) -> bool:
 	var p := player as Player
-	if p == null or not Net.is_server:
-		return
+	if p == null or action != &"take" or not Net.is_server:
+		return false
 	var left := p.state.inventory.add(item_id, amount)
 	if left == amount:
 		p.state.notify("Inventario lleno", 2.0)
-		return
+		return false
 	AudioManager.play(&"pickup", global_position)
 	var wid := WorldRegistry.wid_of(self)
 	if left > 0:
 		amount = left
-		NetWorld.instance.set_delta(wid, {"amount": amount})
+		if is_drop():
+			NetWorld.instance.register_drop(wid, {"amount": amount})
+		else:
+			NetWorld.instance.set_delta(wid, {"amount": amount})
 	else:
 		enabled = false
-		if get_parent() != null and get_parent().name != "Drops":
+		if is_drop():
+			NetWorld.instance.erase_drop(wid)
+		else:
 			NetWorld.instance.set_delta(wid, {"removed": true})
 		queue_free()
+	return true
+
+
+func _self_preview(_player: Node, action: StringName) -> void:
+	if action == &"take" and _visual != null:
+		_visual.visible = false
+
+
+func _self_preview_cancel(_player: Node, _action: StringName) -> void:
+	if _visual != null:
+		_visual.visible = true
 
 
 func apply_net_delta(f: Dictionary) -> void:

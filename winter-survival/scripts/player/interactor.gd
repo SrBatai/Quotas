@@ -1,18 +1,21 @@
 class_name Interactor
 extends Node
 ## Owner client: cursor raycast → hovered InteractableComponent; click → predicted auto-walk when far, then a
-## validated `NetWorld.request_interact(wid)`; attack → `request_attack`. Labels use the owner's state mirror.
+## validated `NetWorld.request_interact(wid, action, arg)` with an optimistic `client_preview` (reverted on a
+## denial); attack → `request_attack`. Labels use the owner's state mirror.
 
 var target: InteractableComponent
 var pending: InteractableComponent
 var hover_text: String = ""
 var _player: Player
 var _ring: HoverRing
+var _previews: Dictionary = {}   # wid -> [comp, action] awaiting the server's answer
 
 
 func _ready() -> void:
 	_player = get_parent()
 	_ring = _player.get_node_or_null("View/HoverRing")
+	Events.interact_result.connect(_on_interact_result)
 
 
 func _camera() -> Camera3D:
@@ -96,22 +99,38 @@ func _go_or_interact(comp: InteractableComponent) -> void:
 	if comp.distance_to(_player) <= comp.interact_range:
 		pending = null
 		_player.auto_target = null
-		_send_interact(comp)
+		send_interact(comp)
 	else:
 		pending = comp
 		_player.auto_target = comp
 
 
-func _send_interact(comp: InteractableComponent) -> void:
+## Sends the component's default action (or `action`) and previews it locally on a pure client.
+func send_interact(comp: InteractableComponent, action: StringName = &"", arg: int = 0) -> void:
+	if action == &"":
+		action = comp.default_action
 	_player.face_toward(comp.global_position)
-	var wid := WorldRegistry.wid_of(comp.target_node())
-	Net.rpc_server(NetWorld.instance, &"request_interact", [wid])
+	var wid := comp.wid()
+	Net.rpc_server(NetWorld.instance, &"request_interact", [wid, action, arg])
+	if Net.is_client:
+		comp.client_preview(_player, action)
+		_previews[wid] = [comp, action]
+
+
+func _on_interact_result(wid: int, action: StringName, ok: bool, _reason: String) -> void:
+	if not _previews.has(wid):
+		return
+	var e: Array = _previews[wid]
+	_previews.erase(wid)
+	var comp: InteractableComponent = e[0]
+	if not ok and comp != null and is_instance_valid(comp):
+		comp.client_preview_cancel(_player, action)
 
 
 ## Called by the player input when auto-walk reaches the pending target.
 func perform_pending() -> void:
 	if pending != null and is_instance_valid(pending) and pending.can_interact(_player):
-		_send_interact(pending)
+		send_interact(pending)
 	pending = null
 
 
@@ -130,17 +149,19 @@ func _interact_nearest() -> void:
 		_go_or_interact(best)
 
 
+## Space: swing at the nearest living animal in reach (wolves first, then deer), or in the air.
 func attack_nearest() -> void:
 	var best: Node = null
 	var best_d := Balance.ATTACK_RANGE
 	var p: Vector3 = _player.global_position
-	for w in get_tree().get_nodes_in_group("wolves"):
-		if w.get("state") != null and w.state == w.State.DEAD:
-			continue
-		var d := Vector2(w.global_position.x - p.x, w.global_position.z - p.z).length()
-		if d < best_d:
-			best_d = d
-			best = w
+	for group in ["wolves", "deer"]:
+		for w in get_tree().get_nodes_in_group(group):
+			if w.has_method("is_dead") and w.is_dead():
+				continue
+			var d := Vector2(w.global_position.x - p.x, w.global_position.z - p.z).length()
+			if d < best_d:
+				best_d = d
+				best = w
 	if best != null:
 		_player.face_toward(best.global_position)
 	Net.rpc_server(NetWorld.instance, &"request_attack", [WorldRegistry.wid_of(best) if best != null else 0])

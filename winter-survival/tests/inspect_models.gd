@@ -5,6 +5,8 @@ extends SceneTree
 ##   - the front anchors sit in local +Z (Vector3.MODEL_FRONT) and rear anchors in -Z;
 ##   - the required anchors (Placeholders.ANCHORS) exist, Col* are top-level StaticBody3D, no `.001` names;
 ##   - the player's ToolSocket points a tool's handle (+Y) forward (+Z), blade (+Z) up.
+##   - chars/*.glb: GeneralSkeleton with the 27 humanoid bones/sockets (ASSET_SPEC v2 §4), one skinned palette_vcol mesh;
+##   - anims/*.glb: AnimationLibrary with the loops of the LOCO table (names, durations, LOOP_LINEAR, hips position track).
 ## Run: godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]
 ## --placeholders checks the primitive stand-ins (Placeholders.build) against the same contract instead of the .glb files.
 ## Ends with "ALL OK" (exit 0) or "N FAILURES" (exit 1).
@@ -29,6 +31,13 @@ const FRONT_ANCHORS := {
 const THREE_SURFACE_ASSETS := ["pickup_truck"]
 ## Assets with embedded collision (Col* StaticBody3D at the first level).
 const COLLISION_ASSETS := ["cabin", "a_frame_cabin", "pickup_truck", "tent"]
+## Humanoid skeleton contract (ASSET_SPEC v2 §4.1): 22 deform bones + 5 sockets.
+const HUMANOID_BONES := ["Root", "Hips", "Spine", "Chest", "Neck", "Head", "LeftShoulder", "LeftUpperArm", "LeftLowerArm",
+	"LeftHand", "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+	"LeftToes", "RightUpperLeg", "RightLowerLeg", "RightFoot", "RightToes",
+	"RightHandSocket", "LeftHandSocket", "BackSocket", "HipSocketR", "HeadSocket"]
+## Locomotion library (ASSET_SPEC v2 "M1 deviations"): name -> duration (s).
+const LOCO_TABLE := {"Loco_Idle": 3.0, "Loco_Idle_Cold": 2.0, "Loco_Walk": 0.8, "Loco_Run": 0.667, "Crouch_Idle": 3.0, "Crouch_Walk": 1.0}
 
 var _quiet: bool = false
 var _placeholders: bool = false
@@ -79,8 +88,126 @@ func _initialize() -> void:
 		_check(asset, inst)
 		checked += 1
 		inst.free()
+	checked += _check_chars()
+	checked += _check_anims()
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
+
+
+func _glbs(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return out
+	dir.list_dir_begin()
+	var f := dir.get_next()
+	while f != "":
+		if f.ends_with(".glb"):
+			out.append(f)
+		f = dir.get_next()
+	out.sort()
+	return out
+
+
+## chars/*.glb: skeletal survivors (M1) and zombies (M2+).
+func _check_chars() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/chars"):
+		var asset := "chars/" + name.get_basename()
+		var scene := load("res://assets/models/chars/" + name) as PackedScene
+		if scene == null:
+			_fail(asset, "cannot load")
+			continue
+		var inst := scene.instantiate()
+		if not _quiet:
+			print("== chars/", name)
+			_dump(inst, 1)
+		var problems: Array[String] = []
+		var sk := inst.find_child("GeneralSkeleton", true, false) as Skeleton3D
+		if sk == null:
+			problems.append("no GeneralSkeleton (retarget bone map not applied)")
+		else:
+			for b in HUMANOID_BONES:
+				if sk.find_bone(b) < 0:
+					problems.append("bone %s missing" % b)
+			if sk.get_bone_count() != HUMANOID_BONES.size():
+				problems.append("%d bones, expected %d" % [sk.get_bone_count(), HUMANOID_BONES.size()])
+			var socket := sk.find_bone("RightHandSocket")
+			if socket >= 0 and sk.get_bone_global_rest(socket).origin.x > -0.5:
+				problems.append("RightHandSocket at x=%.2f, expected on the right (-X) in the T-pose" % sk.get_bone_global_rest(socket).origin.x)
+			var hips := sk.find_bone("Hips")
+			if hips >= 0 and absf(sk.get_bone_global_rest(hips).origin.y - 0.92) > 0.03:
+				problems.append("Hips rest at y=%.2f, expected 0.92" % sk.get_bone_global_rest(hips).origin.y)
+		var skinned := 0
+		var tris := 0
+		for node in _all(inst):
+			if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+				var mi := node as MeshInstance3D
+				if mi.skin == null:
+					problems.append("%s has no skin" % mi.name)
+				skinned += 1
+				for i in mi.mesh.get_surface_count():
+					var m := mi.mesh.surface_get_material(i)
+					var mname := m.resource_name if m != null else ""
+					var has_color := bool(mi.mesh.surface_get_format(i) & Mesh.ARRAY_FORMAT_COLOR)
+					if not VCOL_IMPORTED.has(mname) or not has_color:
+						problems.append("%s surface %d: expected palette_vcol with COLOR_0 (got '%s')" % [mi.name, i, mname])
+					var arrays := mi.mesh.surface_get_arrays(i)
+					var idx = arrays[Mesh.ARRAY_INDEX]
+					tris += (idx.size() if idx is PackedInt32Array and idx.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+		if skinned == 0:
+			problems.append("no skinned mesh")
+		if problems.is_empty():
+			print("OK   %-22s bones=%d skinned=%d tris=%d" % [asset, sk.get_bone_count() if sk != null else 0, skinned, tris])
+		else:
+			for p in problems:
+				_fail(asset, p)
+		inst.free()
+		n += 1
+	return n
+
+
+## anims/*.glb: animation libraries consumed by character_visual.gd.
+func _check_anims() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/anims"):
+		var asset := "anims/" + name.get_basename()
+		var lib := load("res://assets/models/anims/" + name) as AnimationLibrary
+		if lib == null:
+			_fail(asset, "not imported as an AnimationLibrary")
+			continue
+		var problems: Array[String] = []
+		var table := LOCO_TABLE if name.begins_with("humanoid_loco") else {}
+		for an in table:
+			if not lib.has_animation(an):
+				problems.append("animation %s missing" % an)
+				continue
+			var a := lib.get_animation(an)
+			if absf(a.length - float(table[an])) > 0.04:
+				problems.append("%s lasts %.3f s, expected %.3f" % [an, a.length, float(table[an])])
+			if a.loop_mode != Animation.LOOP_LINEAR:
+				problems.append("%s is not LOOP_LINEAR" % an)
+			var rot := 0
+			var hips_pos := false
+			for t in a.get_track_count():
+				var path := String(a.track_get_path(t))
+				if not path.begins_with("%GeneralSkeleton:"):
+					problems.append("%s track %s is not on %%GeneralSkeleton" % [an, path])
+				if a.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+					rot += 1
+				elif a.track_get_type(t) == Animation.TYPE_POSITION_3D and path.ends_with(":Hips"):
+					hips_pos = true
+			if rot < 20:
+				problems.append("%s has %d rotation tracks (< 20)" % [an, rot])
+			if not hips_pos:
+				problems.append("%s has no Hips position track" % an)
+		if problems.is_empty():
+			print("OK   %-22s animations=%d" % [asset, lib.get_animation_list().size()])
+		else:
+			for p in problems:
+				_fail(asset, p)
+		n += 1
+	return n
 
 
 ## Spawns every asset through Assets.spawn_model with force_placeholders (the real contract: anchors guaranteed).

@@ -34,6 +34,7 @@ func _ready() -> void:
 	interactable.set_shape(icyl, Vector3(0, 0.4, 0))
 	interactable.ring_radius = 0.8
 	interactable.interact_range = Balance.INTERACT_RANGE
+	interactable.default_action = &"fuel"
 	heat = HeatZone.new()
 	heat.name = "Heat"
 	heat.gain = Balance.CAMPFIRE_WARMTH
@@ -77,6 +78,10 @@ func _on_lit_changed(lit: bool) -> void:
 			WorldState.instance.notify_all("La fogata se ha apagado", 3.0)
 
 
+func interact_actions() -> Array:
+	return [&"fuel"]
+
+
 func get_interact_label(player: Node) -> String:
 	var n: int = player.state.count(&"madera") if player is Player else 0
 	if n <= 0:
@@ -89,14 +94,16 @@ func can_interact(player: Node) -> bool:
 
 
 ## Server only.
-func interact(player: Node) -> void:
+func server_interact(player: Node, action: StringName, arg: int) -> bool:
 	var p := player as Player
-	if p == null or not Net.is_server:
-		return
-	if burner.add_wood(p, 1):
-		p.state.notify("Añades leña a la fogata", 2.0)
-		AudioManager.play(&"fire_add_wood", global_position)
-		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": is_lit, "fuel": burner.fuel})
+	if p == null or action != &"fuel" or not Net.is_server:
+		return false
+	if not burner.add_wood(p, clampi(arg, 1, 5)):
+		return false
+	p.state.notify("Añades leña a la fogata", 2.0)
+	AudioManager.play(&"fire_add_wood", global_position)
+	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"lit": is_lit, "fuel": burner.fuel})
+	return true
 
 
 func seconds_left() -> float:

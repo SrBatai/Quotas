@@ -7,9 +7,6 @@ extends Node3D
 @export var decorative_only: bool = false
 @export var world_seed: int = 0
 
-const PICKUP_SCENE := preload("res://scenes/world/pickup.tscn")
-const CAMPFIRE_SCENE := preload("res://scenes/world/campfire.tscn")
-
 @onready var terrain: Terrain = $Terrain
 @onready var cabin: Cabin = $Cabin
 @onready var actors: Node3D = $Actors
@@ -17,8 +14,6 @@ const CAMPFIRE_SCENE := preload("res://scenes/world/campfire.tscn")
 
 var is_ready: bool = false
 var _menu_camera: Camera3D
-var _drop_counter: int = 0
-var _placed_counter: int = 0
 
 
 func _ready() -> void:
@@ -47,7 +42,7 @@ func _ready() -> void:
 	var server_side := Net.is_server and not decorative_only
 	$WolfSpawner.enabled = server_side
 	$DeerSpawner.enabled = server_side
-	$Respawner.set_process(server_side)
+	$Respawner.enabled = server_side
 	$Weather.scheduler_enabled = server_side
 	$RegionTracker.enabled = Net.has_client and not decorative_only
 	if decorative_only:
@@ -85,61 +80,18 @@ func region_at(x: float, z: float) -> String:
 
 
 # ------------------------------------------------------------------ replicated runtime objects (server calls)
-## Server: a ground item that did not exist in the seeded world (wolf drops, crafting overflow, dawn respawns).
+## Server: a ground item that did not exist in the seeded world (wolf/deer drops, crafting overflow, dawn respawns).
 func spawn_drop(item_id: StringName, model: String, pos: Vector3, amount: int = 1) -> Node3D:
-	if not Net.is_server:
+	if not Net.is_server or DropSpawner.instance == null:
 		return null
-	_drop_counter += 1
-	var spawner: MultiplayerSpawner = get_parent().get_node_or_null("DropSpawner")
-	var data := {"name": "drop_%d" % _drop_counter, "item": String(item_id), "model": model,
-		"x": pos.x, "y": pos.y, "z": pos.z, "amount": amount, "yaw": randf() * TAU}
-	if spawner == null:
-		var n := spawn_drop_node(data)
-		$Drops.add_child(n)
-		return n
-	return spawner.spawn(data)
-
-
-## spawn_function of DropSpawner (runs on server and clients).
-func spawn_drop_node(data: Variant) -> Node:
-	var d: Dictionary = data
-	var p: Pickup = PICKUP_SCENE.instantiate()
-	p.name = str(d["name"])
-	p.item_id = StringName(str(d["item"]))
-	p.model = str(d["model"])
-	p.amount = int(d.get("amount", 1))
-	p.position = Vector3(float(d["x"]), float(d["y"]), float(d["z"]))
-	p.rotation.y = float(d.get("yaw", 0.0))
-	return p
+	return DropSpawner.instance.spawn_drop(item_id, model, pos, amount)
 
 
 ## Server: a placed structure (campfire; tent/box in P2).
 func spawn_placed(kind: String, pos: Vector3, yaw: float) -> Node3D:
-	if not Net.is_server:
+	if not Net.is_server or StructureSpawner.instance == null:
 		return null
-	_placed_counter += 1
-	var spawner: MultiplayerSpawner = get_parent().get_node_or_null("PlacedSpawner")
-	var data := {"name": "%s_%d" % [kind, _placed_counter], "kind": kind, "x": pos.x, "y": pos.y, "z": pos.z, "yaw": yaw}
-	if spawner == null:
-		var n := spawn_placed_node(data)
-		$Placed.add_child(n)
-		return n
-	return spawner.spawn(data)
-
-
-## spawn_function of PlacedSpawner (runs on server and clients).
-func spawn_placed_node(data: Variant) -> Node:
-	var d: Dictionary = data
-	var node: Node3D
-	if str(d["kind"]) == "campfire":
-		node = CAMPFIRE_SCENE.instantiate()
-	else:
-		node = Node3D.new()
-		node.add_child(Assets.spawn_model(str(d["kind"])))
-	node.name = str(d["name"])
-	node.position = Vector3(float(d["x"]), float(d["y"]), float(d["z"]))
-	node.rotation.y = float(d.get("yaw", 0.0))
-	return node
+	return StructureSpawner.instance.spawn_structure(kind, pos, yaw)
 
 
 func _build_lake() -> void:

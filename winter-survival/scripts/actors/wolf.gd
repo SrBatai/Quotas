@@ -28,6 +28,7 @@ enum State { ROAM, STALK, CHASE, ATTACK, FLEE, LEAVE, DEAD }
 @onready var animator: QuadrupedAnimator = $Animator
 @onready var interactable: InteractableComponent = $Interactable
 @onready var visual: Node3D = $Visual
+@onready var footprints: FootprintEmitter = $FootprintEmitter
 
 var state: State = State.ROAM
 var player: Node3D
@@ -53,6 +54,9 @@ func _ready() -> void:
 		_model = Assets.spawn_model("wolf")
 		visual.add_child(_model)
 		animator.setup(_model)
+		footprints.setup(self, self, Balance.FOOTPRINT_STEP * 0.9, 0.55, false)
+	else:
+		footprints.queue_free()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.3
 	cap.height = 1.1
@@ -66,6 +70,7 @@ func _ready() -> void:
 	interactable.set_shape(sh, Vector3(0, 0.5, 0))
 	interactable.interact_range = Balance.ATTACK_RANGE
 	interactable.ring_radius = 0.8
+	interactable.default_action = &"attack"
 	health.max_health = Balance.WOLF_HEALTH
 	health.health = Balance.WOLF_HEALTH
 	health.died.connect(_on_died)
@@ -105,6 +110,10 @@ func _nearest_player() -> Node3D:
 	return best
 
 
+func interact_actions() -> Array:
+	return [&"attack"]
+
+
 func get_interact_label(p: Node) -> String:
 	var axe := p is Player and (p as Player).state.hand_tool() == &"hacha"
 	return "Atacar lobo (hacha)" if axe else "Atacar lobo"
@@ -114,10 +123,15 @@ func can_interact(_player: Node) -> bool:
 	return state != State.DEAD
 
 
-## Server only.
-func interact(p: Node) -> void:
-	if p.has_method("attack"):
-		p.attack(self)
+func is_dead() -> bool:
+	return state == State.DEAD
+
+
+## Server only: the player's melee goes through Player.attack → DamageResolver.
+func server_interact(p: Node, action: StringName, _arg: int) -> bool:
+	if action != &"attack" or not p.has_method("attack"):
+		return false
+	return bool(p.attack(self))
 
 
 func _enter(s: State) -> void:
@@ -301,9 +315,6 @@ func take_damage(amount: float, from: Node) -> void:
 	if animator != null:
 		animator.hit()
 	AudioManager.play(&"wolf_hurt", global_position)
-	if from is Node3D:
-		var away := Steering.flat(global_position - from.global_position).normalized()
-		velocity += away * Balance.KNOCKBACK * 4.0
 	if state != State.DEAD and _rng.randf() < Balance.WOLF_HIT_FLEE_CHANCE:
 		_flee_from = from.global_position if from is Node3D else global_position
 		_enter(State.FLEE)

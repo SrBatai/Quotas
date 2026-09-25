@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Runs every M0 gate (PLAN §6 "definición de hecho"): import, parse check, smoke test (Jolt, headless),
-# art contract (inspect_models), perf probe (xvfb + Compatibility, budgets) and, with --shots, the screenshots.
+# Runs every gate (PLAN §6 "definición de hecho"): import, parse check, unit tests (persistence), smoke test (Jolt,
+# headless, skeletal player + feet metric), art contract (inspect_models), perf probe (xvfb + Compatibility, budgets),
+# the net scenarios `basic` (4 clients) and `shared_world` (3 clients, M2) and, with --shots, the screenshots.
 # Exit code != 0 if anything fails.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -16,6 +17,10 @@ if grep -E "^ERROR: " /tmp/ventisca_import.log | grep -v -E "ALSA|pulse|udev" ; 
 step "parse check"
 godot --headless --path . -s tests/parse_check.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | tail -n 3
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "PARSE CHECK FAILED"; status=1; }
+
+step "unit tests (persistence backends)"
+godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|ERROR: |== " | tail -n 5
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "PERSISTENCE TEST FAILED"; status=1; }
 
 step "smoke test"
 if tests/run_smoke.sh > /tmp/ventisca_smoke_all.log 2>&1; then grep -E "== [0-9]+ checks|SMOKE TEST" /tmp/ventisca_smoke_all.log; else grep -E "FAIL|SCRIPT ERROR|ERROR: |SMOKE TEST" /tmp/ventisca_smoke_all.log | head -n 20; status=1; fi
@@ -37,6 +42,13 @@ if tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90 > /tmp/ventisca
   grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_all.log
 else
   grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_all.log | head -n 30; status=1
+fi
+
+step "net test shared_world (M2: A chops / B sees, cabinet 'en uso', late joiner C gets the deltas)"
+if NET_TEST_OUT=/tmp/ventisca_net_sw tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787 > /tmp/ventisca_net_sw_all.log 2>&1; then
+  grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_sw_all.log
+else
+  grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_sw_all.log | head -n 30; status=1
 fi
 
 if [ "$SHOTS" -eq 1 ]; then

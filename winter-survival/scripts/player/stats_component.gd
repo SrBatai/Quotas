@@ -69,6 +69,9 @@ func _process(delta: float) -> void:
 	# movement parameters the owner predicts with
 	player.can_run = state.hunger > 0.0
 	player.speed_mult = Balance.FREEZING_SPEED_MULT if state.warmth < Balance.FREEZING_SLOW_BELOW else 1.0
+	var is_cold := state.warmth < Balance.COLD_VIGNETTE_START
+	if is_cold != player.cold:
+		player.cold = is_cold
 	_burn_torch(delta)
 	_emit_changes()
 	_check_warnings()

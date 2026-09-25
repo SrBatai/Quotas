@@ -3,6 +3,9 @@
 [ext_resource type="Script" path="res://scripts/actors/deer.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/actors/quadruped_animator.gd" id="2"]
 [ext_resource type="Script" path="res://scripts/actors/steering.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/components/health.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/components/interactable.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/player/footprint_emitter.gd" id="6"]
 
 [sub_resource type="SceneReplicationConfig" id="actor_cfg"]
 properties/0/path = NodePath(".:net_position")
@@ -35,3 +38,15 @@ script = ExtResource("2")
 
 [node name="Steering" type="Node" parent="."]
 script = ExtResource("3")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4")
+max_health = 40.0
+
+[node name="Interactable" type="Area3D" parent="."]
+script = ExtResource("5")
+label = "Atacar ciervo"
+interact_range = 2.0
+
+[node name="FootprintEmitter" type="Node" parent="."]
+script = ExtResource("6")

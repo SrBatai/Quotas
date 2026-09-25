@@ -5,6 +5,8 @@
 [ext_resource type="Script" path="res://scripts/net/shared/net_world.gd" id="3"]
 [ext_resource type="Script" path="res://scripts/net/shared/chat.gd" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/world/world.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/net/server/drop_spawner.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/net/server/structure_spawner.gd" id="7"]
 
 [node name="Game" type="Node3D"]
 script = ExtResource("1")
@@ -28,8 +30,10 @@ spawn_path = NodePath("../World/Actors")
 
 [node name="DropSpawner" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../World/Drops")
+script = ExtResource("6")
 
 [node name="PlacedSpawner" type="MultiplayerSpawner" parent="."]
 spawn_path = NodePath("../World/Placed")
+script = ExtResource("7")
 
 [node name="World" parent="." instance=ExtResource("5")]

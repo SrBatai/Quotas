@@ -1,22 +1,34 @@
 class_name ToolHolder
 extends Node
-## Client visual: spawns the equipped tool model into ToolSocket (torch flame included). The torch burn timer
+## Client visual: spawns the equipped tool model on the character's hand socket (BoneAttachment3D on
+## RightHandSocket; the rigid placeholder's ToolSocket as fallback), torch flame included. The torch burn timer
 ## lives on the server (StatsComponent); this node only mirrors `Player.hand_tool`.
+
+## RightHandSocket (ASSET_SPEC v2 §4.2): Y = handle axis toward the thumb, Z = along the forearm toward the
+## knuckles. Tools: handle along +Y, useful end toward +Z (§12). Identity keeps the blade leading the swing.
+const HAND_TOOL_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(0, -0.06, 0))
 
 var socket: Node3D
 var tool_model: Node3D
 var torch_fire: FireEffect
 var _player: Player
+var _visual: CharacterVisual
 var _current: StringName = &""
 
 
-func setup(player: Player, model: Node3D) -> void:
+func setup(player: Player, visual: CharacterVisual) -> void:
 	_player = player
-	socket = model.find_child("ToolSocket", true, false)
+	_visual = visual
+	socket = visual.tool_parent()
+	if tool_model != null and is_instance_valid(tool_model):
+		tool_model.queue_free()
+	tool_model = null
+	torch_fire = null
+	_current = &""
 
 
-func apply(id: StringName) -> void:
-	if socket == null or id == _current and tool_model != null:
+func apply(id: StringName, force: bool = false) -> void:
+	if socket == null or (id == _current and tool_model != null and not force):
 		return
 	if tool_model != null:
 		tool_model.queue_free()
@@ -28,11 +40,13 @@ func apply(id: StringName) -> void:
 		var model_name: String = Items.DB[id].get("model", String(id))
 		tool_model = Assets.spawn_model(model_name)
 		socket.add_child(tool_model)
-		tool_model.transform = Transform3D.IDENTITY
-		# Tools: handle along +Y, useful end (blade, flame) toward +Z (ASSET_SPEC v2 §12). The socket must point the
-		# handle forward; if its roll leaves the blade hanging down, half a turn about the handle fixes it.
-		if (socket.global_basis * Vector3(0, 0, 1)).y < -0.5:
-			tool_model.rotation.y = PI
+		if _visual != null and _visual.is_skeletal:
+			tool_model.transform = HAND_TOOL_TRANSFORM
+		else:
+			tool_model.transform = Transform3D.IDENTITY
+			# rigid placeholder: the socket must point the handle forward; half a turn fixes a hanging blade
+			if (socket.global_basis * Vector3(0, 0, 1)).y < -0.5:
+				tool_model.rotation.y = PI
 	var is_torch := id == &"antorcha"
 	if is_torch and tool_model != null:
 		torch_fire = FireEffect.new()
@@ -45,8 +59,5 @@ func apply(id: StringName) -> void:
 		else:
 			tool_model.add_child(torch_fire)
 			torch_fire.position = Vector3(0, 0.54, 0)
-	var animator: PlayerAnimator = get_parent().get_node_or_null("Animator")
-	if animator != null:
-		animator.torch_pose = is_torch
 	if is_torch != was_torch and _player != null and _player.is_local:
 		Events.torch_toggled.emit(is_torch)

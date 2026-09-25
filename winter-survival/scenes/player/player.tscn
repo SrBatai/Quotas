@@ -10,7 +10,7 @@
 [ext_resource type="Script" path="res://scripts/player/interactor.gd" id="8"]
 [ext_resource type="Script" path="res://scripts/player/placement_controller.gd" id="9"]
 [ext_resource type="Script" path="res://scripts/player/player_view.gd" id="10"]
-[ext_resource type="Script" path="res://scripts/player/player_animator.gd" id="11"]
+[ext_resource type="PackedScene" path="res://scenes/player/character_visual.tscn" id="11"]
 [ext_resource type="Script" path="res://scripts/player/tool_holder.gd" id="12"]
 [ext_resource type="Script" path="res://scripts/player/footprint_emitter.gd" id="13"]
 [ext_resource type="Script" path="res://scripts/components/hover_ring.gd" id="14"]
@@ -59,6 +59,12 @@ properties/12/replication_mode = 2
 properties/13/path = NodePath(".:disconnected")
 properties/13/spawn = true
 properties/13/replication_mode = 2
+properties/14/path = NodePath(".:outfit")
+properties/14/spawn = true
+properties/14/replication_mode = 2
+properties/15/path = NodePath(".:cold")
+properties/15/spawn = true
+properties/15/replication_mode = 2
 
 [sub_resource type="CapsuleShape3D" id="cap"]
 radius = 0.35
@@ -105,10 +111,7 @@ script = ExtResource("9")
 [node name="View" type="Node3D" parent="."]
 script = ExtResource("10")
 
-[node name="Visual" type="Node3D" parent="View"]
-
-[node name="Animator" type="Node" parent="View"]
-script = ExtResource("11")
+[node name="Visual" parent="View" instance=ExtResource("11")]
 
 [node name="ToolHolder" type="Node" parent="View"]
 script = ExtResource("12")
@@ -118,9 +121,6 @@ script = ExtResource("13")
 
 [node name="HoverRing" type="MeshInstance3D" parent="View"]
 script = ExtResource("14")
-
-[node name="BreathParticles" type="CPUParticles3D" parent="View"]
-emitting = false
 
 [node name="CameraRig" type="Node3D" parent="."]
 script = ExtResource("15")

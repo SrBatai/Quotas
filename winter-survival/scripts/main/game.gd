@@ -5,8 +5,8 @@ extends Node3D
 
 @onready var world: World = $World
 @onready var player_spawner: MultiplayerSpawner = $PlayerSpawner
-@onready var drop_spawner: MultiplayerSpawner = $DropSpawner
-@onready var placed_spawner: MultiplayerSpawner = $PlacedSpawner
+@onready var drop_spawner: DropSpawner = $DropSpawner
+@onready var placed_spawner: StructureSpawner = $PlacedSpawner
 
 var hud: Hud
 var craft_panel: CraftPanel
@@ -35,8 +35,6 @@ func _ready() -> void:
 	# the tree before World exists, their spawn paths are resolved again here.
 	for sp in [player_spawner, $ActorSpawner, drop_spawner, placed_spawner]:
 		(sp as MultiplayerSpawner).spawn_path = (sp as MultiplayerSpawner).spawn_path
-	drop_spawner.spawn_function = world.spawn_drop_node
-	placed_spawner.spawn_function = world.spawn_placed_node
 	if Net.has_client:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_add_client_branches()

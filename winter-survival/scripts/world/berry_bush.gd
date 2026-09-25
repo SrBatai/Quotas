@@ -24,6 +24,7 @@ func _ready() -> void:
 	ish.radius = 0.75
 	interactable.set_shape(ish, Vector3(0, 0.35, 0))
 	interactable.ring_radius = 0.7
+	interactable.default_action = &"pick"
 	if not Net.is_server and NetWorld.instance != null:
 		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
@@ -43,6 +44,10 @@ func _set_berries(value: bool) -> void:
 		_berries.visible = value
 
 
+func interact_actions() -> Array:
+	return [&"pick"]
+
+
 func get_interact_label(_player: Node) -> String:
 	return "Recoger bayas" if has_berries else "Sin bayas (rebrotan)"
 
@@ -52,18 +57,29 @@ func can_interact(_player: Node) -> bool:
 
 
 ## Server only.
-func interact(player: Node) -> void:
+func server_interact(player: Node, action: StringName, _arg: int) -> bool:
 	var p := player as Player
-	if not has_berries or p == null or not Net.is_server:
-		return
+	if action != &"pick" or not has_berries or p == null or not Net.is_server:
+		return false
 	var left := p.state.inventory.add(&"bayas", Balance.BERRIES_PER_BUSH)
 	if left == Balance.BERRIES_PER_BUSH:
 		p.state.notify("Inventario lleno", 2.0)
-		return
+		return false
 	_set_berries(false)
 	_regrow = Balance.BUSH_REGROW
 	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"berries": false})
 	AudioManager.play(&"pickup", global_position)
+	return true
+
+
+## Owner client: hide the berries at once; the delta (or a denial) settles it.
+func client_preview(_player: Node, action: StringName) -> void:
+	if action == &"pick" and _berries != null:
+		_berries.visible = false
+
+
+func client_preview_cancel(_player: Node, _action: StringName) -> void:
+	_set_berries(has_berries)
 
 
 func apply_net_delta(f: Dictionary) -> void:

@@ -107,6 +107,8 @@ const KNOCKBACK := 1.5
 const DEER_COUNT := 4
 const DEER_FLEE_RADIUS := 12.0
 const DEER_SPEED := 7.0
+const DEER_HEALTH := 40.0
+const DEER_MEAT := 2
 
 # --- weather ---
 const BLIZZARD_FIRST_DAY := 1
@@ -151,3 +153,4 @@ const NET_INTERACT_PER_SECOND := 5.0
 const NET_CRAFT_PER_SECOND := 3.0
 const NET_WORLDSTATE_SYNC_SECONDS := 5.0
 const NET_INFRACTIONS_KICK := 30
+const CHUNK_SNAPSHOT_MAX_BYTES := 1200   # informative: a chunk delta above this is split by M3's streaming

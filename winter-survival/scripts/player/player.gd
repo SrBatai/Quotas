@@ -33,6 +33,14 @@ extends CharacterBody3D
 @export var speed_mult: float = 1.0
 @export var can_run: bool = true
 @export var disconnected: bool = false
+## Jacket variant (0 red, 1 blue, 2 green, 3 mustard), assigned by the server so every peer sees the same colour.
+@export var outfit: int = 0:
+	set(v):
+		outfit = v
+		if view != null:
+			view.on_outfit_changed(v)
+## Warmth below the cold threshold (server) → shivering idle on every client.
+@export var cold: bool = false
 
 var peer_id: int = 1
 var is_local: bool = false
@@ -144,20 +152,23 @@ func play_chop(at: Vector3) -> void:
 	chop_seq += 1
 
 
-## Server: melee attack on an animal (null = swing in the air).
-func attack(target: Node) -> void:
+## Server: melee attack on an animal (null = swing in the air). Returns true when a swing happened.
+func attack(target: Node) -> bool:
 	if not Net.is_server or _attack_cd > 0.0 or dead:
-		return
+		return false
 	var axe := state.hand_tool() == &"hacha"
 	_attack_cd = Balance.AXE_COOLDOWN if axe else Balance.HAND_COOLDOWN
 	chop_seq += 1
 	if target != null and is_instance_valid(target) and target.has_method("take_damage"):
 		face_toward(target.global_position)
 		var dmg := Balance.AXE_DAMAGE if axe else Balance.HAND_DAMAGE
-		DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, peer_id),
-			DamageResolver.ref(DamageResolver.Kind.ANIMAL), target, dmg, DamageResolver.DamageKind.MELEE_SHARP,
-			WorldState.rules_now(), self)
+		var kind := DamageResolver.DamageKind.MELEE_SHARP if axe else DamageResolver.DamageKind.MELEE_BLUNT
+		var res := DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, peer_id),
+			DamageResolver.ref(DamageResolver.Kind.ANIMAL), target, dmg, kind, WorldState.rules_now(), self)
+		if not bool(res["blocked"]) and target is CharacterBody3D:
+			(target as CharacterBody3D).velocity += res["knockback"] as Vector3
 		fx(&"shake", 0.1)
+	return true
 
 
 ## Server: damage from wolves / other players (through DamageResolver).
@@ -225,7 +236,7 @@ func to_profile() -> Dictionary:
 	var inv := []
 	for s in state.slots:
 		inv.append({} if s.is_empty() else {"id": String(s["id"]), "count": int(s["count"])})
-	return {"name": display_name, "x": position.x, "y": position.y, "z": position.z, "yaw": aim_yaw,
+	return {"name": display_name, "x": position.x, "y": position.y, "z": position.z, "yaw": aim_yaw, "outfit": outfit,
 		"health": state.health, "warmth": state.warmth, "hunger": state.hunger, "dead": dead,
 		"cause": String(state.death_cause), "has_coat": state.has_coat, "slots": inv,
 		"torch": state.torch_seconds_left, "quest": state.quests.to_profile() if state.quests != null else {}}

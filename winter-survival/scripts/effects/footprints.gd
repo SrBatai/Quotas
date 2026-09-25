@@ -1,6 +1,6 @@
 class_name Footprints
 extends Node3D
-## Pool of footprint meshes stamped by the player; each fades over FOOTPRINT_LIFETIME.
+## Pool of footprint meshes stamped by every visible character; each fades over FOOTPRINT_LIFETIME.
 
 var _pool: Array[MeshInstance3D] = []
 var _ages: Array[float] = []
@@ -30,15 +30,16 @@ func _ready() -> void:
 		_ages.append(-1.0)
 
 
-func stamp(pos: Vector3, yaw: float, left: bool) -> void:
+## `size` scales the print (1.0 = human boot; wolves / deer use ~0.5).
+func stamp(pos: Vector3, yaw: float, left: bool, size: float = 1.0) -> void:
 	var mi := _pool[_next]
 	_ages[_next] = 0.0
 	_next = (_next + 1) % _pool.size()
 	# character right = -X of a +Z-facing model, yawed
-	var side := Vector3(-cos(yaw), 0, sin(yaw)) * (-0.15 if left else 0.15)
+	var side := Vector3(-cos(yaw), 0, sin(yaw)) * (-0.15 if left else 0.15) * size
 	mi.global_position = pos + side + Vector3(0, 0.012, 0)
 	mi.rotation = Vector3(0, yaw, 0)
-	mi.scale = Vector3(0.9, 1.0, 1.3)
+	mi.scale = Vector3(0.9, 1.0, 1.3) * size
 	mi.visible = true
 	(mi.material_override as StandardMaterial3D).albedo_color.a = 0.85
 

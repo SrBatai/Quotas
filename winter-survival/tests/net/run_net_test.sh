@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Multiplayer acceptance test (PLAN M1): 1 headless dedicated server + N headless clients in separate processes.
 #   tests/net/run_net_test.sh [--clients 4] [--duration 60] [--scenario basic] [--soak 90] [--port 7777] [--friendly-fire off]
+#   tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world   # PLAN M2 acceptance (C joins 22 s late)
 #   tests/net/run_net_test.sh --quick            # server with 0 players: start → status → save-and-quit → 0 ERROR
 #   SERVER_BIN=export/linux/ventisca.x86_64 tests/net/run_net_test.sh [...]   # run the SERVER from an exported binary
 #                                                (clients always run from the project with `godot --path .`)
@@ -39,6 +40,7 @@ port=$PORT
 max_players=$((CLIENTS + 1))
 admin_port=$ADMIN_PORT
 admin_token="$TOKEN"
+debug_commands=true
 [world]
 seed=1337
 save_path="$OUT/world_save.json"
@@ -79,7 +81,10 @@ echo "admin status -> ${STATUS%%$'\n'*}"
 NAMES=(A B C D E F G H)
 for ((i=0; i<CLIENTS; i++)); do
   n=${NAMES[$i]}
-  timeout $((DURATION + 90)) godot --headless --path . -s tests/net/net_smoke.gd ++ --client "--name=$n" --scenario "$SCENARIO" --port "$PORT" --duration "$DURATION" --clients "$CLIENTS" > "$OUT/client_$n.log" 2>&1 < /dev/null &
+  LATE=0
+  # shared_world: C is the late joiner (receives the chunk deltas of what A and B already did)
+  [ "$SCENARIO" = "shared_world" ] && [ "$n" = "C" ] && LATE=22
+  timeout $((DURATION + LATE + 90)) godot --headless --path . -s tests/net/net_smoke.gd ++ --client "--name=$n" --scenario "$SCENARIO" --port "$PORT" --duration "$DURATION" --clients "$CLIENTS" --late "$LATE" > "$OUT/client_$n.log" 2>&1 < /dev/null &
   CLIENT_PIDS+=($!)
   sleep 0.7
 done
@@ -99,7 +104,7 @@ SRV_PID=""
 echo "--- results ---"
 grep -h "RESULT" "$OUT"/client_*.log "$OUT/server.log" 2>/dev/null
 grep -h "alive" "$OUT/server.log" | tail -n 3
-grep -h "saved" "$OUT/server.log" | tail -n 1
+grep -h "saved\|restored" "$OUT/server.log" | tail -n 2
 case "$STATUS" in OK*) ;; *) echo "!! admin status did not answer OK"; FAIL=1;; esac
 case "$QUIT" in OK*) ;; *) echo "!! admin save-and-quit did not answer OK"; FAIL=1;; esac
 if [ -n "$SERVER_BIN" ]; then

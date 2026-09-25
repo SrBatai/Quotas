@@ -2,6 +2,8 @@ extends RefCounted
 ## Smoke test body (loaded at runtime by tests/smoke_test.gd so autoloads exist when it compiles).
 ## M1: offline = the authoritative local server runs in this process (OfflineMultiplayerPeer, peer 1); every
 ## gameplay action goes through the validated NetWorld requests, exactly like a networked client would.
+## M2: skeletal survivor (feet metric: ankle >= 0.08 m, sliding < 5 %), action-based interaction, ChunkDelta,
+## DropSpawner / StructureSpawner, DamageResolver v0 on wolves and deer, persistence backends.
 
 var tree: SceneTree
 
@@ -149,6 +151,45 @@ func run(p_tree: SceneTree) -> void:
 	player.input.scripted_move = Vector2.INF
 	var moved := Vector2(player.global_position.x - p0.x, player.global_position.z - p0.z).length()
 	check(moved > 1.2 and moved < 2.6, "scripted walk moved %.2f m in 1 s (walk 2.2 m/s)" % moved)
+	# 3c. M2 skeletal player: GeneralSkeleton, AnimationTree states synced to the ground speed, feet metric
+	var visual: CharacterVisual = player.view.visual
+	check(visual.is_skeletal and visual.skeleton != null and visual.skeleton.get_bone_count() == 27, "skeletal survivor spawned (GeneralSkeleton, %d bones)" % (visual.skeleton.get_bone_count() if visual.skeleton != null else 0))
+	check(visual.model != null and String(visual.model.name).begins_with("survivor_") and player.outfit == 0 and visual.variant == 0, "jacket variant from the replicated outfit (%s)" % (visual.model.name if visual.model != null else "-"))
+	check(visual.tree.active and visual.anim_player.has_animation("loco/Loco_Walk") and visual.anim_player.has_animation("loco/Act_Chop"), "AnimationTree active with the loco library (+ generated Act_Chop)")
+	await frames(20)
+	check(visual.state == &"Idle" and visual.hips_height() > 0.8 and visual.hips_height() < 1.0, "idle state at rest, hips at %.2f m (motion scale applied)" % visual.hips_height())
+	var feet := await _feet_metric(player, Vector2(0, 1), false, 90)
+	check(visual.state == &"Walk" and absf(visual.time_scale - 1.0) < 0.12, "walk cycle time-scaled to the ground speed (state %s, scale %.2f)" % [visual.state, visual.time_scale])
+	check(feet["ankle_min"] >= 0.08, "walk feet metric: ankle min %.3f m >= 0.08" % feet["ankle_min"])
+	check(feet["sliding"] < 5.0, "walk feet metric: stance sliding %.1f %% < 5 %% (body %.2f m/s, %d stance samples)" % [feet["sliding"], feet["body_speed"], feet["stance_samples"]])
+	# run across the flat pad around the cabin (a slope or the porch would cut the ground speed below 6 m/s)
+	player.input.scripted_move = Vector2.INF
+	player.global_position = world.get_spawn_point() + Vector3(-1.0, 0.3, 3.0)
+	await frames(10)
+	var feet_run := await _feet_metric(player, Vector2(-1, 0), true, 60)
+	check(visual.state == &"Run" and absf(visual.time_scale - 1.0) < 0.12, "run cycle time-scaled to the ground speed (state %s, scale %.2f)" % [visual.state, visual.time_scale])
+	# the run clip itself bottoms out at 0.077 m in Godot (retarget of Loco_Run; Opus to lift it 3 mm): sliding is the code-side metric
+	check(feet_run["ankle_min"] >= 0.07 and feet_run["sliding"] < 5.0, "run feet metric: ankle min %.3f m (clip floor 0.077), sliding %.1f %% < 5 %%" % [feet_run["ankle_min"], feet_run["sliding"]])
+	player.input.scripted_move = Vector2.INF
+	player.input.scripted_run = false
+	await frames(30)
+	check(visual.state == &"Idle", "back to idle after the run")
+	# head aim: LookAtModifier3D turns the head toward the (replicated) aim point
+	var fwd := visual.global_basis.z
+	player.input.scripted_aim = player.global_position + Vector3(0, 1.2, 0) + fwd.rotated(Vector3.UP, deg_to_rad(60.0)) * 5.0
+	await frames(30)
+	var head_yaw := rad_to_deg(Vector2(fwd.x, fwd.z).angle_to(Vector2(visual.head_forward().x, visual.head_forward().z)))
+	check(visual.look_at != null and visual.look_at.active and absf(head_yaw) > 20.0, "LookAtModifier3D turns the head toward aim_point (%.0f deg)" % head_yaw)
+	player.input.scripted_aim = Vector3.INF
+	await frames(10)
+	# cold idle from the replicated flag
+	var warmth_saved: float = player.state.warmth
+	player.state.warmth = Balance.COLD_VIGNETTE_START - 5.0
+	await frames(3)
+	check(player.cold and visual.state == &"Cold", "cold flag replicated -> shivering idle (state %s)" % visual.state)
+	player.state.warmth = warmth_saved
+	await frames(3)
+	check(not player.cold and visual.state == &"Idle", "warm again -> idle")
 	# 4. inventory + craft axe (server component; mirror + HUD via inventory_changed)
 	var inv_events := fired(&"inventory_changed")
 	player.state.inventory.add(&"madera", 2)
@@ -166,7 +207,11 @@ func run(p_tree: SceneTree) -> void:
 	check(player.state.hand_tool() == &"hacha" and player.hand_tool == &"hacha", "axe equipped in hand (state + replicated hand_tool)")
 	check(player.state.count(&"madera") == 0 and player.state.count(&"piedra") == 0, "materials consumed")
 	await frames(2)
-	check(player.tool_holder.tool_model != null, "axe model spawned in ToolSocket")
+	check(player.tool_holder.tool_model != null and player.tool_holder.tool_model.get_parent() is BoneAttachment3D
+		and (player.tool_holder.tool_model.get_parent() as BoneAttachment3D).bone_name == "RightHandSocket", "axe model attached to the RightHandSocket bone")
+	var hand_i: int = visual.skeleton.find_bone("RightHand")
+	var hand_world: Vector3 = visual.skeleton.global_transform * visual.skeleton.get_bone_global_pose(hand_i).origin
+	check(player.tool_holder.tool_model.global_position.distance_to(hand_world) < 0.15, "tool follows the animated hand (%.2f m from RightHand)" % player.tool_holder.tool_model.global_position.distance_to(hand_world))
 	# 5. chop the nearest pine through the validated request (distance + tool checked on the server)
 	var nearest: ChoppableTree = null
 	var best := INF
@@ -184,7 +229,7 @@ func run(p_tree: SceneTree) -> void:
 		far.y = world.get_height(far.x, far.z) + 0.3
 		player.global_position = far
 		await frames(3)
-		request(&"request_interact", [wid])
+		request(&"request_interact", [wid, &"chop", 0])
 		await frames(2)
 		check(nearest.hits == 0, "far request_interact rejected by the server (hits=%d)" % nearest.hits)
 		var side := (player.global_position - nearest.global_position)
@@ -192,12 +237,30 @@ func run(p_tree: SceneTree) -> void:
 		side = side.normalized() * 1.5
 		player.global_position = nearest.global_position + side + Vector3(0, 0.3, 0)
 		await frames(3)
-		for i in nearest.total_hits:
-			request(&"request_interact", [wid])
+		var infr_before: int = NetWorld.instance.infractions_of(1)
+		request(&"request_interact", [wid, &"open", 0])
+		await frames(2)
+		check(nearest.hits == 0 and NetWorld.instance.infractions_of(1) == infr_before + 1, "unknown action rejected and counted as an infraction")
+		request(&"request_interact", [wid, &"chop", 0])
+		await frames(2)
+		check(nearest.hits == 1 and visual.tree.get("parameters/action/active") == true, "chop accepted: hit 1 + torso OneShot playing")
+		await seconds(0.55)
+		for i in nearest.total_hits - 1:
+			request(&"request_interact", [wid, &"chop", 0])
 			await seconds(0.55)
 		check(fired(&"tree_felled") >= 1, "tree_felled fired")
 		check(player.state.count(&"madera") == Balance.TREE_WOOD, "wood after chop == %d (got %d)" % [Balance.TREE_WOOD, player.state.count(&"madera")])
 		check(NetWorld.instance.delta_of(wid).get("felled", false) == true, "tree felled recorded as a world delta")
+		var cd: ChunkDelta = NetWorld.instance.chunk_for(wid)
+		check(cd != null and cd.objects.has(wid) and cd.cx >= 23 and cd.cx <= 25 and cd.cz >= 23 and cd.cz <= 25 and cd.is_dirty(), "delta stored in ChunkDelta (%d, %d) of the clearing, dirty" % [cd.cx, cd.cz])
+		var cpk := cd.pack()
+		var cback := ChunkDelta.unpack(int(cpk["size"]), cpk["bytes"])
+		check(not cback.is_empty() and (cback["objects"] as Dictionary).has(wid) and bool(cback["objects"][wid]["felled"]) and (cpk["bytes"] as PackedByteArray).size() < int(cpk["size"]), "CHUNK_DELTA pack/unpack round trip (%d B zstd of %d)" % [(cpk["bytes"] as PackedByteArray).size(), int(cpk["size"])])
+		var stump_near := false
+		for c in world.get_node("Scatter").get_children():
+			if String(c.name).begins_with("stump_of_") and c.global_position.distance_to(nearest.global_position) < 0.5:
+				stump_near = true
+		check(stump_near, "stump left where the tree stood")
 	# 6. stove
 	var fuel_before := stove.burner.fuel
 	var fed := stove.add_wood_from_player(player)
@@ -212,7 +275,7 @@ func run(p_tree: SceneTree) -> void:
 	var storage_panel: StoragePanel = game.get_node("UI/StoragePanel")
 	player.global_position = cabinet.global_position + Vector3(0.6, 0.3, 0.8)
 	await frames(3)
-	request(&"request_interact", [WorldRegistry.wid_of(cabinet)])
+	request(&"request_interact", [WorldRegistry.wid_of(cabinet), &"open", 0])
 	await frames(2)
 	check(storage.is_open and storage.open_by == 1 and storage_panel.visible, "cabinet storage opened by peer 1 (exclusive)")
 	request(&"request_take", [WorldRegistry.wid_of(cabinet), 0, false])
@@ -241,7 +304,8 @@ func run(p_tree: SceneTree) -> void:
 	check(tree.get_nodes_in_group("campfire").size() >= 1, "campfire in group")
 	var campfire: Campfire = tree.get_nodes_in_group("campfire")[0] if tree.get_nodes_in_group("campfire").size() > 0 else null
 	check(campfire != null and campfire.is_lit, "campfire is lit")
-	check(campfire != null and campfire.get_parent().name == "Placed", "campfire spawned under World/Placed (PlacedSpawner)")
+	check(campfire != null and campfire.get_parent().name == "Placed", "campfire spawned under World/Placed (StructureSpawner)")
+	check(campfire != null and NetWorld.instance.chunk_for(WorldRegistry.wid_of(campfire)).structures.has(WorldRegistry.wid_of(campfire)), "placed campfire recorded in the ChunkDelta structures table")
 	check(fired(&"campfire_placed") >= 1, "campfire_placed fired")
 	if campfire != null:
 		player.global_position = campfire.global_position + Vector3(2.0, 0.3, 0)
@@ -261,6 +325,11 @@ func run(p_tree: SceneTree) -> void:
 		wolf.global_position = far
 		await frames(120)
 		check(wolf.state in [Wolf.State.STALK, Wolf.State.CHASE, Wolf.State.ATTACK, Wolf.State.FLEE], "wolf state after 120 frames: %s" % Wolf.State.keys()[wolf.state])
+		var prints := 0
+		for fp in world.footprints.get_children():
+			if fp is MeshInstance3D and fp.visible and fp.global_position.distance_to(wolf.global_position) < 12.0:
+				prints += 1
+		check(wolf.get_node_or_null("FootprintEmitter") != null and prints >= 2, "wolf leaves footprints too (%d near it)" % prints)
 		if campfire != null:
 			campfire.global_position = wolf.global_position
 			await frames(30)
@@ -279,6 +348,26 @@ func run(p_tree: SceneTree) -> void:
 				drops += 1
 		check(drops >= 2, "wolf drops spawned: %d" % drops)
 		check(drops >= 1 and world.get_node("Drops").get_child_count() >= 2, "drops replicated through DropSpawner under World/Drops")
+		var any_drop: Node = world.get_node("Drops").get_child(0)
+		check(NetWorld.instance.chunk_for(WorldRegistry.wid_of(any_drop)).drops.has(WorldRegistry.wid_of(any_drop)), "drop recorded in the ChunkDelta drops table")
+		# 10b. deer through DamageResolver v0 (hunting): knockback, kill flag, meat drops
+		var deer_list := tree.get_nodes_in_group("deer")
+		if not deer_list.is_empty():
+			var deer: Deer = deer_list[0]
+			var meat_before := 0
+			for p in tree.get_nodes_in_group("pickup"):
+				if p.item_id == &"carne_cruda":
+					meat_before += 1
+			var dres := DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, 1), DamageResolver.ref(DamageResolver.Kind.ANIMAL),
+				deer, 999.0, DamageResolver.DamageKind.MELEE_SHARP, WorldState.rules_now(), player)
+			await frames(2)
+			var meat_after := 0
+			for p in tree.get_nodes_in_group("pickup"):
+				if p.item_id == &"carne_cruda":
+					meat_after += 1
+			check(bool(dres["killed"]) and deer.is_dead() and meat_after >= meat_before + Balance.DEER_MEAT, "deer killed through DamageResolver v0 (+%d meat drops)" % (meat_after - meat_before))
+		else:
+			check(false, "no deer to hunt")
 	# 11. blizzard (server decision → WorldState → client blend)
 	var weather: Weather = world.get_node("Weather")
 	weather.force_blizzard(5.0)
@@ -327,6 +416,22 @@ func run(p_tree: SceneTree) -> void:
 			leaving = false
 	check(leaving, "wolves leaving at dawn")
 	check(player.state.quests.index == 0 and player.state.quests.steps.size() == 4, "quest reset for day 2 (index %d, %d steps)" % [player.state.quests.index, player.state.quests.steps.size()])
+	# 13b. persistence: MemoryBackend (offline) holds profiles + dirty chunk deltas after save_all; FileBackend round trip
+	var pm: PlayerManager = game.get_node("PlayerManager")
+	pm.save_all()
+	var saved_delta: ChunkDelta = pm.backend.load_chunk_delta(24, 24)
+	check(pm.backend is MemoryBackend and pm.backend.player_count() == 1 and pm.backend.chunk_keys().size() >= 1, "save_all stored %d profile(s) and %d chunk delta(s) in the MemoryBackend" % [pm.backend.player_count(), pm.backend.chunk_keys().size()])
+	check(saved_delta != null and not saved_delta.objects.is_empty() and not saved_delta.structures.is_empty(), "chunk (24, 24) delta persisted with objects + structures")
+	var fb := FileBackend.new()
+	var fpath := "user://smoke_save_test.json"
+	fb.open(fpath)
+	fb.from_document((pm.backend as MemoryBackend).to_document())
+	check(fb.flush() == OK and FileAccess.file_exists(fpath), "FileBackend atomic JSON write")
+	var fb2 := FileBackend.new()
+	var norm := func(d: Dictionary) -> String: return JSON.stringify(JSON.parse_string(JSON.stringify(d)))
+	check(fb2.open(fpath) == OK and fb2.player_count() == 1 and fb2.chunk_keys() == pm.backend.chunk_keys()
+		and norm.call(fb2.load_chunk_delta(24, 24).to_dict()) == norm.call(saved_delta.to_dict()), "FileBackend reload == memory store")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(fpath))
 	# 14. death (persistent world: death screen + respawn instead of game over)
 	player.state.warmth = 0.0
 	player.state.health = 1.0
@@ -350,3 +455,56 @@ func run(p_tree: SceneTree) -> void:
 
 func multiplayer_id() -> int:
 	return tree.get_multiplayer().get_unique_id()
+
+
+## Walks the local player with a scripted move for `n` frames and measures the skeletal feet in the model frame:
+## minimum ankle height and the stance sliding (horizontal speed of the lowest foot vs the body speed).
+func _feet_metric(player: Player, move: Vector2, run: bool, n: int) -> Dictionary:
+	var visual: CharacterVisual = player.view.visual
+	player.input.scripted_move = move
+	player.input.scripted_run = run
+	await seconds(0.7)   # accelerate + crossfade into the cycle
+	var ankle_min := INF
+	var stance_speed_sum := 0.0
+	var stance_samples := 0
+	var body_speed_sum := 0.0
+	var body_samples := 0
+	var prev_feet := {}
+	var prev_pos := Vector3.INF
+	var prev_t := 0.0
+	var tick_dt := 1.0 / float(Engine.physics_ticks_per_second)
+	for i in n:
+		# sampled per physics tick (body and AnimationTree both advance there): immune to wall-clock jitter / CPU load
+		await tree.physics_frame
+		var t := float(Engine.get_physics_frames()) * tick_dt
+		var feet := visual.foot_positions()
+		var inv := visual.global_transform.affine_inverse()
+		for k in ["LeftFoot", "RightFoot"]:
+			ankle_min = minf(ankle_min, (inv * (feet[k] as Vector3)).y)
+		var pos: Vector3 = player.global_position
+		if prev_pos != Vector3.INF:
+			var dt := t - prev_t
+			if dt > 0.0005:
+				var body_v := Vector2(pos.x - prev_pos.x, pos.z - prev_pos.z).length() / dt
+				body_speed_sum += body_v
+				body_samples += 1
+				# stance contact = the lowest of the heel (Foot) / ball (Toes) points while planted (< 0.045 m: the
+				# touchdown frame above that is the foot still decelerating, not sliding)
+				var lowest := ""
+				var lowest_y := INF
+				for k in ["LeftFoot", "RightFoot", "LeftToes", "RightToes"]:
+					var y := (inv * (feet[k] as Vector3)).y
+					if y < lowest_y:
+						lowest_y = y
+						lowest = k
+				if lowest_y < 0.045 and prev_feet.has(lowest):
+					var fv := Vector2((feet[lowest] as Vector3).x - (prev_feet[lowest] as Vector3).x, (feet[lowest] as Vector3).z - (prev_feet[lowest] as Vector3).z).length() / dt
+					stance_speed_sum += fv
+					stance_samples += 1
+		prev_feet = feet
+		prev_pos = pos
+		prev_t = t
+	var body_speed := body_speed_sum / maxf(body_samples, 1.0)
+	var stance_speed := stance_speed_sum / maxf(stance_samples, 1.0)
+	return {"ankle_min": ankle_min, "sliding": stance_speed / maxf(body_speed, 0.01) * 100.0, "body_speed": body_speed,
+		"stance_samples": stance_samples}

@@ -95,10 +95,13 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				# a networked client: wait for the other players to spawn and settle (interpolation)
 				await tree.create_timer(float(_flag_value("wait", "4.0"))).timeout
 				var others := 0
+				var outfits := []
 				for c in world.get_node("Players").get_children():
 					if c != player:
 						others += 1
-				print("multi: local peer %d sees %d remote players; net role=%s rtt=%.0f" % [Net.local_peer_id(), others, Net.role, float(Net.stats["rtt"])])
+						outfits.append(c.get("outfit"))
+				Chat.instance.send("/give hacha 1")
+				print("multi: local peer %d (outfit %d) sees %d remote players (outfits %s); net role=%s rtt=%.0f" % [Net.local_peer_id(), player.outfit, others, outfits, Net.role, float(Net.stats["rtt"])])
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		var dn: DayNight = world.get_node("DayNight")

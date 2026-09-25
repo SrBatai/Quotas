@@ -1,7 +1,8 @@
 class_name ChoppableTree
 extends StaticBody3D
-## Pines, dead trees and fallen logs: chopped with the axe. Server authoritative (`interact` only runs there);
-## hits / felled travel as a world delta so every client (late joiners included) plays the same result.
+## Pines, dead trees and fallen logs: chopped with the axe (action `chop`). Server authoritative
+## (`server_interact` only runs there); hits / felled travel as a world delta so every client (late joiners
+## included) plays the same result. The owner client previews the hit (shake + chips) while the request travels.
 
 const STUMP_SCENE := preload("res://scenes/world/stump.tscn")
 
@@ -57,6 +58,7 @@ func _ready() -> void:
 	interactable.interact_range = Balance.INTERACT_RANGE
 	interactable.requires_tool = &"hacha"
 	interactable.no_tool_label = "Necesitas un hacha"
+	interactable.default_action = &"chop"
 	if not Net.is_server and NetWorld.instance != null:
 		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
 
@@ -64,6 +66,10 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _cooldown > 0.0:
 		_cooldown -= delta
+
+
+func interact_actions() -> Array:
+	return [&"chop"]
 
 
 func get_interact_label(_player: Node) -> String:
@@ -77,9 +83,9 @@ func can_interact(_player: Node) -> bool:
 
 
 ## Server only (validated by NetWorld.request_interact).
-func interact(player: Node) -> void:
-	if felled or _cooldown > 0.0 or not Net.is_server:
-		return
+func server_interact(player: Node, action: StringName, _arg: int) -> bool:
+	if action != &"chop" or felled or _cooldown > 0.0 or not Net.is_server:
+		return false
 	_cooldown = Balance.CHOP_COOLDOWN
 	hits += 1
 	if player != null and player.has_method("play_chop"):
@@ -90,6 +96,14 @@ func interact(player: Node) -> void:
 		_fell(player)
 	else:
 		NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"hits": hits})
+	return true
+
+
+## Owner client: the hit is shown at once; the server's delta confirms the count.
+func client_preview(player: Node, action: StringName) -> void:
+	if action == &"chop" and not felled and _cooldown <= 0.0:
+		_cooldown = Balance.CHOP_COOLDOWN
+		_hit_fx(player.global_position if player is Node3D else global_position)
 
 
 func _hit_fx(from: Vector3) -> void:
@@ -125,11 +139,11 @@ func _fell(player: Node) -> void:
 			_drop_wood(left)
 		p.state.emit_sim(&"tree_felled", [variant])
 	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), {"hits": hits, "felled": true, "ax": away.x, "az": away.z})
-	_fell_visual(away)
+	_fell_visual(away, true)
 
 
-## Shared: disable, animate the fall, leave a stump, free.
-func _fell_visual(away: Vector3) -> void:
+## Shared: disable, animate the fall, leave a stump, free. `animate` = false when restoring a saved delta.
+func _fell_visual(away: Vector3, animate: bool = true) -> void:
 	if felled:
 		return
 	felled = true
@@ -137,34 +151,36 @@ func _fell_visual(away: Vector3) -> void:
 	shape.set_deferred("disabled", true)
 	remove_from_group("choppable")
 	remove_from_group("tree")
-	AudioManager.play(&"tree_fall", global_position)
+	if animate:
+		AudioManager.play(&"tree_fall", global_position)
 	var tw := create_tween()
 	if variant == "fallen_log":
-		tw.tween_property(visual, "scale", Vector3(0.01, 0.01, 0.01), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+		tw.tween_property(visual, "scale", Vector3(0.01, 0.01, 0.01), 0.4 if animate else 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	else:
 		var axis := away.cross(Vector3.UP).normalized()
 		var local_axis := global_transform.basis.inverse() * axis
 		var target := Basis(local_axis.normalized(), deg_to_rad(-82.0)) * visual.basis
-		tw.tween_property(visual, "basis", target, 1.0).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.tween_property(visual, "basis", target, 1.0 if animate else 0.01).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		var stump := STUMP_SCENE.instantiate()
+		stump.name = "stump_of_" + String(name)
 		get_parent().add_child(stump)
 		stump.global_position = global_position
 		stump.rotation.y = rotation.y
-	tw.tween_interval(0.3)
+	tw.tween_interval(0.3 if animate else 0.01)
 	tw.tween_callback(queue_free)
 
 
-## Client: replicated state (also the snapshot for late joiners).
+## Replicated state (clients; the server after loading a save).
 func apply_net_delta(f: Dictionary) -> void:
 	if f.is_empty():
 		return
 	var new_hits := int(f.get("hits", hits))
-	if new_hits > hits and not bool(f.get("felled", false)):
+	if new_hits > hits and not bool(f.get("felled", false)) and Net.has_client and is_inside_tree():
 		hits = new_hits
 		_hit_fx(global_position + Vector3.MODEL_FRONT)
 	hits = maxi(hits, new_hits)
 	if bool(f.get("felled", false)) and not felled:
-		_fell_visual(Vector3(float(f.get("ax", 0.0)), 0.0, float(f.get("az", 1.0))).normalized())
+		_fell_visual(Vector3(float(f.get("ax", 0.0)), 0.0, float(f.get("az", 1.0))).normalized(), Net.has_client)
 
 
 func _drop_wood(n: int) -> void:

@@ -38,6 +38,17 @@ sustituto de primitivas con los mismos nombres de nodo (`scripts/data/placeholde
 | Equipar/guardar antorcha | T | D-pad abajo (mantener) |
 | Comer lo mejor disponible | F | — |
 
+## Pruebas
+
+```bash
+tests/run_all.sh                 # parse, unit (persistencia), smoke (jugador esquelético + métrica de pies), inspect_models, perf, red
+tests/run_smoke.sh               # solo el smoke test (servidor local en el mismo proceso)
+tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90                              # escenario basic (M1)
+tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world      # mundo compartido (M2)
+RENDER=forward tests/run_screenshots.sh /tmp/shots   # capturas (Compatibility por defecto; Forward+ con lavapipe)
+tests/run_multi_shot.sh /tmp/shots/multi.png         # captura con 2 jugadores remotos (chaquetas distintas)
+```
+
 ## Reconstruir los modelos 3D (Blender)
 
 ```bash
@@ -63,6 +74,19 @@ server/admin.sh status | players | save | save-and-quit | "say hola" | "rule fri
 `server.cfg` (`server/server.cfg.example`): nombre, contraseña, puerto, `max_players`, `admin_port`/`admin_token`,
 semilla, `day_length_sec`, y las reglas `pvp` / `friendly_fire` (`off|reduced|full`) que solo lee `DamageResolver`.
 El apagado limpio es siempre por el socket de admin (`save-and-quit`): el headless muere al instante con SIGTERM.
+
+## Mundo compartido (M2)
+
+Todo lo que hace el slice (talar, recoger, estufa, armario, fabricar, colocar, comer, cazar) lo valida el servidor por
+`wid` (`NetWorld.request_interact(wid, acción, arg)`: distancia + tolerancia, herramienta, acción declarada por el
+objeto, *rate limit*, infracciones). El estado del mundo que se aparta de la semilla vive en un `ChunkDelta` por chunk
+(el claro son los chunks 23–25): los cambios se difunden como eventos y el que entra tarde recibe cada chunk comprimido.
+Los armarios y la camioneta son de uso exclusivo ("en uso" para los demás). El servidor dedicado guarda perfiles,
+reloj y deltas en `world_save.json` (`FileBackend`, escritura atómica; SQLite llegará en M5) y los reaplica al arrancar:
+un árbol talado sigue talado. El jugador es ya el **superviviente esquelético** (`chars/survivor_*.glb`, una chaqueta
+distinta por jugador, `AnimationTree` con el ciclo escalado a la velocidad real, cabeza que sigue al cursor, herramienta
+en la mano). Con `debug_commands=true` en `server.cfg` (o sin red) el chat acepta `/kit`, `/give <item> <n>` y
+`/tp <x> <z>`.
 
 ### Probar el cooperativo con amigos (hasta 4)
 

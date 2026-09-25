@@ -1,19 +1,30 @@
 class_name NetWorld
 extends Node
 ## /root/Game/NetWorld: every client intention that touches the world or the player's own state travels through
-## here as a validated RPC (ARQ v2 §6.6); world object deltas (tree hits, felled, pickups taken, bushes, fires,
-## containers "in use") are stored on the server and broadcast as events + sent as a snapshot to late joiners
-## (M1 version of the chunk delta, ARQ v2 §8.8). Same node path on client and server; offline = direct calls.
+## here as a validated RPC (ARQ v2 §6.6): distance + tolerance, tool, action list, rate limits and an infraction
+## counter per peer (warning at half, kick at NET_INFRACTIONS_KICK). The world's divergence from the seed lives
+## in one ChunkDelta per chunk (ARQ v2 §8.8): object fields are broadcast as `_event` when they change and the
+## whole chunk travels as `chunk_delta_snapshot` (zstd) to late joiners; the dirty chunks are dumped by the
+## persistence backend and re-applied when the server restarts. Same node path on client and server;
+## offline = direct calls.
 
 const REASONS := {
 	"lejos": "Acércate", "sin_herramienta": "Necesitas un hacha", "no_disponible": "No disponible",
 	"no_existe": "Ya no está", "en_uso": "En uso por otro jugador", "muerto": "Estás muerto",
+	"accion": "No puedes hacer eso", "rate": "Demasiado rápido",
 }
+const RATE_LIMITS := {&"interact": Balance.NET_INTERACT_PER_SECOND, &"craft": Balance.NET_CRAFT_PER_SECOND,
+	&"attack": 4.0, &"hit": 4.0, &"slot": 10.0, &"container": 10.0}
 
 static var instance: NetWorld
 
-## wid -> Dictionary of replicated fields (server authoritative; clients hold a copy).
+## chunk key -> ChunkDelta (server authoritative; clients hold the replicated part).
+var chunks: Dictionary = {}
+## wid -> replicated fields (index over the chunks' objects/structures tables; `delta_of` reads it).
 var deltas: Dictionary = {}
+## Test hook (client): number of chunk snapshots received.
+var snapshots_received: int = 0
+var _wid_chunk: Dictionary = {}     # wid -> chunk key
 var _rate: Dictionary = {}          # [peer, kind] -> Array of timestamps
 var _infractions: Dictionary = {}   # peer -> count
 
@@ -29,19 +40,27 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	if Net.is_server:
-		Net.peer_joined.connect(func(peer_id: int, _n: String) -> void:
-			Net.rpc_to(self, &"_delta_snapshot", peer_id, [deltas]))
+		Net.peer_joined.connect(func(peer_id: int, _n: String) -> void: send_snapshots(peer_id))
+		Net.peer_left.connect(func(peer_id: int) -> void:
+			_rate.erase([peer_id, &"interact"])
+			_infractions.erase(peer_id))
 
 
 # ------------------------------------------------------------------ helpers (server)
+func _world() -> World:
+	return get_tree().get_first_node_in_group("world") as World
+
+
 func _player_of(peer: int) -> Player:
-	var players := get_tree().get_first_node_in_group("world").get_node_or_null("Players") if get_tree().get_first_node_in_group("world") != null else null
+	var world := _world()
+	var players := world.get_node_or_null("Players") if world != null else null
 	if players == null:
 		return null
 	return players.get_node_or_null(str(peer)) as Player
 
 
-func _allow(peer: int, kind: StringName, per_second: float) -> bool:
+func _allow(peer: int, kind: StringName) -> bool:
+	var per_second: float = float(RATE_LIMITS.get(kind, 5.0))
 	var key := [peer, kind]
 	var now := Time.get_ticks_msec() / 1000.0
 	var arr: Array = _rate.get(key, [])
@@ -56,55 +75,81 @@ func _allow(peer: int, kind: StringName, per_second: float) -> bool:
 	return true
 
 
+func infractions_of(peer: int) -> int:
+	return int(_infractions.get(peer, 0))
+
+
 func _note_infraction(peer: int, reason: String) -> void:
 	_infractions[peer] = int(_infractions.get(peer, 0)) + 1
-	if _infractions[peer] == Balance.NET_INFRACTIONS_KICK and Net.is_dedicated:
-		print("[NET] peer %d kicked after %d infractions (%s)" % [peer, _infractions[peer], reason])
+	var n: int = _infractions[peer]
+	if n == int(Balance.NET_INFRACTIONS_KICK / 2) and Net.is_dedicated:
+		var p := _player_of(peer)
+		if p != null:
+			p.state.notify("Aviso del servidor: peticiones inválidas", 4.0)
+		print("[NET] peer %d warned after %d infractions (%s)" % [peer, n, reason])
+	elif n == Balance.NET_INFRACTIONS_KICK and Net.is_dedicated:
+		print("[NET] peer %d kicked after %d infractions (%s)" % [peer, n, reason])
 		Net.kick(peer, "infractions")
 
 
-func _deny(peer: int, reason: String) -> void:
+func _deny(peer: int, reason: String, wid: int = 0, action: StringName = &"") -> void:
 	_note_infraction(peer, reason)
 	var p := _player_of(peer)
 	if p != null:
 		p.state.notify(REASONS.get(reason, "No puedes hacer eso"), 2.0)
+		Net.rpc_to(self, &"_interact_result", peer, [wid, action, false, reason])
 
 
-## Validates that `player` can use `comp` now: distance + tolerance, tool, availability.
-func _check_interact(player: Player, comp: InteractableComponent) -> String:
+## Validates that `player` can perform `action` on `comp` now: distance + tolerance, tool, action, availability.
+func _check_interact(player: Player, comp: InteractableComponent, action: StringName) -> String:
 	if player.dead:
 		return "muerto"
 	if comp == null or not is_instance_valid(comp) or not comp.enabled:
 		return "no_existe"
 	if comp.distance_to(player) > comp.interact_range + Balance.NET_INTERACT_TOLERANCE:
 		return "lejos"
+	if not comp.actions().has(action):
+		return "accion"
 	if comp.requires_tool != &"" and player.state.hand_tool() != comp.requires_tool:
 		return "sin_herramienta"
+	var st := _local_storage(comp.wid())
+	if st != null and st.in_use_by_other(player) and _player_of(st.open_by) != null:
+		return "en_uso"
 	if not comp.can_interact(player):
 		return "no_disponible"
 	return ""
 
 
 # ------------------------------------------------------------------ world interaction
+## Client → server: perform `action` (with an integer argument) on the object `wid`.
 @rpc("any_peer", "call_remote", "reliable", 1)
-func request_interact(wid: int) -> void:
+func request_interact(wid: int, action: StringName, arg: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var peer := Net.sender()
 	var player := _player_of(peer)
-	if player == null or not _allow(peer, &"interact", Balance.NET_INTERACT_PER_SECOND):
+	if player == null or not _allow(peer, &"interact"):
 		return
 	var obj := WorldRegistry.get_object(wid)
 	if obj == null:
-		_deny(peer, "no_existe")
+		_deny(peer, "no_existe", wid, action)
 		return
 	var comp := InteractableComponent.find_from(obj)
-	var why := _check_interact(player, comp)
+	var why := _check_interact(player, comp, action)
 	if why != "":
-		_deny(peer, why)
+		_deny(peer, why, wid, action)
 		return
 	player.face_toward(comp.global_position)
-	comp.interact(player)
+	var ok := comp.server_interact(player, action, arg)
+	Net.rpc_to(self, &"_interact_result", peer, [wid, action, ok, ""])
+
+
+## Server → owner: outcome of a request (optimistic previews are reverted on failure).
+@rpc("authority", "call_remote", "reliable", 1)
+func _interact_result(wid: int, action: StringName, ok: bool, reason: String) -> void:
+	if Net.is_dedicated:
+		return
+	Events.interact_result.emit(wid, action, ok, reason)
 
 
 @rpc("any_peer", "call_remote", "reliable", 1)
@@ -113,7 +158,7 @@ func request_attack(wid: int) -> void:
 		return
 	var peer := Net.sender()
 	var player := _player_of(peer)
-	if player == null or player.dead or not _allow(peer, &"attack", 4.0):
+	if player == null or player.dead or not _allow(peer, &"attack"):
 		return
 	var target: Node = WorldRegistry.get_object(wid) if wid != 0 else null
 	if target != null and target is Node3D:
@@ -131,7 +176,7 @@ func request_hit_player(victim_peer: int, dmg: float) -> void:
 	var peer := Net.sender()
 	var attacker := _player_of(peer)
 	var victim := _player_of(victim_peer)
-	if attacker == null or attacker.dead or not _allow(peer, &"hit", 4.0):
+	if attacker == null or attacker.dead or not _allow(peer, &"hit"):
 		return
 	var result := {"applied": 0.0, "blocked": true, "reason": "no_victim"}
 	if victim != null and victim != attacker:
@@ -163,7 +208,7 @@ func request_use_slot(i: int) -> void:
 	if not multiplayer.is_server():
 		return
 	var p := _player_of(Net.sender())
-	if p != null and not p.dead and _allow(Net.sender(), &"slot", 10.0):
+	if p != null and not p.dead and _allow(Net.sender(), &"slot"):
 		p.state.inventory.use_slot(i)
 
 
@@ -172,7 +217,7 @@ func request_toggle_torch() -> void:
 	if not multiplayer.is_server():
 		return
 	var p := _player_of(Net.sender())
-	if p != null and not p.dead and _allow(Net.sender(), &"slot", 10.0):
+	if p != null and not p.dead and _allow(Net.sender(), &"slot"):
 		p.state.inventory.toggle_torch()
 
 
@@ -181,7 +226,7 @@ func request_eat_best() -> void:
 	if not multiplayer.is_server():
 		return
 	var p := _player_of(Net.sender())
-	if p != null and not p.dead and _allow(Net.sender(), &"slot", 10.0):
+	if p != null and not p.dead and _allow(Net.sender(), &"slot"):
 		p.state.inventory.eat_best()
 
 
@@ -191,10 +236,11 @@ func request_craft(recipe_id: StringName) -> void:
 		return
 	var peer := Net.sender()
 	var p := _player_of(peer)
-	if p == null or p.dead or not _allow(peer, &"craft", Balance.NET_CRAFT_PER_SECOND):
+	if p == null or p.dead or not _allow(peer, &"craft"):
 		return
 	var r := Recipes.by_id(recipe_id)
 	if r.is_empty() or r.has("place"):
+		_note_infraction(peer, "craft:unknown")
 		return
 	Recipes.craft(r, p)
 
@@ -205,24 +251,27 @@ func request_place(kind: String, pos: Vector3, yaw: float) -> void:
 		return
 	var peer := Net.sender()
 	var p := _player_of(peer)
-	if p == null or p.dead or not _allow(peer, &"craft", Balance.NET_CRAFT_PER_SECOND):
+	if p == null or p.dead or not _allow(peer, &"craft"):
 		return
 	var recipe := {}
 	for r in Recipes.DB:
 		if r.get("place", "") == kind:
 			recipe = r
-	if recipe.is_empty():
+	if recipe.is_empty() or not is_finite(pos.x) or not is_finite(pos.y) or not is_finite(pos.z):
+		_note_infraction(peer, "place:unknown")
 		return
 	if not PlacementController.check_position(p, pos):
+		print("[NET] place denied peer %d: position %s" % [peer, pos.snapped(Vector3(0.1, 0.1, 0.1))])
 		p.state.notify("No se puede colocar aquí", 2.0)
 		return
 	if not Recipes.has_materials(recipe, p.state):
+		print("[NET] place denied peer %d: materials" % peer)
 		p.state.notify(Recipes.STATUS_MISSING, 2.0)
 		return
+	print("[EVT] peer %d places %s at %s" % [peer, kind, pos.snapped(Vector3(0.1, 0.1, 0.1))])
 	for id in recipe["cost"]:
 		p.state.inventory.remove(id, int(recipe["cost"][id]))
-	var world: World = get_tree().get_first_node_in_group("world")
-	var node := world.spawn_placed(kind, pos, yaw)
+	var node := _world().spawn_placed(kind, pos, wrapf(yaw, -PI, PI))
 	if kind == "campfire":
 		p.state.emit_sim(&"campfire_placed", [node])
 		p.state.notify("Fogata colocada", 2.5)
@@ -247,7 +296,7 @@ func request_take(wid: int, slot: int, all: bool) -> void:
 	var peer := Net.sender()
 	var p := _player_of(peer)
 	var st := _storage_for(peer, wid)
-	if p == null or st == null or not _allow(peer, &"container", 10.0):
+	if p == null or st == null or not _allow(peer, &"container"):
 		return
 	p.state.inventory.take_from_container(st, slot, all)
 
@@ -259,7 +308,7 @@ func request_deposit(wid: int, slot: int, all: bool) -> void:
 	var peer := Net.sender()
 	var p := _player_of(peer)
 	var st := _storage_for(peer, wid)
-	if p == null or st == null or not _allow(peer, &"container", 10.0):
+	if p == null or st == null or not _allow(peer, &"container"):
 		return
 	p.state.inventory.deposit_to_container(st, slot, all)
 
@@ -274,27 +323,24 @@ func request_close_storage(wid: int) -> void:
 
 
 func _storage_for(peer: int, wid: int) -> Storage:
-	var obj := WorldRegistry.get_object(wid)
-	if obj == null:
-		return null
-	var st: Storage = obj.get_node_or_null("Storage") as Storage if not (obj is Storage) else obj
+	var st := _local_storage(wid)
 	if st == null or st.open_by != peer:
 		return null
 	return st
 
 
-## Server: a player opens a container (exclusion: one user at a time, ARQ v2 §10.2 of the research).
-func open_storage(player: Player, st: Storage) -> void:
-	var wid := WorldRegistry.wid_of(st.get_parent())
+## Server: a player opens a container (mutual exclusion: one user at a time; "en uso" for the others).
+func open_storage(player: Player, st: Storage) -> bool:
+	var wid := st.wid()
 	if st.open_by != 0 and st.open_by != player.peer_id and _player_of(st.open_by) != null:
 		player.state.notify(REASONS["en_uso"], 2.0)
-		return
-	if st.open_by != 0 and st.open_by != player.peer_id:
-		st.open_by = 0
+		return false
 	st.open_by = player.peer_id
 	st.is_open = true
 	set_delta(wid, {"open_by": player.peer_id})
+	set_container(wid, {"open_by": player.peer_id})
 	Net.rpc_to(self, &"_storage_opened", player.peer_id, [wid, st.title, st.slots.duplicate(true)])
+	return true
 
 
 func close_storage(st: Storage) -> void:
@@ -303,26 +349,30 @@ func close_storage(st: Storage) -> void:
 		return
 	st.open_by = 0
 	st.is_open = false
-	set_delta(WorldRegistry.wid_of(st.get_parent()), {"open_by": 0})
-	Net.rpc_to(self, &"_storage_closed", peer, [WorldRegistry.wid_of(st.get_parent())])
+	set_delta(st.wid(), {"open_by": 0})
+	set_container(st.wid(), {"open_by": 0})
+	Net.rpc_to(self, &"_storage_closed", peer, [st.wid()])
 
 
-## Server: called by Storage.changed while someone has it open → refresh the opener's mirror.
+## Server: called by Storage.changed → refresh the opener's mirror and the persistent copy of the contents.
 func push_storage(st: Storage) -> void:
-	if Net.is_server and st.open_by != 0:
-		Net.rpc_to(self, &"_storage_slots", st.open_by, [WorldRegistry.wid_of(st.get_parent()), st.slots.duplicate(true)])
+	if not Net.is_server:
+		return
+	set_container(st.wid(), {"items": st.slots.duplicate(true)})
+	if st.open_by != 0:
+		Net.rpc_to(self, &"_storage_slots", st.open_by, [st.wid(), st.slots.duplicate(true)])
 
 
 func _physics_process(_delta: float) -> void:
 	if not Net.is_server or Engine.get_physics_frames() % 30 != 0:
 		return
-	# containers close when their user walks away
+	# containers close when their user walks away or leaves
 	for n in get_tree().get_nodes_in_group("storage"):
 		var st := n as Storage
 		if st == null or st.open_by == 0:
 			continue
 		var p := _player_of(st.open_by)
-		if p == null:
+		if p == null or p.disconnected:
 			close_storage(st)
 			continue
 		var a := st.anchor_position()
@@ -373,15 +423,56 @@ func _local_storage(wid: int) -> Storage:
 	return obj as Storage if obj is Storage else obj.get_node_or_null("Storage") as Storage
 
 
-# ------------------------------------------------------------------ world deltas / events
-## Server: merges `fields` into the object's delta, applies it locally (offline) and broadcasts it.
-func set_delta(wid: int, fields: Dictionary) -> void:
+# ------------------------------------------------------------------ chunk deltas / events
+func chunk_for(wid: int, hint: Node = null) -> ChunkDelta:
+	var key: int
+	if _wid_chunk.has(wid):
+		key = int(_wid_chunk[wid])
+	else:
+		var node: Node = hint if hint != null else WorldRegistry.get_object(wid)
+		var pos := Vector3.ZERO
+		if node is Node3D and (node as Node3D).is_inside_tree():
+			pos = (node as Node3D).global_position
+		key = WorldConst.key_of(pos)
+		_wid_chunk[wid] = key
+	var d: ChunkDelta = chunks.get(key)
+	if d == null:
+		d = ChunkDelta.make(WorldConst.key_cx(key), WorldConst.key_cz(key))
+		chunks[key] = d
+	return d
+
+
+## Server: merges `fields` into the object's replicated delta, applies it locally (offline) and broadcasts it.
+func set_delta(wid: int, fields: Dictionary, table: StringName = &"objects") -> void:
 	if not Net.is_server:
 		return
-	var d: Dictionary = deltas.get(wid, {})
-	d.merge(fields, true)
-	deltas[wid] = d
+	var d := chunk_for(wid)
+	var merged := d.merge(table, wid, fields)
+	deltas[wid] = merged
 	Net.rpc_all(self, &"_event", [wid, fields])
+
+
+## Server: container contents / opener (persisted, not broadcast).
+func set_container(wid: int, fields: Dictionary) -> void:
+	if Net.is_server:
+		chunk_for(wid).merge(&"containers", wid, fields)
+
+
+## Server: a placed structure exists (StructureSpawner) → persisted in the chunk of its position.
+func register_structure(wid: int, data: Dictionary) -> void:
+	if Net.is_server:
+		chunk_for(wid, WorldRegistry.get_object(wid)).merge(&"structures", wid, data)
+
+
+## Server: a replicated drop exists / was taken.
+func register_drop(wid: int, data: Dictionary) -> void:
+	if Net.is_server:
+		chunk_for(wid, WorldRegistry.get_object(wid)).merge(&"drops", wid, data)
+
+
+func erase_drop(wid: int) -> void:
+	if Net.is_server and _wid_chunk.has(wid):
+		chunk_for(wid).erase(&"drops", wid)
 
 
 @rpc("authority", "call_remote", "reliable", 1)
@@ -394,13 +485,41 @@ func _event(wid: int, fields: Dictionary) -> void:
 	_apply_to(wid, fields)
 
 
+## Server: every chunk with a delta goes to the peer (M2: whole world; M3 filters by the 3 × 3 interest).
+func send_snapshots(peer: int) -> void:
+	if not Net.is_server or peer == Net.local_peer_id():
+		return
+	var keys := chunks.keys()
+	keys.sort()
+	for key in keys:
+		var d: ChunkDelta = chunks[key]
+		if d.is_empty():
+			continue
+		var packed := d.pack()
+		Net.rpc_to(self, &"chunk_delta_snapshot", peer, [int(packed["key"]), int(packed["size"]), packed["bytes"]])
+
+
 @rpc("authority", "call_remote", "reliable", 1)
-func _delta_snapshot(all: Dictionary) -> void:
+func chunk_delta_snapshot(key: int, size: int, bytes: PackedByteArray) -> void:
 	if Net.is_server:
 		return
-	deltas = all.duplicate(true)
-	for wid in deltas:
-		_apply_to(int(wid), deltas[wid])
+	var dict := ChunkDelta.unpack(size, bytes)
+	if dict.is_empty():
+		return
+	snapshots_received += 1
+	var d: ChunkDelta = chunks.get(key)
+	if d == null:
+		d = ChunkDelta.make(WorldConst.key_cx(key), WorldConst.key_cz(key))
+		chunks[key] = d
+	d.merge_dict(dict)
+	for table in [&"objects", &"structures"]:
+		var t: Dictionary = d.get(table)
+		for wid in t:
+			_wid_chunk[int(wid)] = key
+			var fields: Dictionary = deltas.get(int(wid), {})
+			fields.merge(t[wid], true)
+			deltas[int(wid)] = fields
+			_apply_to(int(wid), fields)
 
 
 func _apply_to(wid: int, fields: Dictionary) -> void:
@@ -409,6 +528,60 @@ func _apply_to(wid: int, fields: Dictionary) -> void:
 		obj.apply_net_delta(fields)
 
 
-## Client-side: the delta known for an object (used by objects that spawn after the snapshot arrived).
+## The delta known for an object (objects that spawn after the snapshot arrived read it in _ready).
 func delta_of(wid: int) -> Dictionary:
 	return deltas.get(wid, {})
+
+
+## Chunk keys that hold something (tests / admin).
+func chunk_keys() -> Array[int]:
+	var out: Array[int] = []
+	for k in chunks:
+		if not (chunks[k] as ChunkDelta).is_empty():
+			out.append(int(k))
+	out.sort()
+	return out
+
+
+# ------------------------------------------------------------------ persistence (server)
+## Dumps every dirty chunk into the backend (Autosave / save-and-quit).
+func save_to(backend: PersistenceBackend) -> int:
+	var n := 0
+	for k in chunks:
+		var d: ChunkDelta = chunks[k]
+		if d.is_dirty():
+			backend.save_chunk_delta(d)
+			n += 1
+	return n
+
+
+## Restores the stored chunks into the live world (server, after world_ready): objects get their fields,
+## containers their contents, structures and drops are spawned again.
+func load_from(backend: PersistenceBackend) -> int:
+	if not Net.is_server:
+		return 0
+	var n := 0
+	for k in backend.chunk_keys():
+		var d := backend.load_chunk_delta(WorldConst.key_cx(k), WorldConst.key_cz(k))
+		if d == null:
+			continue
+		chunks[k] = d
+		n += 1
+		if StructureSpawner.instance != null:
+			StructureSpawner.instance.restore(d.structures)
+		if DropSpawner.instance != null:
+			DropSpawner.instance.restore(d.drops)
+		for wid in d.objects:
+			_wid_chunk[int(wid)] = k
+			deltas[int(wid)] = d.objects[wid]
+			_apply_to(int(wid), d.objects[wid])
+		for wid in d.containers:
+			_wid_chunk[int(wid)] = k
+			var st := _local_storage(int(wid))
+			var e: Dictionary = d.containers[wid]
+			if st != null and e.has("items"):
+				st.set_slots_from(e["items"])
+			if e.has("open_by"):
+				d.containers[wid]["open_by"] = 0   # nobody is connected after a restart
+		d.clear_dirty()
+	return n

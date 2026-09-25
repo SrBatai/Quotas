@@ -93,6 +93,15 @@ func is_empty() -> bool:
 	return true
 
 
+## True when another player has it open (the replicated `open_by`): the UI shows "en uso".
+func in_use_by_other(player: Node) -> bool:
+	if open_by == 0:
+		return false
+	if player is Player:
+		return open_by != (player as Player).peer_id
+	return true
+
+
 func anchor_position() -> Vector3:
 	var p := get_parent()
 	if p is Node3D:

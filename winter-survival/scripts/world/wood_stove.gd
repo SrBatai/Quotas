@@ -31,6 +31,7 @@ func _ready() -> void:
 	interactable.set_shape(ibox, Vector3(0, 0.6, 0))
 	interactable.ring_radius = 0.6
 	interactable.interact_range = Balance.INTERACT_RANGE
+	interactable.default_action = &"fuel"
 	var anchor: Node3D = _model.find_child("StoveAnchor", true, false)
 	light = LightFlicker.new()
 	light.name = "Light"
@@ -77,6 +78,10 @@ func _on_lit_changed(lit: bool) -> void:
 			WorldState.instance.notify_all("La estufa se ha apagado. La casa se enfría.", 4.0)
 
 
+func interact_actions() -> Array:
+	return [&"fuel"]
+
+
 func get_interact_label(player: Node) -> String:
 	var n: int = player.state.count(&"madera") if player is Player else 0
 	if is_lit:
@@ -89,15 +94,17 @@ func can_interact(player: Node) -> bool:
 
 
 ## Server only.
-func interact(player: Node) -> void:
-	add_wood_from_player(player)
+func server_interact(player: Node, action: StringName, arg: int) -> bool:
+	if action != &"fuel":
+		return false
+	return add_wood_from_player(player, clampi(arg, 1, 5))
 
 
-func add_wood_from_player(player: Node) -> bool:
+func add_wood_from_player(player: Node, n: int = 1) -> bool:
 	var p := player as Player
 	if p == null or not Net.is_server:
 		return false
-	if not burner.add_wood(p, 1):
+	if not burner.add_wood(p, n):
 		p.state.notify("Sin leña", 2.0)
 		return false
 	p.state.emit_sim(&"stove_fueled", [])

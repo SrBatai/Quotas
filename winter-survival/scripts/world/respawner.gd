@@ -1,5 +1,9 @@
+class_name Respawner
 extends Node
-## Every dawn: up to 20 firewood and 12 stones reappear (caps 60 / 40).
+## Server only (PLAN M2): every dawn up to RESPAWN_FIREWOOD_PER_DAY firewood and RESPAWN_STONE_PER_DAY stones
+## reappear as replicated drops (DropSpawner), capped at MAX_FIREWOOD / MAX_STONES on the ground.
+
+var enabled: bool = false
 
 
 func _ready() -> void:
@@ -7,6 +11,8 @@ func _ready() -> void:
 
 
 func _on_day_started(_day: int) -> void:
+	if not enabled or not Net.is_server:
+		return
 	var scatter := get_parent().get_node_or_null("Scatter")
 	if scatter == null:
 		return
@@ -18,3 +24,4 @@ func _on_day_started(_day: int) -> void:
 		scatter.spawn_random_pickup(&"madera", "firewood")
 	for i in maxi(stone_n, 0):
 		scatter.spawn_random_pickup(&"piedra", "stone")
+	print("[EVT] dawn respawn: +%d firewood, +%d stones" % [maxi(wood_n, 0), maxi(stone_n, 0)])

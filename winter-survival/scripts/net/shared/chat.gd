@@ -1,7 +1,8 @@
 class_name Chat
 extends Node
 ## /root/Game/Chat: text chat on channel 1 (PLAN §3.2 "Chat"): `say` any_peer → sanitized, rate-limited →
-## `broadcast_say` to everyone. Also carries server notices ("X se ha unido").
+## `broadcast_say` to everyone. Also carries server notices ("X se ha unido") and, when `server.debug_commands`
+## is enabled in server.cfg (test servers) or offline, the `/kit`, `/give <item> <n>` and `/tp <x> <z>` commands.
 
 const MAX_HISTORY := 100
 
@@ -54,7 +55,43 @@ func say(text: String) -> void:
 	var clean := sanitize(text)
 	if clean == "":
 		return
+	if clean.begins_with("/"):
+		_debug_command(peer, clean)
+		return
 	server_broadcast(Net.name_of(peer), clean)
+
+
+func debug_commands_enabled() -> bool:
+	return Net.is_offline or bool(Net.cfg_get("server", "debug_commands", false))
+
+
+## Server: test/debug commands; silently ignored when disabled.
+func _debug_command(peer: int, line: String) -> void:
+	var nw := NetWorld.instance
+	var p: Player = nw._player_of(peer) if nw != null else null
+	if p == null or not debug_commands_enabled():
+		return
+	var parts := line.split(" ", false)
+	print("[CHAT] debug command from %d: %s" % [peer, line])
+	match parts[0].to_lower():
+		"/kit":
+			p.state.inventory.add(&"hacha", 1, true)
+			p.state.inventory.add(&"piedra", 6, true)
+			p.state.inventory.add(&"madera", 2, true)
+			p.state.notify("Kit de pruebas recibido", 2.0)
+		"/give":
+			if parts.size() >= 2:
+				var n := int(parts[2]) if parts.size() >= 3 else 1
+				p.state.inventory.add(StringName(parts[1]), clampi(n, 1, 20), true)
+		"/tp":
+			if parts.size() >= 3 and parts[1].is_valid_float() and parts[2].is_valid_float():
+				var world := get_tree().get_first_node_in_group("world") as World
+				var x := clampf(float(parts[1]), -Balance.BOUNDS, Balance.BOUNDS)
+				var z := clampf(float(parts[2]), -Balance.BOUNDS, Balance.BOUNDS)
+				var pos := Vector3(x, world.get_height(x, z) + 0.3, z)
+				p.position = pos
+				p.net_position = pos
+				p.velocity = Vector3.ZERO
 
 
 ## Server: relays a line to everybody (including the local client when offline).
