@@ -13,7 +13,7 @@ func _ready() -> void:
 			Vector3(-3.0, 0, -3.5), Vector3(3.0, 0, -3.5), Vector3(0, 6.0, -3.5),
 			Vector3(-3.0, 0, 3.5), Vector3(3.0, 0, 3.5), Vector3(0, 6.0, 3.5)]))
 	# warm spill on the snow in front of the window (spot + projector + wash; DayNight scales it by hour)
-	_spills = WindowSpill.attach_to_windows(self, _model, 5.0, 8.0)
+	_spills = WindowSpill.attach_to_windows(self, _model, 6.0, 8.0)
 	Events.time_changed.connect(_on_time)
 	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 

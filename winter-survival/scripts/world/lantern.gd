@@ -11,7 +11,7 @@ func _ready() -> void:
 	add_child(_model)
 	light = LightFlicker.new()
 	light.light_color = Color("#FFC888")  # desaturated warm: the reference pools are peach, not orange
-	light.base_energy = 0.4  # lights the porch, not the clearing (doc 06 §2 d: low energy)
+	light.base_energy = 0.16  # lights the porch, not the clearing (doc 06 §2 d: low energy; Forward+ measured)
 	light.omni_range = 5.0
 	light.omni_attenuation = 1.3
 	light.amount = 0.12

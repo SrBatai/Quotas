@@ -61,10 +61,10 @@ func _ready() -> void:
 	interior_light.light_indirect_energy = 0.0
 	interior_light.position = Vector3(0, 2.2, 0)
 	# window spill on the snow outside every lit window (spot + projector + wash; scaled by DayNight)
-	spills = WindowSpill.attach_to_windows(self, model, 8.0, 9.0)
+	spills = WindowSpill.attach_to_windows(self, model, 10.0, 9.0)
 	for sp in spills:
 		if String(sp.name).contains("Front"):
-			sp.base_energy *= 0.35  # the porch window lights the porch floor; the snow beyond stays blue (ref night)
+			sp.base_energy *= 0.12  # the porch window lights the porch floor; the snow beyond stays blue (ref night)
 	# smoke at the chimney top (+X wall, in front of the ridge)
 	smoke.position = Vector3(3.35, 5.3, 0.6)
 	stove_on = stove.is_lit
@@ -123,7 +123,7 @@ func _update_lighting() -> void:
 	smoke.set_active(stove_on)
 	if dark:
 		interior_light.visible = true
-		interior_light.light_energy = 0.7 if stove_on else 0.2
+		interior_light.light_energy = 0.5 if stove_on else 0.15
 	else:
 		interior_light.visible = stove_on
 		interior_light.light_energy = 0.35

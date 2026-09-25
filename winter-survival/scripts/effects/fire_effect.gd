@@ -4,7 +4,7 @@ extends Node3D
 
 @export var scale_factor: float = 1.0
 @export var light_range: float = 6.5
-@export var light_energy: float = 0.45  # G1: a gentle pool (ref night_campfire ≈ (104,101,98) on the snow), not a floodlight
+@export var light_energy: float = 0.22  # G1: a gentle pool (ref night_campfire ≈ (104,101,98) on the snow), not a floodlight
 @export var shadow_priority: int = -1
 
 var flames: GPUParticles3D

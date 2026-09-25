@@ -463,7 +463,7 @@ usuario (`tests/run_perf.sh` con `RENDER_*` monitors); (4) ARQ v2 §8.3 (normale
 
 | Clave | Sol color / energía | Ambiente × energía | Niebla / densidad / altura / dens. altura / aérea | Exposición | Sat. | Glow (int / umbral / bloom) | SSAO | `spill_scale` | Destellos |
 |---|---|---|---|---|---|---|---|---|---|
-| `NIGHT` (20.5 h – 4.5 h) | — (luna 0.12) | `#3E4A66` × 0.42 | `#66788C` / 0.011 / −1 / 0.020 / 0 | 0.56 | 1.05 | 0.7 / 1.0 / 0.02 | 2.0 | 0.45 | 0 |
+| `NIGHT` (20.5 h – 4.5 h) | — (luna 0.12) | `#3E4A66` × 0.42 | `#66788C` / 0.011 / −1 / 0.020 / 0 | 0.52 | 1.05 | 0.7 / 1.0 / 0.02 | 2.0 | 0.45 | 0 |
 | `DUSK` (6 h y 19 h) | `#FFB27A` / 0.10 | `#6688B4` × 1.35 | `#7088B8` / 0.010 / −1 / 0.015 / 0.15 | 0.70 | 1.0 | 0.55 / 1.05 / 0 | 2.2 | 0.3 | 0.25 |
 | `DAY` (8.5 h – 17 h) | `#F8F3EA` / 0.32 | `#7290C6` × 2.0 | `#A9BEDC` / 0.0040 / −2 / 0 / 0.10 | 0.52 | 1.0 | off | 2.5 | 0 | 0.8 |
 | `BLIZZARD` (mezcla) | `#E6EAF2` / 0.10 | `#95A3BE` × 1.45 (noche `#4E5A78` × 0.55) | `#AEB8C9` (noche `#4A5468`) / 0.022 (compat 0.035) / 0 / 0 / 0 | 0.55 | 0.9 | la de la hora | 1.6 | 0.7 | 0 |
@@ -500,11 +500,11 @@ En el look‑dev el farol (3.5), la hoguera (4.5 a 0.55 m del suelo) y el interi
 
 | Luz | Antes (slice) | G1 |
 |---|---|---|
-| Ventanas de la cabaña (`WindowSpill`) | omni interior 1.8 | spot 8.0 × `spill_scale` (0.45 noche → 3.6), alcance 9, baño omni ×0.15; la ventana del **porche** ×0.35 (ilumina el porche, no el claro) |
-| Ventana del A‑frame | omni 2.5 fuera de la ventana | spot 5.0 × `spill_scale`, alcance 8 |
-| Farol del porche | 3.0, alcance 9 | **0.5**, alcance 5.5, atenuación 1.3, sombra en `alto` |
-| Hoguera | 4.5, alcance 11, a 0.5 m | **0.45**, alcance 6.5, **a 1.0 m**, sombra en `alto` |
-| Luz interior | 1.8 / 0.3 | 0.7 / 0.2 (día con estufa 0.35), alcance 6 |
+| Ventanas de la cabaña (`WindowSpill`) | omni interior 1.8 | spot 10.0 × `spill_scale` (0.45 noche → 4.5), alcance 9, baño omni ×0.15; la ventana del **porche** ×0.12 (ilumina el porche, no el claro) |
+| Ventana del A‑frame | omni 2.5 fuera de la ventana | spot 6.0 × `spill_scale`, alcance 8 |
+| Farol del porche | 3.0, alcance 9 | **0.16** `#FFC888`, alcance 5, atenuación 1.3, sombra en `alto` |
+| Hoguera | 4.5, alcance 11, a 0.5 m | **0.22** `#FFB878`, alcance 6.5, **a 1.0 m**, sombra en `alto`; 24 llamas aditivas de 0.26 m (40 × 0.35 sumaban a blanco) |
+| Luz interior | 1.8 / 0.3 | 0.5 / 0.15 (día con estufa 0.35), alcance 6 |
 | Estufa | 2.5, alcance 6 | 1.2, alcance 5 |
 | Cristal ventana / farol | `#FFB454` × 2.5 | `#FFC070` × 3.0 / `#FFB454` × 1.4 (el cristal del farol a 3.0 florecía en una bola blanca) |
 

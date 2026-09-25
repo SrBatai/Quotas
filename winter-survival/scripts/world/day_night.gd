@@ -29,7 +29,7 @@ const K_SKY_GROUND := 18
 const K_SKY_ENERGY := 19
 const K_SPARKLE := 20        # terrain sparkle strength
 
-const NIGHT := [Color("#8EA0C4"), 0.0, Color("#3E4A66"), 0.42, Color("#66788C"), 0.011, -1.0, 0.020, 0.0, 0.56, 1.05,
+const NIGHT := [Color("#8EA0C4"), 0.0, Color("#3E4A66"), 0.42, Color("#66788C"), 0.011, -1.0, 0.020, 0.0, 0.52, 1.05,
 	0.7, 1.0, 0.02, 2.0, 0.45, Color("#0B1A33"), Color("#1F3358"), Color("#66788C"), 0.25, 0.0]
 const DUSK := [Color("#FFB27A"), 0.10, Color("#6688B4"), 1.35, Color("#7088B8"), 0.010, -1.0, 0.015, 0.15, 0.70, 1.0,
 	0.55, 1.05, 0.0, 2.2, 0.3, Color("#4D4F86"), Color("#D8A488"), Color("#6E86B8"), 0.6, 0.25]
