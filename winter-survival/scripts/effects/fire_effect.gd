@@ -3,8 +3,8 @@ extends Node3D
 ## Flames + smoke (GPUParticles3D, PLAN C4) + flickering OmniLight. Works in Forward+ and Compatibility.
 
 @export var scale_factor: float = 1.0
-@export var light_range: float = 8.0
-@export var light_energy: float = 1.0  # G1: Filmic at exposure 0.6 burns anything brighter (doc 06 §2 d)
+@export var light_range: float = 6.5
+@export var light_energy: float = 0.45  # G1: a gentle pool (ref night_campfire ≈ (104,101,98) on the snow), not a floodlight
 @export var shadow_priority: int = -1
 
 var flames: GPUParticles3D

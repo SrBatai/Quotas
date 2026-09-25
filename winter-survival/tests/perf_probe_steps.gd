@@ -16,6 +16,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	await tree.process_frame
 	if bool(opts["placeholders"]):
 		Assets.force_placeholders = true
+	if not Quality.is_compat_renderer():
+		Quality.set_preset(&"alto", false)  # lavapipe is a CPU device (-> compat): measure the real Forward+ preset
 	Events.world_ready.connect(func() -> void:
 		_ready = true
 		var w := tree.current_scene.get_node_or_null("World/Weather")

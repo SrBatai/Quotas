@@ -23,12 +23,12 @@ func _ready() -> void:
 	add_child(light_snow)
 	var streak := StandardMaterial3D.new()
 	streak.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	streak.albedo_color = Color(0.95, 0.97, 1.0, 0.7)
+	streak.albedo_color = Color(0.95, 0.97, 1.0, 0.85)
 	streak.albedo_texture = FireEffect.soft_dot_texture()
 	streak.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	streak.cull_mode = BaseMaterial3D.CULL_DISABLED
 	streak.disable_receive_shadows = true
-	heavy_snow = _make(2200, 5.0, Vector3(-4.0, -3.0, 0), 1.0, 0.05, 0.22, streak, true)
+	heavy_snow = _make(2200, 5.0, Vector3(-4.0, -3.0, 0), 1.0, 0.07, 0.28, streak, true)
 	heavy_snow.name = "Heavy"
 	heavy_snow.emitting = false
 	add_child(heavy_snow)

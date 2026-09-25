@@ -47,6 +47,7 @@ var _prepared: Dictionary = {}  # original Mesh -> Mesh with the shared material
 var _shared: ShaderMaterial
 var _terrain: ShaderMaterial
 var _glow: StandardMaterial3D
+var _lantern_glow: StandardMaterial3D
 var _ghost_ok: StandardMaterial3D
 var _ghost_bad: StandardMaterial3D
 var _missing_warned: Dictionary = {}
@@ -275,6 +276,19 @@ func get_glow_material() -> StandardMaterial3D:
 		_glow.emission_energy_multiplier = 3.0  # doc 06 §3.6 (softlight glow reads it at night)
 		_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return _glow
+
+
+## Lantern glass: dimmer than the windows (a 20 cm pane at emission 3.0 blooms into a white blob at night).
+func get_lantern_glow_material() -> StandardMaterial3D:
+	if _lantern_glow == null:
+		_lantern_glow = StandardMaterial3D.new()
+		_lantern_glow.resource_name = "lantern_glow"
+		_lantern_glow.albedo_color = Color("#FFB454")
+		_lantern_glow.emission_enabled = true
+		_lantern_glow.emission = Color("#FFB454")
+		_lantern_glow.emission_energy_multiplier = 1.4
+		_lantern_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return _lantern_glow
 
 
 func get_ember_material() -> StandardMaterial3D:

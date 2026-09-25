@@ -28,7 +28,7 @@ const PRESETS := {
 	&"compat": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 3.0, "pcss_angular": 0.0,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "msaa": Viewport.MSAA_2X,
-		"particles": 0.35, "glow": true, "ssao": false, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_VERY_LOW,
+		"particles": 0.45, "glow": true, "ssao": false, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_VERY_LOW,
 		"volumetric_fog": false, "projectors": false, "omni_shadows": 0, "terrain_shadows": false,
 		"trail_backend": "drawable", "snow_amount_max": 0.6,
 	},

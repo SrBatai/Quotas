@@ -168,8 +168,8 @@ func run(p_tree: SceneTree) -> void:
 	await frames(10)
 	var feet_run := await _feet_metric(player, Vector2(-1, 0), true, 60)
 	check(visual.state == &"Run" and absf(visual.time_scale - 1.0) < 0.12, "run cycle time-scaled to the ground speed (state %s, scale %.2f)" % [visual.state, visual.time_scale])
-	# the run clip itself bottoms out at 0.077 m in Godot (retarget of Loco_Run; Opus to lift it 3 mm): sliding is the code-side metric
-	check(feet_run["ankle_min"] >= 0.07 and feet_run["sliding"] < 5.0, "run feet metric: ankle min %.3f m (clip floor 0.077), sliding %.1f %% < 5 %% (body %.2f m/s, %d stance samples)" % [feet_run["ankle_min"], feet_run["sliding"], feet_run["body_speed"], feet_run["stance_samples"]])
+	# G1 survivors: Loco_Run bottoms out at 0.082 m after import (v2.1 retarget), so the run clip meets the 0.08 m rule too
+	check(feet_run["ankle_min"] >= 0.08 and feet_run["sliding"] < 5.0, "run feet metric: ankle min %.3f m >= 0.08, sliding %.1f %% < 5 %% (body %.2f m/s, %d stance samples)" % [feet_run["ankle_min"], feet_run["sliding"], feet_run["body_speed"], feet_run["stance_samples"]])
 	player.input.scripted_move = Vector2.INF
 	player.input.scripted_run = false
 	await frames(30)

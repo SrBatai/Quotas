@@ -29,14 +29,14 @@ const K_SKY_GROUND := 18
 const K_SKY_ENERGY := 19
 const K_SPARKLE := 20        # terrain sparkle strength
 
-const NIGHT := [Color("#8EA0C4"), 0.0, Color("#3E4A66"), 0.42, Color("#66788C"), 0.011, -1.0, 0.020, 0.0, 0.60, 1.05,
+const NIGHT := [Color("#8EA0C4"), 0.0, Color("#3E4A66"), 0.42, Color("#66788C"), 0.011, -1.0, 0.020, 0.0, 0.56, 1.05,
 	0.7, 1.0, 0.02, 2.0, 0.45, Color("#0B1A33"), Color("#1F3358"), Color("#66788C"), 0.25, 0.0]
 const DUSK := [Color("#FFB27A"), 0.10, Color("#6688B4"), 1.35, Color("#7088B8"), 0.010, -1.0, 0.015, 0.15, 0.70, 1.0,
 	0.55, 1.05, 0.0, 2.2, 0.3, Color("#4D4F86"), Color("#D8A488"), Color("#6E86B8"), 0.6, 0.25]
 const DAY := [Color("#F8F3EA"), 0.32, Color("#7290C6"), 2.0, Color("#A9BEDC"), 0.0040, -2.0, 0.0, 0.10, 0.52, 1.0,
 	0.0, 1.05, 0.0, 2.5, 0.0, Color("#6FA6E4"), Color("#D2E1F3"), Color("#A9BEDC"), 1.0, 0.8]
 ## Blizzard target (blended in by `blizzard_blend`; fog gets darker at night, see NIGHT_BLIZZARD_FOG).
-const BLIZZARD := [Color("#E6EAF2"), 0.25, Color("#8E9DBA"), 1.25, Color("#AEB8C9"), 0.022, 0.0, 0.0, 0.0, 0.55, 0.9,
+const BLIZZARD := [Color("#E6EAF2"), 0.10, Color("#95A3BE"), 1.45, Color("#AEB8C9"), 0.022, 0.0, 0.0, 0.0, 0.55, 0.9,
 	0.0, 1.05, 0.0, 1.6, 0.7, Color("#B4BECF"), Color("#B4BECF"), Color("#AEB8C9"), 0.8, 0.0]
 const NIGHT_BLIZZARD_FOG := Color("#4A5468")
 const NIGHT_BLIZZARD_AMBIENT := Color("#4E5A78")

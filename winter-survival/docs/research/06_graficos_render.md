@@ -430,3 +430,108 @@ usuario (`tests/run_perf.sh` con `RENDER_*` monitors); (4) ARQ v2 §8.3 (normale
   proposal #12059 (SSAO en Compatibility, 4.6), PR #105701 (DrawableTextures), #123507 (DrawableTexture2D en D3D12).
 - Godot 4.5/4.6/4.7 notas de versión (stencil, SMAA, AreaLight3D, DrawableTexture2D, HDR output).
 - Mediciones propias: `prototypes/lookdev/godot/` + `tools/contact.py`.
+
+---
+
+## 9. G1 integrado (valores finales en el juego)
+
+> Fecha: 2026‑09‑25. Estado: **integrado en el juego principal** (`winter-survival/`), `tests/run_all.sh` en verde,
+> capturas en Compatibility y Forward+ (lavapipe) comparadas con las referencias. Los assets HD v2.1 de Opus
+> (AO en `COLOR_0.a`) entran en paralelo: todo el código funciona con los `.glb` viejos (alfa 1 = sin AO) y nuevos.
+
+### 9.1 Ficheros
+
+| Fichero | Qué hace |
+|---|---|
+| `assets/shaders/stylized_light.gdshaderinc` (nuevo) | `light()` compartida: wrap 0.45, brillo tenue (`sheen` 0.08 / 12), relleno azul opcional (0). |
+| `assets/shaders/world_vcol.gdshader` (v2) | Mismo contrato (`snow_include`, `frost_*`, `cutaway_tint`, `OUTPUT_IS_SRGB`) + `AO = min(banda de contacto, COLOR.a)` (`ao_height` 0.6 m, `ao_floor` 0.55, `ao_tint #9EB3E0`), rim 0.10/3, `snow_tint #DBE8FA` sobre blancos con canal mínimo en [0.62, 0.85] (la nieve v2.1 `#CDDEF5` queda fuera de la banda). |
+| `assets/shaders/terrain.gdshader` + `assets/materials/terrain.tres` (nuevos) | Nieve `#CDDEF5`, AO de vértice (`ao_tint`), rim 0.12/3, destellos (0.8 día / 0.25 amanecer‑atardecer / 0 noche, `DayNight` los fija), ruido de tono 0.022/0.06, mapa de rastro (`trail_*`). `COLOR.rgb` = tinte lineal (pendientes ×0.9, hielo del lago). |
+| `scripts/world/terrain.gd` | Colisión intacta (81×81 a 2 m, `HeightMapShape3D`, determinista en servidor y cliente). Render: malla **indexada lisa** a `RENDER_CELL` 1 m en **8×8 chunks** de 20 m (normales del campo de alturas bilineal), `COLOR.a = AO` por `bake_ao(ocluyentes)` (rects con giro para cabaña/A‑frame/camión/vallas, discos por pino/árbol seco/tronco/roca/arbusto/tocón; "splat" por ocluyente, ≈ ms) y `update_occluder(id, r, s)` para el rehorneado local al talar (el disco pasa al del tocón; los troncos pierden el suyo). Solo se construye con pantalla (`DisplayServer != headless`). Sombra propia de los chunks solo en `alto` (`terrain_shadows`). |
+| `scripts/world/world.gd` | `_collect_occluders()` tras el scatter → `terrain.bake_ao`. |
+| `scripts/world/day_night.gd` | Claves `NIGHT/DUSK/DAY/BLIZZARD` (§9.2), Filmic, arco solar 6 h → 20 h con 26° máx., acimut 130° → 168° → 205° (contraluz con la cámara por defecto; `sun_follows_camera` opcional, apagado), luna `#8EA0C4` × 0.12 a −42° (sombras suaves en Forward+), niebla exponencial + altura, glow solo con luces cálidas, SSAO/volumétrica según `Quality.allows`, `spill_scale` para el grupo `window_spill`. Exposición × `Quality.exposure_scale()` y sol × `Quality.sun_scale()`. |
+| `scripts/autoload/quality.gd` | Tabla §9.3; `apply_to_sun` fija PCSS/blur; `refresh_omni_shadows()` reparte el presupuesto de omni con sombra (grupo `omni_shadow`, farol prioridad 0, hogueras 1); compensación Compatibility **por renderizador** (`COMPAT_EXPOSURE_SCALE` 0.5, `COMPAT_SUN_SCALE` 0.75), no por preset. |
+| `scripts/effects/window_spill.gd` (nuevo) | `WindowSpill.attach_to_windows(host, model, energía, alcance)`: un spot (48°, atenuación 1.2, proyector procedural 128² de 4 cristales en Forward+) + omni de baño (×0.15) por cada malla `Windows*` (posición y normal desde su AABB en espacio del modelo: sirve para los glb viejos, los HD y los placeholders). Energía = base × `spill_scale` × `enabled`. |
+| `scripts/world/cabin.gd`, `a_frame.gd`, `lantern.gd`, `campfire.gd`, `wood_stove.gd`, `scripts/effects/fire_effect.gd`, `light_flicker.gd` | Luces cálidas §9.4; `LightFlicker.shadow_priority` para el presupuesto de sombras. |
+| `scripts/effects/footprints.gd` (reescrito) | `Footprints` = mapa de rastro (§9.5). Misma API `stamp(pos, yaw, left, size)` para `FootprintEmitter`; `count_near()` para las pruebas. |
+| `scripts/effects/snowfall.gd` | Ventisca: 2 200 quads 7×28 cm alineados a la velocidad (`particle_flag_align_y`), disco suave, alfa 0.85; ratio por preset 1.0 / 0.6 / 0.45. Nieve calma: 500 copos redondos. |
+| `scripts/autoload/assets.gd` | `get_terrain_material()`, `window_glow` `#FFC070` × 3.0, `lantern_glow` `#FFB454` × 1.4. |
+| `scripts/data/balance.gd` | `CAMERA_DIST 24` (rango 16–38 sin cambios). |
+| `project.godot` | `soft_shadow_filter_quality 3` (direccional) / 2 (posicional), `ssao/quality 2` + `half_size`, `volumetric_fog 64/64`. |
+| `tests/screenshot_steps.gd`, `run_screenshots.sh`, `perf_probe_steps.gd`, `run_perf.sh`, `tools/contact_sheet.py` | Preset `dusk` (19 h), flag `quality=`, Forward+ con lavapipe usa `alto` (lavapipe es "CPU" → `detect()` daría `compat`), `RENDER=forward` también en la sonda de rendimiento, hoja de contacto. El planificador de ventiscas se desactiva **al instante** de `world_ready` (`Weather.cancel()`): con un rasterizador por software un frame dura segundos de reloj de juego y la tirada de las 14 h se colaba en las capturas. |
+
+### 9.2 Claves de `DayNight` (sRGB)
+
+| Clave | Sol color / energía | Ambiente × energía | Niebla / densidad / altura / dens. altura / aérea | Exposición | Sat. | Glow (int / umbral / bloom) | SSAO | `spill_scale` | Destellos |
+|---|---|---|---|---|---|---|---|---|---|
+| `NIGHT` (20.5 h – 4.5 h) | — (luna 0.12) | `#3E4A66` × 0.42 | `#66788C` / 0.011 / −1 / 0.020 / 0 | 0.56 | 1.05 | 0.7 / 1.0 / 0.02 | 2.0 | 0.45 | 0 |
+| `DUSK` (6 h y 19 h) | `#FFB27A` / 0.10 | `#6688B4` × 1.35 | `#7088B8` / 0.010 / −1 / 0.015 / 0.15 | 0.70 | 1.0 | 0.55 / 1.05 / 0 | 2.2 | 0.3 | 0.25 |
+| `DAY` (8.5 h – 17 h) | `#F8F3EA` / 0.32 | `#7290C6` × 2.0 | `#A9BEDC` / 0.0040 / −2 / 0 / 0.10 | 0.52 | 1.0 | off | 2.5 | 0 | 0.8 |
+| `BLIZZARD` (mezcla) | `#E6EAF2` / 0.10 | `#95A3BE` × 1.45 (noche `#4E5A78` × 0.55) | `#AEB8C9` (noche `#4A5468`) / 0.022 (compat 0.035) / 0 / 0 / 0 | 0.55 | 0.9 | la de la hora | 1.6 | 0.7 | 0 |
+
+Cambios respecto a las tablas de §4.1 (medidos sobre el juego, no sobre el look‑dev): el sol de día baja de 0.5 a
+0.32 y el ambiente sube de 1.45 a 2.0 porque el ratio sol/sombra del look‑dev (≈ 1.9 en R) era casi el doble del de
+la referencia (1.3–1.5); el atardecer es más claro y menos saturado (`#6688B4` × 1.35, exposición 0.70) y la ventisca
+casi no proyecta sombra (sol 0.10). `shadow_bias` 0.06 / `shadow_normal_bias` 2.5 (compat 0.10 / 3.0): con el sol a
+≤ 26° el terreno liso mostraba *acne* en bandas con los valores del look‑dev (0.04 / 1.8).
+El desenfoque de la sombra del sol sube a 2.5 cuando el sol está por debajo de 12° o en ventisca.
+
+### 9.3 Presets de `Quality`
+
+| | `alto` | `medio` | `compat` |
+|---|---|---|---|
+| Sombra direccional | 4096, 2 splits, 60 m, `SOFT_HIGH`, PCSS 1.2°, blur 1.0 | 2048, 2 splits, 60 m, `SOFT_MEDIUM`, blur 1.5 | 2048, 2 splits, 50 m, `SOFT_MEDIUM`, blur 3.0 (los escalones de la sombra a 23° de sol se ven con `SOFT_LOW`) |
+| Omni con sombra | 2 (farol, hoguera) | 0 | 0 |
+| SSAO | medium half‑size (2.5 día) | low half‑size | off (sin efecto en 4.7.2) |
+| Volumétrica (solo ventisca) | 0.028 × mezcla | off | off |
+| Proyectores de ventana | sí | sí | no |
+| Sombra propia del terreno | sí | no | no |
+| Glow | sí | sí | sí |
+| Partículas | 1.0 | 0.6 | 0.45 |
+| Huellas | `drawable` | `drawable` | `drawable` (si no existe la clase, `cpu`) |
+| Exposición / sol | ×1 / ×1 | ×1 / ×1 | ×0.5 / ×0.75 (por renderizador) |
+| `snow_amount_max` | 0.7 | 0.7 | 0.6 |
+
+### 9.4 Luces cálidas (el arreglo de la sobreexposición nocturna)
+
+En el look‑dev el farol (3.5), la hoguera (4.5 a 0.55 m del suelo) y el interior (1.8) quemaban la nieve a amarillo
+(medido: charco de hoguera (190,145,99) frente a (104,101,98) de la referencia; porche (151,114,81) frente a
+(126,102,94)). La atenuación omni de Godot 4 es ≈ `d^-1.3`: una luz a 0.5 m del suelo ilumina el suelo justo debajo
+×2.5 más que a 1 m. Valores finales:
+
+| Luz | Antes (slice) | G1 |
+|---|---|---|
+| Ventanas de la cabaña (`WindowSpill`) | omni interior 1.8 | spot 8.0 × `spill_scale` (0.45 noche → 3.6), alcance 9, baño omni ×0.15; la ventana del **porche** ×0.35 (ilumina el porche, no el claro) |
+| Ventana del A‑frame | omni 2.5 fuera de la ventana | spot 5.0 × `spill_scale`, alcance 8 |
+| Farol del porche | 3.0, alcance 9 | **0.5**, alcance 5.5, atenuación 1.3, sombra en `alto` |
+| Hoguera | 4.5, alcance 11, a 0.5 m | **0.45**, alcance 6.5, **a 1.0 m**, sombra en `alto` |
+| Luz interior | 1.8 / 0.3 | 0.7 / 0.2 (día con estufa 0.35), alcance 6 |
+| Estufa | 2.5, alcance 6 | 1.2, alcance 5 |
+| Cristal ventana / farol | `#FFB454` × 2.5 | `#FFC070` × 3.0 / `#FFB454` × 1.4 (el cristal del farol a 3.0 florecía en una bola blanca) |
+
+Resultado (Compatibility, noche, medido): derrame en la nieve (195,164,130) frente a (183,147,122) de la referencia;
+nieve lejana (44,58,81) frente a (46,60,81); nieve abierta (62,72,94) frente a (48,62,81).
+
+### 9.5 Mapa de rastro (`Footprints`)
+
+RGBA8 1024² sobre **56 m** centrados en el objetivo de la cámara (18 px/m), R = hundimiento, G = reborde;
+`Footprints.stamp()` sella 1 de 16 huellas pre‑giradas (22.5°) con `DrawableTexture2D.blit_rect` + `BlitMaterial`
+ADD (Forward+ y Compatibility; `cpu` = `Image` + `ImageTexture.update`, también en headless). Reproyección en texels
+enteros al alejarse 8 m del centro (doble búfer). Decaimiento multiplicativo cada segundo: 0.99 (vida media ≈ 70 s)
+y 0.80 en ventisca (la nieve las tapa). El terreno lee `trail_map/trail_rect` del material único
+(`trail_depth` 0.10, `trail_rim_height` 0.05, `trail_darken` 0.30, normal ×3.5). Tamaño de huella 0.42 × 0.26 m
+× `size` (lobos/ciervos 0.5–0.55, fuerza 0.75–0.8).
+
+### 9.6 Rendimiento (sonda `tests/perf_probe.gd`, 1280×720, escena fija 11 h)
+
+PERF_TABLE_PLACEHOLDER
+
+### 9.7 Aceptación y pendientes
+
+- `tests/run_all.sh`: ALL PASSED (parse, persistencia, smoke 122, inspect_models, perf, red basic + shared_world).
+- Capturas `day/dusk/night/blizzard/interior/menu` en Compatibility y `RENDER=forward` (lavapipe, `alto`); hojas
+  referencia / antes / después en `scratchpad/shots_g1/sheet_final_*.png` (§9.8).
+- Fuera de G1 / conocido: `sun_follows_camera` apagado (2 de 8 orientaciones de cámara quedan a favor de la luz);
+  el terreno no proyecta sombra en `medio/compat` (colinas sin sombra propia); SSAO sin efecto en Compatibility
+  (4.7.2); el mapa de rastro solo cubre 56 m alrededor de la cámara (M3: reproyección con los chunks);
+  el reborde de las huellas se lee sobre todo por la normal (malla a 1 m); las huellas del back‑end `cpu` no decaen
+  (se borran al final de la ventisca).

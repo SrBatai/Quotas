@@ -11,8 +11,8 @@ func _ready() -> void:
 	add_child(_model)
 	light = LightFlicker.new()
 	light.light_color = Color("#FFB454")
-	light.base_energy = 1.0  # a pool on the porch, not a floodlight (doc 06 §2: low energy, wide radius)
-	light.omni_range = 7.0
+	light.base_energy = 0.5  # lights the porch, not the clearing (doc 06 §2 d: low energy)
+	light.omni_range = 5.5
 	light.omni_attenuation = 1.3
 	light.amount = 0.12
 	light.shadow_priority = 0  # first in the omni-shadow budget (alto: railing shadows on the snow)
@@ -26,4 +26,4 @@ func _ready() -> void:
 func _on_time(_day: int, hour: float, _night: bool) -> void:
 	var dark := hour >= 17.5 or hour < 6.5
 	light.visible = dark
-	Assets.override_named(_model, "window", Assets.get_glow_material() if dark else null)
+	Assets.override_named(_model, "window", Assets.get_lantern_glow_material() if dark else null)
