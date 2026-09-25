@@ -11,7 +11,7 @@ func _ready() -> void:
 	add_child(_model)
 	light = LightFlicker.new()
 	light.light_color = Color("#FFB454")
-	light.base_energy = 1.4  # a pool on the porch, not a floodlight (doc 06 §2: low energy, wide radius)
+	light.base_energy = 1.0  # a pool on the porch, not a floodlight (doc 06 §2: low energy, wide radius)
 	light.omni_range = 7.0
 	light.omni_attenuation = 1.3
 	light.amount = 0.12

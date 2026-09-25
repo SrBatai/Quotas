@@ -61,7 +61,7 @@ func _ready() -> void:
 	interior_light.light_indirect_energy = 0.0
 	interior_light.position = Vector3(0, 2.2, 0)
 	# window spill on the snow outside every lit window (spot + projector + wash; scaled by DayNight)
-	spills = WindowSpill.attach_to_windows(self, model, 3.0, 8.0)
+	spills = WindowSpill.attach_to_windows(self, model, 8.0, 9.0)
 	# smoke at the chimney top (+X wall, in front of the ridge)
 	smoke.position = Vector3(3.35, 5.3, 0.6)
 	stove_on = stove.is_lit

@@ -16,23 +16,28 @@ const PRESETS := {
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "msaa": Viewport.MSAA_2X,
 		"particles": 1.0, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_MEDIUM,
 		"volumetric_fog": true, "projectors": true, "omni_shadows": 2, "terrain_shadows": true,
-		"exposure_scale": 1.0, "sun_scale": 1.0, "trail_backend": "drawable", "snow_amount_max": 0.7,
+		"trail_backend": "drawable", "snow_amount_max": 0.7,
 	},
 	&"medio": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.5, "pcss_angular": 0.0,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "msaa": Viewport.MSAA_2X,
 		"particles": 0.6, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_LOW,
 		"volumetric_fog": false, "projectors": true, "omni_shadows": 0, "terrain_shadows": false,
-		"exposure_scale": 1.0, "sun_scale": 1.0, "trail_backend": "drawable", "snow_amount_max": 0.7,
+		"trail_backend": "drawable", "snow_amount_max": 0.7,
 	},
 	&"compat": {
-		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 2.0, "pcss_angular": 0.0,
-		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "msaa": Viewport.MSAA_2X,
+		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 3.0, "pcss_angular": 0.0,
+		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "msaa": Viewport.MSAA_2X,
 		"particles": 0.35, "glow": true, "ssao": false, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_VERY_LOW,
 		"volumetric_fog": false, "projectors": false, "omni_shadows": 0, "terrain_shadows": false,
-		"exposure_scale": 0.5, "sun_scale": 0.75, "trail_backend": "drawable", "snow_amount_max": 0.6,
+		"trail_backend": "drawable", "snow_amount_max": 0.6,
 	},
 }
+## The Compatibility renderer blends its shadowed lights in sRGB and comes out brighter than Forward+ with the same
+## Environment (doc 06 §3.13, measured): DayNight multiplies the tonemap exposure and the sun energy by these
+## whenever that renderer is active, whatever the preset says.
+const COMPAT_EXPOSURE_SCALE := 0.5
+const COMPAT_SUN_SCALE := 0.75
 ## Adapter-name fragments of iGPUs that only run the game acceptably in Compatibility.
 const OLD_IGPU_PATTERNS := ["intel(r) hd graphics", "intel hd graphics", "ivybridge", "haswell", "broadwell",
 	"skylake", "kabylake", "kaby lake", "apollolake", "geminilake", "braswell", "bay trail", "cherry trail",
@@ -87,14 +92,14 @@ func snow_amount_max() -> float:
 	return float(settings()["snow_amount_max"])
 
 
-## Tonemap exposure multiplier (Compatibility blends the shadowed lights in sRGB and comes out brighter: ×0.5).
+## Tonemap exposure multiplier of the active renderer (×0.5 in Compatibility).
 func exposure_scale() -> float:
-	return float(settings()["exposure_scale"])
+	return COMPAT_EXPOSURE_SCALE if is_compat_renderer() else 1.0
 
 
 ## Sun energy multiplier that goes with exposure_scale (×0.75 in Compatibility).
 func sun_scale() -> float:
-	return float(settings()["sun_scale"])
+	return COMPAT_SUN_SCALE if is_compat_renderer() else 1.0
 
 
 ## Whether the preset allows a feature: "glow", "ssao", "volumetric_fog", "projectors", "terrain_shadows".
@@ -116,13 +121,15 @@ func trail_backend() -> String:
 	return String(settings()["trail_backend"])
 
 
-## Selects a preset, saves it and applies what can change at runtime. Switching renderer needs relaunch().
-func set_preset(name: StringName) -> void:
+## Selects a preset, saves it (unless `save` is false: tests) and applies what can change at runtime. Switching
+## renderer needs relaunch().
+func set_preset(name: StringName, save: bool = true) -> void:
 	if not PRESETS.has(name):
 		push_warning("Quality: unknown preset %s" % name)
 		return
 	preset = name
-	_save()
+	if save:
+		_save()
 	var wants_compat := name == &"compat"
 	restart_required = wants_compat != is_compat_renderer()
 	apply()

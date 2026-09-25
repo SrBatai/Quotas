@@ -16,7 +16,12 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	await tree.process_frame
 	if bool(opts["placeholders"]):
 		Assets.force_placeholders = true
-	Events.world_ready.connect(func() -> void: _ready = true)
+	Events.world_ready.connect(func() -> void:
+		_ready = true
+		var w := tree.current_scene.get_node_or_null("World/Weather")
+		if w != null:
+			w.scheduler_enabled = false  # a software renderer's slow frames can run the clock past 14:00
+			w.cancel())
 	GameFlow.play_offline()   # M1: the authoritative local server runs in-process
 	var waited := 0
 	while not _ready and waited < 900:
@@ -42,6 +47,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	# Fixed conditions: day 1 11:00, clear, no scheduler, no wolves, player still at the porch spawn.
 	WorldState.instance.set_time(1, 11.0)
 	world.get_node("Weather").scheduler_enabled = false
+	world.get_node("Weather").cancel()
+	world.get_node("DayNight").blizzard_blend = 0.0
 	world.get_node("WolfSpawner").enabled = false
 	Events.notify.emit("", 0.1)
 	var spawn: Vector3 = world.get_spawn_point()

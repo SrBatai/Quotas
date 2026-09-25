@@ -3,7 +3,7 @@ extends RefCounted
 ## the offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
 
 var tree: SceneTree
-var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run
+var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run, quality=alto|medio|compat
 
 var preset: String = "day"
 var out_path: String = "/tmp/ventisca_shot.png"
@@ -23,8 +23,19 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	await tree.process_frame
 	if flags.has("placeholders"):
 		Assets.force_placeholders = true
+	# lavapipe is a CPU device, which Quality.detect() maps to `compat`: Forward+ shots use `alto` unless told otherwise
+	var quality := _flag_value("quality", "" if Quality.is_compat_renderer() else "alto")
+	if quality != "":
+		Quality.set_preset(StringName(quality), false)
 	var ready := false
-	Events.world_ready.connect(func() -> void: ready = true)
+	Events.world_ready.connect(func() -> void:
+		ready = true
+		# under a software renderer a frame can take seconds of game clock: stop the blizzard roll before the
+		# clock reaches 14:00 (the preset below sets the time it wants)
+		var w := tree.current_scene.get_node_or_null("World/Weather") as Weather
+		if w != null and Net.is_server:
+			w.scheduler_enabled = false
+			w.cancel())
 	if preset == "menu":
 		tree.change_scene_to_file("res://scenes/main/main_menu.tscn")
 		await tree.process_frame
@@ -54,6 +65,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		Events.notify.emit("", 0.1)
 		if Net.is_server:
 			(world.get_node("Weather") as Weather).scheduler_enabled = false  # deterministic shots
+			(world.get_node("Weather") as Weather).cancel()
+			(world.get_node("DayNight") as DayNight).blizzard_blend = 0.0
 		var inv: InventoryComponent = player.state.inventory
 		match preset:
 			"day":

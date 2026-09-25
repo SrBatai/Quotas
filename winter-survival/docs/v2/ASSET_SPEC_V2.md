@@ -622,3 +622,96 @@ Regla de prioridad dentro de un pase: P0 del hito → verificación → renders 
 - El código consume los `.glb` de `chars/` y `anims/` tal cual (`character_visual.gd`): `%GeneralSkeleton`, librería `loco`, `RightHandSocket` con transformación identidad para las herramientas de §12 (mango +Y hacia el pulgar, filo +Z hacia los nudillos: correcto para el hachazo). `tests/inspect_models.gd` comprueba ahora `chars/*.glb` (27 huesos, `Hips` a 0.92, `RightHandSocket` a −X, una malla con *skin* `palette_vcol` + `COLOR_0`) y `anims/*.glb` (nombres y duraciones de la tabla LOCO, `LOOP_LINEAR`, ≥ 20 pistas de rotación, pista de posición de `Hips`).
 - Métrica de pies medida en Godot con el ciclo escalado a la velocidad real (`tests/run_smoke.sh`, por tick de física, punto de apoyo = el más bajo de talón/bola mientras está plantado, y < 0.038 m): andar tobillo mín. **0.089 m**, deslizamiento **0.7 %**; correr tobillo mín. **0.079 m**, deslizamiento **1.0 %**. El clip `Loco_Run` importado toca fondo a **0.0774 m** en Godot (punta a 0.024, 1.1 cm bajo el suelo; caída de pelvis 0.135 en vez de 0.085 + bote), es decir, el *retarget* deja el pie de la carrera 3 mm por debajo del contrato: **Opus, M2/M4**: subir 1.5 cm la pelvis mínima de `Loco_Run` (o el contacto) y volver a pasar `verify_chars.py` evaluando también el `.glb` importado por Godot (`tests/inspect_models.gd` imprime las alturas).
 - Hasta que existan `Melee2H_Swing_A` y `Act_*` (M2/M4 de Opus), el hachazo es `Act_Chop`, generado en código desde la pose de `Loco_Idle` (brazo derecho arriba y abajo, 0.5 s, filtro de torso): se sustituye cambiando el nombre del clip en `character_visual.gd::_build_tree`.
+
+## G1 — mejora gráfica, guía de arte v2.1 en el pipeline principal (Opus, G1)
+
+Fuente de la guía: `docs/research/05_graficos_arte.md` §4 (paleta, chaflanes, nieve, AO, presupuestos); contrato de
+render acordado: `docs/research/06_graficos_render.md` §3.7 (`AO = COLOR.a`, nieve `#CDDEF5`). Todo se regenera con
+`cd blender && python3 build_all.py` (**ALL OK**: 33 props + 4 personajes + librería `loco`, autotests de `rig`/`anim`).
+
+**Contrato que NO cambia** (verificado con `tests/inspect_models.gd` en un proyecto Godot desechable: 38 assets
+ALL OK, importación 0 errores): nombres de fichero, nombres de nodo, jerarquía, pivotes, frentes, anclas
+(`DoorAnchor`, `LanternSocket`, `BedAnchor`, `FlameAnchor`, `LightAnchor`, `StoveAnchor`, `PipeTop`, `TextTop/Bottom`,
+`HourHand/MinuteHand`, `ToolSocket`, `BreathAnchor`, `Muzzle`…), partes de corte de la cabaña (`Floor`, `WallBack`,
+`WallLeft` + `WindowsLeft`, `WallRight`, `WallFront` + `WindowsFront`, `Roof`, `Chimney`, `Porch`), las 14 cajas `Col*`
+de la cabaña (+ `ColSteps`), `ColBody`/`ColDeck` del A‑frame, `ColChassis`/`ColCab` del camión, `ColBack` de la tienda,
+esqueleto de 27 huesos y pose de reposo (idénticos: las pistas de `anims/humanoid_loco.glb` se aplican sin cambios),
+plantillas `.import` de `chars/`/`anims/`, `rig/humanoid_bonemap.tres`. Materiales: `palette_vcol` + excepciones (§2.5).
+
+### G1.1 Exportación v2.1 (sustituye §2.5 "flat shading" y el `COLOR_0` RGB de §2.8)
+
+- **`COLOR_0` = RGBA** (VEC4; Blender 5.0.1 lo escribe como uint16 normalizado con `export_vertex_color='NAME'`,
+  `export_vertex_color_name='Col'`). **RGB = color de paleta exacto**: se guarda el **centro del escalón de 8 bits
+  lineal** que conserva Godot (`(round(lin·255)+0.5)/255`, ≈ lineal + 0.5/255): mismo resultado en Godot que el sesgo
+  anterior, pero inmune a la cuantización de 16 bits (con el sesgo, `eyes_dark` caía un escalón). **A = oclusión
+  ambiental horneada** (1 = abierto, 0 = ocluido) en **todos** los assets. Godot 4.7.2 conserva el alfa (medido:
+  0.0–1.0) y los RGB de paleta; `StandardMaterial3D` lo ignora (opaco); el shader del juego hace `AO = COLOR.a`.
+- **AO** (`blender/lib/hd.py::bake_ao`, llamado por `export.save_and_export(name, ao=…)`): trazado de rayos (BVH,
+  48–96 rayos coseno) contra todas las mallas visuales del asset + plano de suelo a z = 0; los `Col*` nunca ocluyen.
+  Esquinas de caras **planas** (o endurecidas por chaflán) se muestrean 5 cm (≤ 25 %) hacia el centro de su cara;
+  esquinas **suaves** en el vértice (un valor por vértice: sin costuras en nieve/tela). Alcance: 1.2 m edificios y
+  pinos, 0.8 m árbol desnudo y camión, 0.25 m personajes, automático (0.3 × tamaño, 0.1–1.2 m) en el resto; sin suelo
+  en `torch`, `stone_axe`, `lantern`; `shelf`/`clock` con una pared a y = 0. **Aviso al render**: el horneado Cycles
+  por vértice del look‑dev (`prototypes/lookdev/godot/assets/hd/*`) muestreaba justo en las aristas de contacto y
+  dejaba las caras planas casi negras (muros de `cabin_hd`: alfa medio 0.03–0.2); los assets G1 tienen caras abiertas
+  a 0.8–1.0 y solo oscurecen pliegues, aleros, bajos y contacto con el suelo → revisar `ao_strength`/`ao_tint` si se
+  calibraron con los ficheros del look‑dev.
+- **Normales**: `use_smooth` permitido y **normales propias exportadas** (chaflanes con `harden_normals`, nieve/tela/
+  corteza suaves, pisos de pino y rocas facetados). El shader **no** debe forzar normales por derivadas.
+- Nieve apoyada en el suelo puede hundirse hasta **0.25 m** bajo z = 0 (montículos de pino −0.2, rocas −0.03,
+  ventisqueros −0.05) para no flotar en pendiente.
+
+### G1.2 Paleta v2.1 (`blender/lib/palette.py`, sustituye valores de §3)
+
+Cambian: `snow #CDDEF5`, `snow_shadow #AFC3E0`, `pine_dark #1F342E`, `pine_light #2F4A3D`, `bark #4A3D35`,
+`wood #7A5F4B`, `wood_light #A88E70`, `wood_dark #4A3B31`, `stone #7B8089`, `stone_dark #565B63`, `brick #735F5D`,
+`cabin_wall #6C829C`, `cabin_trim #D3CFC6`, `roof #48434A`, `iron #2A2B2E`, `truck_paint #5E6650`.
+Nuevos (doc 05 §4.1): `snow_packed #BFD0E8`, `snow_hole #93AACB`, `snow_deep #D6E4F7`, `roof_seam #2C2A2E`,
+`bark_grey #4E4843`, `pine_mid #27402F`, `parka_brown #4F4135`, `parka_olive #4C5040`, `parka_navy #3A4457`,
+`parka_rust #7A4536`, `pants_dark #35383D`, `beanie #2E3035`, `fur #CEC8BD`, `pack #5D4C3C`, `pack_dark #3D352D`,
+`boots_brown #5B412F`, `sock #D9D4CB`, `skin_hd #C29478`, `glove #2F2B28`, `mat_roll #6D7558`, `strap #2B2826`,
+`beard #4A3A30`. Nuevos de G1: `parka_green #465A43`, `parka_mustard #8A6B34` (variantes co‑op), `lamp_red #8C3A34`,
+`lamp_clear #BFC4C2` (pilotos del camión). El resto de §3 no cambia; `zombify()` sigue igual.
+
+### G1.3 Assets migrados a HD v2.1 y presupuestos (tris antes → después; superficies iguales salvo lo indicado)
+
+| Asset | Tris | Superficies | Qué cambia |
+|---|---|---|---|
+| `cabin` | 1 510 → **22 418** | 10 (8 `palette_vcol` + 2 `window`) | port de `cabin_hd` (tablilla 0.20, molduras crema, ventanas 2×3 con alféizar nevado, tejado con juntas + losas de nieve gruesas con cornisa, hastial de entrada con cercha, chimenea de piedra/ladrillo, ventisqueros contra los muros en `Floor`) |
+| `pine_a` / `pine_b` / `pine_c` | 226 / 178 / 178 → **1 125 / 873 / 747** | 1 | pisos en estrella casi cubiertos de nieve, tronco suave, montículo; alturas 7.6 / 5.8 / 4.2 m |
+| `dead_tree` | 178 → **2 086** | 1 | ramificación 9 × 3 × 2, `bark_grey`, nieve en ramas altas, 4.9 m |
+| `stump` | 80 → **254** | 1 | corteza suave con raíces, corte con anillos, casquete de nieve |
+| `rock_a` / `rock_b` / `rock_c` | 66 / 124 / 66 → **300 / 632 / 111** | 1 | facetadas más densas, casquete de nieve suave (`snow_cap`), ventisquero en `rock_b` |
+| `pickup_truck` | 600 → **5 280** | 4 (`Body` 2 + `Wheels` + `Snow`) | carrocería con chaflán 3.5 cm y pasos de rueda, aletines, neumáticos suaves, nieve almohada en capó/techo/caja |
+| `a_frame_cabin` | 404 → **9 614** | 4 (`Body`, `Front` + `WindowsFront`, `Deck`) | tejado con juntas + nieve gruesa con cornisa ondulada, ventisqueros, cercha vista, puerta con tejadillo, ventana 2×2, porche con barandilla |
+| `chars/survivor_*` (×4) | 954 → **2 650** | 1 → **2** | superviviente HD (proporciones naturales, parka, capucha con piel, mochila) |
+| resto (24 assets) | sin cambio | sin cambio | paleta v2.1 + AO horneada (rehechos HD más adelante) |
+
+Presupuestos v2.1 que comprueba `verify_assets.py` (sin holgura en los HD): cabaña 24 k, A‑frame 14 k, camión 9 k,
+pino 1.2 k (`pine_c` 1 k), árbol desnudo 2.6 k, roca 700 (`rock_c` 400), tocón 500; personaje ≤ 3 500
+(`verify_chars.py`). **Vista típica del claro** (doc 05 §4.5; cabaña, A‑frame, camión, 40 pinos, 10 árboles, rocas,
+props, mobiliario, 2 lobos, 2 ciervos, 4 jugadores = 118 k) + reserva de 110 k (30 zombis, 2 casas del kit,
+terreno) = **228 k ≤ 270 k**. Superficies por malla ≤ 2 (excepciones con nombre: cabaña 10 en total, camión `Body` 2).
+
+### G1.4 Desviaciones respecto al contrato anterior (nombres exactos)
+
+1. **`chars/survivor_{red,blue,green,mustard}.glb`**: además de `Body`, una malla **`Outfit_backpack_m`** (hija de
+   `Armature`, con *skin*, rígida sobre `Chest`, 1 superficie `palette_vcol`) → 2 mallas / 2 superficies por
+   personaje (§4.4 ya lo prevé). `Body` tiene vértices con **2 influencias** (faldón de la parka: `Hips` +
+   `LeftUpperLeg` o `RightUpperLeg`, suma 1; §4.3 "ropa continua larga"). Altura 1.79 m (antes 1.838 con pompón).
+   Colores de variante (mismos nombres de fichero): red = `parka_rust` + gorro `beanie`, blue = `parka_navy` + gorro
+   `sock` (crema), green = `parka_green` + gorro `hivis_orange`, mustard = `parka_mustard` + gorro `beanie`.
+2. **`anims/humanoid_loco.glb` `Loco_Run`**: caída de pelvis 0.085 → **0.111 m** (`drop_margin 0.03`) y talón más
+   lento (`heel_frac 0.30`). Causa del 0.077 de M2: Godot interpola con *slerp* entre las claves de 30 fps y, con la
+   pierna casi extendida, el tobillo bajaba 1.2 cm entre dos claves. Tobillo mínimo **importado en Godot 0.0774 →
+   0.0824 m** (≥ 0.08), velocidad de apoyo 6.000 m/s, deslizamiento 0.00 %. `verify_chars.py` lo mide ahora entre
+   claves (8× por frame) **y** en el clip importado por Godot 4.7.2 (proyecto desechable, 240 muestras por ciclo).
+   Resto de clips sin cambios (andar 0.0887, agachado 0.0895 importados).
+3. **`cabin`**: sin `WindowsRight` ni `ColPostL/R` del look‑dev (contrato exacto: el código ilumina `WindowsFront` y
+   `WindowsLeft`). La hoja de la puerta, abierta hacia dentro, es parte de `WallFront` (solo visual). Dimensiones
+   7.73 × 8.72 × 5.58 m (antes 7.1 × 8.2 × 5.3; ventisqueros en `Floor`, sombrerete de la chimenea); huella y
+   colisión iguales.
+4. **`a_frame_cabin`**: `WindowsFront` sigue siendo **una sola ventana** (WindowSpill coloca la luz en el centro de su
+   AABB). Dimensiones 6.58 × 9.26 × 6.19 (ventisqueros y escalón del porche); colisión igual.
+5. **Mínimo z** de los assets apoyados: [−0.25, +0.02] m (antes ±0.02) por la nieve hundida.
+6. `player.glb` (rígido, se retira en M2) y los 24 assets no migrados solo cambian paleta + AO.

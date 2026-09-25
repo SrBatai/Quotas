@@ -90,7 +90,7 @@ func _apply() -> void:
 	spot.visible = on
 	wash.visible = on
 	spot.light_energy = base_energy * _scale
-	wash.light_energy = base_energy * 0.25 * _scale
+	wash.light_energy = base_energy * 0.15 * _scale
 
 
 ## 4-pane window cookie: bright panes, dark mullions, soft edge (shared by every spill).

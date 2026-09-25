@@ -10,7 +10,6 @@ of the rock (lib/hd.snow_cap, rim drooping into the stone so no seam shows) + a 
 of the big boulder. `stone` (the pickup) keeps its slice shape with the v2.1 palette. AO baked in COLOR_0.a.
 """
 import os
-import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

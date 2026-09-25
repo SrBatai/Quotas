@@ -3,8 +3,8 @@ extends Node3D
 ## Flames + smoke (GPUParticles3D, PLAN C4) + flickering OmniLight. Works in Forward+ and Compatibility.
 
 @export var scale_factor: float = 1.0
-@export var light_range: float = 9.0
-@export var light_energy: float = 1.8  # G1: Filmic at exposure 0.6 burns anything brighter (doc 06 §2 d)
+@export var light_range: float = 8.0
+@export var light_energy: float = 1.0  # G1: Filmic at exposure 0.6 burns anything brighter (doc 06 §2 d)
 @export var shadow_priority: int = -1
 
 var flames: GPUParticles3D
@@ -128,7 +128,8 @@ func _ready() -> void:
 	light.omni_range = light_range
 	light.omni_attenuation = 1.3
 	light.shadow_priority = shadow_priority
-	light.position = Vector3(0, 0.5 * scale_factor, 0)
+	# 1 m up: Godot's omni falloff is ~d^-1.3, a light 0.5 m over the snow floods the ground right under it
+	light.position = Vector3(0, 1.0 * scale_factor, 0)
 	add_child(light)
 	set_active(_active)
 

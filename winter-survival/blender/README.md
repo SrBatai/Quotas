@@ -14,23 +14,25 @@ python3 build_cabin.py        # any single family can be rebuilt on its own
 ```
 
 Each script starts from an empty scene, builds one asset at a time, saves `sources/<asset>.blend`
-and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, vertex colours).
+and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, vertex colours RGBA = palette + baked AO,
+custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_graficos_arte.md` §4 and the "G1" section of
+`../docs/v2/ASSET_SPEC_V2.md`.
 
 | Script | Assets | Authored front |
 |---|---|---|
 | `build_player.py` | player | slice +Y → turned to −Y |
 | `build_animals.py` | wolf, deer | slice +Y → turned to −Y |
-| `build_trees.py` | pine_a, pine_b, pine_c, dead_tree, stump | no front (unchanged) |
-| `build_rocks.py` | rock_a, rock_b, rock_c, stone | no front (unchanged) |
+| `build_trees.py` | pine_a, pine_b, pine_c, dead_tree, stump (HD v2.1) | no front (unchanged) |
+| `build_rocks.py` | rock_a, rock_b, rock_c (HD v2.1), stone | no front (unchanged) |
 | `build_plants.py` | berry_bush | no front (unchanged) |
 | `build_pickups.py` | firewood, fallen_log | no front (unchanged) |
 | `build_fire.py` | campfire, torch, lantern | no front (unchanged) |
 | `build_tools.py` | stone_axe | weapon convention (blade −Y) |
-| `build_cabin.py` | cabin | slice +Y → turned to −Y |
+| `build_cabin.py` | cabin (HD v2.1) | slice +Y → turned to −Y |
 | `build_furniture.py` | bed, desk, chair, shelf, clock, cabinet, wood_stove | slice +Y → turned to −Y |
-| `build_props.py` | a_frame_cabin, pickup_truck (turned), signpost (authored −Y), fence (unchanged) | |
+| `build_props.py` | a_frame_cabin, pickup_truck (HD v2.1, turned), signpost (authored −Y), fence (unchanged) | |
 | `build_optional.py` | tent, storage_box | slice +Y → turned to −Y |
-| `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1) | −Y |
+| `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1; HD v2.1: Body + Outfit_backpack_m) | −Y |
 | `anims/build_loco.py` | anims/humanoid_loco (Loco_Idle/Idle_Cold/Walk/Run, Crouch_Idle/Walk) | −Y |
 
 ## Conventions (v2, milestone M0)
@@ -39,10 +41,15 @@ and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, ver
   `lp.new_scene(authored_front="+Y")`: `lowpoly` turns every mesh, pivot, empty and collision object 180°
   about Z when it is created, so shapes and handedness are unchanged. Unrotated empties stay unrotated
   (their local −Y is the model front); the player's `ToolSocket` is exported at (−90°, 0, 180°).
-- **Colour = vertex colour.** One corner attribute `Col` (exported as `COLOR_0`, linear) + one material
-  `palette_vcol` per mesh; faces painted `window`, `glass`, `ember`, `ice_clear`, `emissive_lamp` (or
-  `mat:blood`) get their own material and white vertex colour. `Col` stores linear + 0.5/255 so that
-  Godot's RGBA8 truncation lands on the nearest 8-bit value (`lib/palette.py`, `GODOT_BIAS`).
+- **Colour = vertex colour.** One corner attribute `Col` (exported by name as `COLOR_0`, linear, **RGBA**) + one
+  material `palette_vcol` per mesh; faces painted `window`, `glass`, `ember`, `ice_clear`, `emissive_lamp` (or
+  `mat:blood`) get their own material and white vertex colour. RGB = the palette colour stored as the centre of the
+  8-bit linear bin Godot keeps (≈ linear + 0.5/255, `lib/palette.py::vcol_rgba`), so Godot's RGBA8 truncation lands
+  on the nearest 8-bit value even after the 16-bit `COLOR_0` quantisation of the exporter.
+- **v2.1 (G1): A = baked ambient occlusion** (1 = open, 0 = occluded). `export.save_and_export(name, ao=...)` bakes
+  it for every visual mesh that has none (`lib/hd.py::bake_scene_ao`: ray cast against every visual mesh + a ground
+  plane; Col* never occlude; flat-face corners sampled slightly inside their face, smooth corners at the vertex).
+  The game shader reads `AO = COLOR.a` (docs/research/06 §3.7). Smooth shading and custom normals are allowed.
 - Godot note: its importer treats the `_vcol` material-name suffix as a hint, so `palette_vcol` arrives as
   a material named **`palette`** with `vertex_color_use_as_albedo = vertex_color_is_srgb = true`.
 - Export options: `lib/export.py::export_kwargs` (ASSET_SPEC_V2 §2.8, with `export_image_format='AUTO'`:
@@ -54,6 +61,10 @@ and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, ver
 - `lib/palette.py` — palette (v2 §3), `palette_vcol` + exception materials, `assign`/`paint`, `zombify`.
 - `lib/lowpoly.py` — `MeshBuilder` (boxes, lofts, cylinders, jittered icospheres, snow-by-normal), pivots,
   parenting, collision boxes, `FRONT`.
+- `lib/hd.py` — v2.1 HD helpers (G1): `bevel` (chamfer + hardened normals), `smooth` / `flat`, `subsurf`,
+  `freeze_normals` + `join` (flat + smooth + chamfered parts in ONE object / surface), `snap_colors` (one exact
+  palette colour per face after a bevel / subdivision), snow recipes `pillow`, `snow_strip`, `mound`, `snow_cap`,
+  `tube`, `beam`, and the AO bake (`bake_ao`, `bake_scene_ao`).
 - `lib/export.py` — scene checks, save + export, re-import, `.import` templates.
 - `lib/rig.py` — humanoid armature (SkeletonProfileHumanoid names, 22 bones + 5 sockets, T-pose facing −Y),
   rigid per-part skinning. `python3 -m lib.rig --selftest`
@@ -65,7 +76,8 @@ and exports `../assets/models/<asset>.glb` (glTF binary, +Y up, flat-shaded, ver
 ## Characters and animations (M1)
 
 - `verify_chars.py` (run by `build_all.py`) checks the exported files: 27 bones/sockets, rest pose, rigid
-  skin, one `palette_vcol` surface with `COLOR_0`, `.import` templates, BoneMap, and for every `Loco_*` /
+  skin (G1: + the parka-skirt blend pairs), `Body` + `Outfit_*` meshes with one `palette_vcol` surface each
+  and RGBA `COLOR_0`, `.import` templates, BoneMap, and for every `Loco_*` /
   `Crouch_*` cycle the loop, duration, channels, ankle height and the stance speed of the ground-contact
   points (walk 2.2, run 6.0, crouch-walk 1.3 m/s; sliding < 5 %).
 - Godot import: each `.glb` in `chars/` / `anims/` has its `.import` (`export.write_import(glb, "char"|"anim")`,
@@ -80,8 +92,13 @@ python3 verify_assets.py
 ```
 
 Re-imports every `.glb` and checks ASSET_SPEC_V2 §16 on top of the slice checks: required node names,
-hierarchy, pivots (±3 cm), front −Y, bounding sizes (±10 %), transforms, flat shading, materials limited
+hierarchy, pivots (±3 cm), front −Y, bounding sizes (±10 %), transforms, materials limited
 to `palette_vcol` + exceptions, ≤ 2 surfaces per mesh (cabin ≤ 12 in total), `COLOR_0` on every
 `palette_vcol` primitive with values that Godot stores as exact palette colours, no UVs/images/`.001`,
-closed parts wound outward, triangle budgets and the `Col*-convcolonly` collision boxes. It prints one
-`OK`/`FAIL` line per asset and ends with `ALL OK`.
+closed parts wound outward, triangle budgets and the `Col*-convcolonly` collision boxes. v2.1 (G1): `COLOR_0` is
+VEC4 with the AO in alpha (range [0, 1], every primitive has an open corner ≥ 0.5, per asset min ≤ 0.9 and
+95th percentile ≥ 0.85), `NORMAL` on every primitive (smooth / custom normals allowed), snow may sink 0.25 m below
+z = 0, v2.1 budgets (HD assets without slack) and the doc 05 "typical clearing view" (≤ 270 k tris with the
+zombie / kit-house / terrain reserve). It prints one `OK`/`FAIL` line per asset (with `ao=min/median/p95`) and ends
+with `ALL OK`. `verify_chars.py` also measures every Loco/Crouch cycle between keys (8× per frame, slerp) and on the
+clips imported by Godot 4.7 in a throwaway project (`godot` on PATH; `$VENTISCA_GODOT_SCRATCH` to keep it).

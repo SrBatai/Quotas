@@ -95,6 +95,16 @@ func force_blizzard(seconds: float) -> void:
 		_start(seconds)
 
 
+## Server / test hook: clear the sky now (drops any blizzard or warning without the "amaina" notice).
+func cancel() -> void:
+	if not Net.is_server:
+		return
+	_warning_left = -1.0
+	_active = false
+	_time_left = 0.0
+	WorldState.instance.set_weather(&"clear", _wind_yaw)
+
+
 func is_active() -> bool:
 	return _active
 
