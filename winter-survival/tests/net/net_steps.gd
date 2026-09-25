@@ -415,7 +415,8 @@ func _build_shared_world_timeline() -> void:
 						if cx < 23 or cx > 25 or cz < 23 or cz > 25:
 							in_clearing = false
 					_sw["deltas"] = NetWorld.instance.snapshots_received >= 1 and in_clearing
-					_sw["felled"] = felled_wid != 0 and bool(d.get("felled", false)) and WorldRegistry.get_object(felled_wid) == null and stump_pos.distance_to(_target_tree_pos) < 0.5
+					# (C's own "nearest pine" differs from A's: the felled one is already gone from C's world)
+					_sw["felled"] = felled_wid != 0 and bool(d.get("felled", false)) and WorldRegistry.get_object(felled_wid) == null and stump_pos.distance_to(world.get_spawn_point()) < 20.0
 					_sw["campfire"] = _campfire_seen()
 					var st: Storage = _cabinet(world).get_node("Storage")
 					_sw["cabinet_free"] = st.open_by == 0
