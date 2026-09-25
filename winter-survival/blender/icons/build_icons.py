@@ -51,16 +51,16 @@ FILL = 0.84                 # model extent / frame (square)
 CAM_PITCH = 38.0            # degrees below the horizon
 CAM_YAW = 30.0              # degrees, from the model front (-Y) toward +X
 SAMPLES = 192
-VIEW = "AgX"
-LOOK = "AgX - Medium High Contrast"
-EXPOSURE = 0.35
+VIEW = "Standard"            # keeps the v2.1 palette hues (AgX / Filmic wash the reds to pink at this exposure)
+LOOK = "None"
+EXPOSURE = 0.0
 # (azimuth relative to the camera, elevation, strength, angle, colour)
 LIGHTS = {
-    "Key": (-50.0, 52.0, 3.6, 18.0, (1.0, 0.94, 0.86)),
-    "Fill": (80.0, 18.0, 1.1, 50.0, (0.70, 0.80, 1.0)),
-    "Rim": (165.0, 30.0, 3.0, 8.0, (0.78, 0.88, 1.0)),
+    "Key": (-50.0, 52.0, 2.4, 18.0, (1.0, 0.94, 0.86)),
+    "Fill": (80.0, 18.0, 0.7, 50.0, (0.70, 0.80, 1.0)),
+    "Rim": (165.0, 30.0, 2.2, 8.0, (0.78, 0.88, 1.0)),
 }
-WORLD = ((0.42, 0.50, 0.66), 0.55)
+WORLD = ((0.42, 0.50, 0.66), 0.36)
 SHADOW = 0.55              # peak opacity of the contact-shadow blob (0 = none)
 SHADOW_SPREAD = 1.25
 PREVIEW_SAMPLES = 40
@@ -185,8 +185,10 @@ def glow(loc, energy, radius=0.05, color=(1.0, 0.55, 0.22)):
     return ob
 
 
-def load_model(asset):
-    """Append every visual object of sources/<asset>.blend (the game model) into the current scene."""
+def load_model(asset, soften=0.0, recolor=None):
+    """Append every visual object of sources/<asset>.blend (the game model) into the current scene.
+    soften > 0: chamfer its hard edges (width in m, hardened normals: thin highlights, doc 05 §4.2);
+    recolor: {palette name: palette name} applied per face (e.g. no snow on an inventory item)."""
     path = os.path.join(SOURCES, asset + ".blend")
     if not os.path.exists(path):
         raise FileNotFoundError("%s (run the build script of %s first)" % (path, asset))
@@ -202,7 +204,48 @@ def load_model(asset):
         bpy.context.scene.collection.objects.link(o)
         objs[o.name] = o
     bpy.context.view_layer.update()
+    for o in objs.values():
+        if o.type != 'MESH':
+            continue
+        if recolor:
+            recolor_faces(o, recolor)
+        if soften:
+            hd.bevel(o, width=soften)
+            hd.snap_colors(o)
     return objs
+
+
+def recolor_faces(obj, mapping):
+    """Repaint the faces whose `Col` RGB is palette colour A with palette colour B (alpha / AO kept)."""
+    me = obj.data
+    col = me.color_attributes.get(palette.VCOL_ATTR)
+    if col is None:
+        return
+    data = [0.0] * (len(me.loops) * 4)
+    col.data.foreach_get("color", data)
+    src = {k: palette.vcol_rgba(k) for k in mapping}
+    for poly in me.polygons:
+        li = poly.loop_indices[0]
+        rgb = data[li * 4:li * 4 + 3]
+        for k, t in src.items():
+            if all(abs(rgb[i] - t[i]) < 1e-4 for i in range(3)):
+                c = palette.vcol_rgba(mapping[k])
+                for l in poly.loop_indices:
+                    data[l * 4:l * 4 + 3] = c[:3]
+                break
+    col.data.foreach_set("color", data)
+    me.update()
+
+
+def paint_where(obj, fn):
+    """Repaint polygons of `obj`: fn(centre, normal) -> palette name or None (object space)."""
+    groups = {}
+    for poly in obj.data.polygons:
+        k = fn(poly.center.copy(), poly.normal.copy())
+        if k:
+            groups.setdefault(k, []).append(poly.index)
+    for k, faces in sorted(groups.items()):
+        palette.paint(obj, faces, k)
 
 
 def anchor(objs, name):
@@ -241,29 +284,27 @@ def log_piece(mb, p0, p1, r, rnd, sides=9, split=False):
 
 
 def icon_wood():
+    """Bundle of split logs: two below, one on top, one half log; pale end grain toward the camera."""
     rnd = random.Random(4)
     mb = lp.MeshBuilder()
     L, r = 0.46, 0.065
-    logs = [((-0.070, 0.0, r), 0.0), ((0.070, 0.02, r), 0.0), ((0.0, 0.01, r * 2.62), 0.0)]
-    for i, ((x, y, z), _a) in enumerate(logs):
-        off = (i - 1) * 0.03
+    logs = [((-0.070, 0.0, r), 0.00), ((0.070, 0.03, r), 0.03), ((0.0, 0.0, r * 2.62), -0.04)]
+    for i, ((x, y, z), off) in enumerate(logs):
         log_piece(mb, (x, -L / 2 + y + off, z), (x, L / 2 + y + off, z), r * (0.95 + 0.1 * rnd.random()), rnd)
-    finish(mb, "Wood", "soft", width=0.008, segments=2, sharp=48.0)
-    return dict(rot=(0, 0, -62))
+    o = finish(mb, "Wood", "soft", width=0.008, segments=2, sharp=48.0)
+    return dict(rot=(0, 0, -100))
 
 
 def icon_stone():
+    """Small pile of three river stones: faceted (the v2.1 rocks stay faceted) with a soft chamfer."""
     rnd = random.Random(11)
-    objs = []
-    spec = [((-0.07, 0.02, 0.045), (0.080, 0.065, 0.050), "stone"),
-            ((0.075, -0.015, 0.042), (0.072, 0.062, 0.046), "stone_dark"),
-            ((0.005, 0.005, 0.105), (0.066, 0.056, 0.046), "stone")]
+    spec = [((-0.07, 0.02, 0.045), (0.082, 0.066, 0.050), "stone"),
+            ((0.075, -0.015, 0.042), (0.074, 0.062, 0.046), "stone_dark"),
+            ((0.004, 0.006, 0.100), (0.068, 0.058, 0.046), "concrete")]
     for i, (c, radii, col) in enumerate(spec):
         mb = lp.MeshBuilder()
-        mb.blob(c, radii, col, subdiv=1, jitter=0.16, rnd=rnd)
-        o = finish(mb, "Stone%d" % i, "sub", levels=1)
-        hd.smooth(o, 38.0)
-        objs.append(o)
+        mb.blob(c, radii, col, subdiv=1, jitter=0.13, rnd=rnd)
+        finish(mb, "Stone%d" % i, "soft", width=0.006, segments=1, sharp=32.0)
     return dict(rot=(0, 0, 10))
 
 
@@ -358,13 +399,13 @@ def cup_shell(mb, r_out, h, t, sides, mat):
 
 
 def icon_berries_hot():
+    """Hot berries: tin cup with a handle, dark red compote, berries on top."""
     rnd = random.Random(33)
     R, H, T = 0.075, 0.085, 0.006
     mb = lp.MeshBuilder()
     cup_shell(mb, R, H, T, 24, "metal_sheet")
     cup = finish(mb, "Cup", "smooth", sharp=60)
     variant(cup, "metal", rough=0.32, metal=0.75)
-    # handle: loop on the +X side
     hb = lp.MeshBuilder()
     pts = []
     for i in range(9):
@@ -373,58 +414,51 @@ def icon_berries_hot():
     hd.tube(hb, pts, [0.0065] * len(pts), 8, "metal_sheet", cap_end=True, cap_start=True)
     h = finish(hb, "Handle", "smooth", sharp=70)
     variant(h, "metal", rough=0.32, metal=0.75)
-    # hot berry compote + berries on top
     lq = lp.MeshBuilder()
     lq.poly(lp.ring((0, 0, H * 0.80), (0, 0, 1), R * 1.04 - T - 0.001, 24), "blood_dry", facing=(0, 0, 1))
     liq = finish(lq, "Compote", "smooth")
     variant(liq, "wet", rough=0.18, coat=0.5)
-    berry_cluster(rnd, (0.0, 0.0, H * 0.82), 6, 0.024, 0.042, "Berry")
-    # steam wisps
-    for k, (x, y, ph) in enumerate(((-0.02, 0.01, 0.0), (0.025, -0.012, 1.7))):
-        sb = lp.MeshBuilder()
-        pts = [Vector((x + 0.018 * math.sin(ph + t * 5.0), y, H + 0.03 + t * 0.12)) for t in
-               [i / 7 for i in range(8)]]
-        hd.tube(sb, pts, [0.009 * (1 - 0.6 * i / 7) for i in range(8)], 6, "cloth_white", cap_end=True,
-                cap_start=True)
-        s = finish(sb, "Steam%d" % k, "smooth", sharp=80)
-        variant(s, "steam", rough=1.0, alpha=0.55)
+    berry_cluster(rnd, (0.0, 0.0, H * 0.84), 7, 0.025, 0.045, "Berry")
     return dict(rot=(0, 0, 0))
 
 
 def icon_meat_raw():
+    """Raw ribeye: thick rounded red slab, cream fat cap along one side, a small eye of fat."""
     rnd = random.Random(44)
-    n = 20
-    # kidney-shaped steak outline, fat along the +Y / -X side
+    n = 28
     rad = []
     for i in range(n):
         a = 2 * math.pi * i / n
-        r = 1.0 + 0.16 * math.cos(2 * a) - 0.10 * math.cos(3 * a + 0.6) + rnd.uniform(-0.03, 0.03)
-        rad.append(r)
-    def ring_at(z, k):
-        return [Vector((math.cos(2 * math.pi * i / n) * 0.16 * rad[i] * k,
-                        math.sin(2 * math.pi * i / n) * 0.11 * rad[i] * k, z)) for i in range(n)]
-    rows = [ring_at(0.0, 0.90), ring_at(0.018, 1.0), ring_at(0.045, 0.99), ring_at(0.058, 0.90),
-            ring_at(0.062, 0.62)]
-    mb = lp.MeshBuilder()
-    faces = mb.loft(rows, "gore", cap_start=True, cap_end=True, inside=Vector((0, 0, 0.03)))
+        rad.append(1.0 + 0.10 * math.cos(2 * a) - 0.12 * math.cos(3 * a + 0.6) + 0.05 * math.sin(a) +
+                   rnd.uniform(-0.02, 0.02))
+    ax, ay = 0.15, 0.105
 
-    def fat(i):
+    def pt(i, k, z):
+        a = 2 * math.pi * i / n
+        return Vector((math.cos(a) * ax * rad[i] * k, math.sin(a) * ay * rad[i] * k, z))
+
+    def is_fat(i):
         a = math.degrees(2 * math.pi * i / n) % 360
-        return 55 <= a <= 170
+        return 35 <= a <= 170
+
+    T = 0.07
+    prof = [(0.88, 0.0), (0.99, 0.012), (1.0, 0.035), (0.98, 0.058), (0.90, T), (0.62, T + 0.006)]
+    rows = [[pt(i, k, z) for i in range(n)] for k, z in prof]
+    mb = lp.MeshBuilder()
+    faces = mb.loft(rows, "gore", cap_start=True, cap_end=True, inside=Vector((0, 0, T / 2)))
     for fi in faces:
         c = mb.center(fi)
-        a = math.degrees(math.atan2(c.y / 0.11, c.x / 0.16)) % 360
-        if 60 <= a <= 165 and c.z > 0.004 and (c.x / 0.16) ** 2 + (c.y / 0.11) ** 2 > 0.62:
+        a = math.degrees(math.atan2(c.y / ay, c.x / ax)) % 360
+        e = math.hypot(c.x / ax, c.y / ay)
+        if 38 <= a <= 167 and e > 0.72 and c.z > 0.005:
             mb.faces[fi][1] = "paper"
-    # marbling streaks: two thin pale bands on the top face
-    for (x0, y0, x1, y1) in ((-0.07, -0.02, 0.02, 0.02), (0.01, -0.05, 0.08, -0.01)):
-        p0, p1 = Vector((x0, y0, 0.0625)), Vector((x1, y1, 0.0625))
-        d = (p1 - p0).normalized()
-        s = Vector((-d.y, d.x, 0)) * 0.006
-        mb.poly([p0 - s, p1 - s, p1 + s, p0 + s], "skin", facing=(0, 0, 1))
-    o = finish(mb, "Steak", "soft", width=0.012, segments=2, sharp=60)
-    variant(o, "meat", rough=0.38, coat=0.25)
-    return dict(rot=(0, 0, 20))
+        elif c.z < 0.004:
+            mb.faces[fi][1] = "blood"
+    # eye of fat on the top face
+    mb.poly(lp.ring((-0.02, 0.012, T + 0.0075), (0, 0, 1), (0.03, 0.018), 8, 20), "skin", facing=(0, 0, 1))
+    o = finish(mb, "Steak", "soft", width=0.014, segments=2, sharp=60)
+    variant(o, "meat", rough=0.4, coat=0.15)
+    return dict(rot=(0, 0, 25))
 
 
 def icon_meat_cooked():
@@ -437,13 +471,11 @@ def icon_meat_cooked():
     for x, r in prof:
         radii = [1.0 + rnd.uniform(-0.06, 0.06) for _ in range(10)]
         rows.append(lp.ring((x, 0, 0), axis, (r, r * 0.9), 10, 0.0, radii))
-    faces = mb.loft(rows, "rust", cap_start=True, cap_end=True)
-    for fi in faces:
-        c = mb.center(fi)
-        if noise.noise(c * 28.0 + Vector((3.1, 0.7, 1.9))) > 0.28:
-            mb.faces[fi][1] = "gun_wood"
+    mb.loft(rows, "rust", cap_start=True, cap_end=True)
     meat = finish(mb, "Drumstick", "sub", levels=2)
-    variant(meat, "roast", rough=0.42, coat=0.35)
+    # small charred spots on the subdivided surface (roasted over the fire)
+    paint_where(meat, lambda c, n: "gun_wood" if noise.noise(c * 55.0 + Vector((3.1, 0.7, 1.9))) > 0.30 else None)
+    variant(meat, "roast", rough=0.5, coat=0.12)
     bone = lp.MeshBuilder()
     bone.cylinder((0.10, 0, 0), (0.175, 0, 0), 0.018, 0.016, 8, "paper")
     for dy in (-0.017, 0.017):
@@ -466,29 +498,26 @@ def can(label, spot):
             (R * 1.01, 0.118, metal), (R * 0.97, 0.121, metal), (R * 0.93, 0.117, metal)]
     rings = [lp.ring((0, 0, z), (0, 0, 1), r, sides, 90.0 + 180.0 / sides) for r, z, _m in rows]
     for s in range(len(rows) - 1):
-        m = rows[s][2] if rows[s][2] == rows[s + 1][2] else metal
-        if rows[s][2] == label and rows[s + 1][2] == label:
-            m = label
+        m = label if rows[s][2] == label and rows[s + 1][2] == label else metal
         fs = mb.loft([rings[s], rings[s + 1]], m, cap_start=False, cap_end=False,
                      inside=Vector((0, 0, (rows[s][1] + rows[s + 1][1]) / 2)))
         if m == label:
             for fi in fs:
                 c = mb.center(fi)
                 az = math.degrees(math.atan2(c.x, -c.y))
-                if s in (4, 5, 6, 7) and abs(az) < 42:
+                if s in (5, 6, 7) and abs(az) < 40:
                     mb.faces[fi][1] = "paper"
-                if s in (4, 5, 6, 7) and abs(az) < 16 and s in (5, 6):
+                if s == 6 and abs(az) < 20:
                     mb.faces[fi][1] = spot
-                if s in (3, 8):
+                if s in (4, 8):
                     mb.faces[fi][1] = "brass"
-    # lid: concentric rings stepping down to a recessed centre
     lid = [(R * 0.80, 0.114), (R * 0.72, 0.1165), (R * 0.55, 0.114)]
     lrings = [lp.ring((0, 0, z), (0, 0, 1), r, sides, 90.0 + 180.0 / sides) for r, z in lid]
     mb.loft([rings[-1]] + lrings, metal, cap_start=False, cap_end=True, seg_facing=[(0, 0, 1)] * len(lrings))
     mb.poly(rings[0], metal, facing=(0, 0, -1))
     o = finish(mb, "Can", "smooth", sharp=35)
     variant(o, "tin", rough=0.30, metal=0.55)
-    return dict(rot=(0, 0, -CAM_YAW))
+    return dict(rot=(0, 0, CAM_YAW - 12))
 
 
 def icon_can_beans():
@@ -499,115 +528,152 @@ def icon_can_soup():
     return can("can_blue", "paint_yellow")
 
 
-def icon_pelt():
-    objs = []
-    # bottom layer (full hide, fur up) + the folded-over half on top, fur side up, a pale belly band on the fold
-    b = hd.pillow((-0.26, -0.17, 0.0), (1, 0, 0), (0, 1, 0), (0, 0, 1), 0.52, 0.34, 0.035, name="PeltBottom",
-                  mat="wolf_fur", nu=7, nv=5, rim=0.05, jitter=0.012, seed=3, bumps=0.01, levels=2,
-                  drop_bottom=False)
-    objs.append(b)
-    band = hd.pillow((-0.25, -0.20, 0.028), (1, 0, 0), (0, 1, 0), (0, 0, 1), 0.50, 0.07, 0.03, name="PeltFold",
-                     mat="wolf_belly", nu=7, nv=3, rim=0.02, jitter=0.006, seed=5, levels=2, drop_bottom=False)
-    objs.append(band)
-    t = hd.pillow((-0.25, -0.17, 0.045), (1, 0, 0), (0, 1, 0), (0, 0, 1), 0.50, 0.24, 0.035, name="PeltTop",
-                  mat="wolf_fur", nu=7, nv=4, rim=0.05, jitter=0.012, seed=9, bumps=0.012, levels=2,
-                  drop_bottom=False)
-    objs.append(t)
-    # bushy tail curling off the right side, pale tip
-    tb = lp.MeshBuilder()
-    pts = [Vector((0.22, 0.02, 0.06)), Vector((0.30, -0.02, 0.06)), Vector((0.36, -0.08, 0.05)),
-           Vector((0.38, -0.15, 0.04)), Vector((0.35, -0.21, 0.035))]
-    radii = [0.030, 0.042, 0.045, 0.036, 0.012]
-    faces = hd.tube(tb, pts, radii, 8, "wolf_fur", cap_start=True)
+def fur_slab(name, cx, cy, hw, hh, z0, t, seed, main="wolf_fur", back="pack", edge="wolf_belly", n=44):
+    """Shaggy hide slab: rounded-rectangle outline with a zigzag fur fringe, domed top, darker dorsal stripe
+    along X and a paler fringe; smooth shaded (soft)."""
+    rnd = random.Random(seed)
+    base = []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        c, s_ = math.cos(a), math.sin(a)
+        sq = (abs(c) ** 5 + abs(s_) ** 5) ** (-1 / 5)                  # superellipse (rounded rectangle)
+        spike = (0.06 if i % 2 == 0 else -0.02) * rnd.uniform(0.6, 1.3)
+        base.append((c * sq * (1 + spike * 0.9 * min(1, 0.05 / hw * 4)), s_ * sq * (1 + spike)))
+    prof = [(0.97, 0.0), (1.0, 0.35), (0.93, 0.8), (0.72, 1.0), (0.4, 1.08)]
+    rows = []
+    for k, zf in prof:
+        rows.append([Vector((cx + x * hw * k, cy + y * hh * k, z0 + t * zf +
+                             (0.004 * noise.noise(Vector((x * 3 + seed, y * 3, 0.5))) if zf > 0 else 0)))
+                     for x, y in base])
+    rows.append([Vector((cx, cy, z0 + t * 1.12))])
+    mb = lp.MeshBuilder()
+    faces = mb.loft(rows, main, cap_start=True, cap_end=True, inside=Vector((cx, cy, z0 + t * 0.5)))
     for fi in faces:
-        if tb.center(fi).y < -0.165:
+        c = mb.center(fi)
+        if abs(c.y - cy) < hh * (0.42 + 0.08 * noise.noise(c * 30.0)) and c.z > z0 + t * 0.9:
+            mb.faces[fi][1] = back
+        elif c.z < z0 + t * 0.3:
+            mb.faces[fi][1] = edge
+    o = finish(mb, name, "smooth", sharp=75)
+    variant(o, "fur", rough=1.0)
+    return o
+
+
+def flat_limb(mb, pts, widths, thick, mat, fringe=True):
+    """Flattened tapered tube lying on the ground (a hide's leg / neck / tail flap)."""
+    radii = [(thick, w) for w in widths]
+    return hd.tube(mb, pts, radii, 8, mat, cap_start=True)
+
+
+def icon_pelt():
+    """Wolf pelt laid out (loosely draped): shaggy body hide with four leg flaps, neck and bushy tail; grey fur,
+    grey-brown dorsal stripe, pale fringe."""
+    body = fur_slab("PeltBody", 0.0, 0.0, 0.25, 0.15, 0.0, 0.035, 3, n=52)
+    mb = lp.MeshBuilder()
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            p0 = Vector((sx * 0.14, sy * 0.10, 0.018))
+            p1 = Vector((sx * 0.25, sy * 0.21, 0.012))
+            p2 = Vector((sx * 0.31, sy * 0.27, 0.008))
+            flat_limb(mb, [p0, p1, p2], [0.075, 0.055, 0.036], 0.016, "wolf_fur")
+    # neck flap at +X, ears
+    flat_limb(mb, [Vector((0.2, 0, 0.02)), Vector((0.30, 0, 0.018)), Vector((0.36, 0, 0.014))], [0.08, 0.07, 0.05],
+              0.016, "wolf_fur")
+    for sy in (-1, 1):
+        mb.cylinder((0.355, sy * 0.035, 0.014), (0.39, sy * 0.05, 0.02), 0.022, 0.0, 5, "bark_grey")
+    limbs = finish(mb, "PeltLimbs", "sub", levels=1)
+    variant(limbs, "fur", rough=1.0)
+    tb = lp.MeshBuilder()
+    pts = [Vector((-0.22, 0.0, 0.03)), Vector((-0.31, 0.02, 0.03)), Vector((-0.39, 0.06, 0.026)),
+           Vector((-0.45, 0.12, 0.022)), Vector((-0.47, 0.17, 0.02))]
+    faces = hd.tube(tb, pts, [(0.024, 0.03), (0.03, 0.045), (0.03, 0.05), (0.026, 0.04), (0.01, 0.012)], 8,
+                    "wolf_fur", cap_start=True)
+    for fi in faces:
+        c = tb.center(fi)
+        if c.y > 0.125:
             tb.faces[fi][1] = "cloth_dark"
-    finish(tb, "Tail", "sub", levels=1)
-    # two ear-less paw flaps sticking out at the left
-    pb = lp.MeshBuilder()
-    for y in (-0.12, 0.11):
-        hd.tube(pb, [(-0.25, y, 0.02), (-0.31, y * 1.15, 0.015), (-0.35, y * 1.25, 0.012)], [0.03, 0.026, 0.012], 6,
-                "wolf_fur", cap_start=True)
-    finish(pb, "Paws", "sub", levels=1)
-    for o in bpy.context.scene.objects:
-        if o.type == 'MESH':
-            variant(o, "fur", rough=1.0)
-    return dict(rot=(0, 0, -8))
+        elif c.z > 0.045:
+            tb.faces[fi][1] = "pack"
+    t = finish(tb, "Tail", "sub", levels=1)
+    variant(t, "fur", rough=1.0)
+    return dict(rot=(0, 0, 80))
 
 
 def icon_coat():
+    """Fur-trimmed winter parka (v2.1 parka_rust + fur), front view: hood with a fur ruff round a dark opening,
+    sleeves, zip + toggles, pockets, fur cuffs and hem."""
     rnd = random.Random(66)
     body_col, trim = "parka_rust", "fur"
+    oct_ = ((-1, -1), (0, -1.12), (1, -1), (1.08, 0), (1, 1), (0, 1.05), (-1, 1), (-1.08, 0))
+    parts = []
     mb = lp.MeshBuilder()
-    # torso: tapered, slightly flared hem (y = depth)
     rows = []
-    for z, hw, hd_ in ((0.0, 0.25, 0.10), (0.05, 0.245, 0.105), (0.35, 0.215, 0.10), (0.62, 0.23, 0.10),
-                       (0.70, 0.19, 0.09), (0.74, 0.10, 0.07)):
-        rows.append([Vector((x * hw, y * hd_, z)) for x, y in
-                     ((-1, -1), (0, -1.12), (1, -1), (1.08, 0), (1, 1), (0, 1.05), (-1, 1), (-1.08, 0))])
+    for z, hw, hdp in ((-0.02, 0.255, 0.105), (0.05, 0.25, 0.10), (0.35, 0.215, 0.10), (0.60, 0.235, 0.105), (0.69, 0.20, 0.095),
+                       (0.74, 0.12, 0.075)):
+        rows.append([Vector((x * hw, y * hdp, z)) for x, y in oct_])
     mb.loft(rows, body_col, cap_start=True, cap_end=True)
     torso = finish(mb, "Torso", "sub", levels=2)
-    parts = [torso]
-    # sleeves hanging from the shoulders, fur cuffs
+    paint_where(torso, lambda c, n: trim if c.z < 0.075 else None)       # fur hem band
+    parts.append(torso)
     sl = lp.MeshBuilder()
     for sx in (-1, 1):
-        pts = [Vector((sx * 0.19, 0.0, 0.66)), Vector((sx * 0.29, -0.01, 0.58)), Vector((sx * 0.33, -0.02, 0.36)),
-               Vector((sx * 0.34, -0.03, 0.16))]
+        pts = [Vector((sx * 0.17, 0.0, 0.66)), Vector((sx * 0.28, -0.005, 0.60)), Vector((sx * 0.34, -0.01, 0.40)),
+               Vector((sx * 0.37, -0.015, 0.20))]
         hd.tube(sl, pts, [0.075, 0.08, 0.072, 0.066], 8, body_col, cap_start=True)
-        hd.tube(sl, [pts[-1] + Vector((0, 0, 0.01)), pts[-1] + Vector((0.0, -0.002, -0.05))], [0.074, 0.07], 8,
-                trim, cap_start=True)
     parts.append(finish(sl, "Sleeves", "sub", levels=1))
-    # hood lump behind the neck + fur ruff around the opening
-    hb = lp.MeshBuilder()
-    hb.blob((0, 0.06, 0.78), (0.14, 0.10, 0.10), body_col, subdiv=1, jitter=0.04, rnd=rnd)
-    parts.append(finish(hb, "Hood", "sub", levels=1))
-    rb = lp.MeshBuilder()
-    ruff = [Vector((0.13 * math.cos(a), -0.02 + 0.08 * math.sin(a), 0.74 + 0.05 * math.sin(a) ** 2))
-            for a in [math.pi * (i / 10) for i in range(-1, 12)]]
-    hd.tube(rb, ruff, [0.04] * len(ruff), 8, trim, cap_start=True)
-    parts.append(finish(rb, "Ruff", "sub", levels=1))
-    # hem fur band
-    fb = lp.MeshBuilder()
-    fb.loft([[Vector((x * 0.262, y * 0.112, 0.0)) for x, y in
-              ((-1, -1), (0, -1.12), (1, -1), (1.08, 0), (1, 1), (0, 1.05), (-1, 1), (-1.08, 0))],
-             [Vector((x * 0.258, y * 0.11, 0.07)) for x, y in
-              ((-1, -1), (0, -1.12), (1, -1), (1.08, 0), (1, 1), (0, 1.05), (-1, 1), (-1.08, 0))]],
-            trim, cap_start=True, cap_end=True)
-    parts.append(finish(fb, "Hem", "sub", levels=1))
-    # zip + toggles + pockets on the front
-    dt = lp.MeshBuilder()
-    dt.box((-0.008, -0.126, 0.07), (0.008, -0.108, 0.70), "strap")
-    for z in (0.20, 0.36, 0.52):
-        dt.box((-0.03, -0.128, z - 0.008), (0.03, -0.112, z + 0.008), "wood_light")
+    cf = lp.MeshBuilder()
     for sx in (-1, 1):
-        dt.box((sx * 0.07 - 0.055, -0.121, 0.12), (sx * 0.07 + 0.055, -0.100, 0.24), "parka_brown")
+        p = Vector((sx * 0.37, -0.015, 0.20))
+        hd.tube(cf, [p + Vector((-sx * 0.002, 0, 0.045)), p + Vector((sx * 0.002, 0, -0.02))], [0.086, 0.084], 8,
+                trim, cap_start=True)
+    parts.append(finish(cf, "Cuffs", "sub", levels=1))
+    # hood: a rounded shell standing up behind the collar, dark face opening, fur ruff round it
+    hb = lp.MeshBuilder()
+    hb.blob((0, 0.035, 0.84), (0.15, 0.12, 0.15), body_col, subdiv=1, jitter=0.03, rnd=rnd)
+    parts.append(finish(hb, "Hood", "sub", levels=1))
+    op = lp.MeshBuilder()
+    op.blob((0, -0.05, 0.835), (0.085, 0.05, 0.10), "cloth_dark", subdiv=1, jitter=0.0, rnd=rnd)
+    parts.append(finish(op, "HoodOpening", "sub", levels=1))
+    rb = lp.MeshBuilder()
+    ruff = [Vector((0.105 * math.cos(a), -0.075, 0.835 + 0.125 * math.sin(a))) for a in
+            [2 * math.pi * i / 16 for i in range(16)]]
+    ruff.append(ruff[0])
+    hd.tube(rb, ruff, [0.036 + 0.006 * rnd.random() for _ in ruff], 8, trim, cap_start=True)
+    parts.append(finish(rb, "Ruff", "sub", levels=1))
+    dt = lp.MeshBuilder()
+    dt.box((-0.009, -0.127, 0.075), (0.009, -0.108, 0.72), "strap")
+    for z in (0.25, 0.40, 0.55):
+        dt.box((-0.035, -0.130, z - 0.009), (0.035, -0.112, z + 0.009), "wood_light")
+    for sx in (-1, 1):
+        dt.box((sx * 0.12 - 0.06, -0.121, 0.12), (sx * 0.12 + 0.06, -0.100, 0.25), "parka_brown")
     finish(dt, "Details", "chamfer", width=0.004)
     for o in bpy.context.scene.objects:
         if o.type == 'MESH':
             variant(o, "cloth", rough=0.95)
-    return dict(rot=(-24, 0, -CAM_YAW))
+    return dict(rot=(-26, 0, CAM_YAW - 14))
 
 
 def icon_axe():
-    load_model("stone_axe")
-    return dict(rot=(0, 90, 0), post=(0, 0, 118))
+    load_model("stone_axe", soften=0.006)
+    return dict(rot=(0, 90, 0), post=(0, 0, 150))
 
 
 def icon_torch():
-    objs = load_model("torch")
+    objs = load_model("torch", soften=0.005)
     p = anchor(objs, "FlameAnchor")
-    flame("Flame", p - Vector((0, 0, 0.035)), 0.20, 0.060, lean=(0.0, 0.0), seed=2)
-    flame("Flame2", p + Vector((0.02, -0.018, -0.02)), 0.11, 0.035, lean=(0.25, -0.1), seed=5)
+    flame("Flame", p - Vector((0, 0, 0.04)), 0.26, 0.070, lean=(0.0, 0.0), seed=2)
+    flame("Flame2", p + Vector((0.025, -0.02, -0.03)), 0.15, 0.042, lean=(0.3, -0.1), seed=5)
+    flame("Flame3", p + Vector((-0.025, 0.01, -0.03)), 0.13, 0.038, lean=(-0.3, 0.1), seed=8)
     glow(p + Vector((0, 0, 0.05)), 6.0)
     return dict(rot=(0, 34, 0), post=(0, 0, 70))
 
 
 def icon_campfire():
-    objs = load_model("campfire")
+    objs = load_model("campfire", soften=0.008, recolor={"snow": "stone", "snow_shadow": "stone"})
     p = anchor(objs, "FlameAnchor")
-    flame("Flame", p - Vector((0, 0, 0.09)), 0.52, 0.17, lean=(0.05, 0.0), seed=1, sides=9)
-    for k, (dx, dy, h, r, s) in enumerate(((-0.12, 0.06, 0.32, 0.10, 3), (0.12, -0.05, 0.34, 0.10, 4),
-                                          (0.03, 0.13, 0.28, 0.09, 6), (-0.02, -0.13, 0.26, 0.08, 7))):
+    flame("Flame", p - Vector((0, 0, 0.09)), 0.62, 0.19, lean=(0.05, 0.0), seed=1, sides=9)
+    for k, (dx, dy, h, r, s) in enumerate(((-0.13, 0.06, 0.40, 0.11, 3), (0.13, -0.05, 0.42, 0.11, 4),
+                                          (0.03, 0.14, 0.34, 0.10, 6), (-0.02, -0.14, 0.32, 0.09, 7))):
         flame("Tongue%d" % k, p + Vector((dx, dy, -0.10)), h, r, lean=(dx * 1.2, dy * 1.2), seed=s)
     glow(p + Vector((0, 0, 0.12)), 60.0, radius=0.12)
     return dict(rot=(0, 0, 0))
@@ -619,7 +685,7 @@ def icon_tent():
 
 
 def icon_box():
-    load_model("storage_box")
+    load_model("storage_box", soften=0.01)
     return dict(rot=(0, 0, 0))
 
 
@@ -903,6 +969,7 @@ def build_icon(name, force=False, preview=None):
     from lib.export import quiet
     with quiet():
         bpy.ops.render.render(write_still=True)
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
     write_png(src, dst, digest)
     os.remove(src)
     os.rmdir(tmp)
@@ -936,8 +1003,9 @@ def contact_sheet(path, names=None, src_dir=None):
     return path
 
 
-def main(argv=None):
-    argv = list(sys.argv[1:] if argv is None else argv)
+def main(argv=()):
+    """build_all.py calls main() (every icon, unchanged ones skipped); the CLI passes sys.argv[1:]."""
+    argv = list(argv)
     force = "--force" in argv
     sheet = None
     if "--sheet" in argv:
@@ -963,4 +1031,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
