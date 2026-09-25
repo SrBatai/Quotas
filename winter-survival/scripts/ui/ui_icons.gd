@@ -1,25 +1,32 @@
 class_name UiIcons
-## SVG icon loader with a lettered fallback.
+## Icon loader: rendered item icons (assets/icons/items/<name>.png, built by blender/icons/build_icons.py) first,
+## then the flat SVG pictogram, then a lettered fallback.
 
 static var _cache: Dictionary = {}
 
 
-static func tex(icon_name: String) -> Texture2D:
+## `rendered` = prefer the 3D-rendered item icon (items, recipes); UI glyphs (categories, HUD) stay flat SVG.
+static func tex(icon_name: String, rendered: bool = false) -> Texture2D:
 	if icon_name == "":
 		return null
-	if _cache.has(icon_name):
-		return _cache[icon_name]
-	var path := "res://assets/icons/%s.svg" % icon_name
+	var key := ("r:" if rendered else "s:") + icon_name
+	if _cache.has(key):
+		return _cache[key]
 	var t: Texture2D = null
-	if ResourceLoader.exists(path, "Texture2D"):
-		t = load(path) as Texture2D
-	_cache[icon_name] = t
+	var paths: Array[String] = ["res://assets/icons/%s.svg" % icon_name]
+	if rendered:
+		paths.push_front("res://assets/icons/items/%s.png" % icon_name)
+	for path: String in paths:
+		if ResourceLoader.exists(path, "Texture2D"):
+			t = load(path) as Texture2D
+			break
+	_cache[key] = t
 	return t
 
 
 ## TextureRect (or a lettered fallback panel) of the given size.
-static func make(icon_name: String, size: float, tint: Color = Color.WHITE, fallback_letter: String = "") -> Control:
-	var t := tex(icon_name)
+static func make(icon_name: String, size: float, tint: Color = Color.WHITE, fallback_letter: String = "", rendered: bool = false) -> Control:
+	var t := tex(icon_name, rendered)
 	if t != null:
 		var tr := TextureRect.new()
 		tr.texture = t
@@ -42,4 +49,5 @@ static func make(icon_name: String, size: float, tint: Color = Color.WHITE, fall
 
 
 static func item_icon(id: StringName, size: float) -> Control:
-	return make(Items.icon_name(id), size, Items.tint(id) if tex(Items.icon_name(id)) == null else Color.WHITE, Items.display_name(id).substr(0, 1))
+	var n := Items.icon_name(id)
+	return make(n, size, Items.tint(id) if tex(n, true) == null else Color.WHITE, Items.display_name(id).substr(0, 1), true)

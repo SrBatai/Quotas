@@ -65,9 +65,10 @@ func set_item(entry: Dictionary) -> void:
 	else:
 		_item = entry["id"]
 		_plus.visible = false
-		_icon = UiIcons.item_icon(_item, 30)
-		_icon.position = Vector2(11, 9)
-		_icon.size = Vector2(30, 30)
+		# Rendered 3D icons read best filling ~75 % of the 52 px slot, like the reference hotbar.
+		_icon = UiIcons.item_icon(_item, 40)
+		_icon.position = Vector2(6, 5)
+		_icon.size = Vector2(40, 40)
 		add_child(_icon)
 		move_child(_icon, 0)
 		var n := int(entry["count"])

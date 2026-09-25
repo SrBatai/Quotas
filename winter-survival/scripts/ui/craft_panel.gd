@@ -88,7 +88,7 @@ func _make_row(r: Dictionary) -> Control:
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
 	row.add_child(hb)
-	var icon := UiIcons.make(r["icon"], 28, Color.WHITE, String(r["name"]).substr(0, 1))
+	var icon := UiIcons.make(r["icon"], 28, Color.WHITE, String(r["name"]).substr(0, 1), true)
 	hb.add_child(icon)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 1)
