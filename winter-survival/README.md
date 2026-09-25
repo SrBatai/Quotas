@@ -6,11 +6,14 @@ Documentación de diseño y técnica en `docs/` (`GDD.md`, `ARCHITECTURE.md`, `A
 El plan para la versión de mundo abierto con zombis y cooperativo de 1–4 jugadores está en
 `docs/PLAN_MAESTRO.md` (con el diseño, la arquitectura y el contrato de arte v2 en `docs/v2/`).
 
-| Día | Noche | Interior (corte) |
-|---|---|---|
-| ![Día](docs/screenshots/day.png) | ![Noche](docs/screenshots/night.png) | ![Interior](docs/screenshots/interior.png) |
-| **Ventisca** | **Menú** | |
-| ![Ventisca](docs/screenshots/blizzard.png) | ![Menú](docs/screenshots/menu.png) | |
+Capturas con los gráficos de G1 (Forward+):
+
+| Día | Noche | Interior (corte) | Ventisca |
+|---|---|---|---|
+| ![Día](docs/screenshots/g1/day.jpg) | ![Noche](docs/screenshots/g1/night.jpg) | ![Interior](docs/screenshots/g1/interior.jpg) | ![Ventisca](docs/screenshots/g1/blizzard.jpg) |
+
+Comparación con la referencia: `docs/screenshots/g1/referencia_vs_g1.jpg`. Las capturas del slice original
+(antes de G1) siguen en `docs/screenshots/*.png`.
 
 ## Abrir el proyecto
 
