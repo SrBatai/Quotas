@@ -104,8 +104,9 @@ func _ready() -> void:
 	g.set_color(0, Color("#FFD166"))
 	g.set_color(1, Color("#E63B12", 0.0))
 	g.add_point(0.45, Color("#FF8C2A"))
-	flames = make_emitter(40, 0.7, 0.16 * scale_factor, Vector3.UP, 12.0, 1.0 * scale_factor, 1.4 * scale_factor,
-		Vector3.ZERO, 0.9 * scale_factor, 1.2 * scale_factor, sc, g, 0.35, true)
+	# 24 smaller additive flames: 40 × 0.35 m summed to a white blob under Filmic + glow at night (G1)
+	flames = make_emitter(24, 0.7, 0.16 * scale_factor, Vector3.UP, 12.0, 1.0 * scale_factor, 1.4 * scale_factor,
+		Vector3.ZERO, 0.8 * scale_factor, 1.1 * scale_factor, sc, g, 0.26, true)
 	flames.name = "Flames"
 	add_child(flames)
 
@@ -123,7 +124,7 @@ func _ready() -> void:
 
 	light = LightFlicker.new()
 	light.name = "Light"
-	light.light_color = Color("#FF9A3C")
+	light.light_color = Color("#FFB878")  # desaturated warm (reference campfire ring ≈ (121,117,107))
 	light.base_energy = light_energy
 	light.omni_range = light_range
 	light.omni_attenuation = 1.3

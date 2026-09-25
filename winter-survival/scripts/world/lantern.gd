@@ -10,9 +10,9 @@ func _ready() -> void:
 	_model = Assets.spawn_model("lantern")
 	add_child(_model)
 	light = LightFlicker.new()
-	light.light_color = Color("#FFB454")
-	light.base_energy = 0.5  # lights the porch, not the clearing (doc 06 §2 d: low energy)
-	light.omni_range = 5.5
+	light.light_color = Color("#FFC888")  # desaturated warm: the reference pools are peach, not orange
+	light.base_energy = 0.4  # lights the porch, not the clearing (doc 06 §2 d: low energy)
+	light.omni_range = 5.0
 	light.omni_attenuation = 1.3
 	light.amount = 0.12
 	light.shadow_priority = 0  # first in the omni-shadow budget (alto: railing shadows on the snow)
