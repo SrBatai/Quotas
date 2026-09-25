@@ -488,8 +488,9 @@ func _feet_metric(player: Player, move: Vector2, run: bool, n: int) -> Dictionar
 				var body_v := Vector2(pos.x - prev_pos.x, pos.z - prev_pos.z).length() / dt
 				body_speed_sum += body_v
 				body_samples += 1
-				# stance contact = the lowest of the heel (Foot) / ball (Toes) points while planted (< 0.045 m: the
-				# touchdown frame above that is the foot still decelerating, not sliding)
+				# stance contact = the lowest of the heel (Foot) / ball (Toes) points while planted: the ball rests at
+				# 0.035 m and oscillates 0.024–0.035 while locked; the 0.04–0.05 m frames are touchdown / lift-off
+				# (the foot still decelerating or leaving the ground), not sliding
 				var lowest := ""
 				var lowest_y := INF
 				for k in ["LeftFoot", "RightFoot", "LeftToes", "RightToes"]:
@@ -497,7 +498,7 @@ func _feet_metric(player: Player, move: Vector2, run: bool, n: int) -> Dictionar
 					if y < lowest_y:
 						lowest_y = y
 						lowest = k
-				if lowest_y < 0.045 and prev_feet.has(lowest):
+				if lowest_y < 0.038 and prev_feet.has(lowest):
 					var fv := Vector2((feet[lowest] as Vector3).x - (prev_feet[lowest] as Vector3).x, (feet[lowest] as Vector3).z - (prev_feet[lowest] as Vector3).z).length() / dt
 					stance_speed_sum += fv
 					stance_samples += 1
