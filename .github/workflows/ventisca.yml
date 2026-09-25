@@ -56,6 +56,16 @@ jobs:
       - name: Net test (1 dedicated server + 4 clients)
         run: tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90
 
+      - name: Net test shared world (3 clients, late join)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_sw
+        run: tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787
+
+      - name: Persistence unit test
+        run: |
+          godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
+          grep -q "ALL PASSED" /tmp/persistence.log
+
   export:
     name: Desktop builds
     needs: test
