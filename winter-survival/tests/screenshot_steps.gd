@@ -3,7 +3,7 @@ extends RefCounted
 ## offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
 
 var tree: SceneTree
-var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n
+var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run
 
 var preset: String = "day"
 var out_path: String = "/tmp/ventisca_shot.png"
@@ -127,6 +127,12 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		var rig := CameraRig.active()
 		if rig != null:
 			rig.snap_to_player()
+			if _flag_value("zoom", "") != "":
+				rig.set_dist(float(_flag_value("zoom", "27")))   # closeup of the survivor (M2 skeletal checks)
+		if _flag_value("walk", "") != "" and player.input != null:
+			# mid-stride pose: walk (or run) along +X while the shot settles
+			player.input.scripted_move = Vector2(1, 0)
+			player.input.scripted_run = _flag_value("walk", "walk") == "run"
 	# let particles / shadows settle
 	for i in 90:
 		await tree.process_frame

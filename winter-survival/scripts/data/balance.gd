@@ -153,4 +153,3 @@ const NET_INTERACT_PER_SECOND := 5.0
 const NET_CRAFT_PER_SECOND := 3.0
 const NET_WORLDSTATE_SYNC_SECONDS := 5.0
 const NET_INFRACTIONS_KICK := 30
-const CHUNK_SNAPSHOT_MAX_BYTES := 1200   # informative: a chunk delta above this is split by M3's streaming
