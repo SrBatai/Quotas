@@ -88,7 +88,7 @@ func _make_row(r: Dictionary) -> Control:
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 8)
 	row.add_child(hb)
-	var icon := UiIcons.make(r["icon"], 28, Color.WHITE, String(r["name"]).substr(0, 1), true)
+	var icon := UiIcons.make(r["icon"], 40, Color.WHITE, String(r["name"]).substr(0, 1), true)
 	hb.add_child(icon)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 1)
@@ -97,7 +97,7 @@ func _make_row(r: Dictionary) -> Control:
 	var cost := HBoxContainer.new()
 	cost.add_theme_constant_override("separation", 6)
 	for id in r["cost"]:
-		var ci := UiIcons.item_icon(id, 13)
+		var ci := UiIcons.item_icon(id, 20)
 		cost.add_child(ci)
 		cost.add_child(UiTheme.label(str(int(r["cost"][id])), 10, UiTheme.TEXT_2))
 	vb.add_child(cost)

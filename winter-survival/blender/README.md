@@ -34,6 +34,7 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 | `build_optional.py` | tent, storage_box | slice +Y → turned to −Y |
 | `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1; HD v2.1: Body + Outfit_backpack_m) | −Y |
 | `anims/build_loco.py` | anims/humanoid_loco (Loco_Idle/Idle_Cold/Walk/Run, Crouch_Idle/Walk) | −Y |
+| `icons/build_icons.py` | 256 px RGBA item icons → `../assets/icons/items/*.png` (Cycles; reuses the torch / campfire / stone_axe / tent / storage_box sources; skips icons whose hash is unchanged; `--sheet out.png` contact sheet) | — |
 
 ## Conventions (v2, milestone M0)
 

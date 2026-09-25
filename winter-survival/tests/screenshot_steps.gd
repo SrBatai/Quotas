@@ -111,6 +111,23 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				world.get_node("WolfSpawner").enabled = false
 				await tree.process_frame
 				NetWorld.instance.open_storage(player, world.cabin.get_node("Cabinet").get_node("Storage"))
+			"items":
+				# rendered item icons: a varied hotbar + the FUEGO craft panel open (like the reference shot)
+				WorldState.instance.set_time(1, 17.5)
+				world.cabin.stove.burner.add_fuel(600.0)
+				inv.add(&"hacha", 1)
+				inv.add(&"madera", 6)
+				inv.add(&"piedra", 6)
+				inv.add(&"lata_judias", 2)
+				inv.add(&"carne_asada", 1)
+				inv.add(&"bayas", 5)
+				inv.add(&"piel", 1)
+				inv.add(&"antorcha", 1)
+				world.get_node("WolfSpawner").enabled = false
+				await tree.process_frame
+				var game_node := tree.current_scene
+				if game_node.get("craft_panel") != null:
+					(game_node.get("craft_panel") as CraftPanel).open(&"fuego")
 			"multi":
 				# a networked client: wait for the other players to spawn and settle (interpolation)
 				await tree.create_timer(float(_flag_value("wait", "4.0"))).timeout
