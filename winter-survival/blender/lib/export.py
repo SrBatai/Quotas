@@ -52,6 +52,19 @@ def export_kwargs(has_armature=False, has_actions=False):
 # Empties allowed to carry a rotation, as final (FRONT = -Y) Blender XYZ Euler degrees. ToolSocket is the
 # slice's (-90, 0, 0) turned 180 degrees about Z with the player: its local +Z still points forward (-Y).
 ROTATED_SOCKETS = {"ToolSocket": (-90.0, 0.0, 180.0)}
+# ASSET_SPEC_V2 §8.4 (M3): `Spawn_<Kind>_<n>` empties are oriented (their local -Y = the spawned object's front);
+# they may carry a rotation about Z only (a yaw), nothing else.
+YAW_PREFIXES = ("Spawn_",)
+
+
+def yaw_allowed(name):
+    return name.startswith(YAW_PREFIXES)
+
+
+def is_pure_yaw(m3, tol=1e-4):
+    """True when the 3x3 rotation `m3` is a rotation about Z only."""
+    return abs(m3[2][2] - 1.0) < tol and abs(m3[0][2]) < tol and abs(m3[1][2]) < tol and \
+        abs(m3[2][0]) < tol and abs(m3[2][1]) < tol
 
 NAME_RE = re.compile(r"^[A-Za-z0-9_]+(-convcolonly|-colonly)?$")
 
@@ -86,7 +99,10 @@ def sanity_check_scene(name):
             expected = ROTATED_SOCKETS.get(o.name, (0.0, 0.0, 0.0))
             want = Euler(tuple(math.radians(a) for a in expected), 'XYZ').to_matrix()
             got = o.matrix_basis.to_3x3().normalized()
-            if any(abs(got[i][j] - want[i][j]) > 1e-4 for i in range(3) for j in range(3)):
+            if o.type == 'EMPTY' and yaw_allowed(o.name):
+                if not is_pure_yaw(got):
+                    problems.append("rotation on %s is not a pure yaw" % o.name)
+            elif any(abs(got[i][j] - want[i][j]) > 1e-4 for i in range(3) for j in range(3)):
                 problems.append("rotation on %s" % o.name)
             if any(abs(s - 1.0) > 1e-6 for s in o.scale):
                 problems.append("scale on %s" % o.name)
@@ -144,8 +160,12 @@ def export_gltf(glb_path, has_armature=None, has_actions=None):
                 raise
 
 
-def save_and_export(name, subdir="", ao=True):
+def save_and_export(name, subdir="", ao=True, blend_name=None, import_kind=None):
     """Sanity-check the scene, bake AO (v2.1), save sources/<name>.blend, export assets/models/[subdir/]<name>.glb.
+
+    blend_name: the .blend basename when it must differ from `name` (M3: one template exported per building style,
+    `house_small_A` in buildings/wood_blue/ and buildings/brick/ -> sources/house_small_A__wood_blue.blend).
+    import_kind: "prop" writes a Godot .import template next to a NEW .glb (never overwrites an existing one).
 
     ao: True = hd.bake_scene_ao() with the automatic settings for every visual mesh without AO; a dict = the same
     with explicit settings (distance, samples, ground, walls); False = no bake (armature-only animation files).
@@ -164,7 +184,7 @@ def save_and_export(name, subdir="", ao=True):
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     out_dir = MODELS_DIR / subdir if subdir else MODELS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    blend = SOURCES_DIR / ("%s.blend" % name)
+    blend = SOURCES_DIR / ("%s.blend" % (blend_name or name))
     glb = out_dir / ("%s.glb" % name)
     try:
         bpy.context.preferences.filepaths.save_version = 0   # no .blend1 backups
@@ -187,6 +207,8 @@ def save_and_export(name, subdir="", ao=True):
                    if o.type == 'MESH' and not is_col(o.name))
     print("built %-16s tris=%-6d surfaces=%-3d -> %s%s" % (name, tris, surfaces, glb.relative_to(ROOT),
                                                            " (unchanged)" if unchanged else ""))
+    if import_kind:
+        write_import(glb, import_kind)
     return glb
 
 

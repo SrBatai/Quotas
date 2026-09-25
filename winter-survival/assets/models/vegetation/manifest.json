@@ -1,0 +1,153 @@
+{
+ "birch": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.5,
+   0.0
+  ],
+  "col_size": [
+   0.24,
+   3.0
+  ],
+  "family": "birch",
+  "height": 7.422,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/birch.glb",
+  "radius": 2.084,
+  "tris": 2110
+ },
+ "bush_a": {
+  "choppable": 0,
+  "col": "sphere",
+  "col_center": [
+   0.0,
+   0.35,
+   0.0
+  ],
+  "col_size": [
+   0.5
+  ],
+  "family": "bush",
+  "height": 0.848,
+  "node": "Bush",
+  "path": "res://assets/models/vegetation/bush_a.glb",
+  "radius": 0.848,
+  "tris": 545
+ },
+ "dead_tree_b": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.5,
+   0.0
+  ],
+  "col_size": [
+   0.4,
+   3.0
+  ],
+  "family": "dead_tree",
+  "height": 5.571,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/dead_tree_b.glb",
+  "radius": 1.102,
+  "tris": 1026
+ },
+ "dead_tree_c": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "col_size": [
+   0.25,
+   2.0
+  ],
+  "family": "dead_tree",
+  "height": 3.469,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/dead_tree_c.glb",
+  "radius": 1.348,
+  "tris": 2529
+ },
+ "pine_d": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.5,
+   0.0
+  ],
+  "col_size": [
+   0.33,
+   3.0
+  ],
+  "family": "pine",
+  "height": 8.968,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/pine_d.glb",
+  "radius": 2.129,
+  "tris": 1143
+ },
+ "pine_e": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.5,
+   0.0
+  ],
+  "col_size": [
+   0.32,
+   3.0
+  ],
+  "family": "pine",
+  "height": 7.069,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/pine_e.glb",
+  "radius": 2.137,
+  "tris": 1191
+ },
+ "pine_f": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   1.5,
+   0.0
+  ],
+  "col_size": [
+   0.29,
+   3.0
+  ],
+  "family": "pine",
+  "height": 6.146,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/pine_f.glb",
+  "radius": 1.804,
+  "tris": 873
+ },
+ "pine_young": {
+  "choppable": 1,
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   0.8,
+   0.0
+  ],
+  "col_size": [
+   0.135,
+   1.6
+  ],
+  "family": "pine",
+  "height": 2.584,
+  "node": "Tree",
+  "path": "res://assets/models/vegetation/pine_young.glb",
+  "radius": 0.838,
+  "tris": 621
+ }
+}
