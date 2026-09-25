@@ -33,7 +33,7 @@ def build_stone_axe():
     blade.box((-0.036, -0.036, 0.405), (0.036, 0.036, 0.47), "cloth")             # lashing
     blade.box((-0.034, -0.05, 0.415), (0.034, -0.03, 0.46), "cloth")              # lashing over the blade
     lp.to_object(blade, "Blade")
-    export.save_and_export("stone_axe")
+    export.save_and_export("stone_axe", ao=dict(ground=False))  # hand-held (v2.1 AO)
 
 
 def main():

@@ -416,6 +416,7 @@ def has_ao(obj):
 
 
 def scene_bounds(objs=None):
+    bpy.context.view_layer.update()
     objs = objs if objs is not None else _visual_meshes()
     mn = Vector((1e9, 1e9, 1e9))
     mx = Vector((-1e9, -1e9, -1e9))
@@ -473,6 +474,7 @@ def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0
     from .export import is_col
     t0 = time.time()
     sc = bpy.context.scene
+    bpy.context.view_layer.update()          # objects made with a pivot / parent have a stale matrix_world before
     occ = [o for o in sc.objects if o.type == 'MESH' and not is_col(o.name)]
     planes = []
     if ground:

@@ -57,7 +57,7 @@ def build_torch():
     head.cylinder((0, 0, 0.425), (0, 0, 0.455), 0.058, 0.06, 8, "wood_dark", phase=22.5)
     lp.to_object(head, "Head")
     lp.add_empty("FlameAnchor", (0, 0, 0.54))
-    export.save_and_export("torch")
+    export.save_and_export("torch", ao=dict(ground=False))  # hand-held (v2.1 AO)
 
 
 def build_lantern():
@@ -80,7 +80,7 @@ def build_lantern():
                    "iron", skip=('-z', '+z'))
     lp.to_object(mb, "Lantern")
     lp.add_empty("LightAnchor", (0, 0, -0.23))
-    export.save_and_export("lantern")
+    export.save_and_export("lantern", ao=dict(ground=False))  # hangs from its hook
 
 
 def main():

@@ -15,21 +15,21 @@ const PRESETS := {
 		"shadow_size": 4096, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.0, "pcss_angular": 1.2,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_HIGH, "msaa": Viewport.MSAA_2X,
 		"particles": 1.0, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_MEDIUM,
-		"volumetric_fog": true, "projectors": true, "omni_shadows": 2,
+		"volumetric_fog": true, "projectors": true, "omni_shadows": 2, "terrain_shadows": true,
 		"exposure_scale": 1.0, "sun_scale": 1.0, "trail_backend": "drawable", "snow_amount_max": 0.7,
 	},
 	&"medio": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.5, "pcss_angular": 0.0,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_MEDIUM, "msaa": Viewport.MSAA_2X,
 		"particles": 0.6, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_LOW,
-		"volumetric_fog": false, "projectors": true, "omni_shadows": 0,
+		"volumetric_fog": false, "projectors": true, "omni_shadows": 0, "terrain_shadows": false,
 		"exposure_scale": 1.0, "sun_scale": 1.0, "trail_backend": "drawable", "snow_amount_max": 0.7,
 	},
 	&"compat": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 2.0, "pcss_angular": 0.0,
 		"soft_shadow": RenderingServer.SHADOW_QUALITY_SOFT_LOW, "msaa": Viewport.MSAA_2X,
 		"particles": 0.35, "glow": true, "ssao": false, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_VERY_LOW,
-		"volumetric_fog": false, "projectors": false, "omni_shadows": 0,
+		"volumetric_fog": false, "projectors": false, "omni_shadows": 0, "terrain_shadows": false,
 		"exposure_scale": 0.5, "sun_scale": 0.75, "trail_backend": "drawable", "snow_amount_max": 0.6,
 	},
 }
@@ -97,7 +97,7 @@ func sun_scale() -> float:
 	return float(settings()["sun_scale"])
 
 
-## Whether the preset allows an Environment effect: "glow", "ssao", "volumetric_fog", "projectors".
+## Whether the preset allows a feature: "glow", "ssao", "volumetric_fog", "projectors", "terrain_shadows".
 func allows(feature: String) -> bool:
 	var s := settings()
 	if not s.has(feature):

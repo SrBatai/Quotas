@@ -8,8 +8,8 @@ extends StaticBody3D
 
 ## Render grid step (m). The collision grid stays at Balance.TERRAIN_CELL; heights in between are bilinear.
 const RENDER_CELL := 1.0
-## Chunks per axis (frustum culling of the mesh and of its shadow passes; M3 inherits per-chunk meshes).
-const CHUNKS := 4
+## Chunks per axis (20 m pieces: frustum culling of the mesh and of its shadow passes; M3 inherits per-chunk meshes).
+const CHUNKS := 8
 ## Linear multipliers written to COLOR.rgb (the shader multiplies `snow_color` by them).
 const TINT_SLOPE := Color(0.90, 0.93, 1.0)
 const TINT_LAKE := Color(0.86, 0.95, 1.0)
@@ -189,6 +189,20 @@ func _build_chunks() -> void:
 			mesh_root.add_child(mi)
 			chunks.append(mi)
 			_rebuild_chunk(chunks.size() - 1)
+	apply_quality()
+	if not Quality.preset_changed.is_connected(_on_preset_changed):
+		Quality.preset_changed.connect(_on_preset_changed)
+
+
+func _on_preset_changed(_p: StringName) -> void:
+	apply_quality()
+
+
+## Terrain self-shadowing (hills) only where the preset pays for it: the chunks leave the two shadow splits otherwise.
+func apply_quality() -> void:
+	var cast := Quality.allows("terrain_shadows")
+	for c in chunks:
+		c.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Rebuilds one chunk's surface from the cached arrays + the current AO (COLOR.a).

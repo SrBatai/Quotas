@@ -87,7 +87,7 @@ def build_player():
     lp.add_empty("ToolSocket", (0.36, 0.05, 0.80), parent=arm_r, final_rotation_deg=(-90, 0, 180))
     lp.to_object(leg_mesh(-1), "LegL", (-0.12, 0, 0.80), parent=hips)
     lp.to_object(leg_mesh(1), "LegR", (0.12, 0, 0.80), parent=hips)
-    export.save_and_export("player")
+    export.save_and_export("player", ao=dict(distance=0.25, samples=48, ground=True))
 
 
 def main():

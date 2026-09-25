@@ -133,7 +133,7 @@ def build_shelf():
                       phase=22.5)
         jars.cylinder((x, 0.125, 0.19), (x, 0.125, 0.215), 0.064, 0.064, 8, "iron", cap0=False, phase=22.5)
     lp.to_object(jars, "Jars", parent=shelf)
-    export.save_and_export("shelf")
+    export.save_and_export("shelf", ao=dict(ground=False, walls=[((0, 0, 0), (0, -1, 0))]))  # wall at y = 0
 
 
 def build_clock():
@@ -152,7 +152,7 @@ def build_clock():
     mh = lp.MeshBuilder()
     mh.box((-0.0075, 0.076, -0.02), (0.0075, 0.086, 0.13), "iron")
     lp.to_object(mh, "MinuteHand", (0, 0.075, 0), parent=clock)
-    export.save_and_export("clock")
+    export.save_and_export("clock", ao=dict(ground=False, walls=[((0, 0, 0), (0, -1, 0))]))  # wall at y = 0
 
 
 def main():
