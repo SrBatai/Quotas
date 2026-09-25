@@ -3,10 +3,11 @@
   "perf_probe": {
     "draw_calls_max": 704,
     "objects_max": 800,
-    "primitives_max": 120000,
+    "primitives_max": 270000,
     "nodes_max": 6500,
     "frame_ms_p99_max": 16.6,
-    "enforce_gpu": false
+    "enforce_gpu": false,
+    "_primitives_note": "G1: raised from 120000 to 270000 = the v2.1 art budget for a typical clearing view (docs/research/05_graficos_arte.md §4.5, ASSET_SPEC_V2 G1: HD hero assets). Draw calls, the real cost driver here, stay far below budget."
   },
   "baseline": {
     "before_m0": {
@@ -40,6 +41,15 @@
       "objects_median": 383,
       "primitives_median": 72660,
       "mesh_surfaces": 909
+    },
+    "after_g1": {
+      "note": "G1 (HD hero assets v2.1 with baked AO in COLOR.a + world_vcol v2 / terrain shaders, FILMIC, camera dist 24). Measured by tests/run_all.sh on a clean clone (xvfb + Compatibility, 2 cores).",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 347,
+      "objects_median": 443,
+      "primitives_median": 203131,
+      "mesh_surfaces": 905,
+      "nodes": 5312
     }
   }
 }
