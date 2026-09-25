@@ -61,7 +61,9 @@ LIGHTS = {
     "Rim": (165.0, 30.0, 3.0, 8.0, (0.78, 0.88, 1.0)),
 }
 WORLD = ((0.42, 0.50, 0.66), 0.55)
-SHADOW = True
+SHADOW = 0.55              # peak opacity of the contact-shadow blob (0 = none)
+SHADOW_SPREAD = 1.25
+PREVIEW_SAMPLES = 40
 HASH_KEY = "ventisca_icon"
 
 
@@ -124,7 +126,9 @@ def flame_material():
     if mat is not None:
         return mat
     mat = bpy.data.materials.new("icon_flame")
-    mat.use_nodes = True
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        mat.use_nodes = True
     nt = mat.node_tree
     for n in list(nt.nodes):
         nt.nodes.remove(n)
@@ -761,13 +765,52 @@ def setup_render(ground_z):
     ext = max(max(xs) - min(xs), max(ys) - min(ys))
     cam.data.ortho_scale = ext / FILL
     cam.location = right * cx + up * cy_ + d * 20.0
-    # contact shadow
+    # contact shadow: soft elliptic blob under the footprint (never clipped by the frame, unlike a shadow catcher)
     if SHADOW:
-        bpy.ops.mesh.primitive_plane_add(size=40.0, location=(0, 0, ground_z))
-        g = bpy.context.active_object
-        g.name = "IconGround"
-        g.is_shadow_catcher = True
-        g.visible_glossy = False
+        blob_shadow(ground_z)
+
+
+def blob_shadow(ground_z):
+    vs = _world_verts([o for o in _meshes() if not o.name.startswith("IconGround")])
+    low = [v for v in vs if v.z < ground_z + 0.35] or vs
+    mnx, mxx = min(v.x for v in low), max(v.x for v in low)
+    mny, mxy = min(v.y for v in low), max(v.y for v in low)
+    bpy.ops.mesh.primitive_plane_add(size=1.0, location=((mnx + mxx) / 2, (mny + mxy) / 2, ground_z - 0.002))
+    g = bpy.context.active_object
+    g.name = "IconGround"
+    g.scale = ((mxx - mnx) * SHADOW_SPREAD, (mxy - mny) * SHADOW_SPREAD, 1.0)
+    mat = bpy.data.materials.new("icon_shadow")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        mat.use_nodes = True
+    nt = mat.node_tree
+    for n in list(nt.nodes):
+        nt.nodes.remove(n)
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    vm = nt.nodes.new("ShaderNodeVectorMath")
+    vm.operation = 'MULTIPLY_ADD'
+    vm.inputs[1].default_value = (2.0, 2.0, 0.0)
+    vm.inputs[2].default_value = (-1.0, -1.0, 0.0)
+    gr = nt.nodes.new("ShaderNodeTexGradient")
+    gr.gradient_type = 'QUADRATIC_SPHERE'
+    mul = nt.nodes.new("ShaderNodeMath")
+    mul.operation = 'MULTIPLY'
+    mul.inputs[1].default_value = SHADOW
+    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (0.0, 0.0, 0.0, 1.0)
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(tc.outputs["Generated"], vm.inputs[0])
+    nt.links.new(vm.outputs["Vector"], gr.inputs["Vector"])
+    nt.links.new(gr.outputs["Fac"], mul.inputs[0])
+    nt.links.new(mul.outputs["Value"], mix.inputs["Fac"])
+    nt.links.new(tr.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(em.outputs["Emission"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+    g.data.materials.append(mat)
+    for attr in ("visible_shadow", "visible_glossy", "visible_diffuse", "visible_transmission"):
+        setattr(g, attr, False)
 
 
 # ================================================================================================================
@@ -842,15 +885,18 @@ def write_png(src, dst, digest):
 # ================================================================================================================
 # build
 # ================================================================================================================
-def build_icon(name, force=False):
+def build_icon(name, force=False, preview=None):
+    """Render one icon into OUT_DIR (skipped when its hash is unchanged), or quickly into `preview` (a folder)."""
     lp.new_scene()
     pose = ICONS[name]() or {}
     root, ground_z = stage(pose)
     digest = scene_digest(pose)
-    dst = os.path.join(OUT_DIR, name + ".png")
-    if not force and png_hash(dst) == digest:
+    dst = os.path.join(preview or OUT_DIR, name + ".png")
+    if not force and not preview and png_hash(dst) == digest:
         return "unchanged"
     setup_render(ground_z)
+    if preview:
+        bpy.context.scene.cycles.samples = PREVIEW_SAMPLES
     tmp = tempfile.mkdtemp(prefix="ventisca_icon_")
     src = os.path.join(tmp, name + ".png")
     bpy.context.scene.render.filepath = src
@@ -863,7 +909,7 @@ def build_icon(name, force=False):
     return "rendered"
 
 
-def contact_sheet(path, names=None):
+def contact_sheet(path, names=None, src_dir=None):
     """All icons on the UI panel colour at 96 px (top) and 48 px (bottom), with names. Needs Pillow."""
     from PIL import Image, ImageDraw
     names = names or list(ICONS)
@@ -875,7 +921,7 @@ def contact_sheet(path, names=None):
     img = Image.new("RGBA", (W, H), bg)
     dr = ImageDraw.Draw(img)
     for i, n in enumerate(names):
-        p = os.path.join(OUT_DIR, n + ".png")
+        p = os.path.join(src_dir or OUT_DIR, n + ".png")
         if not os.path.exists(p):
             continue
         ic = Image.open(p).convert("RGBA")
@@ -898,15 +944,21 @@ def main(argv=None):
         k = argv.index("--sheet")
         sheet = argv[k + 1]
         del argv[k:k + 2]
+    preview = None
+    if "--preview" in argv:
+        k = argv.index("--preview")
+        preview = argv[k + 1]
+        del argv[k:k + 2]
+        os.makedirs(preview, exist_ok=True)
     names = [a for a in argv if not a.startswith("--")] or list(ICONS)
     for n in names:
         if n not in ICONS:
             raise KeyError("unknown icon %r (known: %s)" % (n, ", ".join(ICONS)))
     os.makedirs(OUT_DIR, exist_ok=True)
     for n in names:
-        print("icon %-12s %s" % (n, build_icon(n, force)))
+        print("icon %-12s %s" % (n, build_icon(n, force, preview)))
     if sheet:
-        print("contact sheet: %s" % contact_sheet(sheet))
+        print("contact sheet: %s" % contact_sheet(sheet, src_dir=preview))
     return 0
 
 
