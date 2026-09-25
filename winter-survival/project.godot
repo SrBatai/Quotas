@@ -187,8 +187,13 @@ renderer/rendering_method="forward_plus"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/default_filters/anisotropic_filtering_level=0
 lights_and_shadows/directional_shadow/size=4096
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=2
 anti_aliasing/quality/msaa_3d=1
+environment/ssao/quality=2
+environment/ssao/half_size=true
+environment/volumetric_fog/volume_size=64
+environment/volumetric_fog/volume_depth=64
 environment/defaults/default_clear_color=Color(0.79, 0.85, 0.92, 1)
 
 [shader_globals]

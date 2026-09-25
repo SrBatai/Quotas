@@ -8,9 +8,9 @@ in `Col` so that an importer that multiplies albedo by COLOR_0 (Godot does) stil
 
 Godot quantisation (measured with 4.7.2): Godot stores COLOR as RGBA8 *linear* and truncates
 (uint8(c * 255)), which would darken 13 of the 81 palette colours by 3-6 sRGB levels (bark, boots, hat,
-iron, tire, ...). `Col` therefore holds linear + GODOT_BIAS (half an 8-bit step): Godot's truncation then
-lands on the nearest 8-bit linear value (godot_bytes()), and COLOR_0 stays within 0.5/255 of the exact
-linear palette colour.
+iron, tire, ...). `Col` therefore holds the centre of the nearest 8-bit linear bin (≈ linear + GODOT_BIAS, half an
+8-bit step): Godot's truncation then lands on the nearest 8-bit linear value (godot_bytes()), and COLOR_0 stays
+within 0.5/255 of the exact linear palette colour.
 
     palette.paint(obj_or_mesh, faces, "cabin_wall")    # repaint polygons of an existing mesh
     palette.assign(mesh, names)                        # one name per polygon (lowpoly.to_object uses it)
@@ -103,8 +103,11 @@ def linear_rgba(name):
 
 
 def vcol_rgba(name):
-    """Value stored in `Col` / COLOR_0 for palette colour `name` (linear + GODOT_BIAS, see module doc)."""
-    return tuple(min(1.0, c + GODOT_BIAS) for c in linear_rgba(name)[:3]) + (1.0,)
+    """Value stored in `Col` / COLOR_0 for palette colour `name`: the CENTRE of the 8-bit linear bin Godot keeps
+    for it ((round(linear * 255) + 0.5) / 255, i.e. linear + GODOT_BIAS rounded to the bin centre). v2.1: the NAME
+    export writes COLOR_0 as normalised 16-bit, and a plain linear + 0.5/255 that lands within 1/65535 of a bin
+    edge (eyes_dark blue: 4.9988 / 255) could round into the next bin; the bin centre is robust to that."""
+    return tuple(min(1.0, (int(round(c * 255.0)) + 0.5) / 255.0) for c in linear_rgba(name)[:3]) + (1.0,)
 
 
 def godot_bytes(linear_rgb):

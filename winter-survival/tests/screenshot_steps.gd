@@ -1,6 +1,6 @@
 extends RefCounted
-## Screenshot preset body (loaded at runtime by tests/screenshot.gd). Presets day/night/blizzard/interior/menu run the
-## offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
+## Screenshot preset body (loaded at runtime by tests/screenshot.gd). Presets day/dusk/night/blizzard/interior/menu run
+## the offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
 
 var tree: SceneTree
 var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run
@@ -61,6 +61,13 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				inv.add(&"hacha", 1)
 				inv.add(&"madera", 7)
 				inv.add(&"piedra", 6)
+			"dusk":
+				WorldState.instance.set_time(1, 19.0)
+				world.cabin.stove.burner.add_fuel(600.0)
+				inv.add(&"hacha", 1)
+				inv.add(&"madera", 6)
+				inv.add(&"piedra", 6)
+				world.get_node("WolfSpawner").enabled = false
 			"night":
 				WorldState.instance.set_time(1, 22.5)
 				world.cabin.stove.burner.add_fuel(600.0)
@@ -121,7 +128,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		var sun := world.get_node("Sun") as DirectionalLight3D
 		print("sun dir=%s energy=%.2f visible=%s shadow=%s color=%s" % [-sun.global_transform.basis.z, sun.light_energy, sun.visible, sun.shadow_enabled, sun.light_color])
 		var env := (world.get_node("Env") as WorldEnvironment).environment
-		print("ambient=%s energy=%.2f fog=%.3f source=%d bg=%d" % [env.ambient_light_color, env.ambient_light_energy, env.fog_density, env.ambient_light_source, env.background_mode])
+		print("ambient=%s energy=%.2f fog=%.3f exposure=%.2f tonemap=%d glow=%s ssao=%s vol=%s preset=%s trail=%s" % [env.ambient_light_color, env.ambient_light_energy, env.fog_density, env.tonemap_exposure, env.tonemap_mode, env.glow_enabled, env.ssao_enabled, env.volumetric_fog_enabled, Quality.preset, world.footprints.backend if world.footprints != null else "-"])
 		if Net.is_server:
 			WorldState.instance.running = false  # freeze the clock for a stable shot
 		var rig := CameraRig.active()

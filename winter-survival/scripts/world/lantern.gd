@@ -11,10 +11,11 @@ func _ready() -> void:
 	add_child(_model)
 	light = LightFlicker.new()
 	light.light_color = Color("#FFB454")
-	light.base_energy = 3.0
-	light.omni_range = 9.0
-	light.omni_attenuation = 1.1
+	light.base_energy = 1.4  # a pool on the porch, not a floodlight (doc 06 §2: low energy, wide radius)
+	light.omni_range = 7.0
+	light.omni_attenuation = 1.3
 	light.amount = 0.12
+	light.shadow_priority = 0  # first in the omni-shadow budget (alto: railing shadows on the snow)
 	add_child(light)
 	var anchor: Node3D = _model.find_child("LightAnchor", true, false)
 	light.position = anchor.position if anchor != null else Vector3(0, -0.23, 0)

@@ -42,6 +42,7 @@ func _ready() -> void:
 	add_child(heat)
 	fire = FireEffect.new()
 	fire.name = "Fire"
+	fire.shadow_priority = 1  # second in the omni-shadow budget (after the porch lantern)
 	var anchor: Node3D = _model.find_child("FlameAnchor", true, false)
 	add_child(fire)
 	if anchor != null:

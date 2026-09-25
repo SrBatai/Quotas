@@ -3,8 +3,9 @@ extends Node3D
 ## Flames + smoke (GPUParticles3D, PLAN C4) + flickering OmniLight. Works in Forward+ and Compatibility.
 
 @export var scale_factor: float = 1.0
-@export var light_range: float = 11.0
-@export var light_energy: float = 4.5
+@export var light_range: float = 9.0
+@export var light_energy: float = 1.8  # G1: Filmic at exposure 0.6 burns anything brighter (doc 06 §2 d)
+@export var shadow_priority: int = -1
 
 var flames: GPUParticles3D
 var smoke: GPUParticles3D
@@ -122,10 +123,11 @@ func _ready() -> void:
 
 	light = LightFlicker.new()
 	light.name = "Light"
-	light.light_color = Color("#FFB454")
+	light.light_color = Color("#FF9A3C")
 	light.base_energy = light_energy
 	light.omni_range = light_range
-	light.omni_attenuation = 1.1
+	light.omni_attenuation = 1.3
+	light.shadow_priority = shadow_priority
 	light.position = Vector3(0, 0.5 * scale_factor, 0)
 	add_child(light)
 	set_active(_active)

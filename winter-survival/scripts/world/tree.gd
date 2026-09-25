@@ -151,6 +151,13 @@ func _fell_visual(away: Vector3, animate: bool = true) -> void:
 	shape.set_deferred("disabled", true)
 	remove_from_group("choppable")
 	remove_from_group("tree")
+	# baked terrain AO (G1): the tree's contact disc shrinks to the stump's (logs lose theirs)
+	var world := get_tree().get_first_node_in_group("world") as World
+	if world != null and world.terrain != null:
+		if variant == "fallen_log":
+			world.terrain.update_occluder(String(name), 0.0, 0.0)
+		else:
+			world.terrain.update_occluder(String(name), 0.45 * scale.x, 0.3)
 	if animate:
 		AudioManager.play(&"tree_fall", global_position)
 	var tw := create_tween()

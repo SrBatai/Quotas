@@ -325,11 +325,8 @@ func run(p_tree: SceneTree) -> void:
 		wolf.global_position = far
 		await frames(120)
 		check(wolf.state in [Wolf.State.STALK, Wolf.State.CHASE, Wolf.State.ATTACK, Wolf.State.FLEE], "wolf state after 120 frames: %s" % Wolf.State.keys()[wolf.state])
-		var prints := 0
-		for fp in world.footprints.get_children():
-			if fp is MeshInstance3D and fp.visible and fp.global_position.distance_to(wolf.global_position) < 12.0:
-				prints += 1
-		check(wolf.get_node_or_null("FootprintEmitter") != null and prints >= 2, "wolf leaves footprints too (%d near it)" % prints)
+		var prints := world.footprints.count_near(wolf.global_position, 12.0)
+		check(wolf.get_node_or_null("FootprintEmitter") != null and prints >= 2, "wolf leaves footprints too (%d near it, trail map backend %s)" % [prints, world.footprints.backend])
 		if campfire != null:
 			campfire.global_position = wolf.global_position
 			await frames(30)

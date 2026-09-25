@@ -6,6 +6,8 @@ extends Node
 
 const MODELS_DIR := "res://assets/models/"
 const SHARED_MATERIAL_PATH := "res://assets/materials/world_vcol.tres"
+## The terrain's single ShaderMaterial (shared by every chunk; the trail map is set on it by Footprints).
+const TERRAIN_MATERIAL_PATH := "res://assets/materials/terrain.tres"
 ## Name of the single vertex-colour material every v2 mesh carries (ASSET_SPEC v2 §2.5). Godot's glTF importer
 ## strips the legacy `_vcol` suffix, so the imported StandardMaterial3D is called `palette` (white albedo,
 ## vertex_color_use_as_albedo = true); both names are recognised.
@@ -43,6 +45,7 @@ var _materials: Dictionary = {}
 var _linear_colors: Dictionary = {}
 var _prepared: Dictionary = {}  # original Mesh -> Mesh with the shared material (identity when done in place)
 var _shared: ShaderMaterial
+var _terrain: ShaderMaterial
 var _glow: StandardMaterial3D
 var _ghost_ok: StandardMaterial3D
 var _ghost_bad: StandardMaterial3D
@@ -117,6 +120,16 @@ func get_shared_material() -> ShaderMaterial:
 			push_error("Assets: cannot load %s" % SHARED_MATERIAL_PATH)
 			_shared = ShaderMaterial.new()
 	return _shared
+
+
+## The terrain ShaderMaterial (assets/materials/terrain.tres), shared by every terrain chunk.
+func get_terrain_material() -> ShaderMaterial:
+	if _terrain == null:
+		_terrain = load(TERRAIN_MATERIAL_PATH) as ShaderMaterial
+		if _terrain == null:
+			push_error("Assets: cannot load %s" % TERRAIN_MATERIAL_PATH)
+			_terrain = ShaderMaterial.new()
+	return _terrain
 
 
 func is_exception_material(mat_name: String) -> bool:
@@ -256,10 +269,10 @@ func get_glow_material() -> StandardMaterial3D:
 	if _glow == null:
 		_glow = StandardMaterial3D.new()
 		_glow.resource_name = "window_glow"
-		_glow.albedo_color = Color("#FFB454")
+		_glow.albedo_color = Color("#FFC070")
 		_glow.emission_enabled = true
-		_glow.emission = Color("#FFB454")
-		_glow.emission_energy_multiplier = 2.5
+		_glow.emission = Color("#FFC070")
+		_glow.emission_energy_multiplier = 3.0  # doc 06 §3.6 (softlight glow reads it at night)
 		_glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return _glow
 

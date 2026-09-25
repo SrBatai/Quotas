@@ -13,6 +13,7 @@ var model: Node3D
 var player_inside: bool = false
 var stove_on: bool = false
 var lantern: Lantern
+var spills: Array[WindowSpill] = []
 var _glow_on: bool = false
 
 
@@ -52,11 +53,15 @@ func _ready() -> void:
 		lantern.global_position = socket.global_position
 	else:
 		lantern.position = Vector3(1.6, 2.35, 4.3)
-	# interior light
+	# interior light (warm, low: Filmic + exposure 0.6 blow out anything stronger, doc 06 §3.10)
 	interior_light.light_color = Color("#FFB454")
-	interior_light.omni_range = 7.0
+	interior_light.omni_range = 6.0
+	interior_light.omni_attenuation = 1.3
 	interior_light.shadow_enabled = false
+	interior_light.light_indirect_energy = 0.0
 	interior_light.position = Vector3(0, 2.2, 0)
+	# window spill on the snow outside every lit window (spot + projector + wash; scaled by DayNight)
+	spills = WindowSpill.attach_to_windows(self, model, 3.0, 8.0)
 	# smoke at the chimney top (+X wall, in front of the ridge)
 	smoke.position = Vector3(3.35, 5.3, 0.6)
 	stove_on = stove.is_lit
@@ -110,13 +115,15 @@ func _update_lighting() -> void:
 			var w := model.find_child(n, true, false)
 			if w != null:
 				Assets.override_named(w, "window", Assets.get_glow_material() if glow else null)
+		for sp in spills:
+			sp.set_enabled(glow)
 	smoke.set_active(stove_on)
 	if dark:
 		interior_light.visible = true
-		interior_light.light_energy = 1.8 if stove_on else 0.3
+		interior_light.light_energy = 0.9 if stove_on else 0.2
 	else:
 		interior_light.visible = stove_on
-		interior_light.light_energy = 0.6
+		interior_light.light_energy = 0.35
 
 
 func get_door_anchor() -> Node3D:

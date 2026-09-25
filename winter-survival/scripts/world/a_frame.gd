@@ -2,7 +2,7 @@ extends Node3D
 ## Decorative closed A-frame cabin with a warm window at night.
 
 var _model: Node3D
-var _light: OmniLight3D
+var _spills: Array[WindowSpill] = []
 
 
 func _ready() -> void:
@@ -12,18 +12,14 @@ func _ready() -> void:
 		Placeholders._col_convex(_model, "ColBody", PackedVector3Array([
 			Vector3(-3.0, 0, -3.5), Vector3(3.0, 0, -3.5), Vector3(0, 6.0, -3.5),
 			Vector3(-3.0, 0, 3.5), Vector3(3.0, 0, 3.5), Vector3(0, 6.0, 3.5)]))
-	_light = OmniLight3D.new()
-	_light.light_color = Color("#FFB454")
-	_light.omni_range = 8.0
-	_light.light_energy = 2.5
-	_light.shadow_enabled = false
-	_light.position = Vector3(0.7, 3.0, 3.9)  # outside the front window (+Z)
-	add_child(_light)
+	# warm spill on the snow in front of the window (spot + projector + wash; DayNight scales it by hour)
+	_spills = WindowSpill.attach_to_windows(self, _model, 2.4, 8.0)
 	Events.time_changed.connect(_on_time)
 	_on_time(WorldState.day_now(), WorldState.hour_now(), WorldState.is_night_now())
 
 
 func _on_time(_day: int, hour: float, _night: bool) -> void:
 	var dark := hour >= 17.5 or hour < 6.5
-	_light.visible = dark
+	for sp in _spills:
+		sp.set_enabled(dark)
 	Assets.override_named(_model, "window", Assets.get_glow_material() if dark else null)

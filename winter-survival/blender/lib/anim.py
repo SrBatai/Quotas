@@ -800,8 +800,12 @@ LOCO_GAITS = {
                            heel_frac=0.14, flat_end=0.50, lift=0.11, bob=0.022, yaw=7.0, roll=2.5, sway=0.018,
                            lean=6.0, arm_swing=32.0, elbow=22.0, elbow_swing=0.5, arm_lower=74.0,
                            shoulder_bounce=2.5, head_pitch=3.0),
+    # G1: drop_margin 0.03 (pelvis 2.6 cm lower, knee never near full extension) + heel_frac 0.30 (slower heel
+    # rocker): Godot plays the 30 fps keys with slerp, and between two keys of the fast stance a nearly straight
+    # leg dipped the ankle to 0.077 m (M2 note); now >= 0.082 at any time (verify_chars: glb oversampled + Godot).
     "Loco_Run-loop": dict(speed=6.0, period=2.0 / 3.0, duty=0.26, style="run", heel_deg=6.0, toe_deg=55.0,
-                          heel_frac=0.18, flat_end=0.40, toe_power=1.3, lift=0.22, lift_peak=0.42, bob=0.05,
+                          heel_frac=0.30, flat_end=0.40, toe_power=1.3, lift=0.22, lift_peak=0.42, bob=0.05,
+                          drop_margin=0.03,
                           swing_k0=0.25, swing_k1=0.5, yaw=9.0, roll=3.0, sway=0.012, pelvis_pitch=6.0,
                           lean=13.0, arm_swing=48.0, elbow=80.0, elbow_swing=0.3, arm_lower=70.0,
                           shoulder_bounce=3.0, head_pitch=4.0, twist=1.2),

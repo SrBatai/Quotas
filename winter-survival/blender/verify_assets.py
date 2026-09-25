@@ -16,6 +16,14 @@ v2 checks on top of the slice ones:
   * re-import: exactly one corner colour attribute on every mesh that uses palette_vcol; one colour per
     face; palette_vcol faces carry a palette colour (+-1/255 of the stored value); exception faces white;
   * cabin <= 12 surfaces (cutaway groups + window panes).
+v2.1 checks (milestone G1, docs/research/05_graficos_arte.md §4.5/§4.6):
+  * COLOR_0 is VEC4 on every primitive: RGB = palette (above), A = baked AO in [0, 1]; per primitive the most
+    open corner >= 0.5 (no part baked black / buried); per asset min <= 0.9 (AO present) and 95th percentile
+    >= 0.85 (open surfaces stay open); every primitive carries NORMAL (smooth shading + custom normals are
+    allowed, the "all flat" rule of v2 is gone);
+  * snow may sink into the ground: grounded assets have their lowest vertex in [-0.25, +0.02] m;
+  * v2.1 triangle budgets per asset (HD assets: no slack) and the "typical clearing view" of doc 05 §4.5:
+    instances of TYPICAL_VIEW x tris + VIEW_RESERVE (zombies, kit houses, terrain) <= 270 k.
 Assets marked R180 were authored in the slice convention and rotated 180 degrees about Z by lib.lowpoly
 (new_scene(authored_front="+Y")); their slice pivots/collision boxes below are rotated the same way here.
 """
@@ -36,17 +44,29 @@ from lib import palette  # noqa: E402
 PIVOT_TOL = 0.03
 DIM_TOL = 0.10
 COL_TOL = 0.02
-TOTAL_BUDGET = 12000
-BUDGET_SLACK = 1.2
+BUDGET_SLACK = 1.2               # v2 (unchanged) assets; v2.1 HD assets (hd=True) get no slack
 MAX_SURFACES_PER_MESH = 2
+SINK_TOL = 0.25                  # snow mounds / drifts may sink this far below z = 0 (v2.1)
+AO_ASSET_MIN = 0.9               # the most occluded corner of an asset
+AO_ASSET_P95 = 0.85              # 95th percentile of all corners (open surfaces stay open)
+AO_PRIM_MAX = 0.5                # the most open corner of every primitive
+# doc 05 §4.5: a typical clearing view (instances on screen + in the shadow range at the default camera)
+VIEW_BUDGET = 270000
+VIEW_RESERVE = {"zombies (30 x 2 000)": 60000, "kit houses (2 x 10 000)": 20000, "terrain": 30000}
+TYPICAL_VIEW = {
+    "cabin": 1, "a_frame_cabin": 1, "pickup_truck": 1, "pine_a": 20, "pine_b": 12, "pine_c": 8, "dead_tree": 10,
+    "stump": 4, "rock_a": 6, "rock_b": 3, "rock_c": 3, "berry_bush": 4, "firewood": 10, "stone": 6, "fallen_log": 2,
+    "campfire": 1, "signpost": 1, "fence": 6, "tent": 1, "storage_box": 1, "lantern": 1, "wood_stove": 1, "bed": 1,
+    "desk": 1, "chair": 1, "shelf": 1, "clock": 1, "cabinet": 1, "wolf": 2, "deer": 2, "chars/survivor_red": 4,
+}
 
 ZERO = (0.0, 0.0, 0.0)
 
 
 def a(pri, budget, pivots, parents=None, dims=None, minz=0.0, extra=None, col=None, dims_of=None, r180=False,
-      max_surfaces=None):
+      max_surfaces=None, hd=False):
     return dict(pri=pri, budget=budget, pivots=pivots, parents=parents or {}, dims=dims or {}, minz=minz,
-                extra=extra or {}, col=col or {}, dims_of=dims_of or {}, r180=r180, max_surfaces=max_surfaces)
+                extra=extra or {}, col=col or {}, dims_of=dims_of or {}, r180=r180, max_surfaces=max_surfaces, hd=hd)
 
 
 QUAD_PARENTS = {"Head": "Body", "Tail": "Body", "LegFL": "Body", "LegFR": "Body", "LegBL": "Body",
@@ -86,14 +106,15 @@ ASSETS = {
                        "LegFL": (-0.14, 0.42, 0.70), "LegFR": (0.14, 0.42, 0.70),
                        "LegBL": (-0.14, -0.42, 0.70), "LegBR": (0.14, -0.42, 0.70), "Tail": None},
               parents=QUAD_PARENTS, dims={"z": 1.65}, extra={"forward": ["Muzzle"]}, r180=True),
-    "pine_a": a(0, 350, {"Tree": ZERO}, dims={"z": 7.0}),
-    "pine_b": a(0, 300, {"Tree": ZERO}, dims={"z": 5.5}),
-    "pine_c": a(0, 300, {"Tree": ZERO}, dims={"z": 4.0}),
-    "dead_tree": a(0, 250, {"Tree": ZERO}, dims={"z": 4.5}),
-    "stump": a(0, 80, {"Stump": ZERO}, dims={"x": 0.6, "y": 0.6, "z": 0.45}),
-    "rock_a": a(0, 160, {"Rock": ZERO}, dims={"x": 1.2, "y": 1.0, "z": 0.7}),
-    "rock_b": a(0, 160, {"Rock": ZERO}, dims={"x": 2.2, "y": 1.8, "z": 1.2}),
-    "rock_c": a(1, 160, {"Rock": ZERO}, dims={"x": 0.6, "y": 0.5, "z": 0.35}),
+    # v2.1 HD (G1): pine 700-1 200, bare tree 1 500-2 600, rock / stump 150-700 (doc 05 §4.5)
+    "pine_a": a(0, 1200, {"Tree": ZERO}, dims={"z": 7.0}, hd=True),
+    "pine_b": a(0, 1200, {"Tree": ZERO}, dims={"z": 5.5}, hd=True),
+    "pine_c": a(0, 1000, {"Tree": ZERO}, dims={"z": 4.0}, hd=True),
+    "dead_tree": a(0, 2600, {"Tree": ZERO}, dims={"z": 4.5}, hd=True),
+    "stump": a(0, 500, {"Stump": ZERO}, dims={"x": 0.6, "y": 0.6, "z": 0.45}, hd=True),
+    "rock_a": a(0, 700, {"Rock": ZERO}, dims={"x": 1.2, "y": 1.0, "z": 0.7}, hd=True),
+    "rock_b": a(0, 700, {"Rock": ZERO}, dims={"x": 2.2, "y": 1.8, "z": 1.2}, hd=True),
+    "rock_c": a(1, 400, {"Rock": ZERO}, dims={"x": 0.6, "y": 0.5, "z": 0.35}, hd=True),
     "stone": a(0, 40, {"Stone": ZERO}, dims={"x": 0.30, "y": 0.25, "z": 0.20}),
     "berry_bush": a(0, 400, {"Bush": ZERO, "Berries": ZERO}, parents={"Berries": "Bush"},
                     dims={"x": 1.0, "y": 1.0, "z": 0.55}),
@@ -105,7 +126,7 @@ ASSETS = {
     "stone_axe": a(0, 100, {"Handle": ZERO, "Blade": ZERO}, dims={"z": 0.55}, minz=-0.05,
                    extra={"useful_end": "Blade"}),
     "torch": a(0, 80, {"Handle": ZERO, "Head": ZERO, "FlameAnchor": (0, 0, 0.54)}, dims={"z": 0.52}),
-    "cabin": a(0, 2500, {"Floor": ZERO, "WallFront": ZERO, "WindowsFront": ZERO, "WallBack": ZERO,
+    "cabin": a(0, 24000, {"Floor": ZERO, "WallFront": ZERO, "WindowsFront": ZERO, "WallBack": ZERO,
                          "WallLeft": ZERO, "WindowsLeft": ZERO, "WallRight": ZERO, "Roof": ZERO, "Chimney": ZERO,
                          "Porch": ZERO, "DoorAnchor": (-0.9, 3.2, 0.30), "LanternSocket": (-1.6, 4.3, 2.35)},
                parents={"WindowsFront": "WallFront", "WindowsLeft": "WallLeft"},
@@ -113,7 +134,7 @@ ASSETS = {
                extra={"forward": ["DoorAnchor", "LanternSocket"], "window": ["WindowsFront", "WindowsLeft"],
                       "front_mesh": {"WallFront": "<", "WallBack": ">", "WallLeft": "x>", "WallRight": "x<",
                                      "Chimney": "x>", "Porch": "<"}},
-               r180=True, max_surfaces=12),
+               r180=True, max_surfaces=12, hd=True),
     "wood_stove": a(0, 250, {"Body": ZERO, "Door": ZERO, "Pipe": ZERO, "StoveAnchor": (0, 0.35, 0.45),
                              "PipeTop": (0, -0.15, 2.70)},
                     dims={"x": 0.66, "y": 0.66, "z": 2.70}, extra={"forward": ["StoveAnchor"], "ember": ["Door"]},
@@ -127,17 +148,17 @@ ASSETS = {
                minz=None, extra={"front_mesh": {"Shelf": "<"}}, r180=True),
     "clock": a(1, 120, {"Clock": ZERO, "HourHand": (0, 0.07, 0), "MinuteHand": (0, 0.075, 0)},
                dims={"x": 0.36, "z": 0.36}, minz=None, extra={"forward": ["HourHand", "MinuteHand"]}, r180=True),
-    "a_frame_cabin": a(1, 600, {"Body": ZERO, "Front": ZERO, "WindowsFront": ZERO, "Deck": ZERO},
+    "a_frame_cabin": a(1, 14000, {"Body": ZERO, "Front": ZERO, "WindowsFront": ZERO, "Deck": ZERO},
                        parents={"WindowsFront": "Front"}, dims={"x": 6.0, "y": 8.5, "z": 6.0},
                        col={"ColBody": ((-3.0, -3.5, 0.0), (3.0, 3.5, 6.0)),
                             "ColDeck": ((-2.0, 3.5, 0.0), (2.0, 5.0, 0.25))},
                        extra={"window": ["WindowsFront"], "front_mesh": {"Deck": "<", "WindowsFront": "<"}},
-                       r180=True),
-    "pickup_truck": a(1, 900, {"Body": ZERO, "Wheels": ZERO, "Snow": ZERO, "BedAnchor": (0, -1.35, 1.0)},
+                       r180=True, hd=True),
+    "pickup_truck": a(1, 9000, {"Body": ZERO, "Wheels": ZERO, "Snow": ZERO, "BedAnchor": (0, -1.35, 1.0)},
                       dims={"x": 2.0, "y": 5.0, "z": 1.95},
                       col={"ColChassis": ((-1.0, -2.5, 0.3), (1.0, 2.5, 1.3)),
                            "ColCab": ((-0.95, -0.2, 1.3), (0.95, 1.0, 2.0))},
-                      extra={"back": ["BedAnchor"], "window": ["Body"]}, r180=True),
+                      extra={"back": ["BedAnchor"], "window": ["Body"]}, r180=True, hd=True),
     # authored directly in v2: boards point to +X, text faces -Y, text empties unrotated
     "signpost": a(1, 150, {"Post": ZERO, "BoardTop": (0, 0, 1.84), "BoardBottom": (0, 0, 1.44),
                            "TextTop": (0.28, -0.125, 1.84), "TextBottom": (0.28, -0.125, 1.44)},
@@ -308,8 +329,11 @@ def read_accessor(g, binary, idx):
     return out
 
 
-def gltf_problems(g, binary, godot_targets):
+def gltf_problems(g, binary, godot_targets, alphas=None):
+    """glTF-level contract. `alphas` (list) collects every COLOR_0 alpha for the asset-level AO check."""
     problems = []
+    own_alphas = alphas is None
+    alphas = [] if alphas is None else alphas
     allowed = export.allowed_materials()
     for key in ("images", "textures", "samplers"):
         if g.get(key):
@@ -345,14 +369,71 @@ def gltf_problems(g, binary, godot_targets):
                 problems.append("%s: palette_vcol primitive without COLOR_0" % nd["name"])
             if "COLOR_1" in p["attributes"]:
                 problems.append("%s has more than one colour set" % nd["name"])
+            if "NORMAL" not in p["attributes"]:
+                problems.append("%s: primitive without NORMAL" % nd["name"])
             if "COLOR_0" in p["attributes"]:
-                got = {palette.godot_bytes(c) for c in read_accessor(g, binary, p["attributes"]["COLOR_0"])}
+                acc = g["accessors"][p["attributes"]["COLOR_0"]]
+                values = read_accessor(g, binary, p["attributes"]["COLOR_0"])
+                if acc["type"] != "VEC4":
+                    problems.append("%s: COLOR_0 is %s (v2.1: VEC4, alpha = AO)" % (nd["name"], acc["type"]))
+                else:
+                    al = [c[3] for c in values]
+                    if min(al) < -1e-6 or max(al) > 1 + 1e-6:
+                        problems.append("%s: AO alpha outside [0, 1]" % nd["name"])
+                    if max(al) < AO_PRIM_MAX:
+                        problems.append("%s[%s]: AO alpha max %.2f < %.2f (part baked black?)" % (
+                            nd["name"], mn, max(al), AO_PRIM_MAX))
+                    alphas.extend(al)
+                got = {palette.godot_bytes(c) for c in values}
                 want = godot_targets if mn == palette.VCOL_MATERIAL else {(255, 255, 255)}
                 bad = sorted(got - want)
                 if bad:
                     problems.append("%s[%s]: %d COLOR_0 value(s) off the palette as Godot stores them, e.g. %s"
                                     % (nd["name"], mn, len(bad), bad[:3]))
+    if own_alphas:
+        problems += ao_problems(alphas)
     return problems, surfaces
+
+
+def ao_problems(alphas):
+    """Asset-level AO sanity (v2.1): AO present and open surfaces open."""
+    if not alphas:
+        return ["no COLOR_0 alpha (AO) at all"]
+    al = sorted(alphas)
+    p95 = al[min(len(al) - 1, int(0.95 * len(al)))]
+    out = []
+    if al[0] > AO_ASSET_MIN:
+        out.append("AO missing: min alpha %.2f > %.2f" % (al[0], AO_ASSET_MIN))
+    if p95 < AO_ASSET_P95:
+        out.append("AO too dark: 95th percentile %.2f < %.2f" % (p95, AO_ASSET_P95))
+    return out
+
+
+def ao_summary(g, binary):
+    al = []
+    for m in g.get("meshes", []):
+        for p in m["primitives"]:
+            if "COLOR_0" in p["attributes"] and g["accessors"][p["attributes"]["COLOR_0"]]["type"] == "VEC4":
+                al += [c[3] for c in read_accessor(g, binary, p["attributes"]["COLOR_0"])]
+    if not al:
+        return "ao=none"
+    al.sort()
+    return "ao=%.2f/%.2f/%.2f" % (al[0], al[len(al) // 2], al[min(len(al) - 1, int(0.95 * len(al)))])
+
+
+def glb_tris(path):
+    """Triangles of every visual (non Col*) mesh node of a .glb, as instanced by its nodes."""
+    g, _b = load_glb(path)
+    n = 0
+    for nd in g["nodes"]:
+        if "mesh" not in nd or export.is_col(nd["name"]):
+            continue
+        for p in g["meshes"][nd["mesh"]]["primitives"]:
+            if "indices" in p:
+                n += g["accessors"][p["indices"]]["count"] // 3
+            else:
+                n += g["accessors"][p["attributes"]["POSITION"]]["count"] // 3
+    return n
 
 
 def reimport_targets():
@@ -511,8 +592,10 @@ def verify(name, spec0, allowed_bytes, godot_targets):
             z = world_bounds([by[n]])[1].z
             if abs(z - d["zmax"]) > DIM_TOL * d["zmax"]:
                 problems.append("%s top %.3f vs %.3f" % (n, z, d["zmax"]))
-    if spec["minz"] is not None and abs(mn.z - spec["minz"]) > 0.02:
-        problems.append("min z %.3f, expected %.2f" % (mn.z, spec["minz"]))
+    if spec["minz"] is not None:
+        low = spec["minz"] - (SINK_TOL if spec["minz"] == 0.0 else 0.02)
+        if not low <= mn.z <= spec["minz"] + 0.02:
+            problems.append("min z %.3f, expected %.2f (snow may sink to %.2f)" % (mn.z, spec["minz"], low))
     if "maxz" in spec["extra"] and abs(mx.z - spec["extra"]["maxz"]) > 0.02:
         problems.append("max z %.3f, expected %.2f" % (mx.z, spec["extra"]["maxz"]))
     # transforms
@@ -533,14 +616,7 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         if o.type != 'MESH':
             continue
         me = o.data
-        # Flat shading: every corner normal must equal its polygon's normal. (The importer's own
-        # use_smooth guess uses a 1e-7 threshold that misfires on tiny planar faces through float32
-        # rounding, so a polygon flagged smooth only fails when its normals really differ.)
-        cn = me.corner_normals
-        not_flat = sum(1 for p in me.polygons if p.use_smooth and
-                       min(cn[li].vector.dot(p.normal) for li in p.loop_indices) < 0.9999)
-        if not_flat:
-            problems.append("%d smooth-shaded faces on %s" % (not_flat, o.name))
+        # v2.1: smooth shading and custom normals are allowed (the glTF check requires NORMAL on every primitive)
         if len(me.uv_layers):
             problems.append("UV layers on %s" % o.name)
         if is_col(o):
@@ -567,8 +643,9 @@ def verify(name, spec0, allowed_bytes, godot_targets):
                 problems.append("%s does not use material %s" % (n, key))
     # budget
     tris = sum(tris_of(o) for o in vis)
-    if tris > spec["budget"] * BUDGET_SLACK:
-        problems.append("tris %d > %d x %.1f" % (tris, spec["budget"], BUDGET_SLACK))
+    slack = 1.0 if spec["hd"] else BUDGET_SLACK
+    if tris > spec["budget"] * slack:
+        problems.append("tris %d > %d x %.1f" % (tris, spec["budget"], slack))
     # collision
     for o in col_objs:
         box = spec["col"].get(o.name[:-len("-convcolonly")])
@@ -578,8 +655,25 @@ def verify(name, spec0, allowed_bytes, godot_targets):
     if problems:
         return "FAIL", "FAIL %s: %s" % (name, "; ".join(problems)), tris, surfaces
     names = sorted(o.name for o in objs)
-    return "OK", "OK %-14s tris=%-5d surfaces=%-3d dims=(%.2f,%.2f,%.2f)  objects=[%s]" % (
-        name, tris, surfaces, size.x, size.y, size.z, ", ".join(names)), tris, surfaces
+    return "OK", "OK %-14s tris=%-6d surfaces=%-3d %s dims=(%.2f,%.2f,%.2f)  objects=[%s]" % (
+        name, tris, surfaces, ao_summary(g, binary), size.x, size.y, size.z, ", ".join(names)), tris, surfaces
+
+
+def view_budget(per):
+    """doc 05 §4.5 typical clearing view: sum of instances x tris + reserve <= VIEW_BUDGET. Returns failures."""
+    view = 0
+    for name, n in TYPICAL_VIEW.items():
+        if name in per:
+            t = per[name]
+        else:
+            path = export.MODELS_DIR / ("%s.glb" % name)
+            t = glb_tris(path) if path.exists() else 0
+        view += n * t
+    reserve = sum(VIEW_RESERVE.values())
+    ok = view + reserve <= VIEW_BUDGET
+    print("%s typical clearing view: assets %d + reserve %d (%s) = %d tris (budget %d)" % (
+        "OK  " if ok else "FAIL", view, reserve, ", ".join(VIEW_RESERVE), view + reserve, VIEW_BUDGET))
+    return 0 if ok else 1
 
 
 def main():
@@ -588,17 +682,17 @@ def main():
     total_surf = 0
     allowed_bytes = reimport_targets()
     godot_targets = {palette.target_godot_bytes(n) for n in palette.all_names()}
+    per = {}
     for name, spec in ASSETS.items():
         status, msg, tris, surfaces = verify(name, spec, allowed_bytes, godot_targets)
         total += tris
         total_surf += surfaces
+        per[name] = tris
         print(msg)
         if status == "FAIL":
             failures += 1
-    print("TOTAL tris=%d (budget %d) surfaces=%d" % (total, TOTAL_BUDGET, total_surf))
-    if total > TOTAL_BUDGET:
-        print("FAIL total triangle budget exceeded")
-        failures += 1
+    print("TOTAL tris=%d surfaces=%d (all %d assets once)" % (total, total_surf, len(ASSETS)))
+    failures += view_budget(per)
     print("ALL OK" if failures == 0 else "%d FAILURES" % failures)
     return 0 if failures == 0 else 1
 

@@ -36,9 +36,9 @@ func _ready() -> void:
 	light = LightFlicker.new()
 	light.name = "Light"
 	light.light_color = Color("#FF9A3C")
-	light.base_energy = 2.5
-	light.omni_range = 6.0
-	light.omni_attenuation = 1.2
+	light.base_energy = 1.2
+	light.omni_range = 5.0
+	light.omni_attenuation = 1.3
 	add_child(light)
 	var g := Gradient.new()
 	g.set_color(0, Color("#FFD166"))

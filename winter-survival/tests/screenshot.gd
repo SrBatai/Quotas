@@ -1,5 +1,5 @@
 extends SceneTree
-## Screenshot runner (xvfb + Compatibility). Args after "++": --preset=day|night|blizzard|interior|menu --out=path.png
+## Screenshot runner (xvfb + Compatibility). Args after "++": --preset=day|dusk|night|blizzard|interior|menu --out=path.png
 ## The typed body lives in screenshot_steps.gd and is loaded at runtime, after the autoloads exist.
 
 var _body: RefCounted

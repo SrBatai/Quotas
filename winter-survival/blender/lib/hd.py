@@ -400,9 +400,6 @@ def snow_cap(center, rx, ry, thick, z_fn, name=None, seed=0, sides=10, rings=3, 
 # ------------------------------------------------------------------------------------------------------------
 # baked ambient occlusion -> COLOR_0.a
 # ------------------------------------------------------------------------------------------------------------
-AO_ATTR_TMP = "AOtmp"
-
-
 def _visual_meshes():
     from .export import is_col
     return [o for o in bpy.context.scene.objects if o.type == 'MESH' and not is_col(o.name)]
@@ -431,85 +428,106 @@ def scene_bounds(objs=None):
     return mn, mx
 
 
-def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0, floor=0.0, walls=()):
-    """Bake Cycles AO per corner into the alpha of `Col` for every object in `objs`. All other visual meshes of
-    the scene occlude; Col* collision objects never do. A temporary ground plane at z = ground_z darkens the bases
-    (ground=False for hanging / hand-held assets); `walls` = [(point, normal)] adds temporary occluder planes
-    (wall-mounted assets). alpha = floor + (1 - floor) * ao ** gamma. Returns the bake time (s)."""
-    from .export import is_col, quiet
+def _hemisphere(k):
+    """k cosine-weighted directions on the +Z hemisphere (Fibonacci spiral: deterministic, well spread)."""
+    ga = math.pi * (3.0 - math.sqrt(5.0))
+    out = []
+    for i in range(k):
+        u = (i + 0.5) / k
+        r = math.sqrt(u)
+        out.append((r * math.cos(i * ga), r * math.sin(i * ga), math.sqrt(max(0.0, 1.0 - u))))
+    return out
+
+
+def _occluder_tree(objs, planes):
+    from mathutils.bvhtree import BVHTree
+    verts, polys = [], []
+    for o in objs:
+        mw = o.matrix_world
+        base = len(verts)
+        verts += [mw @ v.co for v in o.data.vertices]
+        polys += [tuple(base + i for i in p.vertices) for p in o.data.polygons]
+    for p, n in planes:
+        q = n.to_track_quat('Z', 'Y').to_matrix()
+        s = 60.0
+        base = len(verts)
+        verts += [p + q @ Vector((x, y, 0)) for x, y in ((-s, -s), (s, -s), (s, s), (-s, s))]
+        polys.append((base, base + 1, base + 2, base + 3))
+    return BVHTree.FromPolygons(verts, polys, epsilon=0.0)
+
+
+def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0, floor=0.0, walls=(),
+            inset=0.05, inset_frac=0.25, eps=0.002):
+    """Bake ambient occlusion per corner into the alpha of `Col` for every object in `objs` (ray cast against a
+    BVH of every visual mesh of the scene; Col* collision objects never occlude). A ground plane at z = ground_z
+    darkens the bases (ground=False for hanging / hand-held assets); `walls` = [(point, normal)] adds occluder
+    planes (wall-mounted assets). alpha = floor + (1 - floor) * ao ** gamma, ao = fraction of `samples`
+    cosine-weighted rays that travel `distance` without a hit.
+
+    Sampling point (why not Cycles' vertex bake): Cycles samples AO exactly AT each vertex, and on board / box
+    construction the vertices sit on contact lines with the neighbouring parts, so whole flat faces (a wall, a
+    roof panel) came out 50-97 % occluded. Here a corner of a FLAT face (flat shaded, or a hardened chamfer face)
+    is sampled `inset` m (at most `inset_frac` of the way) toward its face centre, 2 mm above the face; a corner
+    of a SMOOTH surface is sampled at its vertex along its normal (one value per vertex: no seams on snow / cloth).
+    Returns the bake time (s)."""
+    from .export import is_col
+    t0 = time.time()
     sc = bpy.context.scene
-    old_engine = sc.render.engine
-    sc.render.engine = 'CYCLES'
-    sc.cycles.device = 'CPU'
-    sc.cycles.samples = samples
-    try:
-        sc.cycles.seed = 0
-    except Exception:
-        pass
-    world_created = sc.world is None
-    if world_created:
-        sc.world = bpy.data.worlds.new("bake_world")
-    sc.world.light_settings.distance = distance
-    hidden = []
-    for o in sc.objects:
-        if o.type == 'MESH' and is_col(o.name) and not o.hide_render:
-            o.hide_render = True
-            hidden.append(o)
-    temps = []
+    occ = [o for o in sc.objects if o.type == 'MESH' and not is_col(o.name)]
     planes = []
     if ground:
         planes.append((Vector((0, 0, ground_z)), Vector((0, 0, 1))))
-    planes += [(Vector(p), Vector(n)) for p, n in walls]
-    for k, (p, n) in enumerate(planes):
-        me = bpy.data.meshes.new("bake_occluder_%d" % k)
-        s = 60.0
-        q = n.to_track_quat('Z', 'Y').to_matrix()
-        pts = [p + q @ Vector((x, y, 0)) for x, y in ((-s, -s), (s, -s), (s, s), (-s, s))]
-        me.from_pydata(pts, [], [(0, 1, 2, 3)])
-        ob = bpy.data.objects.new("bake_occluder_%d" % k, me)
-        sc.collection.objects.link(ob)
-        temps.append(ob)
-    t0 = time.time()
-    try:
-        for o in objs:
-            me = o.data
-            ao = me.color_attributes.new(AO_ATTR_TMP, 'FLOAT_COLOR', 'CORNER')
-            me.color_attributes.active_color = ao
-            for ob in sc.objects:
-                ob.select_set(False)
-            o.select_set(True)
-            bpy.context.view_layer.objects.active = o
-            with quiet():
-                bpy.ops.object.bake(type='AO', target='VERTEX_COLORS')
-            n = len(me.loops)
-            a = [0.0] * (n * 4)
-            ao.data.foreach_get("color", a)
-            col = me.color_attributes[palette.VCOL_ATTR]
-            c = [0.0] * (n * 4)
-            col.data.foreach_get("color", c)
-            for i in range(n):
-                v = max(0.0, min(1.0, a[i * 4]))
-                c[i * 4 + 3] = floor + (1.0 - floor) * (v ** gamma)
-            col.data.foreach_set("color", c)
-            me.color_attributes.remove(me.color_attributes[AO_ATTR_TMP])
-            me.color_attributes.active_color = me.color_attributes[palette.VCOL_ATTR]
-            try:
-                me.color_attributes.render_color_index = me.color_attributes.find(palette.VCOL_ATTR)
-            except Exception:
-                pass
-            o.select_set(False)
-    finally:
-        for ob in temps:
-            me = ob.data
-            bpy.data.objects.remove(ob, do_unlink=True)
-            bpy.data.meshes.remove(me)
-        for o in hidden:
-            o.hide_render = False
-        if world_created:
-            w = sc.world
-            sc.world = None
-            bpy.data.worlds.remove(w)
-        sc.render.engine = old_engine
+    planes += [(Vector(p), Vector(n).normalized()) for p, n in walls]
+    tree = _occluder_tree(occ, planes)
+    dirs = _hemisphere(samples)
+    golden = 0.6180339887
+    for o in objs:
+        me = o.data
+        mw = o.matrix_world
+        m3 = mw.to_3x3().inverted().transposed()
+        wv = [mw @ v.co for v in me.vertices]
+        cn = me.corner_normals
+        col = me.color_attributes[palette.VCOL_ATTR]
+        c = [0.0] * (len(me.loops) * 4)
+        col.data.foreach_get("color", c)
+        cache = {}
+        for poly in me.polygons:
+            li = list(poly.loop_indices)
+            vi = list(poly.vertices)
+            fn = (m3 @ poly.normal).normalized()
+            cen = sum((wv[i] for i in vi), Vector()) / len(vi)
+            for k, lidx in enumerate(li):
+                n = (m3 @ cn[lidx].vector).normalized()
+                p = wv[vi[k]]
+                if n.dot(fn) > 0.9995:                         # flat / hardened face corner: sample inside
+                    d = cen - p
+                    L = d.length
+                    if L > 1e-9:
+                        p = p + d * (min(inset, inset_frac * L) / L)
+                    n = fn
+                    key = None
+                else:                                         # smooth corner: one sample per vertex + normal
+                    key = (vi[k], round(n.x, 3), round(n.y, 3), round(n.z, 3))
+                    if key in cache:
+                        c[lidx * 4 + 3] = cache[key]
+                        continue
+                origin = p + n * eps
+                t = n.orthogonal().normalized()
+                b = n.cross(t)
+                ang = 2.0 * math.pi * ((lidx * golden) % 1.0)
+                ca, sa = math.cos(ang), math.sin(ang)
+                t, b = t * ca + b * sa, b * ca - t * sa
+                hits = 0
+                for dx, dy, dz in dirs:
+                    if tree.ray_cast(origin, t * dx + b * dy + n * dz, distance)[0] is not None:
+                        hits += 1
+                ao = 1.0 - hits / len(dirs)
+                val = floor + (1.0 - floor) * (ao ** gamma)
+                c[lidx * 4 + 3] = val
+                if key is not None:
+                    cache[key] = val
+        col.data.foreach_set("color", c)
+        me.update()
     return time.time() - t0
 
 
@@ -518,7 +536,7 @@ def auto_ao_settings():
     for assets standing on z = 0."""
     mn, mx = scene_bounds()
     size = max(mx - mn)
-    return dict(distance=max(0.1, min(1.2, 0.3 * size)), samples=48, ground=abs(mn.z) < 0.03)
+    return dict(distance=max(0.1, min(1.2, 0.3 * size)), samples=48, ground=mn.z > -0.30 and mn.z < 0.03)
 
 
 def bake_scene_ao(distance=None, samples=None, ground=None, walls=(), force=False):

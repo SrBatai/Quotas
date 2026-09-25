@@ -1,5 +1,5 @@
 {
-  "_doc": "Budgets checked by tests/perf_probe.gd (medians over 180 frames of the fixed clearing scene: day 1 11:00, clear, camera at the porch spawn, yaw 45, pitch -48, dist 27, far 70). GPU timings (frame_ms_*) are only enforced when enforce_gpu is true: under xvfb + llvmpipe they are meaningless. See ARQ v2 §17.1 / §18.",
+  "_doc": "Budgets checked by tests/perf_probe.gd (medians over 180 frames of the fixed clearing scene: day 1 11:00, clear, camera at the porch spawn, yaw 45, pitch -48, dist Balance.CAMERA_DIST (24 since G1), far 70). GPU timings (frame_ms_*) are only enforced when enforce_gpu is true: under xvfb + llvmpipe they are meaningless. See ARQ v2 §17.1 / §18.",
   "perf_probe": {
     "draw_calls_max": 704,
     "objects_max": 800,

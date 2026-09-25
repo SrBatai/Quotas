@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/terrain.gdshader" id="1"]
+
+[resource]
+resource_name = "terrain"
+shader = ExtResource("1")
+shader_parameter/snow_color = Color(0.803922, 0.870588, 0.960784, 1)
+shader_parameter/trail_enabled = false

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 OUT="${1:-/tmp/ventisca_shots}"
 shift || true
 PRESETS=("$@")
-[ ${#PRESETS[@]} -eq 0 ] && PRESETS=(day night blizzard interior menu)
+[ ${#PRESETS[@]} -eq 0 ] && PRESETS=(day dusk night blizzard interior menu)
 mkdir -p "$OUT"
 RENDER="${RENDER:-compat}"
 if [ "$RENDER" = "forward" ]; then

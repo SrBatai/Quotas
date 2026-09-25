@@ -359,20 +359,25 @@ def check_armature(arm_obj, p=None):
     return problems
 
 
-def check_rigid_skin(body):
-    """Every vertex: exactly one group, weight 1.0, group = a deforming bone."""
+def check_rigid_skin(body, blend_pairs=()):
+    """Every vertex: exactly one group, weight 1.0, group = a deforming bone. `blend_pairs` = bone pairs whose
+    vertices may carry exactly these two influences summing to 1 (long continuous clothing, ASSET_SPEC_V2 §4.3:
+    e.g. the parka skirt Hips + Left/RightUpperLeg, G1)."""
     problems = []
     gnames = {g.index: g.name for g in body.vertex_groups}
     bad = [g for g in gnames.values() if g not in DEFORM_BONES]
     if bad:
         problems.append("vertex groups for non-deforming bones %s" % bad)
+    pairs = {frozenset(p) for p in blend_pairs}
     unweighted = multi = partial = 0
     for v in body.data.vertices:
         gs = [g for g in v.groups if g.weight > 0.0]
         if not gs:
             unweighted += 1
         elif len(gs) > 1:
-            multi += 1
+            names = frozenset(gnames[g.group] for g in gs)
+            if not (len(gs) == 2 and names in pairs and abs(sum(g.weight for g in gs) - 1.0) < 1e-4):
+                multi += 1
         elif abs(gs[0].weight - 1.0) > 1e-6:
             partial += 1
     if unweighted or multi or partial:
