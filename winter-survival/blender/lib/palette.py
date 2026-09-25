@@ -1,4 +1,4 @@
-"""Palette (ASSET_SPEC_V2 §3) -> baked vertex colours (decision C2).
+"""Palette (ASSET_SPEC_V2 §3, v2.1 values of milestone G1) -> baked vertex colours (decision C2).
 
 Every visual mesh carries ONE colour attribute `Col` (corner domain, float colour = the palette hex converted
 sRGB -> linear; the glTF exporter writes it unchanged as `COLOR_0`) and ONE shared material `palette_vcol`
@@ -15,19 +15,23 @@ linear palette colour.
     palette.paint(obj_or_mesh, faces, "cabin_wall")    # repaint polygons of an existing mesh
     palette.assign(mesh, names)                        # one name per polygon (lowpoly.to_object uses it)
     palette.zombify("jacket")  -> "z_jacket"           # 40 % toward cloth_gray, registered in PALETTE
+
+v2.1 (G1): COLOR_0 is RGBA. RGB = the palette colour exactly as above (linear + GODOT_BIAS); A = ambient occlusion
+baked by lib/hd.py::bake_ao (1 = open, 0 = fully occluded; export.save_and_export bakes it for every asset). Every
+function here writes alpha 1.0; only the AO bake touches alpha.
 """
 import warnings
 
 import bpy
 
 PALETTE = {
-    # slice colours (unchanged)
-    "snow": "#F1F5FA", "snow_shadow": "#B9CBE3", "ice": "#BFE3F0",
-    "pine_dark": "#2F5D3A", "pine_light": "#4B8A55", "bark": "#5B3F2E",
-    "wood": "#8B6543", "wood_light": "#C7A16B", "wood_dark": "#4A3426",
-    "stone": "#7C8592", "stone_dark": "#5A616B", "brick": "#8E5A4A",
-    "iron": "#2B2E33", "cabin_wall": "#5D7FA6", "cabin_trim": "#DDE6F0",
-    "roof": "#33383F", "window": "#9CC4DD", "truck_paint": "#5B6B3F",
+    # slice colours (v2.1 re-tuned values: docs/research/05_graficos_arte.md §4.1, milestone G1)
+    "snow": "#CDDEF5", "snow_shadow": "#AFC3E0", "ice": "#BFE3F0",
+    "pine_dark": "#1F342E", "pine_light": "#2F4A3D", "bark": "#4A3D35",
+    "wood": "#7A5F4B", "wood_light": "#A88E70", "wood_dark": "#4A3B31",
+    "stone": "#7B8089", "stone_dark": "#565B63", "brick": "#735F5D",
+    "iron": "#2A2B2E", "cabin_wall": "#6C829C", "cabin_trim": "#D3CFC6",
+    "roof": "#48434A", "window": "#9CC4DD", "truck_paint": "#5E6650",
     "bush": "#3E6B45", "berry": "#D9403D", "ember": "#E63B12",
     "jacket": "#B03A2E", "hat": "#2E4A7A", "scarf": "#E8B04B",
     "skin": "#F1C9A5", "boots": "#2A2320", "wolf_fur": "#6E7378",
@@ -50,6 +54,16 @@ PALETTE = {
     "gun_metal": "#3A3E45", "gun_wood": "#6B4A2E", "brass": "#B8963E",
     "plastic_black": "#25272B", "plastic_red": "#C0392B", "plastic_blue": "#2E86C1",
     "hay": "#C9B26B", "dirt": "#5A4A3A", "moss": "#5C7A4A",
+    # v2.1 additions (docs/research/05_graficos_arte.md §4.1, milestone G1)
+    "snow_packed": "#BFD0E8", "snow_hole": "#93AACB", "snow_deep": "#D6E4F7", "roof_seam": "#2C2A2E",
+    "bark_grey": "#4E4843", "pine_mid": "#27402F",
+    "parka_brown": "#4F4135", "parka_olive": "#4C5040", "parka_navy": "#3A4457", "parka_rust": "#7A4536",
+    "pants_dark": "#35383D", "beanie": "#2E3035", "fur": "#CEC8BD", "pack": "#5D4C3C", "pack_dark": "#3D352D",
+    "boots_brown": "#5B412F", "sock": "#D9D4CB", "skin_hd": "#C29478", "glove": "#2F2B28", "mat_roll": "#6D7558",
+    "strap": "#2B2826", "beard": "#4A3A30",
+    # G1 additions (ASSET_SPEC_V2 "G1"): muted co-op parkas for the green / mustard survivors; tail-light red and
+    # headlight lens that do not glare against the v2.1 palette
+    "parka_green": "#465A43", "parka_mustard": "#8A6B34", "lamp_red": "#8C3A34", "lamp_clear": "#BFC4C2",
 }
 BASE_NAMES = tuple(PALETTE)
 
@@ -62,6 +76,7 @@ OPTIONAL_EXCEPTIONS = ("blood",)
 MATERIAL_PREFIX = "mat:"
 WHITE = (1.0, 1.0, 1.0, 1.0)
 GODOT_BIAS = 0.5 / 255.0
+VERSION = "2.1"
 
 
 def srgb_to_linear(c):

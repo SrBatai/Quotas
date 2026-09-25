@@ -5,6 +5,11 @@ Deviation from the literal §2.8 call (reported): `export_image_format='AUTO'` i
 Blender 5.0.1 exporter only follows the Base Color link to the `Col` attribute when the image format is not
 'NONE' (io_scene_gltf2/blender/exp/material/pbr_metallic_roughness.py); with 'NONE' no COLOR_0 is written.
 No asset contains images, so nothing else changes.
+
+v2.1 (milestone G1, docs/research/05_graficos_arte.md §4.6): COLOR_0 is exported by NAME from the `Col` attribute
+(`export_vertex_color='NAME'`: with 'MATERIAL' the exporter drops the alpha) and is RGBA: RGB = palette colour
+(linear + GODOT_BIAS, unchanged), A = baked ambient occlusion. `save_and_export` bakes the AO (lib/hd.py) for every
+visual mesh that has none yet. Smooth shading and custom normals are allowed (normals are exported per corner).
 """
 import math
 import re
@@ -35,7 +40,8 @@ def export_kwargs(has_armature=False, has_actions=False):
         export_anim_single_armature=True, export_reset_pose_bones=True, export_rest_position_armature=True,
         export_def_bones=False,                                  # keeps the non-deforming socket bones
         export_leaf_bone=False, export_skins=has_armature, export_morph=False,
-        export_vertex_color='MATERIAL', export_all_vertex_colors=False,   # a single COLOR_0
+        export_vertex_color='NAME', export_vertex_color_name=palette.VCOL_ATTR,   # COLOR_0 = RGBA (A = AO)
+        export_all_vertex_colors=False,                                            # a single COLOR_0
         export_materials='EXPORT',
         export_image_format='AUTO',                              # see module docstring ('NONE' drops COLOR_0)
         export_texcoords=False, export_normals=True,
@@ -86,8 +92,6 @@ def sanity_check_scene(name):
                 problems.append("scale on %s" % o.name)
         if o.type == 'MESH':
             me = o.data
-            if any(p.use_smooth for p in me.polygons):
-                problems.append("smooth faces on %s" % o.name)
             if len(me.uv_layers):
                 problems.append("uv data on %s" % o.name)
             if is_col(o.name):
@@ -140,8 +144,11 @@ def export_gltf(glb_path, has_armature=None, has_actions=None):
                 raise
 
 
-def save_and_export(name, subdir=""):
-    """Sanity-check the scene, save sources/<name>.blend, export assets/models/[subdir/]<name>.glb.
+def save_and_export(name, subdir="", ao=True):
+    """Sanity-check the scene, bake AO (v2.1), save sources/<name>.blend, export assets/models/[subdir/]<name>.glb.
+
+    ao: True = hd.bake_scene_ao() with the automatic settings for every visual mesh without AO; a dict = the same
+    with explicit settings (distance, samples, ground, walls); False = no bake (armature-only animation files).
 
     The .glb export is byte-deterministic but a .blend save is not (timestamps): when the freshly exported
     .glb equals the existing one and the .blend exists, both files are left untouched (no churn in the repo
@@ -150,6 +157,9 @@ def save_and_export(name, subdir=""):
     import shutil
     import tempfile
     sanity_check_scene(name)
+    if ao:
+        from . import hd
+        hd.bake_scene_ao(**(ao if isinstance(ao, dict) else {}))
     _purge_orphans()
     SOURCES_DIR.mkdir(parents=True, exist_ok=True)
     out_dir = MODELS_DIR / subdir if subdir else MODELS_DIR
@@ -175,7 +185,7 @@ def save_and_export(name, subdir=""):
     tris = lowpoly.scene_tris()
     surfaces = sum(len(o.data.materials) for o in bpy.context.scene.objects
                    if o.type == 'MESH' and not is_col(o.name))
-    print("built %-14s tris=%-5d surfaces=%-3d -> %s%s" % (name, tris, surfaces, glb.relative_to(ROOT),
+    print("built %-16s tris=%-6d surfaces=%-3d -> %s%s" % (name, tris, surfaces, glb.relative_to(ROOT),
                                                            " (unchanged)" if unchanged else ""))
     return glb
 

@@ -1,0 +1,533 @@
+"""HD construction helpers, art guidelines v2.1 (docs/research/05_graficos_arte.md §4, milestone G1).
+
+Ported from the look-dev PoC (prototypes/lookdev/blender/hdlib.py) into the game pipeline. On top of
+lowpoly.MeshBuilder (which still builds everything, flat shaded, one palette colour per face):
+
+  * shading per part (§4.2): `bevel()` chamfers hard parts (1 segment, angle limit, hardened normals: flat faces
+    + a thin highlight edge), `smooth()` / `flat()`, `subsurf()` for Catmull-Clark cages; `freeze_normals()` +
+    `join()` merge flat, smooth and chamfered parts into ONE object (one surface) keeping each part's normals as
+    exported custom normals; `snap_colors()` puts every face back on ONE exact palette colour after a bevel or a
+    subdivision interpolated the corner colours (RGB stays = palette, the verifier checks it);
+  * snow recipes (§4.3): `pillow()` (thick slab / lump with rounded rims and an optional drooping cornice),
+    `snow_strip()` (rounded snow line on a rail / sill / beam top), `mound()` (smooth bell mound at trunk bases
+    and piles), `snow_cap()` (pillow cap resting on the top faces of a rock / post / stump);
+  * `bake_ao()`: Cycles ambient occlusion baked per corner into the ALPHA of the `Col` attribute
+    (COLOR_0.a = AO, 1 = open, 0 = occluded). `export.save_and_export` calls `bake_scene_ao()` for every asset
+    that has not baked its own AO, so the whole game carries the COLOR.a contract (docs/research/06 §3.7).
+
+Every helper works in the authoring convention of the current scene (lowpoly.new_scene(authored_front=...)).
+"""
+import math
+import random
+import time
+
+import bmesh
+import bpy
+from mathutils import Matrix, Vector, noise
+
+from . import lowpoly as lp
+from . import palette
+
+_TMP = {"n": 0}
+
+
+# ------------------------------------------------------------------------------------------------------------
+# objects
+# ------------------------------------------------------------------------------------------------------------
+def tmp_name(prefix="hdtmp"):
+    _TMP["n"] += 1
+    return "%s_%05d" % (prefix, _TMP["n"])
+
+
+def mk(mb, name=None, pivot=(0, 0, 0), parent=None):
+    """MeshBuilder -> object (palette colours in `Col`, flat shaded), origin at `pivot` (authoring convention)."""
+    return lp.to_object(mb, name or tmp_name(), pivot, parent)
+
+
+def _swap_evaluated(obj):
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = obj.evaluated_get(dg)
+    nm = bpy.data.meshes.new_from_object(ev, preserve_all_data_layers=True, depsgraph=dg)
+    old = obj.data
+    obj.modifiers.clear()
+    obj.data = nm
+    if old.users == 0:
+        bpy.data.meshes.remove(old)
+    nm.name = obj.name
+    return obj
+
+
+def subsurf(obj, levels=2):
+    m = obj.modifiers.new("subsurf", 'SUBSURF')
+    m.levels = levels
+    m.render_levels = levels
+    m.uv_smooth = 'NONE'
+    try:
+        m.boundary_smooth = 'ALL'
+    except Exception:
+        pass
+    _swap_evaluated(obj)
+    return obj
+
+
+def bevel(obj, width=0.02, segments=1, angle=30.0, harden=True, clamp=True):
+    """Chamfer every edge sharper than `angle` (hard-surface rule v2.1: 1.2-2.5 cm on worked wood, trims, posts,
+    beams, frames, furniture, metal; 3-5 cm on vehicle bodies). harden=True keeps the big faces flat (custom
+    normals) so the chamfer reads as a thin highlight. Call snap_colors() afterwards."""
+    obj.data.shade_smooth()
+    m = obj.modifiers.new("bevel", 'BEVEL')
+    m.width = width
+    m.segments = segments
+    m.limit_method = 'ANGLE'
+    m.angle_limit = math.radians(angle)
+    m.use_clamp_overlap = clamp
+    m.harden_normals = harden
+    m.miter_outer = 'MITER_ARC' if segments > 1 else 'MITER_SHARP'
+    _swap_evaluated(obj)
+    if not harden:
+        flat(obj)
+    return obj
+
+
+def smooth(obj, angle=None):
+    """Smooth shading; with `angle` (deg) edges sharper than it stay hard (sharp_edge attribute)."""
+    me = obj.data
+    me.shade_smooth()
+    if angle is not None:
+        me.set_sharp_from_angle(angle=math.radians(angle))
+    return obj
+
+
+def flat(obj):
+    obj.data.shade_flat()
+    return obj
+
+
+def freeze_normals(obj):
+    """Store the current corner normals as custom normals (a later join keeps flat + smooth + chamfered parts)."""
+    me = obj.data
+    nors = [tuple(n.vector) for n in me.corner_normals]
+    me.normals_split_custom_set(nors)
+    return obj
+
+
+def join(objs, name, parent=None):
+    """Join objects built with the same pivot into one object called `name` (normals frozen first)."""
+    objs = [o for o in objs if o is not None]
+    for o in objs:
+        freeze_normals(o)
+    target = objs[0]
+    if len(objs) > 1:
+        with bpy.context.temp_override(active_object=target, object=target, selected_objects=objs,
+                                       selected_editable_objects=objs):
+            bpy.ops.object.join()
+    old = bpy.data.objects.get(name)
+    if old is not None and old != target:
+        raise RuntimeError("join: %s already exists" % name)
+    oldname = target.name
+    target.name = name
+    target.data.name = name
+    if target.name != name:
+        raise RuntimeError("join: name collision %s -> %s" % (name, target.name))
+    lp._PIVOTS[name] = lp._PIVOTS.pop(oldname, Vector((0, 0, 0))).copy()
+    if parent is not None:
+        mw = target.matrix_world.copy()
+        target.parent = parent
+        target.matrix_parent_inverse = Matrix.Identity(4)
+        target.matrix_world = mw
+    _dedupe_materials(target)
+    return target
+
+
+def _dedupe_materials(obj):
+    """Merge duplicated material slots (a join appends every part's list); palette_vcol first."""
+    me = obj.data
+    names = [m.name if m else None for m in me.materials]
+    order = []
+    if palette.VCOL_MATERIAL in names:
+        order.append(palette.VCOL_MATERIAL)
+    for n in names:
+        if n not in order:
+            order.append(n)
+    if order == names:
+        return
+    idx = [0] * len(me.polygons)
+    me.polygons.foreach_get("material_index", idx)
+    mats = {m.name: m for m in me.materials if m}
+    remap = [order.index(n) for n in names]
+    me.polygons.foreach_set("material_index", [remap[i] for i in idx])
+    me.materials.clear()
+    for n in order:
+        me.materials.append(mats[n])
+    me.update()
+
+
+def snap_colors(obj, allowed=None):
+    """Give every palette_vcol face ONE exact palette colour (the nearest to its corner average) after a bevel
+    or a subdivision interpolated the corners. Alpha untouched; exception-material faces stay white."""
+    me = obj.data
+    col = me.color_attributes.get(palette.VCOL_ATTR)
+    names = allowed or list(palette.PALETTE)
+    targets = [palette.vcol_rgba(n) for n in names]
+    vmat = [bool(m and m.name == palette.VCOL_MATERIAL) for m in me.materials]
+    data = [0.0] * (len(me.loops) * 4)
+    col.data.foreach_get("color", data)
+    cache = {}
+    for poly in me.polygons:
+        li = list(poly.loop_indices)
+        if not vmat[poly.material_index]:
+            for i in li:
+                data[i * 4:i * 4 + 3] = (1.0, 1.0, 1.0)
+            continue
+        avg = tuple(round(sum(data[i * 4 + k] for i in li) / len(li), 6) for k in range(3))
+        best = cache.get(avg)
+        if best is None:
+            best = min(targets, key=lambda t: sum((t[k] - avg[k]) ** 2 for k in range(3)))
+            cache[avg] = best
+        for i in li:
+            data[i * 4:i * 4 + 3] = best[:3]
+    col.data.foreach_set("color", data)
+    me.update()
+
+
+def remove(obj):
+    bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def drop_faces(obj, direction, below):
+    """Delete faces whose normal . direction < below (hidden undersides of snow resting on a surface).
+    `direction` is in authoring coordinates (converted with the scene's front transform)."""
+    d = (lp.front_xf().to_3x3() @ Vector(direction)).normalized()
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.normal_update()
+    kill = [f for f in bm.faces if f.normal.dot(d) < below]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    bm.to_mesh(obj.data)
+    bm.free()
+    obj.data.update()
+    return len(kill)
+
+
+def tris(obj):
+    me = obj.data
+    me.calc_loop_triangles()
+    return len(me.loop_triangles)
+
+
+# ------------------------------------------------------------------------------------------------------------
+# geometry helpers
+# ------------------------------------------------------------------------------------------------------------
+def fbm(x, y, octaves=3, seed=0.0):
+    v, a, f = 0.0, 1.0, 1.0
+    for _ in range(octaves):
+        v += a * noise.noise(Vector((x * f + seed, y * f - seed, 0.37 * seed)))
+        a *= 0.5
+        f *= 2.03
+    return v
+
+
+def smoothstep(a, b, x):
+    t = max(0.0, min(1.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+def tube(mb, pts, radii, sides, mat, cap_end=True, cap_start=False, phase=0.0):
+    """Tapered tube along a polyline (rings perpendicular to the local tangent). radii may be (ru, rw) pairs."""
+    pts = [Vector(p) for p in pts]
+    rings = []
+    for i, p in enumerate(pts):
+        if i == 0:
+            t = pts[1] - pts[0]
+        elif i == len(pts) - 1:
+            t = pts[-1] - pts[-2]
+        else:
+            t = pts[i + 1] - pts[i - 1]
+        rings.append(lp.ring(p, t, radii[i], sides, phase))
+    return mb.loft(rings, mat, cap_start=cap_start, cap_end=cap_end)
+
+
+def beam(mb, p0, p1, w, h=None, mat="wood", up=(0, 0, 1), snow=False):
+    """Oriented box from p0 to p1 with cross-section w (sideways) x h (toward `up`)."""
+    p0, p1 = Vector(p0), Vector(p1)
+    a = (p1 - p0).normalized()
+    upv = Vector(up)
+    if abs(a.dot(upv.normalized())) > 0.97:
+        upv = Vector((0, 1, 0)) if abs(a.y) < 0.9 else Vector((1, 0, 0))
+    s = a.cross(upv).normalized()
+    u = s.cross(a).normalized()
+    h = w if h is None else h
+    corners = []
+    for i in range(8):
+        base = p1 if i & 1 else p0
+        corners.append(base + s * (w / 2 if i & 2 else -w / 2) + u * (h / 2 if i & 4 else -h / 2))
+    return mb.hexa(corners, mat, snow=snow)
+
+
+def pillow_cage(mb, origin, U, V, N, us, vs, top_fn, bottom=-0.02, mat="snow", jitter=0.0, rnd=None, lip=None):
+    """Closed cage for a Catmull-Clark "pillow" on the plane (origin, U, V) with normal N. us / vs = parameter
+    positions along U / V; top_fn(u, v) = top-sheet thickness; `bottom` = offset of the bottom sheet along N;
+    lip(u, v) -> extra (dU, dV, dN) offset of the border (cornice overhang / droop)."""
+    rnd = rnd or random.Random(0)
+    O, U, V, N = Vector(origin), Vector(U).normalized(), Vector(V).normalized(), Vector(N).normalized()
+    nu, nv = len(us), len(vs)
+    jit = [[(rnd.uniform(-jitter, jitter), rnd.uniform(-jitter, jitter)) if jitter else (0.0, 0.0)
+            for _u in us] for _v in vs]
+
+    def P(i, j, h):
+        u, v = us[j], vs[i]
+        d = Vector(lip(u, v)) if lip is not None else Vector((0, 0, 0))
+        ju, jv = jit[i][j]
+        return O + U * (u + d.x + ju) + V * (v + d.y + jv) + N * (h + d.z)
+
+    top = [[P(i, j, top_fn(us[j], vs[i])) for j in range(nu)] for i in range(nv)]
+    bot = [[P(i, j, bottom) for j in range(nu)] for i in range(nv)]
+    ti = [[mb._v(p) for p in r] for r in top]
+    bi = [[mb._v(p) for p in r] for r in bot]
+    for i in range(nv - 1):
+        for j in range(nu - 1):
+            mb.add_face((ti[i][j], ti[i][j + 1], ti[i + 1][j + 1], ti[i + 1][j]), mat, facing=N)
+            mb.add_face((bi[i][j], bi[i][j + 1], bi[i + 1][j + 1], bi[i + 1][j]), mat, facing=-N)
+    ring = [(0, j) for j in range(nu)] + [(i, nu - 1) for i in range(1, nv)] + \
+           [(nv - 1, j) for j in range(nu - 2, -1, -1)] + [(i, 0) for i in range(nv - 2, 0, -1)]
+    c = sum((mb.verts[ti[i][j]] for i in range(nv) for j in range(nu)), Vector()) / (nu * nv)
+    for k in range(len(ring)):
+        a, b = ring[k], ring[(k + 1) % len(ring)]
+        q = (ti[a[0]][a[1]], ti[b[0]][b[1]], bi[b[0]][b[1]], bi[a[0]][a[1]])
+        mid = sum((mb.verts[x] for x in q), Vector()) / 4.0
+        out = mid - c
+        out = out - N * out.dot(N)
+        mb.add_face(q, mat, facing=out)
+    return ti, bi
+
+
+def pillow(origin, U, V, N, size_u, size_v, thick, name=None, mat="snow", nu=6, nv=4, rim=0.18, jitter=0.0,
+           seed=0, lip=None, levels=None, bumps=0.0, bottom=-0.03, drop_bottom=True, top_fn=None):
+    """Rounded snow slab / lump object: cage (nu x nv with support rows `rim` from the border) -> subsurf -> smooth.
+    Budget rule v2.1: subdivision level 2 only when the long side is >= 1.5 m, else 1."""
+    rnd = random.Random(seed)
+    su, sv = size_u, size_v
+
+    def axis(n, size):
+        r = min(rim, size * 0.3)
+        inner = [r + (size - 2 * r) * k / max(1, n - 3) for k in range(max(0, n - 2))]
+        return [0.0] + inner + [size]
+    us, vs = axis(nu, su), axis(nv, sv)
+
+    def top(u, v):
+        edge = min(u, su - u, v, sv - v)
+        base = thick if edge > 1e-6 else thick * 0.55
+        if bumps:
+            base += bumps * noise.noise(Vector((u * 0.9 + seed * 7.1, v * 0.9, 0.3)))
+        return max(0.02, base)
+    mb = lp.MeshBuilder()
+    pillow_cage(mb, origin, U, V, N, us, vs, top_fn or top, bottom=bottom, mat=mat, jitter=jitter, rnd=rnd, lip=lip)
+    o = mk(mb, name)
+    if levels is None:
+        levels = 2 if max(size_u, size_v) >= 1.5 else 1
+    subsurf(o, levels)
+    smooth(o)
+    if drop_bottom:
+        drop_faces(o, Vector(N), -0.6)
+    return o
+
+
+def snow_strip(p0, p1, width, thick, name=None, overhang=0.03, seed=0, nu=None, droop=0.0):
+    """Rounded snow line on top of a rail / sill / beam from p0 to p1 (points on the top surface)."""
+    p0, p1 = Vector(p0), Vector(p1)
+    L = (p1 - p0).length
+    U = (p1 - p0).normalized()
+    N = Vector((0, 0, 1))
+    V = N.cross(U).normalized()
+    origin = p0 - U * overhang - V * (width / 2)
+    n = nu or max(3, min(7, int(L / 0.6) + 3))
+    lipf = None
+    if droop:
+        def lipf(u, v):
+            e = min(v, width - v) / max(width, 1e-6)
+            return (0.0, (-1 if v < width / 2 else 1) * droop * 0.6 * (1 - e * 2), -droop * (1 - e * 2))
+    return pillow(origin, U, V, N, L + 2 * overhang, width, thick, name=name, nu=n, nv=3,
+                  rim=min(0.06, width * 0.3), seed=seed, bottom=-0.01, lip=lipf, levels=1)
+
+
+def mound(center, radius, height, name=None, seed=0, sides=12, rings=3, mat="snow", sink=0.05, stretch=(1.0, 1.0)):
+    """Round smooth snow mound (trunk bases, piles): radial rings with a bell profile, smooth, no bottom.
+    `sink` pushes the rim below z (so the mound never floats on a slope)."""
+    rnd = random.Random(seed)
+    c = Vector(center)
+    mb = lp.MeshBuilder()
+    jit = [rnd.uniform(0.85, 1.15) for _ in range(sides)]
+    rows = []
+    for k in range(rings + 1):
+        t = k / rings
+        r = radius * (1.0 - t)
+        z = height * (1 - (1 - t) ** 2) ** 0.8 - sink * (1 - t) ** 3
+        if k == rings:
+            rows.append([c + Vector((0, 0, height))])
+            break
+        rows.append([c + Vector((math.cos(2 * math.pi * i / sides) * r * jit[i] * stretch[0],
+                                 math.sin(2 * math.pi * i / sides) * r * jit[i] * stretch[1], z)) for i in range(sides)])
+    mb.loft(rows, mat, cap_start=False, cap_end=False, inside=c + Vector((0, 0, -1.0)))
+    return smooth(mk(mb, name))
+
+
+def snow_cap(center, rx, ry, thick, z_fn, name=None, seed=0, sides=10, rings=3, droop=0.03, mat="snow"):
+    """Smooth pillow cap draped on a surface: rings around `center` (x, y); z_fn(x, y) = surface height under
+    the cap. Thickness `thick` at the centre falling to ~0 at the rim, rim drooping `droop` below the surface
+    (hides the seam on a rock / stump top). Smooth shaded, open bottom."""
+    rnd = random.Random(seed)
+    c = Vector(center)
+    mb = lp.MeshBuilder()
+    jit = [rnd.uniform(0.82, 1.12) for _ in range(sides)]
+    rows = []
+    for k in range(rings + 1):
+        t = k / rings                                   # 0 = rim, 1 = centre
+        if k == rings:
+            rows.append([Vector((c.x, c.y, z_fn(c.x, c.y) + thick))])
+            break
+        row = []
+        for i in range(sides):
+            a = 2 * math.pi * i / sides
+            x = c.x + math.cos(a) * rx * (1 - t) * jit[i]
+            y = c.y + math.sin(a) * ry * (1 - t) * jit[i]
+            h = thick * (1 - (1 - t) ** 2) ** 0.7 - droop * (1 - t) ** 4
+            row.append(Vector((x, y, z_fn(x, y) + h)))
+        rows.append(row)
+    mb.loft(rows, mat, cap_start=False, cap_end=False, inside=Vector((c.x, c.y, z_fn(c.x, c.y) - 1.0)))
+    return smooth(mk(mb, name))
+
+
+# ------------------------------------------------------------------------------------------------------------
+# baked ambient occlusion -> COLOR_0.a
+# ------------------------------------------------------------------------------------------------------------
+AO_ATTR_TMP = "AOtmp"
+
+
+def _visual_meshes():
+    from .export import is_col
+    return [o for o in bpy.context.scene.objects if o.type == 'MESH' and not is_col(o.name)]
+
+
+def has_ao(obj):
+    """True when the `Col` alpha of `obj` already carries AO (some corner < 1)."""
+    col = obj.data.color_attributes.get(palette.VCOL_ATTR)
+    if col is None or not len(col.data):
+        return False
+    data = [0.0] * (len(col.data) * 4)
+    col.data.foreach_get("color", data)
+    return min(data[3::4]) < 0.999
+
+
+def scene_bounds(objs=None):
+    objs = objs if objs is not None else _visual_meshes()
+    mn = Vector((1e9, 1e9, 1e9))
+    mx = Vector((-1e9, -1e9, -1e9))
+    for o in objs:
+        for v in o.data.vertices:
+            w = o.matrix_world @ v.co
+            for i in range(3):
+                mn[i] = min(mn[i], w[i])
+                mx[i] = max(mx[i], w[i])
+    return mn, mx
+
+
+def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0, floor=0.0, walls=()):
+    """Bake Cycles AO per corner into the alpha of `Col` for every object in `objs`. All other visual meshes of
+    the scene occlude; Col* collision objects never do. A temporary ground plane at z = ground_z darkens the bases
+    (ground=False for hanging / hand-held assets); `walls` = [(point, normal)] adds temporary occluder planes
+    (wall-mounted assets). alpha = floor + (1 - floor) * ao ** gamma. Returns the bake time (s)."""
+    from .export import is_col, quiet
+    sc = bpy.context.scene
+    old_engine = sc.render.engine
+    sc.render.engine = 'CYCLES'
+    sc.cycles.device = 'CPU'
+    sc.cycles.samples = samples
+    try:
+        sc.cycles.seed = 0
+    except Exception:
+        pass
+    world_created = sc.world is None
+    if world_created:
+        sc.world = bpy.data.worlds.new("bake_world")
+    sc.world.light_settings.distance = distance
+    hidden = []
+    for o in sc.objects:
+        if o.type == 'MESH' and is_col(o.name) and not o.hide_render:
+            o.hide_render = True
+            hidden.append(o)
+    temps = []
+    planes = []
+    if ground:
+        planes.append((Vector((0, 0, ground_z)), Vector((0, 0, 1))))
+    planes += [(Vector(p), Vector(n)) for p, n in walls]
+    for k, (p, n) in enumerate(planes):
+        me = bpy.data.meshes.new("bake_occluder_%d" % k)
+        s = 60.0
+        q = n.to_track_quat('Z', 'Y').to_matrix()
+        pts = [p + q @ Vector((x, y, 0)) for x, y in ((-s, -s), (s, -s), (s, s), (-s, s))]
+        me.from_pydata(pts, [], [(0, 1, 2, 3)])
+        ob = bpy.data.objects.new("bake_occluder_%d" % k, me)
+        sc.collection.objects.link(ob)
+        temps.append(ob)
+    t0 = time.time()
+    try:
+        for o in objs:
+            me = o.data
+            ao = me.color_attributes.new(AO_ATTR_TMP, 'FLOAT_COLOR', 'CORNER')
+            me.color_attributes.active_color = ao
+            for ob in sc.objects:
+                ob.select_set(False)
+            o.select_set(True)
+            bpy.context.view_layer.objects.active = o
+            with quiet():
+                bpy.ops.object.bake(type='AO', target='VERTEX_COLORS')
+            n = len(me.loops)
+            a = [0.0] * (n * 4)
+            ao.data.foreach_get("color", a)
+            col = me.color_attributes[palette.VCOL_ATTR]
+            c = [0.0] * (n * 4)
+            col.data.foreach_get("color", c)
+            for i in range(n):
+                v = max(0.0, min(1.0, a[i * 4]))
+                c[i * 4 + 3] = floor + (1.0 - floor) * (v ** gamma)
+            col.data.foreach_set("color", c)
+            me.color_attributes.remove(me.color_attributes[AO_ATTR_TMP])
+            me.color_attributes.active_color = me.color_attributes[palette.VCOL_ATTR]
+            try:
+                me.color_attributes.render_color_index = me.color_attributes.find(palette.VCOL_ATTR)
+            except Exception:
+                pass
+            o.select_set(False)
+    finally:
+        for ob in temps:
+            me = ob.data
+            bpy.data.objects.remove(ob, do_unlink=True)
+            bpy.data.meshes.remove(me)
+        for o in hidden:
+            o.hide_render = False
+        if world_created:
+            w = sc.world
+            sc.world = None
+            bpy.data.worlds.remove(w)
+        sc.render.engine = old_engine
+    return time.time() - t0
+
+
+def auto_ao_settings():
+    """Default AO bake for an asset (doc 05 §4.6): distance ~0.3 x its size (0.1 .. 1.2 m); a ground plane only
+    for assets standing on z = 0."""
+    mn, mx = scene_bounds()
+    size = max(mx - mn)
+    return dict(distance=max(0.1, min(1.2, 0.3 * size)), samples=48, ground=abs(mn.z) < 0.03)
+
+
+def bake_scene_ao(distance=None, samples=None, ground=None, walls=(), force=False):
+    """AO for every visual mesh of the scene that has none yet (or all with force=True). Returns the objects baked."""
+    objs = [o for o in _visual_meshes() if force or not has_ao(o)]
+    if not objs:
+        return []
+    auto = auto_ao_settings()
+    bake_ao(objs, distance=auto["distance"] if distance is None else distance,
+            samples=auto["samples"] if samples is None else samples,
+            ground=auto["ground"] if ground is None else ground, walls=walls)
+    return objs
