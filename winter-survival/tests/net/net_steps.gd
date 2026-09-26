@@ -47,6 +47,7 @@ var _local_seen: bool = false
 var _sw: Dictionary = {}
 var _notifies: Array[String] = []
 var _storage_opened: int = 0
+var _cabinet_holder_at_request: int = 0   # B: who held the cabinet when B asked to open it
 var _late: float = 0.0
 var _target_tree_wid: int = 0
 var _target_tree_pos: Vector3 = Vector3.ZERO
@@ -406,13 +407,15 @@ func _build_shared_world_timeline() -> void:
 					_notifies.clear()
 					var comp := InteractableComponent.find_from(_cabinet(world))
 					_sw["label"] = comp.get_label(lp) == "Armario en uso" and not comp.can_interact(lp)
-					_log("cabinet label for B: '%s' can=%s open_by=%d" % [comp.get_label(lp), comp.can_interact(lp), (_cabinet(world).get_node("Storage") as Storage).open_by])
+					_cabinet_holder_at_request = (_cabinet(world).get_node("Storage") as Storage).open_by
+					_log("cabinet label for B: '%s' can=%s open_by=%d" % [comp.get_label(lp), comp.can_interact(lp), _cabinet_holder_at_request])
 					lp.interactor.send_interact(comp, &"open")],
 				[14.5, func(_lp: Player, world: Node) -> void:
 					var st: Storage = _cabinet(world).get_node("Storage")
 					var a := _player_named(world, "A")
-					_sw["en_uso"] = _notifies.has(NetWorld.REASONS["en_uso"]) and a != null and st.open_by == a.peer_id and _storage_opened == 0
-					_log("en uso: notifies=%s open_by=%d A=%d opened_events=%d" % [_notifies, st.open_by, a.peer_id if a != null else -1, _storage_opened])],
+					# A's hold is checked when B asked (A closes it on its own clock, which may already have passed here)
+					_sw["en_uso"] = _notifies.has(NetWorld.REASONS["en_uso"]) and a != null and _cabinet_holder_at_request == a.peer_id and _storage_opened == 0
+					_log("en uso: notifies=%s held_by_at_request=%d open_by=%d A=%d opened_events=%d" % [_notifies, _cabinet_holder_at_request, st.open_by, a.peer_id if a != null else -1, _storage_opened])],
 				[23.0, func(_lp: Player, _world: Node) -> void:
 					_sw["campfire"] = _campfire_seen()
 					_log("campfire seen: %s" % _campfire_seen())],
