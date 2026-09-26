@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · HUD de día</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  .scrim { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 36% 34% at 100% 0%, rgba(8,13,22,.5), transparent 72%),
+                radial-gradient(ellipse 30% 28% at 0% 0%, rgba(8,13,22,.34), transparent 70%),
+                radial-gradient(ellipse 30% 26% at 0% 100%, rgba(8,13,22,.36), transparent 70%),
+                radial-gradient(ellipse 60% 18% at 50% 100%, rgba(8,13,22,.30), transparent 70%),
+                radial-gradient(ellipse 26% 30% at 100% 100%, rgba(8,13,22,.36), transparent 70%); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg/day.jpg')"></div>
+  <div class="scrim"></div>
+
+  <!-- mundo: anillo de resalte + aviso de interacción (teclado) -->
+  <div class="ground" style="left:682px;top:548px;width:74px;height:46px;border:2px solid rgba(220,235,250,.9);box-shadow:0 0 12px rgba(220,235,250,.7), inset 0 0 10px rgba(220,235,250,.4)"></div>
+  <div class="prompt glass strong" style="left:690px;top:520px"><span class="key">E</span><span class="pt">Recoger leña</span><span class="ps num">×2</span></div>
+
+  <!-- marcadores de borde -->
+  <div class="edge" id="e-main" style="left:104px;top:430px"></div>
+  <div class="edge" id="e-ana" style="left:1010px;top:88px"></div>
+  <div class="edge" id="e-leo" style="left:1820px;top:742px;flex-direction:row-reverse"></div>
+  <div class="edge" id="e-dyn" style="left:470px;top:86px"></div>
+
+  <!-- compañeros -->
+  <div class="team">
+    <div class="mate glass">
+      <div class="av" style="background:var(--p-ana)">A</div>
+      <div>
+        <div class="nm">Ana <svg class="i s18" style="color:var(--text-3)"><use href="#i-cross"/></svg></div>
+        <div class="bars">
+          <div class="bar seg" style="width:178px;height:6px"><i style="width:100%;background:var(--health)"></i></div>
+          <div class="bar" style="width:178px;height:3px"><i style="width:78%;background:var(--warm-hot)"></i></div>
+        </div>
+      </div>
+      <div class="dist"><span>84 m</span><svg class="i s18" style="transform:rotate(35deg);color:var(--p-ana)"><use href="#i-arrowup"/></svg></div>
+    </div>
+    <div class="mate glass">
+      <div class="av" style="background:var(--p-leo)">L</div>
+      <div>
+        <div class="nm">Leo <svg class="i s18" style="color:var(--text-3)"><use href="#i-hammer"/></svg><svg class="i s18" style="color:var(--cold)"><use href="#i-drop"/></svg></div>
+        <div class="bars">
+          <div class="bar seg" style="width:178px;height:6px"><i style="width:62%;background:var(--health)"></i></div>
+          <div class="bar" style="width:178px;height:3px"><i style="width:46%;background:var(--warm-mid)"></i></div>
+        </div>
+      </div>
+      <div class="dist"><span>212 m</span><svg class="i s18" style="transform:rotate(110deg);color:var(--p-leo)"><use href="#i-arrowup"/></svg></div>
+    </div>
+  </div>
+
+  <!-- entorno -->
+  <div class="env">
+    <div class="env-main glass" style="padding-bottom:26px">
+      <div id="rose" style="width:44px;display:grid;place-items:center;margin:8px 16px 0 2px"></div>
+      <div class="env-time">
+        <div class="row"><span class="day">Día 3</span><span class="clock">11:40</span><svg class="i s20" style="color:#FFD479;margin-left:auto"><use href="#i-sun"/></svg></div>
+        <div class="daystrip"><div class="now" style="left:23.6%"></div><div class="tick" style="left:58.3%">anochece 20:00</div></div>
+      </div>
+      <div class="env-temp"><div class="air">−9 °C</div><div class="felt">sentida −4 °C <span style="color:var(--cold)">↓</span></div></div>
+    </div>
+    <div class="env-loc glass" style="opacity:.92">
+      <svg class="i s18 ember"><use href="#i-house"/></svg>
+      <span class="t-eyebrow" style="color:var(--text-1);letter-spacing:.12em">Claro del Cazador</span>
+      <span class="t-eyebrow" style="color:var(--text-3)">· tu base</span>
+    </div>
+  </div>
+
+  <!-- rastreador de misiones (compacto) -->
+  <div class="tracker">
+    <div class="trk glass">
+      <div class="kind"><svg class="i s16 ember"><use href="#i-diamond"/></svg><span class="t-eyebrow ember">Principal</span><span class="t-eyebrow c3" style="margin-left:auto;letter-spacing:.12em">3 / 8</span></div>
+      <div class="mtitle">Hacia La Herrería</div>
+      <div class="obj"><div class="mark"><svg class="i s18 ember"><use href="#i-diamond-o"/></svg></div>
+        <div><div class="otext">Sigue las huellas hasta la aldea</div><div class="ometa num">La Herrería · 1,1 km</div></div><div></div></div>
+      <div class="obj next"><div class="mark"><svg class="i s16" style="color:var(--text-off)"><use href="#i-diamond-o"/></svg></div>
+        <div><div class="otext">Acércate en silencio a un congelado</div></div><div></div></div>
+      <div class="trk-sep"></div>
+      <div class="side"><svg class="i s18" style="color:var(--frost-100)"><use href="#i-diamond-o"/></svg><div class="stext">Leña para la estufa</div><div class="smeta">4/6</div></div>
+      <div class="side"><svg class="i s18 radio"><use href="#i-hex"/></svg><div class="stext">Humo en la granja del Molino</div><div class="smeta radio">9:20</div></div>
+    </div>
+  </div>
+
+  <!-- constantes -->
+  <div class="vitals" style="padding-bottom:28px">
+    <div class="ring" id="r-warm"></div>
+    <div class="ring dim" id="r-health"></div>
+    <div class="ring dim" id="r-hunger"></div>
+  </div>
+
+  <!-- barra rápida -->
+  <div class="hotbar glass" id="hotbar"></div>
+
+  <!-- feed de objetos -->
+  <div class="feed">
+    <div class="frow glass"><img src="../../../../assets/icons/items/wood.png"><span class="fn">Leña</span><span class="fq num">+2</span><span class="ft num">(9)</span></div>
+  </div>
+
+  <!-- equipado -->
+  <div class="equip glass">
+    <img src="../../../../assets/icons/items/axe.png">
+    <div style="flex:1">
+      <div class="ename">Hacha de piedra</div>
+      <div class="bar" style="margin-top:9px;height:5px"><i style="width:78%;background:var(--ok)"></i></div>
+      <div style="font:400 16px/1 Barlow;color:var(--text-3);margin-top:7px" class="num">Durabilidad 78 %</div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+  const pin = (color, icon, rot, dim) => `<div class="pin" style="color:${color}">
+      <svg class="bgp" viewBox="-30 -30 60 60"><g transform="rotate(${rot})"><path d="M0 -29 L8 -19 L-8 -19Z" fill="currentColor"/></g>
+      <circle r="19" fill="rgba(10,16,25,.74)" stroke="currentColor" stroke-width="2"/></svg>
+      <svg class="i s20" style="position:relative${dim ? ';opacity:.9' : ''}"><use href="#i-${icon}"/></svg></div>`;
+  document.getElementById('e-main').innerHTML = pin('var(--ember)', 'diamond', -95) + `<div class="plate"><div class="elbl">La Herrería</div><div class="esub num">1,1 km</div></div>`;
+  document.getElementById('e-ana').innerHTML = pin('var(--p-ana)', 'people', 20) + `<div class="plate"><div class="elbl" style="color:var(--p-ana)">Ana</div><div class="esub num">84 m</div></div>`;
+  document.getElementById('e-leo').innerHTML = pin('var(--p-leo)', 'people', 95) + `<div class="plate" style="text-align:right"><div class="elbl" style="color:var(--p-leo)">Leo</div><div class="esub num">212 m</div></div>`;
+  document.getElementById('e-dyn').innerHTML = pin('var(--radio)', 'radio', -15) + `<div class="plate"><div class="elbl radio">Humo</div><div class="esub num">900 m</div></div>`;
+  document.getElementById('rose').innerHTML = northRose(-45);
+  document.getElementById('r-warm').innerHTML = ringSvg(.62, '#FF8A3D', 68, 6) + ic('thermo') + `<span class="val">62 <span style="color:var(--cold)">↓</span></span>`;
+  document.getElementById('r-health').innerHTML = ringSvg(1, '#F0566A', 68, 6) + ic('heart');
+  document.getElementById('r-hunger').innerHTML = ringSvg(.71, '#E3C98A', 68, 6) + ic('meat');
+  const items = [['axe', '', 1, 'MANO', .78], ['wood', 9], ['stone', 6], ['can_beans', 2], ['torch', '', 0, '', .55], ['knife', '', 0, '', .9], [], [], [], []];
+  let h = '';
+  items.forEach((it, i) => {
+    const n = i === 9 ? 0 : i + 1;
+    if (!it.length) { h += `<div class="slot empty"><span class="n">${n}</span></div>`; return; }
+    const sel = i === 0 ? ' sel' : '';
+    h += `<div class="slot${sel}"><img src="../../../../assets/icons/items/${it[0]}.png"><span class="n">${it[3] || n}</span>` +
+      (it[1] ? `<span class="q">${it[1]}</span>` : '') + (it[4] ? `<span class="dur"><i style="width:${it[4] * 100}%"></i></span>` : '') + `</div>`;
+    if (i === 0) h += '<div class="gap"></div>';
+  });
+  document.getElementById('hotbar').innerHTML = h;
+</script>
+</body>
+</html>

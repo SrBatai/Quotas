@@ -1,0 +1,74 @@
+{
+  "_doc": "Budgets checked by tests/perf_probe.gd (medians over 180 frames of the fixed clearing scene: day 1 11:00, clear, camera at the porch spawn, yaw 45, pitch -48, dist Balance.CAMERA_DIST (24 since G1), far 70). GPU timings (frame_ms_*) are only enforced when enforce_gpu is true: under xvfb + llvmpipe they are meaningless. See ARQ v2 §17.1 / §18.",
+  "perf_probe": {
+    "draw_calls_max": 704,
+    "objects_max": 800,
+    "primitives_max": 270000,
+    "nodes_max": 6500,
+    "frame_ms_p99_max": 16.6,
+    "enforce_gpu": false,
+    "_primitives_note": "G1: raised from 120000 to 270000 = the v2.1 art budget for a typical clearing view (docs/research/05_graficos_arte.md §4.5, ASSET_SPEC_V2 G1: HD hero assets). Draw calls, the real cost driver here, stay far below budget."
+  },
+  "baseline": {
+    "before_m0": {
+      "note": "Committed pre-M0 slice (GodotPhysics, v1 assets with one StandardMaterial3D per palette colour, camera far 260, CPUParticles3D). Measured with tests/perf_probe.gd on the untouched copy.",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 1174,
+      "objects_median": 1270,
+      "primitives_median": 96342,
+      "mesh_surfaces": 2826,
+      "nodes": 5256
+    },
+    "before_m0_placeholders": {
+      "draw_calls_median": 1133,
+      "objects_median": 1229,
+      "primitives_median": 85482,
+      "mesh_surfaces": 2735
+    },
+    "after_m0": {
+      "note": "M0 final (tests/run_all.sh): Jolt, v2 assets (COLOR_0 + palette_vcol -> shared world_vcol ShaderMaterial), camera far 70, compat preset (2048 atlas, 2 splits, 60 m), no shadows on small props / interior furniture, GPUParticles3D. draw_calls_max = 60 % of before_m0 (PLAN M0 acceptance).",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 363,
+      "objects_median": 459,
+      "primitives_median": 86012,
+      "mesh_surfaces": 906,
+      "nodes": 5257,
+      "ratio_vs_before": 0.309
+    },
+    "new_code_old_v1_assets": {
+      "note": "Same M0 code but the pre-M0 v1 .glb files (legacy per-colour surfaces merged at load by Assets._merge_legacy), compat shadows at 45 m: shows the code-side share of the gain.",
+      "draw_calls_median": 287,
+      "objects_median": 383,
+      "primitives_median": 72660,
+      "mesh_surfaces": 909
+    },
+    "after_g1": {
+      "note": "G1 (HD hero assets v2.1 with baked AO in COLOR.a + world_vcol v2 / terrain shaders, FILMIC, camera dist 24). Measured by tests/run_all.sh on a clean clone (xvfb + Compatibility, 2 cores).",
+      "rendering_method": "gl_compatibility",
+      "draw_calls_median": 347,
+      "objects_median": 443,
+      "primitives_median": 203131,
+      "mesh_surfaces": 905,
+      "nodes": 5312
+    }
+  },
+  "perf_walk": {
+    "_doc": "tests/perf_walk.gd render mode (PLAN M3): 2.26 km route at 25 m/s, streaming on, xvfb + Compatibility on llvmpipe (LP_NUM_THREADS=2). A software GPU makes every frame slow (p50 ~250 ms) and preempts the main thread / syncs on GL buffer uploads, so frame-level streaming numbers are informative here; the hard gates are no missing ground and memory. The 2 ms/frame streaming budget is gated by perf_walk_cpu.",
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
+  "perf_walk_cpu": {
+    "_doc": "tests/perf_walk.gd --cpu: same route headless (dummy renderer) with the client's visual streaming path forced on. stream_ms = main-thread streaming cost per frame (budget WorldConst.STREAM_BUDGET_USEC = 2 ms; the streamer always runs one step a frame and stops before a step whose EMA cost + 0.25 ms margin would overrun). Gated: p99 <= 2 ms, p99.9 <= 2.5 ms, <= 1.5 % of frames over 2 ms, max <= 8 ms (isolated one-step outliers in a random phase, e.g. a trivial _step_deltas, are VM page faults / preemption by the chunk workers or other processes: their phase changes from run to run), frames_over_33ms_streaming = frames > 33 ms that streaming pushed over 33 ms or where it took > 25 % of the frame (must be 0).",
+    "stream_ms_p99_max": 2.0,
+    "stream_ms_p999_max": 2.5,
+    "frames_over_stream_budget_pct_max": 1.5,
+    "stream_ms_max": 8.0,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
+  "perf_horde": {
+    "_doc": "tests/perf_horde.gd (PLAN M4, R1, ARQ v2 §16.6): headless dedicated server, 4 bot players walking and swinging around the clearing, 200 zombies (L0 bodies + L1), director/residents off. tick = the server's busy time per physics tick (probe at the first _physics_process to probe at the last _process: scripts + Jolt step + navigation + idle), NOT the engine's TIME_*_PROCESS monitors (those are the max over the last second). Gated: median <= 8 ms; p99, the ZombieSystem / ZombieNet shares and the bench bandwidth per bot are reported.",
+    "tick_ms_p50_max": 8.0
+  }
+}

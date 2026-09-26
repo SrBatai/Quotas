@@ -1,0 +1,157 @@
+name: VENTISCA
+
+# Tests the Godot project headless and exports playable desktop builds
+# (Windows + Linux) as downloadable workflow artifacts.
+on:
+  pull_request:
+    paths:
+      - "winter-survival/**"
+      - ".github/workflows/ventisca.yml"
+  push:
+    branches: [main]
+    paths:
+      - "winter-survival/**"
+      - ".github/workflows/ventisca.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ventisca-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  test:
+    name: Headless tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      - name: Parse check
+        run: godot --headless --path . -s tests/parse_check.gd
+
+      - name: Smoke test (single player, in-process server)
+        run: tests/run_smoke.sh
+
+      - name: Art contract (ASSET_SPEC v2)
+        run: |
+          godot --headless --path . -s tests/inspect_models.gd ++ --quiet | tee /tmp/inspect.log
+          grep -q "ALL OK" /tmp/inspect.log
+
+      - name: Net test (1 dedicated server + 4 clients)
+        run: tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90
+
+      - name: Net test shared world (3 clients, late join)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_sw
+        run: tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787
+
+      - name: Net test far (2 clients 1 km apart, chunk interest)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_far
+        run: tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797
+
+      - name: Net test zombies (M4, 4 clients, combat, downed/revive, ff, pvp, bandwidth)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_zombies
+        run: tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807
+
+      - name: World determinism (server path vs client path)
+        run: tests/run_determinism.sh
+
+      # Timing-based: shared CI runners add scheduling noise, so this reports but does not block.
+      # The blocking perf gates run locally in tests/run_all.sh.
+      - name: Streaming perf walk, CPU (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu
+
+      - name: Horde perf, 200 zombies + 4 bots (informational)
+        continue-on-error: true
+        run: tests/run_perf_horde.sh
+
+      - name: Persistence unit test
+        run: |
+          godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
+          grep -q "ALL PASSED" /tmp/persistence.log
+
+  export:
+    name: Desktop builds
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-desktop-web
+
+      - name: Install export templates
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -j -q /tmp/templates.tpz \
+            templates/version.txt \
+            templates/linux_release.x86_64 \
+            templates/windows_release_x86_64.exe \
+            templates/windows_release_x86_64_console.exe \
+            templates/web_nothreads_release.zip \
+            -d "$dest"
+          rm /tmp/templates.tpz
+
+      - name: Export Windows and Linux
+        run: |
+          godot --headless --path . --import || true
+          mkdir -p export/windows export/linux
+          godot --headless --path . --export-release "Windows" export/windows/Ventisca.exe
+          godot --headless --path . --export-release "Linux" export/linux/ventisca.x86_64
+          cp README.md export/windows/LEEME.md
+          cp README.md export/linux/LEEME.md
+          ls -la export/windows export/linux
+
+      - name: Check the Linux build boots headless
+        run: timeout 60 ./export/linux/ventisca.x86_64 --headless --quit-after 300
+
+      - name: Check the exported dedicated server starts and shuts down cleanly
+        run: SERVER_BIN=export/linux/ventisca.x86_64 tests/net/run_net_test.sh --quick --port 17777
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-windows
+          path: winter-survival/export/windows/
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-linux
+          path: winter-survival/export/linux/
+          retention-days: 30

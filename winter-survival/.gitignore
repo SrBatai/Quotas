@@ -1,0 +1,11 @@
+# Godot 4 cache / editor state
+.godot/
+# Local exports and temp files
+/export/
+/tmp/
+*.tmp
+# Blender backups
+blender/sources/*.blend1
+__pycache__/
+# Perf probe output (tests/run_perf.sh)
+tests/perf/

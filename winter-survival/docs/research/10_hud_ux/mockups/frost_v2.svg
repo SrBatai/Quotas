@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+ <defs>
+  <radialGradient id="rg" cx="50%" cy="50%" r="71%">
+   <stop offset="0.66" stop-color="#fff" stop-opacity="0"/>
+   <stop offset="0.86" stop-color="#fff" stop-opacity="0.55"/>
+   <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+  </radialGradient>
+  <radialGradient id="haze" cx="50%" cy="50%" r="72%">
+   <stop offset="0.62" stop-color="#CFEAF6" stop-opacity="0"/>
+   <stop offset="1" stop-color="#E4F4FB" stop-opacity="0.42"/>
+  </radialGradient>
+  <mask id="m"><rect width="1920" height="1080" fill="url(#rg)"/></mask>
+  <filter id="ice" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+   <feTurbulence type="turbulence" baseFrequency="0.009 0.013" numOctaves="5" seed="21"/>
+   <feColorMatrix values="0 0 0 0 0.90  0 0 0 0 0.97  0 0 0 0 1  2.8 0 0 0 -0.62"/>
+  </filter>
+  <filter id="fine" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+   <feTurbulence type="turbulence" baseFrequency="0.035 0.05" numOctaves="3" seed="4"/>
+   <feColorMatrix values="0 0 0 0 0.92  0 0 0 0 0.98  0 0 0 0 1  2.2 0 0 0 -0.55"/>
+  </filter>
+ </defs>
+ <rect width="1920" height="1080" fill="url(#haze)"/>
+ <g mask="url(#m)"><rect width="1920" height="1080" filter="url(#ice)" opacity=".85"/><rect width="1920" height="1080" filter="url(#fine)" opacity=".55"/></g>
+</svg>

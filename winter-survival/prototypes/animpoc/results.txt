@@ -1,0 +1,109 @@
+### build (bpy)
+BUILT survivor: bones=23 tris=814 materials=8 actions=[('Idle-loop', (0.0, 90.0), 1), ('Walk-loop', (0.0, 30.0), 1), ('Run_loop', (0.0, 21.0), 1), ('ZombieShamble-loop', (0.0, 48.0), 1), ('Attack', (0.0, 27.0), 1)] export=0.39s
+BUILT zombie: bones=23 tris=762 materials=7 actions=[] export=0.02s
+BUILT survivor_vcol: bones=23 tris=814 materials=1 actions=[] export=0.01s
+== out/survivor.glb
+ nodes: 25 skins: [('Armature', 23)]
+ meshes: [('Body', 8, ['JOINTS_0', 'NORMAL', 'POSITION', 'WEIGHTS_0'])]
+  anim Attack                 channels={'translation': 23, 'rotation': 23, 'scale': 23} duration=0.900s
+  anim Idle-loop              channels={'translation': 23, 'rotation': 23, 'scale': 23} duration=3.000s
+  anim Run_loop               channels={'translation': 23, 'rotation': 23, 'scale': 23} duration=0.700s
+  anim Walk-loop              channels={'translation': 23, 'rotation': 23, 'scale': 23} duration=1.000s
+  anim ZombieShamble-loop     channels={'translation': 23, 'rotation': 23, 'scale': 23} duration=1.600s
+### automatic weights test (bpy background)
+background: True version: 5.0.1
+ARMATURE_AUTO[raw]: result={'FINISHED'} time=0.00s verts=476 groups=21 unweighted=48 (10%) multi-influence=232 dominant==rigid: 63%
+ARMATURE_AUTO[merged]: result={'FINISHED'} time=0.00s verts=476 groups=21 unweighted=48 (10%) multi-influence=232 dominant==rigid: n/a
+saved bonemap err=0 mapped=22
+### import errors: 0
+### verify default import
+== res://models/survivor.glb
+- survivor <Node3D>
+  - Armature <Node3D>
+    - Skeleton3D <Skeleton3D> bones=23 motion_scale=1.000
+      - Body <MeshInstance3D> surfaces=8 skin=true skeleton=..
+  - AnimationPlayer <AnimationPlayer> libs=[&""]
+bones(23): ["Root", "Hips", "Spine", "Chest", "Neck", "Head", "LeftShoulder", "LeftUpperArm", "LeftLowerArm", "LeftHand", "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand", "RightHandSocket", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot", "LeftToes", "RightUpperLeg", "RightLowerLeg", "RightFoot", "RightToes"]
+  anim 'Attack' length=0.900 loop=NONE tracks=21 types={ 1: 1, 2: 20 } first_path=Armature/Skeleton3D:Hips
+  anim 'Idle' length=3.000 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=Armature/Skeleton3D:Hips
+  anim 'Run' length=0.700 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=Armature/Skeleton3D:Hips
+  anim 'Walk' length=1.000 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=Armature/Skeleton3D:Hips
+  anim 'ZombieShamble' length=1.600 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=Armature/Skeleton3D:Hips
+SkeletonProfileHumanoid: 22/56 profile bones present by exact name; missing required: []
+### verify retarget import (BoneMap + SkeletonProfileHumanoid, Overwrite Axis, normalize positions)
+== res://models/survivor_rt.glb
+- survivor_rt <Node3D>
+  - Armature <Node3D>
+    - GeneralSkeleton <Skeleton3D> bones=23 motion_scale=0.950
+      - Body <MeshInstance3D> surfaces=8 skin=true skeleton=..
+  - AnimationPlayer <AnimationPlayer> libs=[&""]
+  anim 'Attack' length=0.900 loop=NONE tracks=21 types={ 1: 1, 2: 20 } first_path=%GeneralSkeleton:Hips
+  anim 'Idle' length=3.000 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=%GeneralSkeleton:Hips
+  anim 'Run' length=0.700 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=%GeneralSkeleton:Hips
+  anim 'Walk' length=1.000 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=%GeneralSkeleton:Hips
+  anim 'ZombieShamble' length=1.600 loop=LINEAR tracks=21 types={ 1: 1, 2: 20 } first_path=%GeneralSkeleton:Hips
+SkeletonProfileHumanoid: 22/56 profile bones present by exact name; missing required: []
+library res://models/survivor_lib.glb -> AnimationLibrary anims=[&"Attack", &"Idle", &"Run", &"Walk", &"ZombieShamble"]
+== res://models/zombie_rt.glb
+- zombie_rt <Node3D>
+  - Armature <Node3D>
+    - GeneralSkeleton <Skeleton3D> bones=23 motion_scale=1.000
+      - Body <MeshInstance3D> surfaces=7 skin=true skeleton=..
+SkeletonProfileHumanoid: 22/56 profile bones present by exact name; missing required: []
+### foot metrics
+survivor.glb                 lib=                           Walk           motion_scale=1.000 ankle_y min=0.087 max=0.203  stance_speed=1.61 m/s (3 samples)
+survivor.glb                 lib=                           Run            motion_scale=1.000 ankle_y min=0.081 max=0.326  stance_speed=4.06 m/s (1 samples)
+survivor_rt.glb              lib=                           Walk           motion_scale=0.950 ankle_y min=0.087 max=0.203  stance_speed=1.61 m/s (3 samples)
+zombie.glb                   lib=survivor.glb               Walk           motion_scale=1.000 ankle_y min=0.039 max=0.164  stance_speed=1.70 m/s (3 samples)
+zombie_rt.glb                lib=survivor_lib.glb           Walk           motion_scale=1.000 ankle_y min=0.087 max=0.210  stance_speed=1.70 m/s (3 samples)
+zombie_rt.glb                lib=survivor_lib.glb           ZombieShamble  motion_scale=1.000 ankle_y min=0.084 max=0.168  stance_speed=0.84 m/s (3 samples)
+zombie.glb                   lib=survivor.glb               ZombieShamble  motion_scale=1.000 ankle_y min=0.038 max=0.124  stance_speed=0.84 m/s (3 samples)
+### draw calls / auto-LOD
+N=1  multi-material(8 surf): draw_calls=24 objects=24 prims=2052 | vcol(1 surf): draw_calls=3 objects=3 prims=2442
+N=40  multi-material(8 surf): draw_calls=960 objects=960 prims=82080 | vcol(1 surf): draw_calls=120 objects=120 prims=97680
+LOD survivor.glb -> ["Body[0]: tris=160 lods=[]", "Body[1]: tris=260 lods=[88]", "Body[2]: tris=120 lods=[28]", "Body[3]: tris=50 lods=[12]", "Body[4]: tris=4 lods=[]", "Body[5]: tris=20 lods=[]", "Body[6]: tris=76 lods=[]", "Body[7]: tris=124 lods=[24]"]
+LOD cabin.glb -> ["Floor[0]: tris=16 lods=[]", "Floor[1]: tris=40 lods=[]", "Floor[2]: tris=12 lods=[2]", "Floor[3]: tris=24 lods=[]", "WallBack[0]: tris=64 lods=[]", "WallBack[1]: tris=2 lods=[]", "WallBack[2]: tris=24 lods=[]", "WallLeft[0]: tris=148 lods=[10]", "WallLeft[1]: tris=2 lods=[]", "WindowsLeft[0]: tris=2 lods=[]", "WindowsLeft[1]: tris=70 lods=[]", "WallRight[0]: tris=64 lods=[]", "WallRight[1]: tris=2 lods=[]", "WallFront[0]: tris=162 lods=[]", "WallFront[1]: tris=6 lods=[]", "WallFront[2]: tris=84 lods=[]", "WindowsFront[0]: tris=2 lods=[]", "WindowsFront[1]: tris=70 lods=[]", "Roof[0]: tris=36 lods=[]", "Roof[1]: tris=36 lods=[]", "Roof[2]: tris=60 lods=[]", "Roof[3]: tris=52 lods=[]", "Roof[4]: tris=16 lods=[]", "Roof[5]: tris=24 lods=[]", "Roof[6]: tris=12 lods=[]", "Chimney[0]: tris=20 lods=[]", "Chimney[1]: tris=46 lods=[10]", "Chimney[2]: tris=2 lods=[]", "Chimney[3]: tris=2 lods=[]", "Porch[0]: tris=6 lods=[]", "Porch[1]: tris=8 lods=[]", "Porch[2]: tris=32 lods=[16]", "Porch[3]: tris=12 lods=[]", "Porch[4]: tris=352 lods=[96, 24]"]
+LOD pine_a.glb -> ["Tree[0]: tris=12 lods=[]", "Tree[1]: tris=48 lods=[]", "Tree[2]: tris=118 lods=[48]", "Tree[3]: tris=48 lods=[24]"]
+LOD pickup_truck.glb -> ["Body[0]: tris=68 lods=[34, 10]", "Body[1]: tris=126 lods=[58]", "Body[2]: tris=14 lods=[2]", "Body[3]: tris=8 lods=[]", "Body[4]: tris=20 lods=[]", "Body[5]: tris=20 lods=[]", "Wheels[0]: tris=176 lods=[]", "Wheels[1]: tris=88 lods=[]", "Snow[0]: tris=80 lods=[20]"]
+saved res://shots/survivor_Idle.png (1500, 640)
+saved res://shots/survivor_Walk.png (1500, 640)
+saved res://shots/survivor_Run.png (1500, 640)
+saved res://shots/survivor_Attack.png (1500, 640)
+saved res://shots/survivor_ZombieShamble.png (1500, 640)
+saved res://shots/zombie_noretarget_Walk.png (1500, 640)
+saved res://shots/zombie_noretarget_ZombieShamble.png (1500, 640)
+saved res://shots/zombie_retarget_Walk.png (1500, 640)
+saved res://shots/zombie_retarget_ZombieShamble.png (1500, 640)
+saved res://shots/zombie_retarget_Attack.png (1500, 640)
+saved res://shots/survivor_rt_Walk.png (1500, 640)
+saved res://shots/survivor_rt_Attack.png (1500, 640)
+saved res://shots/game_view_dist22.png (1400, 860)
+saved res://shots/game_view_dist14.png (1400, 860)
+saved res://shots/closeup_iso.png (1200, 800)
+tree 0: t=0.00 oneshot_active=false loco_blend=1.6
+tree 1: t=0.15 oneshot_active=true loco_blend=1.6
+tree 2: t=0.30 oneshot_active=true loco_blend=1.6
+tree 3: t=0.42 oneshot_active=true loco_blend=1.6
+tree 4: t=0.55 oneshot_active=true loco_blend=1.6
+tree 5: t=0.75 oneshot_active=true loco_blend=1.6
+saved tree shot
+### ragdoll
+RAGDOLL: bones=12 simulating=true PB_Hips y 0.90 -> 0.20 (skeleton get_bone_global_pose still 0.90: modifier output is not visible through that getter outside the modifier stage)
+saved ragdoll shot
+### vehicle import hints
+vehicle test exported
+- sedan_test <Node3D> pos=(0.0, 0.0, 0.0)
+  - Sedan <VehicleBody3D> pos=(0.0, 0.0, 0.0)
+    - ColBody <StaticBody3D> pos=(0.0, 0.0, 0.0)
+      - CollisionShape3D <CollisionShape3D> pos=(0.0, 0.0, 0.0)
+    - HeadlightL <Node3D> pos=(-0.6, 0.9, 2.21)
+    - SeatDriver <Node3D> pos=(-0.4, 0.9, 0.2)
+    - WheelFL <VehicleWheel3D> pos=(-0.85, 0.38, 1.4) wheel_radius=0.50 use_as_steering=false use_as_traction=false
+      - WheelFL <MeshInstance3D> pos=(0.0, 0.0, 0.0)
+    - WheelFR <VehicleWheel3D> pos=(0.85, 0.38, 1.4) wheel_radius=0.50 use_as_steering=false use_as_traction=false
+      - WheelFR <MeshInstance3D> pos=(0.0, 0.0, 0.0)
+    - WheelRL <VehicleWheel3D> pos=(-0.85, 0.38, -1.4) wheel_radius=0.50 use_as_steering=false use_as_traction=false
+      - WheelRL <MeshInstance3D> pos=(0.0, 0.0, 0.0)
+    - WheelRR <VehicleWheel3D> pos=(0.85, 0.38, -1.4) wheel_radius=0.50 use_as_steering=false use_as_traction=false
+      - WheelRR <MeshInstance3D> pos=(0.0, 0.0, 0.0)
+    - Sedan <MeshInstance3D> pos=(0.0, 0.0, 0.0)

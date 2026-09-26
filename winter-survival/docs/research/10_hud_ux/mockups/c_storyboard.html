@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · Tarjeta de zona — secuencia</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  body { background: #0A0F17; }
+  h1 { position: absolute; left: 95px; top: 26px; font: 700 30px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; }
+  h1 span { color: var(--text-3); font-weight: 500; letter-spacing: .04em; text-transform: none; font-family: Barlow; font-size: 20px; margin-left: 14px; }
+  .cell { position: absolute; width: 845px; height: 475px; overflow: hidden; box-shadow: 0 0 0 1px rgba(220,235,250,.18); }
+  .cell iframe { width: 1920px; height: 1080px; border: 0; transform: scale(.44); transform-origin: 0 0; }
+  .cap { position: absolute; font: 600 16px/1 "Barlow Condensed"; letter-spacing: .14em; text-transform: uppercase; color: #FFE38A; }
+  .tl { position: absolute; left: 980px; top: 598px; width: 845px; height: 475px; background: #0E1520; box-shadow: 0 0 0 1px rgba(220,235,250,.18); }
+</style>
+</head>
+<body>
+<h1>Tarjeta de zona · primera visita <span>entrada 0–0,9 s · lectura hasta 3,8 s · salida 3,8–4,4 s · traspaso al HUD 4,0–4,6 s</span></h1>
+<div class="cap" style="left:95px;top:78px">1 · t = 0,30 s — la línea se dibuja, el título entra con tracking abierto</div>
+<div class="cell" style="left:95px;top:98px"><iframe src="c_titulo_region.html?f=1"></iframe></div>
+<div class="cap" style="left:980px;top:78px">2 · t = 1,40 s — asentado: subtítulo, tres datos, destello</div>
+<div class="cell" style="left:980px;top:98px"><iframe src="c_titulo_region.html?f=2"></iframe></div>
+<div class="cap" style="left:95px;top:578px">3 · t = 4,10 s — sale hacia arriba; ubicación y aviso pasan al bloque de entorno</div>
+<div class="cell" style="left:95px;top:598px"><iframe src="c_titulo_region.html?f=3"></iframe></div>
+<div class="cap" style="left:980px;top:578px">Cronograma y variantes</div>
+<svg class="tl" id="tl" viewBox="0 0 845 475"></svg>
+<script>
+  const X0 = 150, X1 = 820, T = 4.6, x = t => X0 + (X1 - X0) * t / T;
+  const rows = [
+    ['Sonido', [[0, 1.9, '#9FE2FF', 'ui_zone_discover: soplo + campana helada']]],
+    ['Velo', [[0, .3, '#5E6F86'], [.3, 3.8, '#34465C'], [3.8, 4.4, '#5E6F86']]],
+    ['Línea', [[0, .42, '#FFB454', 'dibujo expo‑out'], [3.8, 4.3, '#8a6a3a']]],
+    ['Título', [[.18, .7, '#F3F8FD'], [1.0, 1.5, '#ffffff', 'α + tracking .34→.07 em · destello'], [3.9, 4.4, '#8FA6C0', '↑10 px', 'L']]],
+    ['Antetítulo', [[.45, .75, '#FFB454']]],
+    ['Subtítulo', [[.55, .85, '#B7C7D9']]],
+    ['Datos ×3', [[.7, .94, '#FFD34D'], [.78, 1.02, '#9FE2FF'], [.86, 1.1, '#FF7A5C'], [3.7, 3.9, '#5E6F86']]],
+    ['Traspaso', [[4.0, 4.4, '#FFB454', 'ubicación + aviso + feed', 'L'], [4.2, 4.5, '#FFD34D']]],
+  ];
+  let h = `<text x="20" y="30" fill="#B7C7D9" font-family="Barlow" font-size="15">Curvas: entrada TRANS_EXPO/EASE_OUT · salida TRANS_CUBIC/EASE_IN · movimiento reducido = solo fundidos de 0,2 s</text>`;
+  rows.forEach((r, i) => {
+    const y = 58 + i * 30;
+    h += `<text x="20" y="${y + 13}" fill="#8397AE" font-family="Barlow Condensed" font-weight="600" font-size="15" letter-spacing="1.5">${r[0].toUpperCase()}</text>`;
+    h += `<line x1="${X0}" y1="${y + 9}" x2="${X1}" y2="${y + 9}" stroke="rgba(220,235,250,.08)"/>`;
+    r[1].forEach(b => {
+      h += `<rect x="${x(b[0])}" y="${y}" width="${Math.max(3, x(b[1]) - x(b[0]))}" height="18" fill="${b[2]}" opacity=".85"/>`;
+      if (b[3]) h += b[4] === 'L' ? `<text x="${x(b[0]) - 6}" y="${y + 14}" fill="#B7C7D9" font-family="Barlow" font-size="13" text-anchor="end">${b[3]}</text>` : `<text x="${x(b[1]) + 6}" y="${y + 14}" fill="#B7C7D9" font-family="Barlow" font-size="13">${b[3]}</text>`;
+    });
+  });
+  for (let t = 0; t <= 4.6; t += .5) h += `<text x="${x(t)}" y="306" fill="#5C6E84" font-family="Barlow" font-size="12" text-anchor="middle">${t.toFixed(1).replace('.', ',')} s</text>`;
+  [[.3, '1'], [1.4, '2'], [4.1, '3']].forEach(m => {
+    h += `<line x1="${x(m[0])}" y1="48" x2="${x(m[0])}" y2="294" stroke="#FFE38A" stroke-dasharray="3 3"/>`;
+    h += `<circle cx="${x(m[0])}" cy="44" r="9" fill="#FFE38A"/><text x="${x(m[0])}" y="48.5" text-anchor="middle" font-family="Barlow" font-weight="700" font-size="12" fill="#0A0F17">${m[1]}</text>`;
+  });
+  // variantes
+  h += `<g transform="translate(20 330)">
+    <text x="0" y="0" fill="#FFE38A" font-family="Barlow Condensed" font-weight="600" font-size="15" letter-spacing="2">VARIANTES</text>
+    <rect x="0" y="14" width="250" height="62" fill="rgba(10,16,25,.8)" stroke="rgba(220,235,250,.18)"/>
+    <text x="125" y="44" fill="#F3F8FD" font-family="Barlow Condensed" font-weight="700" font-size="26" letter-spacing="2" text-anchor="middle">DISTRITO FINANCIERO</text>
+    <text x="125" y="66" fill="#B7C7D9" font-family="Barlow" font-size="14" text-anchor="middle">Albarrán · sin electricidad</text>
+    <text x="0" y="96" fill="#B7C7D9" font-family="Barlow" font-size="14">Re‑entrada: compacta, 2,0 s,</text>
+    <text x="0" y="114" fill="#B7C7D9" font-family="Barlow" font-size="14">sin sonido; solo datos que cambiaron.</text>
+    <rect x="280" y="14" width="250" height="62" fill="#1F4E8C" stroke="#F3F8FD" stroke-width="2" rx="4"/>
+    <text x="298" y="40" fill="#F3F8FD" font-family="Barlow" font-weight="600" font-size="20">Albarrán</text><text x="512" y="40" fill="#F3F8FD" font-family="Barlow" font-weight="600" font-size="20" text-anchor="end">4 km</text>
+    <text x="298" y="66" fill="#F3F8FD" font-family="Barlow" font-weight="500" font-size="16">Distrito Financiero</text><text x="512" y="66" fill="#F3F8FD" font-family="Barlow" font-size="16" text-anchor="end">salida 12</text>
+    <text x="280" y="96" fill="#B7C7D9" font-family="Barlow" font-size="14">En vehículo (&gt; 40 km/h): placa tipo</text>
+    <text x="280" y="114" fill="#B7C7D9" font-family="Barlow" font-size="14">cartel de autovía, 2,5 s, abajo‑dcha.</text>
+    <text x="560" y="30" fill="#B7C7D9" font-family="Barlow" font-size="14">En combate: se aplaza</text>
+    <text x="560" y="48" fill="#B7C7D9" font-family="Barlow" font-size="14">hasta 5 s sin amenaza;</text>
+    <text x="560" y="66" fill="#B7C7D9" font-family="Barlow" font-size="14">si ya saliste, solo se</text>
+    <text x="560" y="84" fill="#B7C7D9" font-family="Barlow" font-size="14">actualiza la ubicación.</text>
+    <text x="560" y="110" fill="#8397AE" font-family="Barlow" font-size="13">Histéresis 12 m + 1,5 s</text>
+    <text x="560" y="127" fill="#8397AE" font-family="Barlow" font-size="13">Repetición mínima 90 s</text>
+  </g>`;
+  document.getElementById('tl').innerHTML = h;
+</script>
+</body>
+</html>

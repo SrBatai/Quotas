@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · Avisos y cooperativo</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  .scrim { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 34% 40% at 0% 0%, rgba(8,13,22,.45), transparent 72%),
+                radial-gradient(ellipse 36% 34% at 100% 0%, rgba(8,13,22,.42), transparent 72%),
+                radial-gradient(ellipse 32% 44% at 100% 100%, rgba(8,13,22,.45), transparent 72%),
+                radial-gradient(ellipse 34% 30% at 0% 100%, rgba(8,13,22,.38), transparent 70%); }
+  .mate.downed .nm { color: #FFD9D4; }
+  .skull-ring { position: relative; width: 46px; height: 46px; display: grid; place-items: center; }
+  .skull-ring svg.r { position: absolute; inset: 0; transform: rotate(-90deg); }
+  .frow .cat { width: 3px; align-self: stretch; margin: 6px 4px 6px -2px; }
+  .frow.warn .fn { color: var(--caution); }
+  .frow.lvl { height: 54px; }
+  .chat { position: absolute; left: var(--safe-x); bottom: 178px; display: flex; flex-direction: column; gap: 4px; font: 500 18px/1.3 Barlow; }
+  .chat div { padding: 3px 10px; background: rgba(8,13,20,.45); width: fit-content; }
+  .chat .ch { color: var(--text-3); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg/zombies.jpg')"></div>
+  <div class="vig-dmg"></div>
+  <div class="scrim"></div>
+
+  <!-- indicador de dirección de daño + aguante (anclados al personaje) -->
+  <svg style="position:absolute;left:0;top:0" width="1920" height="1080">
+    <defs><filter id="glw"><feGaussianBlur stdDeviation="3"/></filter></defs>
+    <g transform="translate(958 640)">
+      <ellipse rx="96" ry="70" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="2"/>
+      <path d="M -88 -28 A 96 70 0 0 1 -40 -63" fill="none" stroke="#FF4F45" stroke-width="7" stroke-linecap="round" filter="url(#glw)" opacity=".9"/>
+      <path d="M -88 -28 A 96 70 0 0 1 -40 -63" fill="none" stroke="#FF8A7E" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <g transform="translate(1016 560)">
+      <circle r="17" fill="none" stroke="rgba(237,231,210,.18)" stroke-width="4"/>
+      <circle r="17" fill="none" stroke="#FFD34D" stroke-width="4" stroke-dasharray="${0}" id="stam" transform="rotate(-90)" stroke-linecap="round"/>
+    </g>
+  </svg>
+
+  <!-- compañera derribada en el mundo -->
+  <div class="ground" style="left:1172px;top:730px;width:170px;height:120px;border:2px solid rgba(255,79,69,.85);box-shadow:0 0 22px rgba(255,79,69,.55), inset 0 0 18px rgba(255,79,69,.3)"></div>
+  <div class="ground" style="left:1172px;top:730px;width:240px;height:170px;border:1.5px solid rgba(255,79,69,.35)"></div>
+  <div class="wm" style="left:1172px;top:688px;color:var(--danger)">
+    <div class="skull-ring" style="width:58px;height:58px">
+      <svg class="r" width="58" height="58"><circle cx="29" cy="29" r="25" fill="rgba(40,6,10,.85)" stroke="rgba(255,79,69,.25)" stroke-width="4"/><circle id="bleed" cx="29" cy="29" r="25" fill="none" stroke="#FF4F45" stroke-width="4"/></svg>
+      <svg class="i s28" style="position:relative;color:#FFD9D4"><use href="#i-skull"/></svg>
+    </div>
+    <div class="lbl" style="margin-top:6px;color:#FFD9D4;font-size:20px"><span style="color:var(--p-ana)">Ana</span> · <span class="num">38 s</span></div>
+    <div class="stem" style="height:24px"></div>
+  </div>
+  <div class="prompt glass strong" style="left:1172px;top:858px;opacity:.95">
+    <div class="hold"><svg width="40" height="40"><circle cx="20" cy="20" r="17" fill="none" stroke="rgba(220,235,250,.2)" stroke-width="3"/></svg><span class="pad x">X</span></div>
+    <span class="pt">Mantén: reanimar <span class="num c3">4 s</span></span><span class="ps">· acércate <span class="num">6 m</span></span>
+  </div>
+
+  <!-- aviso P0 + cola -->
+  <div class="banner p0 glass strong" style="top:104px;min-width:620px">
+    <div class="bico"><svg class="i s40"><use href="#i-skull"/></svg></div>
+    <div class="bbody">
+      <div class="btitle">Ana está derribada · <span class="num">38 s</span></div>
+      <div class="bsub">Un zombi la está mordiendo (−5 s por mordisco) · <span class="pad x sm" style="font-size:13px">X</span> mantén junto a ella</div>
+    </div>
+    <div class="btimer"><i style="width:63%"></i></div>
+  </div>
+  <div class="queue" style="top:204px;padding:5px 10px;background:rgba(8,13,20,.55);color:var(--text-2)"><i></i><i></i><span>2 avisos en espera</span></div>
+
+  <!-- compañeros -->
+  <div class="team">
+    <div class="mate glass downed">
+      <div class="skull-ring"><svg class="r" width="46" height="46"><circle cx="23" cy="23" r="20" fill="rgba(40,6,10,.9)" stroke="rgba(255,79,69,.25)" stroke-width="3"/><circle id="bleed2" cx="23" cy="23" r="20" fill="none" stroke="#FF4F45" stroke-width="3"/></svg>
+        <svg class="i s24" style="position:relative;color:#FFD9D4"><use href="#i-skull"/></svg></div>
+      <div>
+        <div class="nm">Ana <span style="font:700 15px/1 'Barlow Condensed';letter-spacing:.14em;color:var(--danger)">DERRIBADA</span></div>
+        <div style="font:500 16px/1 Barlow;color:#FFB9B0;margin-top:8px" class="num">38 s · 2.º derribo</div>
+      </div>
+      <div class="dist"><span style="color:#FFD9D4">12 m</span><svg class="i s18" style="transform:rotate(125deg);color:var(--danger)"><use href="#i-arrowup"/></svg></div>
+    </div>
+    <div class="mate glass">
+      <div class="av" style="background:var(--p-leo)">L</div>
+      <div>
+        <div class="nm">Leo <svg class="i s18" style="color:var(--danger)"><use href="#i-blood"/></svg></div>
+        <div class="bars">
+          <div class="bar seg" style="width:178px;height:6px"><i style="width:48%;background:var(--health)"></i></div>
+          <div class="bar" style="width:178px;height:3px"><i style="width:70%;background:var(--warm-hot)"></i></div>
+        </div>
+      </div>
+      <div class="dist"><span>64 m</span><svg class="i s18" style="transform:rotate(-40deg);color:var(--p-leo)"><use href="#i-arrowup"/></svg></div>
+    </div>
+    <div class="mate glass" style="opacity:.8">
+      <div class="av" style="background:var(--p-iker)">I</div>
+      <div>
+        <div class="nm">Iker <svg class="i s18" style="color:var(--text-3)"><use href="#i-car"/></svg></div>
+        <div class="bars">
+          <div class="bar seg" style="width:178px;height:6px"><i style="width:92%;background:var(--health)"></i></div>
+          <div class="bar" style="width:178px;height:3px"><i style="width:84%;background:var(--warm-hot)"></i></div>
+        </div>
+      </div>
+      <div class="dist"><span>410 m</span><svg class="i s18" style="transform:rotate(70deg);color:var(--p-iker)"><use href="#i-arrowup"/></svg></div>
+    </div>
+  </div>
+
+  <!-- entorno -->
+  <div class="env">
+    <div class="env-main glass" style="padding-bottom:26px">
+      <div id="rose" style="width:44px;display:grid;place-items:center;margin:8px 16px 0 2px"></div>
+      <div class="env-time">
+        <div class="row"><span class="day">Día 5</span><span class="clock">18:30</span><svg class="i s20" style="color:#FFD479;margin-left:auto"><use href="#i-sun"/></svg></div>
+        <div class="daystrip"><div class="now" style="left:52.1%"></div><div class="tick" style="left:58.3%">anochece 20:00</div></div>
+      </div>
+      <div class="env-temp"><div class="air">−14 °C</div><div class="felt">sentida −6 °C</div></div>
+    </div>
+  </div>
+
+  <!-- rastreador comprimido (evento cooperativo en curso) -->
+  <div class="tracker" style="top:220px">
+    <div class="trk glass" style="padding:10px 16px 11px">
+      <div class="kind"><svg class="i s16 ember"><use href="#i-diamond"/></svg><span class="t-eyebrow ember">La voz del repetidor</span><span class="t-eyebrow c3" style="margin-left:auto;letter-spacing:.1em">+2</span></div>
+      <div style="font:500 19px/1.25 Barlow;margin-top:6px;color:var(--text-2)">Consigue 3 componentes de radio <span class="num c3">0/3</span></div>
+    </div>
+  </div>
+
+  <!-- pila de notificaciones (P2–P3) -->
+  <div class="feed" style="bottom:150px;width:360px">
+    <div class="frow glass" style="opacity:.5;height:32px;min-width:0;padding:0 12px"><span class="fn" style="font-size:16px;color:var(--text-3)">+2 más</span></div>
+    <div class="frow glass lvl"><div class="cat" style="background:var(--ember)"></div><svg class="i s28 ember" style="margin:0 4px"><use href="#i-star"/></svg>
+      <div style="flex:1"><div class="fn" style="font-weight:600">Cortante · nivel 3</div><div style="font:400 16px/1.2 Barlow;color:var(--text-2);margin-top:3px">Elige ventaja <span class="key" style="height:20px;min-width:20px;font-size:12px;padding:0 5px">K</span></div></div></div>
+    <div class="frow glass"><div class="cat" style="background:var(--mist-300)"></div><svg class="i s24" style="margin:0 5px;color:var(--frost-100)"><use href="#i-hammer"/></svg><span class="fn">Fabricado: venda</span><span class="fq num">×2</span></div>
+    <div class="frow glass"><div class="cat" style="background:var(--p-leo)"></div><svg class="i s24" style="margin:0 5px;color:var(--p-leo)"><use href="#i-people"/></svg><span class="fn"><b style="color:var(--p-leo);font-weight:600">Leo</b> cogió la llave de la camioneta</span></div>
+    <div class="frow glass"><div class="cat" style="background:var(--mist-300)"></div><img src="../../../../assets/icons/items/meat_raw.png"><span class="fn">Carne cruda</span><span class="fq num">+2</span><span class="ft num">(4)</span></div>
+    <div class="frow glass warn"><div class="cat" style="background:var(--caution)"></div><img src="../../../../assets/icons/items/bat_nailed.png"><span class="fn">Bate con clavos: se rompe</span><span class="fq num" style="color:var(--caution)">12 %</span></div>
+  </div>
+
+  <!-- chat -->
+  <div class="chat">
+    <div><span class="ch">[G]</span> <b style="color:var(--p-leo);font-weight:600">Leo:</b> ¡voy, cubridla!</div>
+    <div style="opacity:.6"><span class="ch">[G]</span> <b style="color:var(--p-iker);font-weight:600">Iker:</b> estoy en la N‑140, no llego</div>
+  </div>
+
+  <!-- constantes -->
+  <div class="vitals" style="padding-bottom:28px">
+    <div class="ring dim" id="r-warm"></div>
+    <div class="ring" id="r-health" style="filter:drop-shadow(0 0 10px rgba(240,86,106,.5))"></div>
+    <div class="ring dim" id="r-hunger"></div>
+    <div class="status-row" style="margin:0 0 17px 6px">
+      <div class="status glass"><svg class="i danger"><use href="#i-blood"/></svg><span>Sangrado</span><span class="pips" style="color:var(--danger)"><i class="on"></i><i class="on"></i><i></i></span></div>
+    </div>
+  </div>
+  <div class="hotbar glass" id="hotbar"></div>
+  <div class="equip glass">
+    <img src="../../../../assets/icons/items/bat_nailed.png">
+    <div style="flex:1">
+      <div class="ename">Bate con clavos</div>
+      <div class="bar" style="margin-top:9px;height:5px"><i style="width:12%;background:var(--caution)"></i></div>
+      <div style="font:400 16px/1 Barlow;color:var(--caution);margin-top:7px" class="num">Durabilidad 12 %</div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+  const C = r => 2 * Math.PI * r;
+  document.getElementById('bleed').setAttribute('stroke-dasharray', `${C(25) * .63} 999`);
+  document.getElementById('bleed2').setAttribute('stroke-dasharray', `${C(20) * .63} 999`);
+  document.getElementById('stam').setAttribute('stroke-dasharray', `${C(17) * .36} 999`);
+  document.getElementById('rose').innerHTML = northRose(-45);
+  document.getElementById('r-warm').innerHTML = ringSvg(.77, '#FF8A3D', 68, 6) + ic('thermo');
+  document.getElementById('r-health').innerHTML = ringSvg(.42, '#F0566A', 68, 6) + ic('heart') + `<span class="val" style="color:#FF8C9A">42 <span>↓</span></span>`;
+  document.getElementById('r-hunger').innerHTML = ringSvg(.62, '#E3C98A', 68, 6) + ic('meat');
+  const items = [['bat_nailed', '', 1, 'MANO', .12], ['meat_raw', 4], ['can_beans', 1], ['torch', '', 0, '', .9], ['knife', '', 0, '', .5], ['wood', 3], [], [], [], []];
+  let h = '';
+  items.forEach((it, i) => {
+    const n = i === 9 ? 0 : i + 1;
+    if (!it.length) { h += `<div class="slot empty"><span class="n">${n}</span></div>`; return; }
+    h += `<div class="slot${i === 0 ? ' sel' : ''}"><img src="../../../../assets/icons/items/${it[0]}.png"><span class="n">${it[3] || n}</span>` +
+      (it[1] ? `<span class="q">${it[1]}</span>` : '') + (it[4] ? `<span class="dur"><i style="width:${it[4] * 100}%;${it[4] < .5 ? 'background:var(--caution)' : ''}"></i></span>` : '') + `</div>`;
+    if (i === 0) h += '<div class="gap"></div>';
+  });
+  document.getElementById('hotbar').innerHTML = h;
+</script>
+</body>
+</html>

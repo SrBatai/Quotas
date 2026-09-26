@@ -1,0 +1,150 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/player/player_state.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/player/inventory_component.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/player/stats_component.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/player/quest_component.gd" id="5"]
+[ext_resource type="Script" path="res://scripts/player/player_net.gd" id="6"]
+[ext_resource type="Script" path="res://scripts/player/player_input.gd" id="7"]
+[ext_resource type="Script" path="res://scripts/player/interactor.gd" id="8"]
+[ext_resource type="Script" path="res://scripts/player/placement_controller.gd" id="9"]
+[ext_resource type="Script" path="res://scripts/player/player_view.gd" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/player/character_visual.tscn" id="11"]
+[ext_resource type="Script" path="res://scripts/player/tool_holder.gd" id="12"]
+[ext_resource type="Script" path="res://scripts/player/footprint_emitter.gd" id="13"]
+[ext_resource type="Script" path="res://scripts/components/hover_ring.gd" id="14"]
+[ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="15"]
+
+[sub_resource type="SceneReplicationConfig" id="server_cfg"]
+properties/0/path = NodePath(".:net_position")
+properties/0/spawn = true
+properties/0/replication_mode = 0
+properties/1/path = NodePath(".:aim_yaw")
+properties/1/spawn = true
+properties/1/replication_mode = 0
+properties/2/path = NodePath(".:aim_point")
+properties/2/spawn = true
+properties/2/replication_mode = 2
+properties/3/path = NodePath(".:display_name")
+properties/3/spawn = true
+properties/3/replication_mode = 2
+properties/4/path = NodePath(".:hand_tool")
+properties/4/spawn = true
+properties/4/replication_mode = 2
+properties/5/path = NodePath(".:torch_lit")
+properties/5/spawn = true
+properties/5/replication_mode = 2
+properties/6/path = NodePath(".:running")
+properties/6/spawn = true
+properties/6/replication_mode = 2
+properties/7/path = NodePath(".:crouching")
+properties/7/spawn = true
+properties/7/replication_mode = 2
+properties/8/path = NodePath(".:dead")
+properties/8/spawn = true
+properties/8/replication_mode = 2
+properties/9/path = NodePath(".:in_house")
+properties/9/spawn = true
+properties/9/replication_mode = 2
+properties/10/path = NodePath(".:chop_seq")
+properties/10/spawn = true
+properties/10/replication_mode = 2
+properties/11/path = NodePath(".:speed_mult")
+properties/11/spawn = true
+properties/11/replication_mode = 2
+properties/12/path = NodePath(".:can_run")
+properties/12/spawn = true
+properties/12/replication_mode = 2
+properties/13/path = NodePath(".:disconnected")
+properties/13/spawn = true
+properties/13/replication_mode = 2
+properties/14/path = NodePath(".:outfit")
+properties/14/spawn = true
+properties/14/replication_mode = 2
+properties/15/path = NodePath(".:cold")
+properties/15/spawn = true
+properties/15/replication_mode = 2
+properties/16/path = NodePath(".:downed")
+properties/16/spawn = true
+properties/16/replication_mode = 2
+properties/17/path = NodePath(".:bleed")
+properties/17/spawn = true
+properties/17/replication_mode = 2
+properties/18/path = NodePath(".:revive_by")
+properties/18/spawn = true
+properties/18/replication_mode = 2
+properties/19/path = NodePath(".:revive_pct")
+properties/19/spawn = true
+properties/19/replication_mode = 2
+properties/20/path = NodePath(".:swing_clip")
+properties/20/spawn = true
+properties/20/replication_mode = 2
+properties/21/path = NodePath(".:swing_seq")
+properties/21/spawn = true
+properties/21/replication_mode = 2
+
+[sub_resource type="CapsuleShape3D" id="cap"]
+radius = 0.35
+height = 1.7
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 5
+script = ExtResource("1")
+
+[node name="ServerSync" type="MultiplayerSynchronizer" parent="."]
+replication_config = SubResource("server_cfg")
+replication_interval = 0.0333
+delta_interval = 0.2
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("cap")
+
+[node name="State" type="Node" parent="."]
+script = ExtResource("2")
+
+[node name="Inventory" type="Node" parent="State"]
+script = ExtResource("3")
+
+[node name="Stats" type="Node" parent="State"]
+script = ExtResource("4")
+
+[node name="Quests" type="Node" parent="State"]
+script = ExtResource("5")
+
+[node name="Net" type="Node" parent="."]
+script = ExtResource("6")
+
+[node name="Input" type="Node" parent="."]
+script = ExtResource("7")
+
+[node name="Interactor" type="Node" parent="."]
+script = ExtResource("8")
+
+[node name="Placement" type="Node" parent="."]
+script = ExtResource("9")
+
+[node name="View" type="Node3D" parent="."]
+script = ExtResource("10")
+
+[node name="Visual" parent="View" instance=ExtResource("11")]
+
+[node name="ToolHolder" type="Node" parent="View"]
+script = ExtResource("12")
+
+[node name="FootprintEmitter" type="Node" parent="View"]
+script = ExtResource("13")
+
+[node name="HoverRing" type="MeshInstance3D" parent="View"]
+script = ExtResource("14")
+
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("15")
+
+[node name="Pivot" type="Node3D" parent="CameraRig"]
+
+[node name="Pitch" type="Node3D" parent="CameraRig/Pivot"]
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/Pivot/Pitch"]

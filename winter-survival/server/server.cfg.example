@@ -1,0 +1,23 @@
+; VENTISCA dedicated server configuration (Godot ConfigFile format, ARQ v2 §16.2 — M1 subset).
+; Copy to user://server.cfg (the path the game writes when you press "Jugar") or pass --config <path>:
+;   ventisca --headless -- --server --config /srv/ventisca/server.cfg
+; Keys not present here fall back to the defaults shown.
+
+[server]
+name="Ventisca"
+password=""                 ; empty = no password (clients authenticate with HMAC-SHA256(password, nonce))
+port=7777                   ; UDP (ENet)
+max_players=4
+motd="Abrígate."
+admin_port=7778             ; TCP, bound to 127.0.0.1 only (server/admin.sh)
+admin_token=""              ; first line of every admin connection; empty = any local process may administer
+
+[world]
+seed=1337
+save_path="user://world_save.json"   ; M1: JSON profiles + clock (SQLite arrives in M5)
+autosave_seconds=60
+day_length_sec=420.0        ; slice pacing; M8 moves to 1800 (PLAN C18)
+
+[rules]                     ; consulted only by DamageResolver (PLAN C20)
+pvp=false
+friendly_fire="off"         ; off | reduced | full
