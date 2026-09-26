@@ -123,14 +123,14 @@
 <div class="wrap">
   <header>
     <div>
-      <p class="eyebrow">Demo jugable · M3 mundo abierto · un jugador en el navegador</p>
+      <p class="eyebrow">Demo jugable · M4 zombis y combate · un jugador en el navegador</p>
       <h1>VENTISCA</h1>
-      <p class="lede">Sobrevive <strong>cinco días</strong> en un bosque helado de 3 × 3 km: leña, estufa, hacha, fogata y lobos de noche. Se juega en el navegador con teclado y ratón.</p>
+      <p class="lede">Sobrevive <strong>cinco días</strong> en un bosque helado de 3 × 3 km: leña, estufa, hacha y fogata, con lobos y zombis de noche. Se juega en el navegador con teclado y ratón.</p>
     </div>
     <div class="chips" aria-label="Datos de la versión">
       <span class="chip">Godot 4.7.2</span>
       <span class="chip">Web · Compatibility</span>
-      <span class="chip">~20 MB de descarga</span>
+      <span class="chip">~24 MB de descarga</span>
     </div>
   </header>
 
@@ -139,7 +139,7 @@
     <div class="cover" id="cover">
       <button class="play" id="play" type="button">Jugar la demo</button>
       <div class="bar" id="bar" hidden><span id="barFill"></span></div>
-      <p class="cover-note" id="note">Descarga unos 20 MB y arranca en el navegador. Día 1, 06:00, en la puerta de la cabaña.</p>
+      <p class="cover-note" id="note">Descarga unos 24 MB y arranca en el navegador. Día 1, 06:00, en la puerta de la cabaña.</p>
       <p class="error" id="error" hidden></p>
     </div>
   </div>
@@ -158,7 +158,12 @@
         <tr><td>Correr</td><td><kbd>Mayús</kbd></td></tr>
         <tr><td>Interactuar o atacar bajo el cursor</td><td><kbd>Clic izq.</kbd></td></tr>
         <tr><td>Interactuar con lo más cercano</td><td><kbd>R</kbd></td></tr>
-        <tr><td>Atacar al lobo más cercano</td><td><kbd>Espacio</kbd></td></tr>
+        <tr><td>Atacar al más cercano (zombi o lobo)</td><td><kbd>Espacio</kbd></td></tr>
+        <tr><td>Golpe cargado (con arma)</td><td>mantener <kbd>Clic</kbd></td></tr>
+        <tr><td>Empujar</td><td><kbd>V</kbd></td></tr>
+        <tr><td>Agacharse (sigilo)</td><td><kbd>Ctrl</kbd></td></tr>
+        <tr><td>Rendirse si estás derribado</td><td>mantener <kbd>X</kbd></td></tr>
+        <tr><td>Chat y comandos</td><td><kbd>Intro</kbd></td></tr>
         <tr><td>Fabricación</td><td><kbd>Tab</kbd></td></tr>
         <tr><td>Ranuras de la barra</td><td><kbd>1</kbd>–<kbd>9</kbd></td></tr>
         <tr><td>Antorcha</td><td><kbd>T</kbd></td></tr>
@@ -189,14 +194,16 @@
         <li>Un día dura 7 minutos. Ganas al amanecer del día 6.</li>
         <li>El calor baja en el frío, más rápido de noche y en ventisca. Recupéralo junto a la estufa o una fogata.</li>
         <li>Los lobos salen de noche y huyen del fuego y de la antorcha.</li>
+        <li><b>Zombis:</b> de día no aparecen y la primera noche rondan pocos por el claro. Hay caminantes, corredores, reptadores, congelados (quietos en la nieve hasta que haces ruido cerca) e hinchados. Si te dejan a 0 de vida caes derribado; jugando solo te levantas tú mismo una vez al día.</li>
+        <li>Armas cuerpo a cuerpo: cuchillo (ejecuta en silencio a congelados), palanca, bate, bate con clavos, machete y hacha. Los golpes hacen ruido y atraen a otros zombis.</li>
         <li>En el navegador se usa el renderizador Compatibility: las sombras y la niebla se ven algo más simples que en la versión de escritorio.</li>
         <li>Aquí juegas solo: el servidor del juego corre dentro de la pestaña. El cooperativo de 1 a 4 jugadores funciona en la versión de escritorio (Windows y Linux, en la pestaña Actions del PR).</li>
         <li>El bosque sigue más allá del claro: lago helado al suroeste, carreteras, cuatro cabañas aisladas, restos de acampada y una torre de vigilancia al sur. El nombre de cada zona aparece arriba al entrar.</li>
-        <li>Atajos para explorar: pulsa <kbd>Intro</kbd> y escribe <code>/tp -780 340</code> (lago), <code>/tp 256 912</code> (torre) o <code>/tp -512 -285</code> (cabaña). <code>/kit</code> te da hacha y materiales.</li>
+        <li>Atajos para explorar: pulsa <kbd>Intro</kbd> y escribe <code>/tp -780 340</code> (lago), <code>/tp 256 912</code> (torre) o <code>/tp -512 -285</code> (cabaña). <code>/kit</code> te da hacha y materiales, <code>/armas</code> todas las armas, <code>/zombies 8</code> crea zombis a tu alrededor y <code>/hora 19</code> adelanta al anochecer.</li>
         <li>En el navegador el terreno se genera en el mismo hilo que el juego: al entrar en una zona nueva puede haber un tirón breve. En la versión de escritorio se genera en segundo plano.</li>
         <li>Aún no hay sonido.</li>
       </ul>
-      <p class="meta">Build de la rama claude/winter-survival-game-txs1nx, commit 61c1859.</p>
+      <p class="meta">Build de la rama claude/winter-survival-game-txs1nx, commit 2147605.</p>
     </section>
   </div>
 </div>

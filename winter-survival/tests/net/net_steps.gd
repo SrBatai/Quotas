@@ -283,7 +283,8 @@ func _client_frame() -> void:
 		while not _timeline.is_empty() and ct >= float(_timeline[0][0]):
 			var entry: Array = _timeline.pop_front()
 			(entry[1] as Callable).call(lp, world)
-	if t >= duration:
+	# a client that connected late still runs its last timeline steps (≤ 5 s of grace; the server soaks longer)
+	if t >= duration and (_timeline.is_empty() or t >= duration + 5.0):
 		_finish(lp)
 
 
@@ -738,7 +739,8 @@ func _build_zombies_timeline() -> void:
 				[31.0, func(_lp: Player, w: Node) -> void:
 					_tp((w as World).get_spawn_point() + Vector3(0.0, 0.0, 3.0))],
 			]
-	tl.append([57.0, func(_lp: Player, _w: Node) -> void:
+	# well before the end: steps run on each client's own clock (ct = time since it connected)
+	tl.append([50.0, func(_lp: Player, _w: Node) -> void:
 		_sw["same_death"] = _z_target != 0 and _zc().died_ids.has(_z_target)
 		_log("same death: target %d died here=%s (records %d, died %d, packets %d)" % [_z_target, _zc().died_ids.has(_z_target),
 			_zc().records.size(), _zc().died_ids.size(), _zc().packets])])
