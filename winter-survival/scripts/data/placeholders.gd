@@ -173,8 +173,31 @@ static func _build_parts(root: Node3D, asset_name: String) -> void:
 			_col_box(root, "ColTent", Vector3(-1.4, 0, -1.7), Vector3(0.6, 1.1, 0.2))
 		"cabin_small": _build_cabin_small(root)
 		"lookout_tower": _build_lookout_tower(root)
+		# M4 melee weapons (ASSET_SPEC v2 §12: origin = grip, handle +Y, working end / edge +Z)
+		"knife", "crowbar", "bat", "bat_nailed", "machete": _build_weapon(root, asset_name)
 		_:
 			push_warning("Placeholders: unknown asset '%s'" % asset_name)
+
+
+## Stand-in melee weapons: a handle along +Y from the grip and the head / blade, edge toward +Z.
+static func _build_weapon(root: Node3D, asset_name: String) -> void:
+	var specs := {
+		"knife": [["Handle", Vector3(0.028, 0.11, 0.03), Vector3(0, 0.0, 0), "wood_dark"], ["Blade", Vector3(0.008, 0.2, 0.035), Vector3(0, 0.155, 0.004), "iron"]],
+		"crowbar": [["Bar", Vector3(0.025, 0.62, 0.025), Vector3(0, 0.22, 0), "rust"], ["Claw", Vector3(0.025, 0.03, 0.09), Vector3(0, 0.52, 0.04), "rust"]],
+		"bat": [["Handle", Vector3(0.035, 0.3, 0.035), Vector3(0, 0.05, 0), "wood_dark"], ["Barrel", Vector3(0.07, 0.55, 0.07), Vector3(0, 0.47, 0), "wood_light"]],
+		"bat_nailed": [["Handle", Vector3(0.035, 0.3, 0.035), Vector3(0, 0.05, 0), "wood_dark"], ["Barrel", Vector3(0.07, 0.55, 0.07), Vector3(0, 0.47, 0), "wood_light"],
+			["Nails", Vector3(0.12, 0.3, 0.12), Vector3(0, 0.55, 0), "iron"]],
+		"machete": [["Handle", Vector3(0.03, 0.13, 0.035), Vector3(0, 0.0, 0), "wood_dark"], ["Blade", Vector3(0.008, 0.45, 0.06), Vector3(0, 0.29, 0.01), "iron"]],
+	}
+	for part in specs.get(asset_name, []):
+		var mi := MeshInstance3D.new()
+		mi.name = part[0]
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		mi.mesh = bm
+		mi.position = part[2]
+		mi.material_override = Assets.material(part[3])
+		root.add_child(mi)
 
 
 # ---------------------------------------------------------------- helpers

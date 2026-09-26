@@ -13,6 +13,7 @@ var has_coat: bool = false
 var health: float = Balance.HEALTH_MAX
 var warmth: float = Balance.WARMTH_START
 var hunger: float = Balance.HUNGER_START
+var stamina: float = Balance.STAMINA_MAX
 var dead: bool = false
 var death_cause: StringName = &""
 var quest_state: Dictionary = {}
@@ -165,7 +166,7 @@ func flush_mirror() -> void:
 		d["slots"] = Packets.pack_slots(slots)
 		d["coat"] = has_coat
 	if _dirty.has(&"stats"):
-		d["stats"] = PackedFloat32Array([health, warmth, hunger])
+		d["stats"] = PackedFloat32Array([health, warmth, hunger, stamina])
 	if _dirty.has(&"quest"):
 		d["quest"] = quest_state
 		d["steps_done"] = steps_done
@@ -203,10 +204,13 @@ func apply_mirror(d: Dictionary) -> void:
 			health = s[0]
 			warmth = s[1]
 			hunger = s[2]
+			if s.size() >= 4:
+				stamina = s[3]
 		if local:
 			Events.stat_changed.emit(&"health", health, Balance.HEALTH_MAX)
 			Events.stat_changed.emit(&"warmth", warmth, Balance.WARMTH_MAX)
 			Events.stat_changed.emit(&"hunger", hunger, Balance.HUNGER_MAX)
+			Events.stat_changed.emit(&"stamina", stamina, Balance.STAMINA_MAX)
 	if d.has("quest"):
 		if not Net.is_server:
 			quest_state = d["quest"]

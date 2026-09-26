@@ -9,6 +9,11 @@ extends RefCounted
 ##   far           (PLAN M3 acceptance, 2 clients) B teleports ≈ 1 km away: each client stops receiving the other
 ##                 player (despawned, not in its poses), both chop a tree near themselves and only receive their own
 ##                 world events / chunk snapshots (3 × 3 interest), and B's client streams its own ring.
+##   zombies       (PLAN M4 acceptance, 4 clients) A fills the clearing's surroundings with 100 walkers and kills one with
+##                 the bat: every client sees that id die; B is downed (/hurt), C revives it (hold), B is downed again,
+##                 gives up, leaves a corpse every client sees and respawns at the cabin's bed after 20 s; D hits A with
+##                 friendly_fire=off (blocked) and full (damage); C walks through D with pvp=false and is stopped by
+##                 D with pvp=true. Downstream ≤ 15 kB/s on average with the horde around (typical budget, PLAN C11).
 ##   idle          join and stand still (screenshot proof of remote players).
 ## Server: soak with the main scene; prints "alive" lines every 5 s; "SERVER RESULT" at quit (admin save-and-quit).
 
@@ -146,6 +151,16 @@ func _run_client() -> void:
 		_build_shared_world_timeline()
 	elif scenario == "far":
 		_build_far_timeline()
+	elif scenario == "zombies":
+		_build_zombies_timeline()
+		Events.chat_message.connect(func(who: String, text: String) -> void:
+			if text.begins_with("objetivo "):
+				_z_target = int(text.substr(9))
+				_log("kill target announced by %s: %d" % [who, _z_target]))
+		Events.hit_result.connect(func(_v: int, blocked: bool, reason: String) -> void:
+			_z_hits.append([blocked, reason]))
+		# A: D announces its friendly-fire swing ("voy") right before it; A compares its health a moment later
+		Events.chat_message.connect(_on_ff_announce)
 	if _late > 0.0:
 		_log("late joiner: waiting %.0f s" % _late)
 		tree.create_timer(_late).timeout.connect(_join)
@@ -208,6 +223,17 @@ func _client_frame() -> void:
 				elif ct > 13.0 and ct <= 16.0: mv = Vector2(0, 1)
 	elif scenario == "shared_world" and client_name == "C" and ct > 2.0 and ct <= 4.0:
 		mv = Vector2(0, 1)   # the late joiner walks a little too (remote_moved for the others)
+	elif scenario == "zombies":
+		if client_name == "B":
+			if lp.downed:
+				_sw["was_downed"] = true
+			elif bool(_sw.get("was_downed", false)) and not lp.dead and not _sw.has("revived"):
+				_sw["revived"] = lp.state.health > 20.0 and lp.state.health < 50.0
+				_log("revived: health %.0f" % lp.state.health)
+		if client_name == "C" and ((ct > 36.0 and ct <= 38.8) or (ct > 41.8 and ct <= 44.8)):
+			mv = Vector2(1, 0)   # pvp test: walk east through / into D
+		elif client_name == "D" and ct > 1.0 and ct <= 2.0:
+			mv = Vector2(0, 1)   # everybody sees a remote move
 	lp.input.scripted_move = mv
 	lp.input.scripted_run = run
 	lp.input.scripted_aim = lp.global_position + Vector3(cos(ct), 1.2, sin(ct)) * 5.0
@@ -253,7 +279,7 @@ func _client_frame() -> void:
 			tree.create_timer(4.0).timeout.connect(_join)
 		elif _step == 2 and ct > 9.0:
 			_step = 3
-	elif scenario == "shared_world" or scenario == "far":
+	elif scenario == "shared_world" or scenario == "far" or scenario == "zombies":
 		while not _timeline.is_empty() and ct >= float(_timeline[0][0]):
 			var entry: Array = _timeline.pop_front()
 			(entry[1] as Callable).call(lp, world)
@@ -532,6 +558,194 @@ func _far_report(lp: Player, world: Node) -> void:
 		nw.felled.size(), nw.snapshot_keys.keys(), nw.my_interest.keys(), w.streamer.loaded_keys().size(), w.streamer.stats])
 
 
+# ------------------------------------------------------------------ zombies (PLAN M4)
+var _z_target: int = 0
+var _z_hits: Array = []
+var _z_health_before: float = -1.0
+
+
+## A: D announces its friendly-fire swing ("voy") right before it; A compares its health a moment later.
+func _on_ff_announce(_who: String, text: String) -> void:
+	if client_name != "A" or text != "voy":
+		return
+	var lp := GameFlow.local_player() as Player
+	if lp == null:
+		return
+	_z_health_before = lp.state.health
+	await tree.create_timer(1.5).timeout
+	var lp2 := GameFlow.local_player() as Player
+	if lp2 != null:
+		_sw["ff_damage"] = lp2.state.health < _z_health_before - 3.0
+		_log("friendly fire full: health %.0f -> %.0f" % [_z_health_before, lp2.state.health])
+
+
+func _zc() -> ZombieClient:
+	return ZombieClient.instance
+
+
+func _equip_item(lp: Player, id: StringName) -> void:
+	for i in range(1, lp.state.slots.size()):
+		if not lp.state.slots[i].is_empty() and lp.state.slots[i]["id"] == id:
+			Net.rpc_server(NetWorld.instance, &"request_use_slot", [i])
+			return
+
+
+## Walks the local player toward `pos` (scripted input, world axes) until within `near` m or `secs` have passed.
+func _approach(lp: Player, pos: Vector3, near: float, secs: float) -> void:
+	var t := 0.0
+	while t < secs and is_instance_valid(lp):
+		var d := Vector2(pos.x - lp.global_position.x, pos.z - lp.global_position.z)
+		if d.length() <= near:
+			break
+		lp.input.scripted_move = d.normalized()
+		await tree.process_frame
+		t += tree.root.get_process_delta_time()
+	if is_instance_valid(lp):
+		lp.input.scripted_move = Vector2.INF
+
+
+func _swing_at(lp: Player, at: Vector3, zid: int, mode: int = Weapons.Mode.LIGHT) -> void:
+	var d := at - lp.global_position
+	lp.input.face_toward(at)
+	Net.rpc_server(NetWorld.instance, &"request_melee", [mode, atan2(d.x, d.z), zid])
+
+
+func _build_zombies_timeline() -> void:
+	var tl := []
+	var zc_ok := func() -> bool: return _zc() != null
+	match client_name:
+		"A":
+			tl = [
+				[1.0, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/director off")],
+				[1.8, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/armas")],
+				[2.6, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/zombies 100 walker 90")],
+				[3.6, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/zombies 1 walker 3")],
+				[4.2, func(lp: Player, _w: Node) -> void: _equip_item(lp, &"bate")],
+				[9.0, func(lp: Player, _w: Node) -> void:
+					_sw["horde"] = _zc().records.size() >= 80
+					_log("horde: %d zombie records, %d views" % [_zc().records.size(), _zc().views_in_use()])],
+			]
+			for k in 20:
+				tl.append([5.0 + k * 0.75, func(lp: Player, _w: Node) -> void:
+					if _z_target == 0:
+						var z := _zc().nearest_to(lp.global_position, 4.5)
+						if z == null:
+							return
+						_z_target = z.id
+						Chat.instance.send("objetivo %d" % z.id)
+					elif k % 3 == 2:
+						Chat.instance.send("objetivo %d" % _z_target)   # again, for whoever joined after the first one
+					var r := _zc().record(_z_target)
+					if r != null and r.state != ZombieKinds.State.DEAD:
+						# the target fights whoever is nearest to it: step in when it is beyond the bat's reach
+						var dz := r.render_pos - lp.global_position
+						if Vector2(dz.x, dz.z).length() > 1.5:
+							await _approach(lp, r.render_pos, 1.2, 0.45)
+						if r.state != ZombieKinds.State.DEAD:
+							_swing_at(lp, r.render_pos, _z_target)])
+			tl.append([21.5, func(_lp: Player, _w: Node) -> void:
+				_sw["killed"] = _z_target != 0 and _zc().died_ids.has(_z_target)
+				_log("kill target %d dead=%s" % [_z_target, _sw["killed"]])])
+		"B":
+			tl = [
+				[1.2, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/armas")],
+				[16.0, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/hurt 200")],
+				[17.0, func(lp: Player, _w: Node) -> void:
+					_sw["downed"] = lp.downed and not lp.dead
+					_log("downed=%s bleed=%d" % [lp.downed, lp.bleed])],
+				[29.5, func(lp: Player, _w: Node) -> void:
+					_log("after revive: downed=%s health=%.0f revived_seen=%s" % [lp.downed, lp.state.health, _sw.get("revived", false)])],
+				[30.0, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/hurt 200")],
+				[31.0, func(_lp: Player, _w: Node) -> void: Net.rpc_server(NetWorld.instance, &"request_give_up", [])],
+				[32.0, func(lp: Player, _w: Node) -> void:
+					_sw["dead"] = lp.dead and lp.state.dead
+					_log("dead=%s cause=%s" % [lp.dead, lp.state.death_cause])],
+				[53.5, func(_lp: Player, _w: Node) -> void: GameFlow.request_respawn()],
+				[55.5, func(lp: Player, w: Node) -> void:
+					var bed: Vector3 = (w as World).get_respawn_point()
+					_sw["respawn_bed"] = not lp.dead and lp.global_position.distance_to(bed) < 1.6
+					_log("respawned at %s (bed %s)" % [lp.global_position.snapped(Vector3(0.1, 0.1, 0.1)), bed.snapped(Vector3(0.1, 0.1, 0.1))])],
+			]
+		"C":
+			tl = [
+				[17.5, func(lp: Player, w: Node) -> void:
+					var b := _player_named(w, "B")
+					if b != null:
+						_tp(b.global_position + Vector3(1.0, 0, 0.3))],
+				[19.0, func(_lp: Player, w: Node) -> void:
+					var b := _player_named(w, "B")
+					_sw["revive_sent"] = b != null and b.downed
+					if b != null:
+						Net.rpc_server(NetWorld.instance, &"request_revive", [b.peer_id, true])],
+				[20.5, func(_lp: Player, w: Node) -> void:
+					var b := _player_named(w, "B")
+					_log("revive progress seen: %d %%" % (b.revive_pct if b != null else -1))],
+				[24.0, func(_lp: Player, w: Node) -> void:
+					var b := _player_named(w, "B")
+					if b != null:
+						Net.rpc_server(NetWorld.instance, &"request_revive", [b.peer_id, false])],
+				[33.2, func(_lp: Player, _w: Node) -> void:
+					_sw["corpse_seen"] = not tree.get_nodes_in_group("corpse").is_empty()
+					_log("corpses seen: %d" % tree.get_nodes_in_group("corpse").size())],
+				# pvp: walk through D (pvp off), then be stopped by D (pvp on)
+				[35.0, func(_lp: Player, w: Node) -> void:
+					var d := _player_named(w, "D")
+					if d != null:
+						_tp(d.global_position + Vector3(-3.0, 0, 0))],
+				[39.2, func(lp: Player, w: Node) -> void:
+					var d := _player_named(w, "D")
+					_sw["pass_through"] = d != null and lp.global_position.x > d.global_position.x + 0.5
+					_log("pvp off: C x=%.2f D x=%.2f" % [lp.global_position.x, d.global_position.x if d != null else 0.0])],
+				[39.6, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/rule pvp true")],
+				[40.8, func(_lp: Player, w: Node) -> void:
+					var d := _player_named(w, "D")
+					if d != null:
+						_tp(d.global_position + Vector3(-3.0, 0, 0))],
+				[45.2, func(lp: Player, w: Node) -> void:
+					var d := _player_named(w, "D")
+					_sw["pvp_block"] = d != null and lp.global_position.x < d.global_position.x - 0.3
+					_log("pvp on: C x=%.2f D x=%.2f" % [lp.global_position.x, d.global_position.x if d != null else 0.0])],
+				[45.8, func(_lp: Player, _w: Node) -> void: Chat.instance.send("/rule pvp false")],
+			]
+		"D":
+			tl = [
+				[12.5, func(_lp: Player, w: Node) -> void:
+					var a := _player_named(w, "A")
+					if a != null:
+						_tp(a.global_position + Vector3(1.1, 0, 0))],
+				[14.0, func(lp: Player, w: Node) -> void:
+					var a := _player_named(w, "A")
+					if a != null:
+						_swing_at(lp, a.global_position, 0)],
+				[15.0, func(_lp: Player, _w: Node) -> void:
+					_sw["ff_blocked"] = _z_hits.has([true, "friendly_fire"])
+					Chat.instance.send("/rule friendly_fire full")],
+				[15.8, func(_lp: Player, w: Node) -> void:
+					var a := _player_named(w, "A")   # A may have stepped toward its zombie meanwhile
+					if a != null:
+						_tp(a.global_position + Vector3(1.1, 0, 0))],
+				[16.4, func(_lp: Player, _w: Node) -> void: Chat.instance.send("voy")],
+				[16.6, func(lp: Player, w: Node) -> void:
+					var a := _player_named(w, "A")
+					_z_hits.clear()
+					if a != null:
+						_swing_at(lp, a.global_position, 0)],
+				[17.6, func(_lp: Player, _w: Node) -> void:
+					_sw["ff_full"] = _z_hits.has([false, ""])
+					_log("hit results with friendly_fire full: %s" % [_z_hits])
+					Chat.instance.send("/rule friendly_fire off")],
+				# stand in the open south of the porch for C's pvp walks (A may have stepped toward the porch)
+				[31.0, func(_lp: Player, w: Node) -> void:
+					_tp((w as World).get_spawn_point() + Vector3(0.0, 0.0, 3.0))],
+			]
+	tl.append([57.0, func(_lp: Player, _w: Node) -> void:
+		_sw["same_death"] = _z_target != 0 and _zc().died_ids.has(_z_target)
+		_log("same death: target %d died here=%s (records %d, died %d, packets %d)" % [_z_target, _zc().died_ids.has(_z_target),
+			_zc().records.size(), _zc().died_ids.size(), _zc().packets])])
+	tl.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
+	_timeline = tl
+
+
 func _chop() -> void:
 	Net.rpc_server(NetWorld.instance, &"request_interact", [_target_tree_wid, &"chop", 0])
 
@@ -544,7 +758,15 @@ func _finish(lp: Player) -> void:
 	for s in _bw_samples:
 		bw_avg += s
 	bw_avg = bw_avg / maxf(_bw_samples.size(), 1.0)
-	var bw_ok := bw_avg <= 5.0
+	var bw_limit := 15.0 if scenario == "zombies" else 5.0
+	if scenario == "zombies":
+		# typical downstream with the horde around: the samples after the spawn burst (ENTER records) settled
+		var z_samples := _bw_samples.slice(mini(_bw_samples.size() / 4, _bw_samples.size()))
+		bw_avg = 0.0
+		for v in z_samples:
+			bw_avg += v
+		bw_avg /= maxf(float(z_samples.size()), 1.0)
+	var bw_ok := bw_avg <= bw_limit
 	var ok := _local_seen and _remote_spawned >= expected_remote and bw_ok
 	if scenario == "basic" and expected_remote > 0:
 		ok = ok and moved >= 1 and _chat_from_others >= 1 and _hit_sent >= 1 and _hit_blocked >= 1
@@ -553,10 +775,16 @@ func _finish(lp: Player) -> void:
 	var corr: int = lp.net.corrections if lp != null else -1
 	var name_ok := lp != null and lp.name == str(Net.local_peer_id())
 	ok = ok and name_ok
-	if scenario == "shared_world" or scenario == "far":
+	if scenario == "shared_world" or scenario == "far" or scenario == "zombies":
 		var expected_keys := {"A": ["kit", "felled", "wood", "cabinet", "torch", "campfire"],
 			"B": ["stump", "no_wood", "label", "en_uso", "campfire"], "C": ["deltas", "felled", "campfire", "cabinet_free"]}
 		if scenario == "far":
+			expected_keys = {"A": ["felled", "other_gone", "own_events", "own_interest", "streamed"],
+				"B": ["felled", "other_gone", "own_events", "own_interest", "streamed"]}
+		if scenario == "zombies":
+			expected_keys = {"A": ["horde", "killed", "same_death", "ff_damage"], "B": ["same_death", "downed", "revived", "dead", "respawn_bed"],
+				"C": ["same_death", "revive_sent", "corpse_seen", "pass_through", "pvp_block"], "D": ["same_death", "ff_blocked", "ff_full"]}
+		elif scenario == "far":
 			expected_keys = {"A": ["felled", "other_gone", "own_events", "own_interest", "streamed"],
 				"B": ["felled", "other_gone", "own_events", "own_interest", "streamed"]}
 		var sw_ok := true

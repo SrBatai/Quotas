@@ -5,10 +5,24 @@ extends Node
 ## denial); attack → `request_attack`. Labels use the owner's state mirror.
 ## M3: trees are MultiMesh instances; a ray that meets a chunk's scatter trunk, or passes through a tree's crown
 ## (World.pick_scatter over the scatter index), materializes that one tree so the usual component takes over.
+## M4 melee (GDD v2 §7.1, §3.2): a zombie under the cursor (its view's pick capsule, or within the 1.2 m
+## magnetism of the cursor's ground point) wins the hover; click = light attack, hold ≥ MELEE_CHARGE_HOLD =
+## charged on release; with the knife a frozen / unaware zombie is executed, a knocked-down one (or a crawler) is
+## stomped. With a weapon and nothing under the cursor the click swings toward it. Space attacks the nearest enemy,
+## V / LT shoves. A downed teammate under the cursor or within reach: hold R (or the click) to revive. Downed
+## yourself: hold X to give up. The swing plays at once (prediction); the server validates and resolves.
 
 var target: InteractableComponent
 var pending: InteractableComponent
 var hover_text: String = ""
+## M4: hovered zombie record (ZombieClient) / downed teammate, and the melee hold in progress.
+var zombie_target: ZombieClient.ZRec
+var revive_target: Player
+var _hold_t: float = -1.0
+var _hold_zombie: int = 0
+var _hold_point: Vector3 = Vector3.INF
+var _reviving: int = 0
+var _give_up_t: float = -1.0
 var _player: Player
 var _ring: HoverRing
 var _previews: Dictionary = {}   # wid -> [comp, action] awaiting the server's answer
@@ -28,7 +42,13 @@ func _active() -> bool:
 	return GameFlow.in_game and not _player.dead
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	_update_holds(delta)
+	if _player.downed and not _player.dead:
+		zombie_target = null
+		revive_target = null
+		_set_hover(null, "Mantén X para rendirte" if _give_up_t < 0.0 else "Rindiéndote… %d" % int(ceil(Balance.GIVE_UP_HOLD - _give_up_t)))
+		return
 	if not _active():
 		_set_hover(null, "")
 		return
@@ -44,7 +64,7 @@ func _physics_process(_delta: float) -> void:
 	var mouse := get_viewport().get_mouse_position()
 	var from := cam.project_ray_origin(mouse)
 	var to := from + cam.project_ray_normal(mouse) * 120.0
-	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | 8, [_player.get_rid()])
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | 8 | 128, [_player.get_rid()])
 	q.collide_with_areas = true
 	q.collide_with_bodies = true
 	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(q)
@@ -64,8 +84,28 @@ func _physics_process(_delta: float) -> void:
 			found = t.interactable
 	if found != null and not is_instance_valid(found):
 		found = null
+	# M4: zombies (pick capsule or cursor magnetism) and downed teammates win over the scenery
+	zombie_target = null
+	revive_target = null
+	var ground: Vector3 = hit.position if not hit.is_empty() else to
+	if not hit.is_empty() and hit.collider != null and hit.collider.has_meta("zombie_view"):
+		var zv: ZombieView = hit.collider.get_meta("zombie_view")
+		if ZombieClient.instance != null and is_instance_valid(zv):
+			zombie_target = ZombieClient.instance.record(zv.id)
+	if zombie_target == null and ZombieClient.instance != null:
+		zombie_target = ZombieClient.instance.nearest_to(ground, 1.2)
+	if zombie_target == null:
+		revive_target = _downed_near(ground, 1.4)
 	var text := ""
-	if found != null:
+	if zombie_target != null and zombie_target.state != ZombieKinds.State.DEAD:
+		found = null
+		text = _zombie_label(zombie_target)
+	elif revive_target != null:
+		found = null
+		text = "Reanimar a %s (mantén R · %d s)" % [revive_target.display_name, int(Balance.REVIVE_TIME)]
+		if _player.global_position.distance_to(revive_target.global_position) > Balance.REVIVE_RANGE:
+			text += " · acércate"
+	elif found != null:
 		text = found.get_label(_player)
 		if found.can_interact(_player) and found.distance_to(_player) > found.interact_range:
 			text += " · acércate"
@@ -85,16 +125,46 @@ func _set_hover(found: InteractableComponent, text: String) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _player.downed and not _player.dead:
+		if event.is_action_pressed("give_up"):
+			_give_up_t = 0.0
+		elif event.is_action_released("give_up"):
+			_give_up_t = -1.0
+		return
 	if not _active():
 		return
 	if _player.placement != null and _player.placement.active:
 		return
 	if event.is_action_pressed("interact_click"):
-		_click()
+		if zombie_target != null and zombie_target.state != ZombieKinds.State.DEAD:
+			begin_melee(zombie_target.id, zombie_target.render_pos)
+		elif revive_target != null:
+			start_revive(revive_target)
+		elif target == null and Weapons.is_weapon(_player.state.hand_tool()):
+			begin_melee(0, _cursor_point())
+		else:
+			_click()
+	elif event.is_action_released("interact_click"):
+		if _hold_t >= 0.0:
+			release_melee()
+		elif _reviving != 0:
+			stop_revive()
 	elif event.is_action_pressed("interact"):
-		_interact_nearest()
+		var d := _downed_near(_player.global_position, Balance.REVIVE_RANGE)
+		if d != null:
+			start_revive(d)
+		else:
+			_interact_nearest()
+	elif event.is_action_released("interact"):
+		if _reviving != 0:
+			stop_revive()
 	elif event.is_action_pressed("attack"):
 		attack_nearest()
+	elif event.is_action_released("attack"):
+		if _hold_t >= 0.0:
+			release_melee()
+	elif event.is_action_pressed("shove"):
+		shove()
 
 
 func _click() -> void:
@@ -172,8 +242,148 @@ func _interact_nearest() -> void:
 		_go_or_interact(best)
 
 
-## Space: swing at the nearest living animal in reach (wolves first, then deer), or in the air.
+# ------------------------------------------------------------------ M4 melee (owner client)
+func _cursor_point() -> Vector3:
+	var aim: Vector3 = _player.input.get("_aim_point") if _player.input != null else Vector3.INF
+	return aim if aim != Vector3.INF else _player.global_position + _player.facing() * 2.0
+
+
+func _zombie_label(z: ZombieClient.ZRec) -> String:
+	var name_k := String(ZombieKinds.row(z.kind)["name"])
+	var hand := _player.state.hand_tool()
+	var w := Weapons.of(hand)
+	var mode := _mode_for(z)
+	var t := "Atacar a %s" % name_k.to_lower()
+	match mode:
+		Weapons.Mode.EXECUTE:
+			t = "Ejecutar a %s (cuchillo, en silencio)" % name_k.to_lower()
+		Weapons.Mode.STOMP:
+			t = "Pisotear a %s" % name_k.to_lower()
+	if z.state == ZombieKinds.State.FROZEN and mode != Weapons.Mode.EXECUTE:
+		t += " (congelado)"
+	if hand != &"" and Weapons.is_weapon(hand):
+		t += " · %s" % String(w["name"]).to_lower()
+	var d := Vector2(z.render_pos.x - _player.global_position.x, z.render_pos.z - _player.global_position.z).length()
+	if d > float(w["reach"]) + 0.6:
+		t += " · acércate"
+	return t
+
+
+## The attack a click on `z` becomes: execution (knife + frozen / unaware), stomp (knocked down, crawler), light.
+func _mode_for(z: ZombieClient.ZRec) -> int:
+	if z == null:
+		return Weapons.Mode.LIGHT
+	if Weapons.can_execute(_player.state.hand_tool()) and z.state in [ZombieKinds.State.FROZEN, ZombieKinds.State.WAKING, ZombieKinds.State.IDLE, ZombieKinds.State.WANDER]:
+		return Weapons.Mode.EXECUTE
+	if z.state == ZombieKinds.State.KNOCKED or z.kind == ZombieKinds.Kind.CRAWLER:
+		return Weapons.Mode.STOMP
+	return Weapons.Mode.LIGHT
+
+
+func begin_melee(zombie_id: int, at: Vector3) -> void:
+	_hold_t = 0.0
+	_hold_zombie = zombie_id
+	_hold_point = at
+	_player.face_toward(at)
+
+
+## Click released (or held long enough): light / charged / execution / stomp toward the target.
+func release_melee() -> void:
+	if _hold_t < 0.0:
+		return
+	var charged := _hold_t >= Balance.MELEE_CHARGE_HOLD
+	_hold_t = -1.0
+	var z: ZombieClient.ZRec = ZombieClient.instance.record(_hold_zombie) if ZombieClient.instance != null and _hold_zombie != 0 else null
+	var at := z.render_pos if z != null else _hold_point
+	var mode := _mode_for(z)
+	if mode == Weapons.Mode.LIGHT and charged and _player.state.stamina >= Balance.STAMINA_MIN_RUN:
+		mode = Weapons.Mode.CHARGED
+	send_melee(mode, at, _hold_zombie)
+
+
+func send_melee(mode: int, at: Vector3, zombie_id: int) -> void:
+	var dir := at - _player.global_position
+	var yaw := atan2(dir.x, dir.z) if Vector2(dir.x, dir.z).length() > 0.05 else _player.aim_yaw
+	_player.face_toward(at)
+	if _player.view != null:
+		_player.view.play_local_swing(Weapons.clip(_player.state.hand_tool(), mode))
+	Events.local_swing.emit(Weapons.clip(_player.state.hand_tool(), mode))
+	Net.rpc_server(NetWorld.instance, &"request_melee", [mode, yaw, zombie_id])
+
+
+## V / LT: shove toward the nearest zombie in front (or straight ahead).
+func shove() -> void:
+	var z: ZombieClient.ZRec = ZombieClient.instance.nearest_to(_player.global_position, Balance.SHOVE_RANGE + 0.8) if ZombieClient.instance != null else null
+	var at := z.render_pos if z != null else _player.global_position + _player.facing() * 1.5
+	send_melee(Weapons.Mode.SHOVE, at, z.id if z != null else 0)
+
+
+func _update_holds(delta: float) -> void:
+	if _hold_t >= 0.0:
+		var was := _hold_t
+		_hold_t += delta
+		# held past the light-click time: the Melee_Charged wind-up starts and waits on its hold pose
+		if was < Balance.MELEE_CHARGE_HOLD and _hold_t >= Balance.MELEE_CHARGE_HOLD and _player.view != null \
+				and _player.state.stamina >= Balance.STAMINA_MIN_RUN:
+			var z: ZombieClient.ZRec = ZombieClient.instance.record(_hold_zombie) if ZombieClient.instance != null and _hold_zombie != 0 else null
+			if _mode_for(z) == Weapons.Mode.LIGHT:
+				_player.view.visual.begin_charge()
+		if _hold_t >= Balance.MELEE_CHARGE_HOLD + 0.8:
+			release_melee()   # a held click lets the charged swing go by itself
+	if _give_up_t >= 0.0:
+		_give_up_t += delta
+		if _give_up_t >= Balance.GIVE_UP_HOLD:
+			_give_up_t = -1.0
+			Net.rpc_server(NetWorld.instance, &"request_give_up", [])
+	if _reviving != 0:
+		var t := _player.get_parent().get_node_or_null(str(_reviving)) as Player
+		if t == null or not t.downed:
+			_reviving = 0
+
+
+func _downed_near(p: Vector3, r: float) -> Player:
+	var best: Player = null
+	var best_d := r
+	for n in _player.get_parent().get_children():
+		var o := n as Player
+		if o == null or o == _player or not o.downed or o.dead:
+			continue
+		var d := Vector2(o.global_position.x - p.x, o.global_position.z - p.z).length()
+		if d <= best_d:
+			best_d = d
+			best = o
+	return best
+
+
+func start_revive(t: Player) -> void:
+	_reviving = t.peer_id
+	_player.face_toward(t.global_position)
+	Net.rpc_server(NetWorld.instance, &"request_revive", [t.peer_id, true])
+
+
+func stop_revive() -> void:
+	if _reviving != 0:
+		Net.rpc_server(NetWorld.instance, &"request_revive", [_reviving, false])
+	_reviving = 0
+
+
+## Space: the nearest enemy in reach — a zombie (melee light, stomp or execution) or, as in the slice, a wolf /
+## deer (request_attack) — or a swing in the air.
 func attack_nearest() -> void:
+	if ZombieClient.instance != null:
+		var z := ZombieClient.instance.nearest_to(_player.global_position, maxf(Balance.ATTACK_RANGE, float(Weapons.of(_player.state.hand_tool())["reach"]) + 0.6))
+		if z != null:
+			var wolf_closer := false
+			for w in get_tree().get_nodes_in_group("wolves"):
+				if (w as Node3D).global_position.distance_to(_player.global_position) < z.render_pos.distance_to(_player.global_position):
+					wolf_closer = true
+			if not wolf_closer:
+				begin_melee(z.id, z.render_pos)   # released → light (or charged when held)
+				return
+	_attack_animal_nearest()
+
+
+func _attack_animal_nearest() -> void:
 	var best: Node = null
 	var best_d := Balance.ATTACK_RANGE
 	var p: Vector3 = _player.global_position

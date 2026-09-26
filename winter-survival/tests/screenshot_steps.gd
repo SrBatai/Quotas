@@ -1,6 +1,7 @@
 extends RefCounted
 ## Screenshot preset body (loaded at runtime by tests/screenshot.gd). Presets day/dusk/night/blizzard/interior/menu run
 ## the offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
+## M4 `zombies`: dusk, a group of zombies in front of the cabin, the survivor mid-swing with the bat (see _zombies_scene).
 ## M3 `overview`: a camera 250 m up east of the Lago de las Ánimas looking west (≈ 49° down): the Embarcadero road
 ## bed in the foreground, forest chunks, the flat lake ice beyond; streaming focused there with ring 7 (15 × 15
 ## chunks) so the edge of the loaded area stays out of frame.
@@ -159,6 +160,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				cam.look_at(target, Vector3.UP)
 				cam.current = true
 				print("overview: %d chunks loaded around %s" % [world.streamer.loaded_keys().size(), target])
+			"zombies":
+				await _zombies_scene(world, player, inv)
 			"multi":
 				# a networked client: wait for the other players to spawn and settle (interpolation)
 				await tree.create_timer(float(_flag_value("wait", "4.0"))).timeout
@@ -208,4 +211,93 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	var img := tree.root.get_viewport().get_texture().get_image()
 	var err := img.save_png(out_path)
 	print("screenshot %s -> %s (%s)" % [preset, out_path, "ok" if err == OK else "error %d" % err])
+	Engine.time_scale = 1.0
 	tree.quit(0)
+
+
+## M4 `zombies`: dusk of day 1 in front of the cabin; a group of zombies closing in on the survivor, who swings
+## the bat at the nearest one (blood, flinch, noise ring); one already down with its head burst, a frozen one
+## further out, a runner coming in. Camera yaw 45°: screen right = (+x, −z), toward the camera = (+x, +z).
+## The shot is frozen (Engine.time_scale 0) at the bat's contact frame (Melee2H_Swing_A hit 0.36–0.48 s).
+func _zombies_scene(world: World, player: Player, inv: InventoryComponent) -> void:
+	WorldState.instance.set_time(1, 18.9)
+	world.cabin.stove.burner.add_fuel(600.0)
+	world.get_node("WolfSpawner").enabled = false
+	if Director.instance != null:
+		Director.instance.enabled = false
+	if PopulationManager.instance != null:
+		PopulationManager.instance.enabled = false
+	var sys := ZombieSystem.instance
+	sys.clear_all()
+	inv.add(&"bate", 1)
+	inv.add(&"madera", 5)
+	inv.add(&"cuchillo", 1)
+	await tree.process_frame
+	for i in range(1, player.state.slots.size()):
+		if not player.state.slots[i].is_empty() and player.state.slots[i]["id"] == &"bate":
+			Net.rpc_server(NetWorld.instance, &"request_use_slot", [i])
+			break
+	var right := Vector3(0.7071, 0.0, -0.7071)
+	var down := Vector3(0.7071, 0.0, 0.7071)
+	var c := player.global_position + down * 3.0
+	c.y = world.get_height(c.x, c.z)
+	player.global_position = c + Vector3(0, 0.2, 0)
+	await tree.physics_frame
+	var at := func(r: float, d: float) -> Vector3:
+		var p := c + right * r + down * d
+		p.y = world.get_height(p.x, p.z)
+		return p
+	# [screen right, toward the camera, kind, state]
+	var group := [[1.75, -0.35, ZombieKinds.Kind.WALKER, ZombieKinds.State.CHASE],
+		[-1.9, 1.3, ZombieKinds.Kind.WALKER, ZombieKinds.State.CHASE],
+		[-2.6, -2.4, ZombieKinds.Kind.WALKER, ZombieKinds.State.CHASE],
+		[3.6, 2.4, ZombieKinds.Kind.BLOATER, ZombieKinds.State.CHASE],
+		[0.9, 3.4, ZombieKinds.Kind.CRAWLER, ZombieKinds.State.CHASE],
+		[-4.6, 3.2, ZombieKinds.Kind.WALKER, ZombieKinds.State.CHASE],
+		[5.2, -2.2, ZombieKinds.Kind.WALKER, ZombieKinds.State.CHASE],
+		[-7.5, -5.0, ZombieKinds.Kind.RUNNER, ZombieKinds.State.CHASE],
+		[-6.8, 5.6, ZombieKinds.Kind.FROZEN, ZombieKinds.State.FROZEN],
+		[6.4, 4.8, ZombieKinds.Kind.WALKER, ZombieKinds.State.WANDER]]
+	var ids: Array[int] = []
+	for g in group:
+		var p: Vector3 = at.call(float(g[0]), float(g[1]))
+		var dv := c - p
+		var i := sys.spawn(int(g[2]), p, atan2(dv.x, dv.z), int(g[3]), -1, -2)
+		if i < 0:
+			continue
+		if int(g[3]) == ZombieKinds.State.CHASE:
+			sys.target[i] = player.peer_id
+			sys.mem_t[i] = sys._now()
+			sys.last_seen[i] = c
+		ids.append(i)
+	# one goes down in its blood, head burst by a critical blow (once its view exists on the client)
+	var dead_p: Vector3 = at.call(2.4, 1.2)
+	var dead := sys.spawn(ZombieKinds.Kind.WALKER, dead_p, 0.6, ZombieKinds.State.IDLE, -1, -2)
+	var rig := CameraRig.active()
+	if rig != null:
+		rig.set_dist(20.0)
+	# the group closes in (views assigned, walk cycles running), then the swing at the nearest
+	var pf := Engine.get_physics_frames()
+	while Engine.get_physics_frames() - pf < 60:
+		await tree.process_frame
+		player.state.health = maxf(player.state.health, 80.0)
+		if dead >= 0 and sys.is_alive(dead) and ZombieClient.instance != null and ZombieClient.instance.record(sys.net_id[dead]) != null:
+			sys.apply_damage(dead, 999.0, player.peer_id, dead_p - c, true, 0.0, false, true)
+	var zc := ZombieClient.instance
+	var tgt := ids[0] if not ids.is_empty() else -1
+	var zr: ZombieClient.ZRec = zc.record(sys.net_id[tgt]) if zc != null and tgt >= 0 else null
+	var aim: Vector3 = zr.render_pos if zr != null else c + right * 1.5
+	player.interactor.send_melee(Weapons.Mode.LIGHT, aim, zr.id if zr != null else 0)
+	pf = Engine.get_physics_frames()
+	var contact := int(ceil((AnimEvents.at("Melee2H_Swing_A", "hit_start", 0.36) + 0.04) * 60.0))
+	while Engine.get_physics_frames() - pf < contact:
+		await tree.process_frame
+		player.state.health = maxf(player.state.health, 80.0)
+	Engine.time_scale = 0.0   # hold the contact pose (clock, animations, particles) while the frame settles
+	sys.set_physics_process(false)   # its timers run on the wall clock: no more bites while the frame renders
+	var views := 0
+	for v in zc.views:
+		if v.visible and v.id != 0:
+			views += 1
+	print("zombies: %d records, %d views, blood %d, heads %d, player hp %.0f, swing %s" % [zc.records.size(), views,
+		CombatFx.instance.blood_spawned, CombatFx.instance.heads_popped, player.state.health, Weapons.clip(player.state.hand_tool(), Weapons.Mode.LIGHT)])

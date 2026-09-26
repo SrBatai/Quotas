@@ -65,6 +65,24 @@ properties/14/replication_mode = 2
 properties/15/path = NodePath(".:cold")
 properties/15/spawn = true
 properties/15/replication_mode = 2
+properties/16/path = NodePath(".:downed")
+properties/16/spawn = true
+properties/16/replication_mode = 2
+properties/17/path = NodePath(".:bleed")
+properties/17/spawn = true
+properties/17/replication_mode = 2
+properties/18/path = NodePath(".:revive_by")
+properties/18/spawn = true
+properties/18/replication_mode = 2
+properties/19/path = NodePath(".:revive_pct")
+properties/19/spawn = true
+properties/19/replication_mode = 2
+properties/20/path = NodePath(".:swing_clip")
+properties/20/spawn = true
+properties/20/replication_mode = 2
+properties/21/path = NodePath(".:swing_seq")
+properties/21/spawn = true
+properties/21/replication_mode = 2
 
 [sub_resource type="CapsuleShape3D" id="cap"]
 radius = 0.35

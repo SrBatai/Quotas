@@ -12,6 +12,7 @@ const BTN_RUN := 1
 const BTN_CROUCH := 2
 const BTN_ATTACK := 4
 const BTN_INTERACT := 32
+const BTN_SHOVE := 128
 
 
 ## Packs up to 255 commands (oldest first, newest last): u8 n | n × { u32 seq | i8 mx | i8 my | i16 aim_yaw |
@@ -142,7 +143,11 @@ static func _s16(u: int) -> float:
 	return float(u - 65536 if u >= 32768 else u)
 
 
-## Inventory mirror: u16 id_index | u8 count per slot (ids indexed in Items.DB order).
+## Inventory mirror (ARQ v2 §7): u16 id_index | u8 count | u8 durability (0–100, 255 = none) per slot (ids indexed
+## in Items.DB order).
+const SLOT_SIZE := 4
+
+
 static func pack_slots(slots: Array) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
 	var ids := Items.DB.keys()
@@ -151,9 +156,11 @@ static func pack_slots(slots: Array) -> PackedByteArray:
 		if d.is_empty():
 			b.put_u16(0xFFFF)
 			b.put_u8(0)
+			b.put_u8(255)
 		else:
 			b.put_u16(ids.find(d["id"]))
 			b.put_u8(clampi(int(d["count"]), 0, 255))
+			b.put_u8(clampi(int(d.get("dur", 255)), 0, 255))
 	return b.data_array
 
 
@@ -162,12 +169,15 @@ static func unpack_slots(bytes: PackedByteArray) -> Array[Dictionary]:
 	var b := StreamPeerBuffer.new()
 	b.data_array = bytes
 	var ids := Items.DB.keys()
-	var n := bytes.size() / 3
+	var n := bytes.size() / SLOT_SIZE
 	for i in n:
 		var idx := b.get_u16()
 		var count := b.get_u8()
+		var dur := b.get_u8()
 		if idx == 0xFFFF or idx >= ids.size() or count <= 0:
 			out.append({})
+		elif dur != 255:
+			out.append({"id": ids[idx], "count": count, "dur": dur})
 		else:
 			out.append({"id": ids[idx], "count": count})
 	return out

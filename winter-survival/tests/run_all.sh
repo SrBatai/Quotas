@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Runs every gate (PLAN §6 "definición de hecho"): import, parse check, unit tests (persistence), smoke test (Jolt,
 # headless, skeletal player + feet metric), art contract (inspect_models), perf probe (xvfb + Compatibility, budgets),
-# the net scenarios `basic` (4 clients), `shared_world` (3 clients, M2) and `far` (2 clients 1 km apart, M3 interest),
-# the M3 world gates (determinism client vs server, streaming perf walk: --cpu headless budget + render mode under
-# xvfb/llvmpipe for ground and memory) and, with --shots, the screenshots. --no-walk-render skips the (slow) render walk.
+# the net scenarios `basic` (4 clients), `shared_world` (3 clients, M2), `far` (2 clients 1 km apart, M3 interest) and
+# `zombies` (4 clients, M4: same deaths everywhere, downed/revive/respawn at the bed, friendly fire, pvp, zombie
+# bandwidth), the M3 world gates (determinism client vs server, streaming perf walk: --cpu headless budget + render
+# mode under xvfb/llvmpipe for ground and memory), the M4 horde perf (200 zombies + 4 bots on a dedicated server,
+# median tick) and, with --shots, the screenshots. --no-walk-render skips the (slow) render walk.
+# On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -64,6 +67,13 @@ else
   grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_far_all.log | head -n 30; status=1
 fi
 
+step "net test zombies (M4: 4 clients, 100 zombies, same deaths on all, downed → revived → killed → respawn at the bed, ff off/full, pvp, ≤ 15 kB/s)"
+if NET_TEST_OUT=/tmp/ventisca_net_zombies tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807 > /tmp/ventisca_net_zombies_all.log 2>&1; then
+  grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_zombies_all.log
+else
+  grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_zombies_all.log | head -n 30; status=1
+fi
+
 step "determinism (M3: 50 chunks, server path vs client path, two processes)"
 if tests/run_determinism.sh > /tmp/ventisca_det_all.log 2>&1; then
   grep -E "determinism|DETERMINISM" /tmp/ventisca_det_all.log | tail -n 3
@@ -76,6 +86,13 @@ if tests/run_perf_walk.sh --cpu > /tmp/ventisca_walk_cpu_all.log 2>&1; then
   grep -E "streaming ms|frames over|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_cpu_all.log
 else
   grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_cpu_all.log | head -n 20; status=1
+fi
+
+step "perf horde (M4: dedicated server, 4 bots, 200 zombies: median busy tick ≤ 8 ms, p99 reported)"
+if tests/run_perf_horde.sh > /tmp/ventisca_horde_all.log 2>&1; then
+  grep -E "tick ms|zombies |net |routes |PERF HORDE" /tmp/ventisca_horde_all.log
+else
+  grep -E "tick ms|FAIL|SCRIPT ERROR|PERF HORDE" /tmp/ventisca_horde_all.log | head -n 20; status=1
 fi
 
 if [ "$WALK_RENDER" -eq 1 ]; then

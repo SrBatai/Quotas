@@ -160,6 +160,15 @@ func get_spawn_yaw() -> float:
 	return cabin.get_spawn_yaw()
 
 
+## Where a dead player comes back (GDD v2 §12.2 "cama de la base o punto de inicio"): beside the cabin's bed,
+## the porch spawn when there is no bed.
+func get_respawn_point() -> Vector3:
+	var bed := cabin.get_node_or_null("Bed") as Node3D
+	if bed == null:
+		return get_spawn_point()
+	return bed.global_position + cabin.global_basis * Vector3(1.05, 0.0, 0.35)
+
+
 func region_at(x: float, z: float) -> String:
 	return Regions.name_at(x, z)
 
@@ -302,6 +311,9 @@ func _place_props(aframe: Vector2, truck: Vector2) -> void:
 	tr.position = Vector3(truck.x, terrain.get_height(truck.x, truck.y), truck.y)
 	tr.rotation_degrees.y = -25.0  # hood (+Z) points where the slice's 155° put it
 	var sp := $Signpost as Node3D
+	# static colliders the server's navmesh bakes (NavBaker: group nav_static)
+	for n in [cabin, af, tr, sp]:
+		(n as Node).add_to_group("nav_static")
 	var spos := Regions.SIGNPOST_POS
 	sp.position = Vector3(spos.x, terrain.get_height(spos.x, spos.y), spos.y)
 	if sp.has_method("setup"):
@@ -340,6 +352,7 @@ func _collect_occluders() -> Array:
 
 func _add_fence(scene: PackedScene, p: Vector2, yaw_deg: float) -> void:
 	var f: Node3D = scene.instantiate()
+	f.add_to_group("nav_static")
 	$Fences.add_child(f)
 	f.position = Vector3(p.x, terrain.get_height(p.x, p.y), p.y)
 	f.rotation_degrees.y = yaw_deg

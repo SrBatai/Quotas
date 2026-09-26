@@ -283,6 +283,11 @@ func _start_job(k: int, threaded: bool) -> ChunkJob:
 	return j
 
 
+## True while chunks are being generated (worker jobs) or instantiated (NavBaker waits: streaming first).
+func is_busy() -> bool:
+	return not _jobs.is_empty() or not _ready_jobs.is_empty() or not _building.is_empty()
+
+
 func _collect_jobs() -> void:
 	for k in _jobs.keys():
 		var j: ChunkJob = _jobs[k]

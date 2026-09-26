@@ -66,5 +66,9 @@
     "frames_over_33ms_streaming_max": 0,
     "missing_ground_frames_max": 0,
     "rss_mb_max": 2560
+  },
+  "perf_horde": {
+    "_doc": "tests/perf_horde.gd (PLAN M4, R1, ARQ v2 §16.6): headless dedicated server, 4 bot players walking and swinging around the clearing, 200 zombies (L0 bodies + L1), director/residents off. tick = the server's busy time per physics tick (probe at the first _physics_process to probe at the last _process: scripts + Jolt step + navigation + idle), NOT the engine's TIME_*_PROCESS monitors (those are the max over the last second). Gated: median <= 8 ms; p99, the ZombieSystem / ZombieNet shares and the bench bandwidth per bot are reported.",
+    "tick_ms_p50_max": 8.0
   }
 }

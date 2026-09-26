@@ -10,6 +10,8 @@ static func speed_for(cmd: Dictionary, params: Dictionary) -> float:
 	var btn := int(cmd.get("btn", 0))
 	var move: Vector2 = cmd.get("move", Vector2.ZERO)
 	var speed := Balance.WALK_SPEED
+	if bool(params.get("downed", false)):
+		return Balance.DOWNED_CRAWL_SPEED   # M4: a downed survivor crawls (GDD v2 §12.2)
 	if btn & Packets.BTN_CROUCH:
 		speed = Balance.CROUCH_SPEED
 	elif (btn & Packets.BTN_RUN) and bool(params.get("can_run", true)) and move != Vector2.ZERO:

@@ -41,6 +41,24 @@ extends CharacterBody3D
 			view.on_outfit_changed(v)
 ## Warmth below the cold threshold (server) → shivering idle on every client.
 @export var cold: bool = false
+## M4 (GDD v2 §12.2): downed state (crawl, bleed-out seconds left for every client's label), revive progress.
+@export var downed: bool = false:
+	set(v):
+		var changed := v != downed
+		downed = v
+		if changed and view != null:
+			view.on_downed_changed(v)
+@export var bleed: int = 0
+@export var revive_by: int = 0
+@export var revive_pct: int = 0
+## M4 melee: every swing bumps the sequence; the clip name travels with it (remote clients play it).
+@export var swing_seq: int = 0:
+	set(v):
+		var changed := v != swing_seq
+		swing_seq = v
+		if changed and view != null and not is_local:
+			view.on_swing(swing_clip)
+@export var swing_clip: StringName = &""
 
 var peer_id: int = 1
 var is_local: bool = false
@@ -76,6 +94,9 @@ var auto_target: InteractableComponent:
 			input.auto_target = v
 
 var _attack_cd: float = 0.0
+## Server: time until which the player cannot swing again (melee cadence / execution lock).
+var melee_ready_at: float = 0.0
+var _pvp_mask: bool = false
 
 
 func _enter_tree() -> void:
@@ -147,6 +168,12 @@ func _strip(nodes: Array) -> void:
 func _physics_process(delta: float) -> void:
 	if Net.is_server:
 		_attack_cd = maxf(_attack_cd - delta, 0.0)
+	# PLAN C20 / ARQ v2 §11.2: with `pvp` the players collide with each other (mask includes the player layer)
+	if Engine.get_physics_frames() % 30 == 0:
+		var pvp := bool(WorldState.rules_now().get("pvp", false))
+		if pvp != _pvp_mask:
+			_pvp_mask = pvp
+			collision_mask = (1 | 4 | 2) if pvp else (1 | 4)
 
 
 ## World direction the survivor is looking at (the model's +Z after the replicated yaw).
@@ -166,17 +193,20 @@ func play_chop(at: Vector3) -> void:
 	chop_seq += 1
 
 
-## Server: melee attack on an animal (null = swing in the air). Returns true when a swing happened.
+## Server: melee attack on an animal (null = swing in the air). Returns true when a swing happened. Damage from
+## the hand weapon's row (Weapons.TABLE; the axe keeps AXE_DAMAGE against animals as in the slice).
 func attack(target: Node) -> bool:
-	if not Net.is_server or _attack_cd > 0.0 or dead:
+	if not Net.is_server or _attack_cd > 0.0 or dead or downed:
 		return false
-	var axe := state.hand_tool() == &"hacha"
-	_attack_cd = Balance.AXE_COOLDOWN if axe else Balance.HAND_COOLDOWN
+	var hand := state.hand_tool()
+	var w := Weapons.of(hand)
+	var axe := hand == &"hacha"
+	_attack_cd = Balance.AXE_COOLDOWN if axe else float(w["cadence"])
 	chop_seq += 1
 	if target != null and is_instance_valid(target) and target.has_method("take_damage"):
 		face_toward(target.global_position)
-		var dmg := Balance.AXE_DAMAGE if axe else Balance.HAND_DAMAGE
-		var kind := DamageResolver.DamageKind.MELEE_SHARP if axe else DamageResolver.DamageKind.MELEE_BLUNT
+		var dmg := Balance.AXE_DAMAGE if axe else float(w["dmg"])
+		var kind: int = w["kind"]
 		var res := DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.PLAYER, peer_id),
 			DamageResolver.ref(DamageResolver.Kind.ANIMAL), target, dmg, kind, WorldState.rules_now(), self)
 		if not bool(res["blocked"]) and target is CharacterBody3D:
@@ -185,13 +215,21 @@ func attack(target: Node) -> bool:
 	return true
 
 
-## Server: damage from wolves / other players (through DamageResolver).
-func take_damage(amount: float, source: StringName) -> void:
+## Server: a swing animation for every client (the owner already played it when it clicked).
+func play_swing(clip: StringName) -> void:
+	swing_clip = clip
+	swing_seq += 1
+
+
+## Server: damage from wolves, zombies or other players (through DamageResolver).
+func take_damage(amount: float, source: StringName, attacker_name: String = "") -> void:
 	if not Net.is_server or state.stats == null:
 		return
-	state.stats.take_damage(amount, source)
-	if source == &"lobo":
-		fx(&"shake", 0.35)
+	state.stats.take_damage(amount, source, attacker_name)
+	if source == &"lobo" or source == &"zombi":
+		fx(&"shake", Balance.SHAKE_HURT)
+	if (source == &"zombi" or source == &"lobo" or source == &"jugador") and ZombieNet.instance != null:
+		ZombieNet.instance.fx(ZombieNet.FX_PLAYER_HIT, global_position, 70)   # blood + the Hit_Front flinch on every client
 
 
 ## Server → owner presentation effect (camera shake, sounds).
@@ -224,32 +262,60 @@ func drop_item(id: StringName, n: int) -> void:
 
 
 func sim_params() -> Dictionary:
-	return {"can_run": can_run, "speed_mult": speed_mult}
+	return {"can_run": can_run, "speed_mult": speed_mult, "downed": downed}
 
 
-## Server: back to the spawn with fresh stats (persistent world: no game over, ARQ v2 §11.5 simplified).
+## Server: back at the base's bed (the cabin; the porch spawn when there is none) with fresh stats and nothing
+## in the pockets: the corpse keeps the backpack (GDD v2 §12.2, ARQ v2 §11.5).
 func respawn() -> void:
 	if not Net.is_server:
 		return
 	var world := get_tree().get_first_node_in_group("world") as World
 	if world != null:
-		net_position = world.get_spawn_point() + Vector3(0, 0.15, 0)
+		net_position = world.get_respawn_point() + Vector3(0, 0.15, 0)
 		position = net_position
 		velocity = Vector3.ZERO
-	state.stats.revive()
+	state.stats.reset_stats(true)
 	dead = false
+	downed = false
 	state.dead = false
 	state.death_cause = &""
 	state.mark(&"dead")
 	state.mark(&"stats")
-	print("[EVT] player %d respawned" % peer_id)
+	print("[EVT] player %d respawned at %s" % [peer_id, net_position.snapped(Vector3(0.1, 0.1, 0.1))])
+
+
+## Server: the body left behind with the whole inventory (lootable, persisted, CORPSE_DAYS of game time).
+func drop_corpse() -> void:
+	if not Net.is_server or state.inventory == null or StructureSpawner.instance == null:
+		return
+	var items := state.inventory.take_all()
+	var world := get_tree().get_first_node_in_group("world") as World
+	var p := global_position
+	if world != null:
+		p.y = world.get_height(p.x, p.z)
+		if in_house:
+			p.y = global_position.y - 0.05
+	var node := StructureSpawner.instance.spawn_structure("corpse", p, aim_yaw, "", {"owner": display_name,
+		"expires": WorldState.day_now() + Balance.CORPSE_DAYS})
+	if node != null:
+		var st := node.get_node_or_null("Storage") as Storage
+		if st != null:
+			st.set_slots_from(items)
+		print("[EVT] corpse of %d with %d stacks at %s" % [peer_id, items.size(), p.snapped(Vector3(0.1, 0.1, 0.1))])
 
 
 # ------------------------------------------------------------------ persistence (server)
 func to_profile() -> Dictionary:
 	var inv := []
 	for s in state.slots:
-		inv.append({} if s.is_empty() else {"id": String(s["id"]), "count": int(s["count"])})
+		if s.is_empty():
+			inv.append({})
+		else:
+			var e := {"id": String(s["id"]), "count": int(s["count"])}
+			if s.has("dur"):
+				e["dur"] = int(s["dur"])
+			inv.append(e)
 	return {"name": display_name, "x": position.x, "y": position.y, "z": position.z, "yaw": aim_yaw, "outfit": outfit,
 		"health": state.health, "warmth": state.warmth, "hunger": state.hunger, "dead": dead,
 		"cause": String(state.death_cause), "has_coat": state.has_coat, "slots": inv,
@@ -270,7 +336,12 @@ func apply_profile(p: Dictionary) -> void:
 	var inv: Array = p.get("slots", [])
 	for i in mini(inv.size(), state.slots.size()):
 		var e: Dictionary = inv[i]
-		state.slots[i] = {} if e.is_empty() else {"id": StringName(str(e["id"])), "count": int(e["count"])}
+		if e.is_empty():
+			state.slots[i] = {}
+		else:
+			state.slots[i] = {"id": StringName(str(e["id"])), "count": int(e["count"])}
+			if e.has("dur"):
+				state.slots[i]["dur"] = int(e["dur"])
 	if state.inventory != null:
 		state.inventory.after_load()
 	if state.quests != null:

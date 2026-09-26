@@ -8,6 +8,8 @@ signal changed()
 @export var title: String = "ARMARIO"
 @export var open_label: String = "Abrir armario"
 @export var opened_label: String = "Armario abierto"
+## Slots (containers 6; a corpse holds a whole inventory).
+@export var slot_count: int = Balance.CONTAINER_SLOTS
 var slots: Array[Dictionary] = []
 ## Local UI flag (the opener's panel is showing it).
 var is_open: bool = false
@@ -17,7 +19,7 @@ var open_by: int = 0
 
 func _ready() -> void:
 	if slots.is_empty():
-		for i in Balance.CONTAINER_SLOTS:
+		for i in slot_count:
 			slots.append({})
 	add_to_group("storage")
 	changed.connect(func() -> void:
@@ -28,7 +30,7 @@ func _ready() -> void:
 ## Initial contents, e.g. {&"lata_judias": 2, &"lata_sopa": 2}.
 func setup(initial: Dictionary) -> void:
 	slots.clear()
-	for i in Balance.CONTAINER_SLOTS:
+	for i in slot_count:
 		slots.append({})
 	for id in initial:
 		add(id, int(initial[id]))
@@ -39,13 +41,19 @@ func set_slots_from(arr: Array) -> void:
 	slots.clear()
 	for e in arr:
 		var d: Dictionary = e
-		slots.append({} if d.is_empty() else {"id": StringName(str(d["id"])), "count": int(d["count"])})
-	while slots.size() < Balance.CONTAINER_SLOTS:
+		if d.is_empty():
+			slots.append({})
+		else:
+			var s := {"id": StringName(str(d["id"])), "count": int(d["count"])}
+			if d.has("dur"):
+				s["dur"] = int(d["dur"])
+			slots.append(s)
+	while slots.size() < slot_count:
 		slots.append({})
 	changed.emit()
 
 
-func add(id: StringName, n: int) -> int:
+func add(id: StringName, n: int, dur: int = -1) -> int:
 	var left := n
 	var stack := Items.stack_max(id)
 	for s in slots:
@@ -61,6 +69,8 @@ func add(id: StringName, n: int) -> int:
 		if slots[i].is_empty():
 			var put := mini(left, stack)
 			slots[i] = {"id": id, "count": put}
+			if Items.has_durability(id):
+				slots[i]["dur"] = dur if dur >= 0 else 100
 			left -= put
 	if left != n:
 		changed.emit()
@@ -82,6 +92,8 @@ func take(slot: int, all: bool) -> Dictionary:
 	var s := slots[slot]
 	var n: int = int(s["count"]) if all else 1
 	var out := {"id": s["id"], "count": n}
+	if s.has("dur"):
+		out["dur"] = s["dur"]
 	remove_from_slot(slot, n)
 	return out
 

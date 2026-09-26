@@ -8,7 +8,13 @@ const ROWS := [
 	["Moverse", "W A S D / flechas · Stick izquierdo"],
 	["Correr", "Mayús (mantener) · L3"],
 	["Interactuar / atacar bajo el cursor", "Clic izquierdo (R: lo más cercano) · X"],
-	["Atacar al lobo más cercano", "Espacio · RT"],
+	["Golpe cargado (arma en mano)", "Mantener clic / Espacio · mantener RT"],
+	["Atacar al más cercano (zombi, lobo)", "Espacio · RT"],
+	["Empujar", "V · LT"],
+	["Pisotear / ejecutar", "Clic sobre un zombi derribado / con cuchillo por la espalda"],
+	["Agacharse (sigilo)", "Ctrl · R3"],
+	["Reanimar a un compañero", "Mantener R · mantener X"],
+	["Rendirse (derribado)", "Mantener X · mantener Y"],
 	["Cancelar / cerrar panel", "Clic derecho, Esc · B"],
 	["Pausa", "Esc · Start"],
 	["Girar cámara", "Q / E · LB / RB"],
@@ -17,6 +23,7 @@ const ROWS := [
 	["Fabricación", "Tab · Y"],
 	["Equipar/guardar antorcha", "T · D-pad abajo (mantener)"],
 	["Comer lo mejor disponible", "F"],
+	["Chat / comandos", "Intro"],
 ]
 
 

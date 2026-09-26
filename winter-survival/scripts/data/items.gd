@@ -13,6 +13,12 @@ const DB := {
 	&"piel": {"name": "Piel de lobo", "icon": "pelt", "stack": 20, "kind": "material", "tint": Color("#8A7A6A")},
 	&"hacha": {"name": "Hacha de piedra", "icon": "axe", "stack": 1, "kind": "tool", "model": "stone_axe", "tint": Color("#DDE6F0")},
 	&"antorcha": {"name": "Antorcha", "icon": "torch", "stack": 20, "kind": "tool", "model": "torch", "tint": Color("#DDE6F0")},
+	# M4 melee weapons (GDD v2 §7.6; stats in Weapons.TABLE, models weapons/<model>.glb, ASSET_SPEC v2 §12)
+	&"cuchillo": {"name": "Cuchillo de caza", "icon": "knife", "stack": 1, "kind": "tool", "weapon": true, "model": "knife", "tint": Color("#C9D3DD")},
+	&"palanca": {"name": "Palanca", "icon": "crowbar", "stack": 1, "kind": "tool", "weapon": true, "model": "crowbar", "tint": Color("#B8453A")},
+	&"bate": {"name": "Bate", "icon": "bat", "stack": 1, "kind": "tool", "weapon": true, "model": "bat", "tint": Color("#C7A16B")},
+	&"bate_clavos": {"name": "Bate con clavos", "icon": "bat_nailed", "stack": 1, "kind": "tool", "weapon": true, "model": "bat_nailed", "tint": Color("#A8845A")},
+	&"machete": {"name": "Machete", "icon": "machete", "stack": 1, "kind": "tool", "weapon": true, "model": "machete", "tint": Color("#9FB0BF")},
 }
 
 const FOOD_PRIORITY: Array[StringName] = [&"carne_asada", &"lata_judias", &"lata_sopa", &"bayas_calientes", &"bayas", &"carne_cruda"]
@@ -54,6 +60,11 @@ static func is_tool_item(id: StringName) -> bool:
 	return DB.has(id) and DB[id]["kind"] == "tool"
 
 
+## Hand items with a durability value per slot (melee weapons + the axe, which is a tool and a weapon).
+static func has_durability(id: StringName) -> bool:
+	return Weapons.is_weapon(id)
+
+
 static func food_priority() -> Array[StringName]:
 	return FOOD_PRIORITY
 
@@ -80,6 +91,9 @@ static func describe(id: StringName) -> String:
 			parts.append("Salud %+d" % int(hp))
 		if not parts.is_empty():
 			text += " · " + " · ".join(parts)
+	elif Weapons.is_weapon(id):
+		var w: Dictionary = Weapons.of(id)
+		text += " · Arma · daño %d · alcance %.1f m" % [int(w["dmg"]), float(w["reach"])]
 	elif is_tool_item(id):
 		text += " · Herramienta"
 	return text

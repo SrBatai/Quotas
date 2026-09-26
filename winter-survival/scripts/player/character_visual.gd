@@ -18,9 +18,16 @@ extends Node3D
 
 const VARIANTS := ["red", "blue", "green", "mustard"]
 const LOCO_LIB := "res://assets/models/anims/humanoid_loco.glb"
-const AUTHORED := {&"Walk": 2.2, &"Run": 6.0, &"CrouchWalk": 1.3}
+## M4 (ASSET_SPEC v2 §6.2): Melee1H_*, Melee2H_*, Melee_Charged, Act_Shove/Stomp/Execute/Revive, Hit_*, Down_*,
+## Death_A. Until the file exists (or for a clip it lacks) PoseAnim stand-ins with the same names are used.
+const COMBAT_LIB := "res://assets/models/anims/humanoid_combat.glb"
+const COMBAT_CLIPS := ["Melee1H_Light_A", "Melee1H_Light_B", "Melee2H_Swing_A", "Melee2H_Swing_B", "Melee_Charged",
+	"Act_Shove", "Act_Stomp", "Act_Execute", "Act_Revive", "Hit_Front", "Hit_Back"]
+const AUTHORED := {&"Walk": 2.2, &"Run": 6.0, &"CrouchWalk": 1.3, &"DownCrawl": 0.8}
 const UPPER_BONES := ["Spine", "Chest", "Neck", "Head", "HeadSocket", "LeftShoulder", "LeftUpperArm", "LeftLowerArm",
 	"LeftHand", "LeftHandSocket", "RightShoulder", "RightUpperArm", "RightLowerArm", "RightHand", "RightHandSocket", "BackSocket"]
+## Full-body one-shots (the torso filter would freeze the legs of a stomp / a kneeling execution).
+const FULL_BODY := ["Act_Stomp", "Act_Execute", "Down_Fall", "Down_Revived", "Hit_Stagger"]
 const RUN_ENTER := 4.2
 const RUN_EXIT := 3.4
 const MOVE_MIN := 0.25
@@ -39,6 +46,8 @@ var skeleton: Skeleton3D
 var look_at: LookAtModifier3D
 var variant: int = 0
 var is_skeletal: bool = false
+## M4: the delivered combat library has the downed / death full-body clips (else PlayerView tilts the model).
+var has_down_clips: bool = false
 var state: StringName = &"Idle"
 var speed: float = 0.0
 var time_scale: float = 1.0
@@ -47,6 +56,8 @@ var tool_socket: Node3D
 var breath_anchor: Node3D
 var _running_state: bool = false
 var _look_disabled: bool = false
+var _charge_hold: bool = false   # holding the Melee_Charged wind-up (owner)
+var _charge_t: float = 0.0
 
 
 func _ready() -> void:
@@ -100,7 +111,23 @@ func _setup_skeletal() -> void:
 			return
 		var own := lib.duplicate()
 		own.add_animation("Act_Chop", _make_chop_animation())
+		var idle := lib.get_animation("Loco_Idle")
+		for n in COMBAT_CLIPS:
+			own.add_animation(n, _make_combat_clip(n, idle))
 		anim_player.add_animation_library("loco", own)
+	if not anim_player.has_animation_library("combat") and ResourceLoader.exists(COMBAT_LIB):
+		var res := load(COMBAT_LIB)
+		var clib: AnimationLibrary = res as AnimationLibrary
+		if clib == null and res is PackedScene:
+			var inst := (res as PackedScene).instantiate()
+			var ap := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+			if ap != null and not ap.get_animation_library_list().is_empty():
+				clib = ap.get_animation_library(ap.get_animation_library_list()[0])
+			inst.free()
+		if clib != null:
+			anim_player.add_animation_library("combat", clib)
+	has_down_clips = anim_player.has_animation("combat/Down_Idle") and anim_player.has_animation("combat/Down_Crawl") \
+		and anim_player.has_animation("combat/Death_A")
 	# sockets follow the animated bones (external skeleton: the attachments live outside the imported scene)
 	for att in [hand_socket, head_socket]:
 		att.external_skeleton = att.get_path_to(skeleton)
@@ -135,14 +162,19 @@ func _setup_skeletal() -> void:
 # ------------------------------------------------------------------ animation graph
 func _build_tree() -> AnimationNodeBlendTree:
 	var bt := AnimationNodeBlendTree.new()
-	var clips := {"Idle": "Loco_Idle", "Cold": "Loco_Idle_Cold", "Walk": "Loco_Walk", "Run": "Loco_Run",
-		"CrouchIdle": "Crouch_Idle", "CrouchWalk": "Crouch_Walk"}
-	var names := ["Idle", "Cold", "Walk", "Run", "CrouchIdle", "CrouchWalk"]
+	var clips := {"Idle": "loco/Loco_Idle", "Cold": "loco/Loco_Idle_Cold", "Walk": "loco/Loco_Walk", "Run": "loco/Loco_Run",
+		"CrouchIdle": "loco/Crouch_Idle", "CrouchWalk": "loco/Crouch_Walk",
+		# M4 full-body states: downed (still / crawling), dead (Death_A holds its last pose), reviving a teammate
+		"DownIdle": "combat/Down_Idle" if has_down_clips else "loco/Loco_Idle",
+		"DownCrawl": "combat/Down_Crawl" if has_down_clips else "loco/Loco_Walk",
+		"Dead": "combat/Death_A" if has_down_clips else "loco/Loco_Idle",
+		"Revive": "combat/Act_Revive" if anim_player.has_animation("combat/Act_Revive") else "loco/Act_Revive"}
+	var names := ["Idle", "Cold", "Walk", "Run", "CrouchIdle", "CrouchWalk", "DownIdle", "DownCrawl", "Dead", "Revive"]
 	for n in names:
 		var a := AnimationNodeAnimation.new()
-		a.animation = "loco/%s" % clips[n]
+		a.animation = clips[n]
 		bt.add_node("%s_anim" % n, a)
-	for n in ["Walk", "Run", "CrouchWalk"]:
+	for n in ["Walk", "Run", "CrouchWalk", "DownCrawl"]:
 		bt.add_node("%s_scale" % n, AnimationNodeTimeScale.new())
 		bt.connect_node("%s_scale" % n, 0, "%s_anim" % n)
 	var loco := AnimationNodeTransition.new()
@@ -165,18 +197,43 @@ func _build_tree() -> AnimationNodeBlendTree:
 	bt.add_node("upper", upper)
 	bt.connect_node("upper", 0, "loco")
 	bt.connect_node("upper", 1, "upper_pose")
-	# torso actions (chop now; melee/shoot/reload later)
+	# torso actions (chop, melee swings, shove): the clip → TimeSeek (a charged swing released mid wind-up jumps to
+	# Melee_Charged hold_end) → TimeScale (0 = holding the charged wind-up pose) → OneShot
 	var chop := AnimationNodeAnimation.new()
 	chop.animation = "loco/Act_Chop"
 	bt.add_node("chop_anim", chop)
+	bt.add_node("action_seek", AnimationNodeTimeSeek.new())
+	bt.connect_node("action_seek", 0, "chop_anim")
+	bt.add_node("action_ts", AnimationNodeTimeScale.new())
+	bt.connect_node("action_ts", 0, "action_seek")
 	var action := AnimationNodeOneShot.new()
 	action.fadein_time = 0.05
 	action.fadeout_time = 0.15
 	_filter_upper(action)
 	bt.add_node("action", action)
 	bt.connect_node("action", 0, "upper")
-	bt.connect_node("action", 1, "chop_anim")
-	bt.connect_node("output", 0, "action")
+	bt.connect_node("action", 1, "action_ts")
+	# full-body actions (stomp, execution): unfiltered one-shot on top
+	var full := AnimationNodeAnimation.new()
+	full.animation = "loco/Act_Chop"
+	bt.add_node("full_anim", full)
+	var action_full := AnimationNodeOneShot.new()
+	action_full.fadein_time = 0.08
+	action_full.fadeout_time = 0.2
+	bt.add_node("action_full", action_full)
+	bt.connect_node("action_full", 0, "action")
+	bt.connect_node("action_full", 1, "full_anim")
+	# hit reactions: Hit_Front / Hit_Back are additive (delta from the rest pose, ASSET_SPEC v2 M4.2) → Add2 at
+	# amount 1; the non-looping clip rests on its last key (= rest, zero delta) until the next seek to 0
+	var hit := AnimationNodeAnimation.new()
+	hit.animation = "combat/Hit_Front" if anim_player.has_animation("combat/Hit_Front") else "loco/Loco_Idle"
+	bt.add_node("hit_anim", hit)
+	bt.add_node("hit_seek", AnimationNodeTimeSeek.new())
+	bt.connect_node("hit_seek", 0, "hit_anim")
+	bt.add_node("hit_add", AnimationNodeAdd2.new())
+	bt.connect_node("hit_add", 0, "action_full")
+	bt.connect_node("hit_add", 1, "hit_seek")
+	bt.connect_node("output", 0, "hit_add")
 	return bt
 
 
@@ -230,13 +287,17 @@ func _make_chop_animation() -> Animation:
 
 # ------------------------------------------------------------------ per-frame drive
 ## `p_speed` = horizontal ground speed (local: velocity; remote: interpolation velocity).
-func set_motion(p_speed: float, running: bool, crouching: bool, cold: bool, dead: bool) -> void:
+func set_motion(p_speed: float, running: bool, crouching: bool, cold: bool, dead: bool, downed: bool = false, reviving: bool = false) -> void:
 	speed = p_speed
 	if not is_skeletal:
 		return
 	var next: StringName
 	if dead:
-		next = &"Idle"
+		next = &"Dead" if has_down_clips else &"Idle"
+	elif downed and has_down_clips:
+		next = &"DownCrawl" if speed > MOVE_MIN else &"DownIdle"
+	elif reviving:
+		next = &"Revive"
 	elif crouching:
 		next = &"CrouchWalk" if speed > MOVE_MIN else &"CrouchIdle"
 	elif speed < MOVE_MIN:
@@ -252,14 +313,18 @@ func set_motion(p_speed: float, running: bool, crouching: bool, cold: bool, dead
 		time_scale = clampf(speed / float(AUTHORED[state]), 0.3, 2.2)
 		tree.set("parameters/%s_scale/scale" % state, time_scale)
 	else:
-		time_scale = 0.0 if dead else 1.0
+		time_scale = 0.0 if dead and not has_down_clips else 1.0
 	if look_at != null:
-		look_at.active = not dead and not _look_disabled
+		look_at.active = not dead and not downed and not _look_disabled
 
 
 ## Advances the animation graph (called once per physics tick by the owner view after set_motion).
 func advance(dt: float) -> void:
 	if is_skeletal and tree.active:
+		if _charge_hold:
+			_charge_t += dt
+			if _charge_t >= AnimEvents.at("Melee_Charged", "hold_start", 0.55):
+				tree.set("parameters/action_ts/scale", 0.0)
 		tree.advance(dt)
 
 
@@ -287,12 +352,131 @@ func set_breathing(on: bool) -> void:
 	breath.emitting = on
 
 
-## Torso action (chop / attack swing).
-func play_action(action: StringName) -> void:
+## Torso action: &"chop" / &"attack" (the tool swing) or a clip name of ASSET_SPEC v2 §6.2 (Melee1H_Light_A,
+## Act_Shove…): the delivered `combat` library first, else the generated stand-in of the same name. Hit_Front /
+## Hit_Back go to the additive layer. `from` > 0 starts the clip there (a charged swing seen by others: hold_end).
+func play_action(action: StringName, from: float = 0.0) -> void:
 	if not is_skeletal:
 		return
-	if action == &"chop" or action == &"attack":
-		tree.set("parameters/action/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	if action == &"Hit_Front" or action == &"Hit_Back":
+		play_hit(action == &"Hit_Back")
+		return
+	_charge_hold = false
+	var clip := "loco/Act_Chop"
+	if action != &"chop" and action != &"attack":
+		if anim_player.has_animation("combat/%s" % action):
+			clip = "combat/%s" % action
+		elif anim_player.has_animation("loco/%s" % action):
+			clip = "loco/%s" % action
+		else:
+			return   # e.g. Down_Fall without humanoid_combat.glb: the model tilt of PlayerView carries it
+	elif anim_player.has_animation("combat/Melee2H_Swing_A"):
+		clip = "combat/Melee2H_Swing_A"
+	if String(action) in FULL_BODY:
+		(tree.tree_root as AnimationNodeBlendTree).get_node("full_anim").set("animation", clip)
+		tree.set("parameters/action_full/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+		return
+	(tree.tree_root as AnimationNodeBlendTree).get_node("chop_anim").set("animation", clip)
+	tree.set("parameters/action_ts/scale", 1.0)
+	tree.set("parameters/action/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
+	if from > 0.0:
+		tree.set("parameters/action_seek/seek_request", from)
+
+
+## Additive flinch (a bite, a blow): Hit_Front, or Hit_Back when struck from behind.
+func play_hit(from_behind: bool = false) -> void:
+	if not is_skeletal or not anim_player.has_animation("combat/Hit_Front"):
+		return
+	var clip := "combat/Hit_Back" if from_behind and anim_player.has_animation("combat/Hit_Back") else "combat/Hit_Front"
+	(tree.tree_root as AnimationNodeBlendTree).get_node("hit_anim").set("animation", clip)
+	tree.set("parameters/hit_add/add_amount", 1.0)
+	tree.set("parameters/hit_seek/seek_request", 0.0)
+
+
+## Charged swing, owner side (ASSET_SPEC v2 M4.3): the wind-up plays while the click is held and stops on the
+## Melee_Charged `hold_start` pose; `release_charge` jumps to `hold_end` and lets the strike go.
+func begin_charge() -> void:
+	play_action(&"Melee_Charged")
+	_charge_hold = true
+	_charge_t = 0.0
+
+
+func is_charging() -> bool:
+	return _charge_hold
+
+
+func release_charge() -> void:
+	if not is_skeletal:
+		return
+	_charge_hold = false
+	tree.set("parameters/action_ts/scale", 1.0)
+	tree.set("parameters/action_seek/seek_request", AnimEvents.at("Melee_Charged", "hold_end", 0.72))
+
+
+## The held wind-up is dropped (weapon changed, a light swing instead): the one-shot fades out.
+func cancel_charge() -> void:
+	if not is_skeletal or not _charge_hold:
+		return
+	_charge_hold = false
+	tree.set("parameters/action_ts/scale", 1.0)
+	tree.set("parameters/action/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FADE_OUT)
+
+
+## PoseAnim stand-ins for the M4 player clips (character frame: −X pitch swings an arm forward/up).
+func _make_combat_clip(n: String, idle: Animation) -> Animation:
+	var r := "RightUpperArm"
+	var l := "LeftUpperArm"
+	match n:
+		"Melee1H_Light_A", "Melee1H_Light_B":
+			var side := 1.0 if n.ends_with("A") else -1.0
+			return PoseAnim.build(skeleton, idle, 0.55, false, [
+				[0.0, {r: [Vector3.RIGHT, 0.0], "Chest": [Vector3.UP, 0.0]}],
+				[0.16, {r: [[Vector3.RIGHT, -130.0], [Vector3.FORWARD, 40.0 * side]], "Chest": [Vector3.UP, 25.0 * side]}],
+				[0.3, {r: [[Vector3.RIGHT, -40.0], [Vector3.FORWARD, -30.0 * side]], "Chest": [Vector3.UP, -25.0 * side]}],
+				[0.55, {r: [Vector3.RIGHT, 0.0], "Chest": [Vector3.UP, 0.0]}]])
+		"Melee2H_Swing_A", "Melee2H_Swing_B":
+			var side := 1.0 if n.ends_with("A") else -1.0
+			return PoseAnim.build(skeleton, idle, 0.9, false, [
+				[0.0, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.UP, 0.0]}],
+				[0.3, {r: [Vector3.RIGHT, -150.0], l: [Vector3.RIGHT, -140.0], "Spine": [Vector3.UP, 30.0 * side]}],
+				[0.45, {r: [Vector3.RIGHT, -35.0], l: [Vector3.RIGHT, -40.0], "Spine": [Vector3.UP, -25.0 * side]}],
+				[0.9, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.UP, 0.0]}]])
+		"Melee_Charged":
+			return PoseAnim.build(skeleton, idle, 1.3, false, [
+				[0.0, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.RIGHT, 0.0]}],
+				[0.5, {r: [Vector3.RIGHT, -170.0], l: [Vector3.RIGHT, -150.0], "Spine": [Vector3.RIGHT, -12.0]}],
+				[0.8, {r: [Vector3.RIGHT, -175.0], l: [Vector3.RIGHT, -155.0], "Spine": [Vector3.RIGHT, -14.0]}],
+				[0.92, {r: [Vector3.RIGHT, -30.0], l: [Vector3.RIGHT, -35.0], "Spine": [Vector3.RIGHT, 28.0]}],
+				[1.3, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.RIGHT, 0.0]}]])
+		"Act_Shove":
+			return PoseAnim.build(skeleton, idle, 0.5, false, [
+				[0.0, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.RIGHT, 0.0]}],
+				[0.12, {r: [Vector3.RIGHT, -45.0], l: [Vector3.RIGHT, -45.0], "Spine": [Vector3.RIGHT, -6.0]}],
+				[0.22, {r: [Vector3.RIGHT, -88.0], l: [Vector3.RIGHT, -88.0], "Spine": [Vector3.RIGHT, 16.0]}],
+				[0.5, {r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0], "Spine": [Vector3.RIGHT, 0.0]}]])
+		"Act_Stomp":
+			return PoseAnim.build(skeleton, idle, 1.0, false, [
+				[0.0, {"Spine": [Vector3.RIGHT, 0.0], r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0]}],
+				[0.35, {"Spine": [Vector3.RIGHT, -10.0], r: [Vector3.RIGHT, 25.0], l: [Vector3.RIGHT, 25.0]}],
+				[0.5, {"Spine": [Vector3.RIGHT, 32.0], r: [Vector3.RIGHT, -20.0], l: [Vector3.RIGHT, -20.0]}],
+				[1.0, {"Spine": [Vector3.RIGHT, 0.0], r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0]}]])
+		"Act_Execute":
+			return PoseAnim.build(skeleton, idle, 1.5, false, [
+				[0.0, {"Spine": [Vector3.RIGHT, 0.0], r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0]}],
+				[0.5, {"Spine": [Vector3.RIGHT, 25.0], r: [Vector3.RIGHT, -140.0], l: [Vector3.RIGHT, -60.0]}],
+				[0.75, {"Spine": [Vector3.RIGHT, 40.0], r: [Vector3.RIGHT, -35.0], l: [Vector3.RIGHT, -55.0]}],
+				[1.5, {"Spine": [Vector3.RIGHT, 0.0], r: [Vector3.RIGHT, 0.0], l: [Vector3.RIGHT, 0.0]}]])
+		"Act_Revive":
+			return PoseAnim.build(skeleton, idle, 2.0, true, [
+				[0.0, {"Spine": [Vector3.RIGHT, 48.0], r: [Vector3.RIGHT, -55.0], l: [Vector3.RIGHT, -50.0]}],
+				[1.0, {"Spine": [Vector3.RIGHT, 52.0], r: [Vector3.RIGHT, -62.0], l: [Vector3.RIGHT, -44.0]}],
+				[2.0, {"Spine": [Vector3.RIGHT, 48.0], r: [Vector3.RIGHT, -55.0], l: [Vector3.RIGHT, -50.0]}]])
+		"Hit_Back":
+			return PoseAnim.build(skeleton, idle, 0.25, false, [
+				[0.0, {"Spine": [Vector3.RIGHT, 0.0]}], [0.08, {"Spine": [Vector3.RIGHT, 14.0]}], [0.25, {"Spine": [Vector3.RIGHT, 0.0]}]])
+		_:
+			return PoseAnim.build(skeleton, idle, 0.25, false, [
+				[0.0, {"Spine": [Vector3.RIGHT, 0.0]}], [0.08, {"Spine": [Vector3.RIGHT, -14.0]}], [0.25, {"Spine": [Vector3.RIGHT, 0.0]}]])
 
 
 ## Node tools attach to (BoneAttachment3D on RightHandSocket, or the rigid model's ToolSocket).

@@ -68,6 +68,8 @@ func run(p_tree: SceneTree) -> void:
 	Events.chat_message.connect(func(who: String, text: String) -> void: _chat_lines.append([who, text]))
 	Events.hit_result.connect(func(v: int, blocked: bool, reason: String) -> void: _hit_results.append([v, blocked, reason]))
 	await tree.process_frame
+	# M4: the 20 s respawn wait (Balance.RESPAWN_DELAY) is shortened for the scripted deaths below
+	StatsComponent.respawn_delay = 0.2
 	# 1. load the game scene through the flow (offline local server)
 	GameFlow.play_offline()
 	var waited := 0
@@ -457,6 +459,7 @@ func run(p_tree: SceneTree) -> void:
 	check(player.state.dead and player.dead and player.state.death_cause == &"frio", "dead by frio (cause=%s)" % player.state.death_cause)
 	var go: Control = game.get_node("UI/GameOver")
 	check(go.visible, "death screen visible")
+	await seconds(0.3)
 	GameFlow.request_respawn()
 	await frames(5)
 	check(not player.dead and fired(&"player_respawned") >= 1 and not go.visible and player.state.health > 50.0, "respawn restores the player at the spawn (health %.0f)" % player.state.health)
@@ -468,6 +471,8 @@ func run(p_tree: SceneTree) -> void:
 	check(go.visible and WorldState.instance.day == 6, "win screen shown, world keeps running (day %d)" % WorldState.instance.day)
 	# 16. M3 — open world by chunks (PLAN M3)
 	await _m3_checks(world, player)
+	# 17. M4 — zombies, navigation, melee, downed / revive / death / corpse (PLAN M4)
+	await _m4_checks(game, world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
 	tree.quit(1 if _failed else 0)
 
@@ -616,6 +621,333 @@ func _m3_checks(world: World, player: Player) -> void:
 	Events.region_changed.disconnect(rc)
 	Chat.instance.send("/tp %.2f %.2f" % [world.get_spawn_point().x, world.get_spawn_point().z])
 	await frames(5)
+
+
+func _m4_checks(game: Node, world: World, player: Player) -> void:
+	var sys := ZombieSystem.instance
+	var zc := ZombieClient.instance
+	check(sys != null and sys.nav != null and ZombieNet.instance != null and zc != null and CombatFx.instance != null
+		and PopulationManager.instance != null and Director.instance != null, "M4 systems: ZombieSystem + NavBaker + ZombieNet (server), ZombieClient + CombatFx (client), population, director")
+	if sys == null or zc == null:
+		return
+	# deterministic conditions: the director and the residents only where they are tested, clear weather
+	Director.instance.enabled = false
+	PopulationManager.instance.enabled = false
+	var weather: Weather = world.get_node("Weather")
+	weather.scheduler_enabled = false
+	weather.cancel()
+	sys.clear_all()
+	WorldState.instance.set_time(WorldState.instance.day, 11.0)
+	StatsComponent.solo_getup_time = 1.0
+	player.state.stats.reset_stats()
+	player.global_position = world.get_spawn_point() + Vector3(0, 0.3, 0)
+	await frames(5)
+	# -- navigation: per-chunk navmesh around the clearing; a route from behind the cabin to the porch goes round it
+	var baked := sys.nav.bake_now(player.global_position, 1)
+	var cab := world.cabin.global_position
+	var behind := cab + Vector3(0.5, 0.0, -8.0)
+	behind.y = world.get_height(behind.x, behind.z)
+	var porch := world.get_spawn_point()
+	# NavigationServer3D applies region meshes asynchronously (region async iterations): wait for the map to
+	# pick up the fresh regions (a few physics frames) before asking for the route
+	var route := PackedVector3Array()
+	for k in 120:
+		await tree.physics_frame
+		route = NavigationServer3D.map_get_path(sys.nav.map, behind, porch, true)
+		if route.size() >= 3:
+			break
+	var route_len := 0.0
+	var through := false
+	for k in route.size():
+		if k > 0:
+			route_len += route[k - 1].distance_to(route[k])
+			for f in 8:
+				var q := route[k - 1].lerp(route[k], float(f) / 8.0) - cab
+				if absf(q.x) < 2.6 and q.z > -2.2 and q.z < 2.2:
+					through = true
+	# regions meet on the chunk seams (Recast border outside the chunk): a route from one chunk into the next
+	var seam_x := WorldConst.chunk_origin(WorldConst.chunk_of(cab.x) - 1, 0).x + WorldConst.CHUNK_SIZE
+	var sa := Vector3(seam_x - 8.0, 0.0, cab.z - 20.0)
+	var sb := Vector3(seam_x + 12.0, 0.0, cab.z - 20.0)
+	sa.y = world.get_height(sa.x, sa.z)
+	sb.y = world.get_height(sb.x, sb.z)
+	var cross := NavigationServer3D.map_get_path(sys.nav.map, sa, sb, true)
+	check(cross.size() >= 2 and cross[cross.size() - 1].distance_to(sb) < 1.5,
+		"a route crosses the chunk seam at x=%.0f (ends %.2f m from the goal)" % [seam_x, cross[cross.size() - 1].distance_to(sb) if cross.size() > 0 else -1.0])
+	check(sys.nav.regions.size() >= 9 and route.size() >= 3 and route_len > behind.distance_to(porch) + 1.5 and not through,
+		"navmesh baked per chunk (%d regions, %d baked now, max %d ms); route behind the cabin → porch: %d points, %.1f m vs %.1f m straight, never through the walls" % [
+		sys.nav.regions.size(), baked, int(sys.nav.stats["bake_usec_max"]) / 1000, route.size(), route_len, behind.distance_to(porch)])
+	# -- weapons (M4 table, models from weapons/ when delivered) + durability in the slot mirror
+	await seconds(1.05)   # chat rate limit (2 lines/s): the M3 teleports were just sent
+	Chat.instance.send("/armas")
+	await frames(3)
+	check(player.state.count(&"cuchillo") == 1 and player.state.count(&"bate") == 1 and player.state.count(&"palanca") == 1 and player.state.count(&"machete") == 1,
+		"/armas: knife, crowbar, bat, machete in the inventory")
+	_equip(player, &"bate")
+	await frames(3)
+	check(player.state.hand_tool() == &"bate" and int(player.state.slots[0].get("dur", -1)) == 100 and player.tool_holder.tool_model != null,
+		"bat in hand, durability 100 in the slot (4-byte mirror), weapon model on the RightHandSocket")
+	var packed := Packets.pack_slots(player.state.slots)
+	var back := Packets.unpack_slots(packed)
+	check(packed.size() == Packets.SLOT_SIZE * player.state.slots.size() and int(back[0].get("dur", -1)) == 100, "slot mirror round trip keeps the durability (%d B)" % packed.size())
+	# -- spawn 20 zombies around the player (debug command), replication to the local client, LOD bodies
+	var before_spawn := int(sys.stats["spawned"])
+	await seconds(1.05)
+	Chat.instance.send("/zombies 20 walker 24")
+	await frames(3)
+	check(sys.count_alive() >= 18 and int(sys.stats["spawned"]) - before_spawn >= 18, "/zombies 20: %d walkers spawned around the player" % sys.count_alive())
+	await seconds(1.2)
+	check(zc.records.size() >= 15 and zc.packets > 0 and zc.snap_entries > 0, "zombies replicated to the local client: %d records, %d packets, %d snapshot entries" % [zc.records.size(), zc.packets, zc.snap_entries])
+	check(sys.bodies_in_use() >= 15 and sys.l0.size() >= 15, "L0 zombies got pooled CharacterBody3D bodies (%d bodies)" % sys.bodies_in_use())
+	check(zc.views_in_use() >= 8, "client views assigned from the pool (%d in use, pool %d)" % [zc.views_in_use(), zc.pool_size])
+	var zv: ZombieView = null
+	for v in zc.views:
+		if v.visible and v.id != 0:
+			zv = v
+			break
+	check(zv != null and zv.is_skeletal and zv.tree.active and zv.anim_player.get_animation_list().size() > 5,
+		"zombie view: skeletal model %s, AnimationTree active (%d clips, Zom_* delivered: %s)" % [zv.model.name if zv != null and zv.model != null else "-",
+		zv.anim_player.get_animation_list().size() if zv != null else 0, zv.has_zom_clips if zv != null else false])
+	if Assets.has_model("zombies/zombie_walker_01") and ResourceLoader.exists(ZombieView.ZOM_LIB):
+		# art contract (ASSET_SPEC v2 M4): the delivered bodies + zombie_anims.glb, no generated stand-ins needed
+		var real := 0
+		for v in zc.views:
+			if v.visible and v.id != 0 and not v.is_placeholder_model and v.has_zom_clips and v.anim_player.has_animation("z/Zom_Shamble_A") and not v.anim_player.has_animation("z/Gen_Arms"):
+				real += 1
+		check(real >= 8, "zombie views use zombies/zombie_walker_NN.glb + zombie_anims.glb clips (%d views, no Gen_* stand-ins)" % real)
+	check(is_equal_approx(Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), AnimEvents.at("Melee2H_Swing_A", "hit_start", -1.0)) and AnimEvents.has("Zom_Grab", "bite_1")
+		and is_equal_approx(ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0), AnimEvents.at("Zom_Attack_A", "hit_start", -1.0)),
+		"data/anim_events.json: '-loop' keys normalised; bat blow at %.2f s, Zom_Attack_A window at %.2f s" % [Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0)])
+	# sight is probabilistic (distance, light, the 120° cone, the cabin in the way): up to 6 s for three of them
+	var chasing := 0
+	var waited_s := 0.0
+	while waited_s < 6.0:
+		await seconds(0.5)
+		waited_s += 0.5
+		chasing = sys.count_state(ZombieKinds.State.CHASE) + sys.count_state(ZombieKinds.State.ATTACK)
+		if chasing >= 3 and waited_s >= 2.5:
+			break
+	check(chasing >= 3, "zombies saw the player and chase it (%d chasing / attacking after %.1f s)" % [chasing, waited_s])
+	var moved := 0
+	for i in sys.l0:
+		if sys.used[i] == 1 and sys.pos[i].distance_to(sys.home[i]) > 1.0:
+			moved += 1
+	check(moved >= 3 and int(sys.queue.stats["queries"]) + int(sys.queue.stats["shared"]) >= 1, "chasers move along navmesh routes (%d moved, %d route queries, %d shared)" % [moved, int(sys.queue.stats["queries"]), int(sys.queue.stats["shared"])])
+	# -- kill one with the bat (validated melee: cone, reach, stamina, noise, blood, same death on the client)
+	sys.clear_all()
+	await frames(2)
+	var t := _spawn_front(sys, player, ZombieKinds.Kind.WALKER, 1.3)
+	var tid := sys.net_id[t]
+	await seconds(0.7)
+	var noise0 := SoundEvents.emitted
+	var blood0 := CombatFx.instance.blood_spawned
+	var stam0: float = player.state.stamina
+	var hits := 0
+	var bat_delay := Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT)
+	for k in 8:
+		if not sys.is_alive(t):
+			break
+		_hold_zombie(sys, t, player, 1.3)
+		player.melee_ready_at = 0.0
+		var hp_before := sys.hp[t]
+		request(&"request_melee", [Weapons.Mode.LIGHT, _yaw_to(player, sys.pos[t]), tid])
+		hits += 1
+		if k == 0 and bat_delay > 0.1:
+			await frames(2)
+			check(is_equal_approx(sys.hp[t], hp_before), "the swing is accepted but the blow waits for the clip's hit_start (%.2f s)" % bat_delay)
+		await seconds(bat_delay + 0.1)
+		_hold_zombie(sys, t, player, 1.3)
+	await frames(10)
+	check(not sys.is_alive(t) and sys.state[t] == ZombieKinds.State.DEAD, "a walker (100 PV) dies to the bat in %d swings" % hits)
+	check(zc.died_ids.has(tid) and zc.record(tid) != null and zc.record(tid).state == ZombieKinds.State.DEAD, "the client saw the same zombie (id %d) die" % tid)
+	check(SoundEvents.emitted > noise0 and int(zc.fx_count.get(ZombieNet.FX_NOISE, 0)) >= 1 and CombatFx.instance.rings_spawned >= 1,
+		"melee made noise: %d SoundEvents, the ring reached the client (%d rings)" % [SoundEvents.emitted - noise0, CombatFx.instance.rings_spawned])
+	check(CombatFx.instance.blood_spawned > blood0, "blood decals on the snow (%d)" % (CombatFx.instance.blood_spawned - blood0))
+	check(player.state.stamina < stam0, "swings cost stamina (%.0f → %.0f)" % [stam0, player.state.stamina])
+	# -- friendly fire off: the bat swing through a teammate position hurts nobody (no teammate offline: rules check)
+	check(DamageResolver.blocked_pvp >= 0 and is_zero_approx(DamageResolver.player_vs_player_mult({"friendly_fire": "off"}, DamageResolver.ref(DamageResolver.Kind.PLAYER, 1), DamageResolver.ref(DamageResolver.Kind.PLAYER, 2), DamageResolver.DamageKind.MELEE_BLUNT)),
+		"friendly_fire=off blocks player→player melee (DamageResolver)")
+	# -- a frozen zombie ignores a quiet player, wakes by a loud noise within 8 m
+	var fz := _spawn_front(sys, player, ZombieKinds.Kind.FROZEN, 5.0, ZombieKinds.State.FROZEN)
+	var fid := sys.net_id[fz]
+	await seconds(0.8)
+	check(sys.state[fz] == ZombieKinds.State.FROZEN and sys.body[fz] == null, "frozen zombie stays frozen (no body) while the player is quiet 5 m away")
+	var wake0 := int(zc.events.get(ZombieSystem.EVT_WAKE, 0))
+	SoundEvents.emit(player.global_position, 20.0, 2, SoundEvents.Kind.OTHER, 1)
+	await seconds(0.6)
+	check(sys.state[fz] in [ZombieKinds.State.WAKING, ZombieKinds.State.INVESTIGATE, ZombieKinds.State.CHASE, ZombieKinds.State.ATTACK] and int(zc.events.get(ZombieSystem.EVT_WAKE, 0)) > wake0,
+		"a 20 m noise 5 m away wakes the frozen zombie (%s, wake event on the client)" % ZombieKinds.State.keys()[sys.state[fz]])
+	await seconds(Balance.ZOMBIE_WAKE_TIME + 0.4)
+	check(sys.state[fz] in [ZombieKinds.State.CHASE, ZombieKinds.State.INVESTIGATE, ZombieKinds.State.ATTACK], "…and then comes for the player (%s)" % ZombieKinds.State.keys()[sys.state[fz]])
+	sys.release(fz)
+	# -- silent knife execution of a frozen one
+	_equip(player, &"cuchillo")
+	var ex := _spawn_front(sys, player, ZombieKinds.Kind.FROZEN, 1.1, ZombieKinds.State.FROZEN)
+	await frames(10)
+	var noise1 := SoundEvents.emitted
+	player.melee_ready_at = 0.0
+	request(&"request_melee", [Weapons.Mode.EXECUTE, _yaw_to(player, sys.pos[ex]), sys.net_id[ex]])
+	await seconds(Weapons.hit_delay(&"cuchillo", Weapons.Mode.EXECUTE) + 0.15)
+	check(not sys.is_alive(ex) and SoundEvents.emitted == noise1, "knife execution kills a frozen zombie silently at the stab (%.2f s, no SoundEvent)" % Weapons.hit_delay(&"cuchillo", Weapons.Mode.EXECUTE))
+	# -- shove (stagger or knockdown) then stomp the knocked one
+	var sv := _spawn_front(sys, player, ZombieKinds.Kind.WALKER, 1.2)
+	await seconds(0.5)
+	var knocked := false
+	for k in 8:
+		_hold_zombie(sys, sv, player, 1.2)
+		player.melee_ready_at = 0.0
+		player.state.stamina = Balance.STAMINA_MAX
+		request(&"request_melee", [Weapons.Mode.SHOVE, _yaw_to(player, sys.pos[sv]), sys.net_id[sv]])
+		await seconds(Weapons.hit_delay(&"", Weapons.Mode.SHOVE) + 0.08)
+		if k == 0:
+			check(sys.state[sv] in [ZombieKinds.State.STAGGER, ZombieKinds.State.KNOCKED], "a shove staggers or knocks down (%s)" % ZombieKinds.State.keys()[sys.state[sv]])
+		if sys.state[sv] == ZombieKinds.State.KNOCKED:
+			knocked = true
+			break
+		await seconds(0.7)
+	check(knocked, "a shove knocks the zombie down (35 %% per shove)")
+	if knocked:
+		player.melee_ready_at = 0.0
+		var heads0 := CombatFx.instance.heads_popped
+		var sv_id := sys.net_id[sv]
+		request(&"request_melee", [Weapons.Mode.STOMP, _yaw_to(player, sys.pos[sv]), sys.net_id[sv]])
+		await seconds(Weapons.hit_delay(&"", Weapons.Mode.STOMP) + 0.12)
+		check(not sys.is_alive(sv), "stomp on the knocked-down zombie kills it")
+		var svr := zc.record(sv_id)
+		var popped := svr != null and svr.view != null and svr.view.is_skeletal and svr.view.skeleton.get_bone_pose_scale(svr.view.skeleton.find_bone("Head")).x < 0.01
+		check(CombatFx.instance.heads_popped > heads0 and (popped or svr == null or svr.view == null),
+			"the stomp bursts the head (gore-lite: Head bone scaled to 0, gore/head_fragments from HeadSocket)")
+	sys.clear_all()
+	# -- a zombie bites the player (DamageResolver ZOMBIE → PLAYER), then combat damage downs instead of killing
+	player.state.stats.reset_stats()
+	var biter := _spawn_front(sys, player, ZombieKinds.Kind.WALKER, 1.0)
+	var hp0: float = player.state.health
+	for k in 30:
+		await frames(6)
+		_hold_zombie(sys, biter, player, 1.0)
+		if player.state.health < hp0:
+			break
+	check(player.state.health < hp0 and player.state.stats.death_cause() == &"zombi", "a walker's attack hurts the player (%.0f → %.0f, cause %s)" % [hp0, player.state.health, player.state.stats.death_cause()])
+	await frames(3)
+	if player.view.visual.anim_player.has_animation("combat/Hit_Front"):
+		check(is_equal_approx(float(player.view.visual.tree.get("parameters/hit_add/add_amount")), 1.0), "the bitten survivor flinches (Hit_Front on the additive layer)")
+	sys.clear_all()
+	await seconds(1.05)
+	Chat.instance.send("/hurt 200")
+	await frames(3)
+	check(player.downed and not player.dead and player.state.health <= 0.0 and player.bleed > 30, "combat damage at 0 PV downs the player (bleed %d s)" % player.bleed)
+	check(is_equal_approx(PlayerSim.speed_for({"move": Vector2(1, 0), "btn": Packets.BTN_RUN}, player.sim_params()), Balance.DOWNED_CRAWL_SPEED) and not player.can_run,
+		"downed: crawls at %.1f m/s, cannot run" % Balance.DOWNED_CRAWL_SPEED)
+	var hud: Hud = game.get_node("UI/HUD")
+	await frames(2)
+	check(hud.down_panel.visible and hud.down_title.text.begins_with("DESANGRÁNDOTE"), "HUD: %s" % hud.down_title.text)
+	await seconds(1.4)
+	check(not player.downed and not player.dead and absf(player.state.health - Balance.REVIVE_HEALTH) < 2.0 and player.speed_mult < 0.9,
+		"alone on the server: gets up by itself once per day (health %.0f, Malherido ×%.2f)" % [player.state.health, player.speed_mult])
+	# -- death: second down + give up → corpse with the whole inventory, death screen, respawn at the bed, loot back
+	var items_before := 0
+	for s in player.state.slots:
+		if not s.is_empty():
+			items_before += 1
+	await seconds(0.6)
+	Chat.instance.send("/hurt 200")
+	await frames(3)
+	request(&"request_give_up", [])
+	await frames(5)
+	var corpses := tree.get_nodes_in_group("corpse")
+	var corpse: Corpse = corpses[0] if not corpses.is_empty() else null
+	var corpse_items := 0
+	if corpse != null:
+		for s in corpse.storage.slots:
+			if not s.is_empty():
+				corpse_items += 1
+	check(player.dead and corpse != null and corpse_items == items_before and items_before >= 4 and player.state.count(&"bate") == 0,
+		"death after giving up: a corpse holds the whole inventory (%d stacks), the pockets are empty" % corpse_items)
+	check(corpse != null and NetWorld.instance.chunk_for(WorldRegistry.wid_of(corpse)).structures.has(WorldRegistry.wid_of(corpse)), "the corpse is a persisted structure (ChunkDelta)")
+	var go: Control = game.get_node("UI/GameOver")
+	check(go.visible and GameOverScreen.cause_text(player.state.death_cause) != "", "death screen: %s" % GameOverScreen.cause_text(player.state.death_cause))
+	await seconds(0.3)
+	GameFlow.request_respawn()
+	await frames(5)
+	var bed := world.get_respawn_point()
+	check(not player.dead and player.global_position.distance_to(bed) < 1.5 and player.in_house, "respawned beside the bed in the cabin (%.2f m)" % player.global_position.distance_to(bed))
+	if corpse != null:
+		player.global_position = corpse.global_position + Vector3(0.8, 0.3, 0)
+		await frames(3)
+		request(&"request_interact", [WorldRegistry.wid_of(corpse), &"open", 0])
+		await frames(2)
+		var sp: StoragePanel = game.get_node("UI/StoragePanel")
+		sp.take_all()
+		await frames(3)
+		sp.close()
+		await seconds(2.5)
+		check(player.state.count(&"bate") == 1 and player.state.count(&"cuchillo") == 1 and not is_instance_valid(corpse), "looted the corpse back (bat, knife…); the empty corpse went away")
+	# -- director v0: day 1 daylight is quiet, the first night sends a few walkers to the clearing
+	check(Director.instance.budget(1) >= 1 and _budget_at(1, 11.0) == 0 and _budget_at(1, 21.0) >= 2 and _budget_at(1, 21.0) <= 4 and _budget_at(6, 21.0) > _budget_at(1, 21.0),
+		"director budget: day 1 day 0, day 1 night %d, day 6 night %d" % [_budget_at(1, 21.0), _budget_at(6, 21.0)])
+	WorldState.instance.set_time(1, 21.0)
+	player.global_position = world.get_spawn_point() + Vector3(0, 0.3, 0)
+	Director.instance.enabled = true
+	await seconds(2.5)
+	Director.instance.enabled = false
+	check(Director.instance.spawned >= 1 and sys.count_alive() >= 1, "night 1: the director sent %d walkers toward the clearing" % Director.instance.spawned)
+	sys.clear_all()
+	# -- residents of a forest chunk (population): some frozen outdoors
+	PopulationManager.instance.enabled = true
+	var pm := PopulationManager.instance
+	var forest_total := 0
+	for k in world.streamer.chunks:
+		forest_total += pm.target_of(int(k))
+	check(pm.target_of(WorldConst.key(24, 24)) == 0 and forest_total >= 0, "population: the clearing has no residents, loaded forest chunks %d" % forest_total)
+	PopulationManager.instance.enabled = false
+	sys.clear_all()
+	StatsComponent.solo_getup_time = Balance.SOLO_GETUP_TIME
+
+
+func _budget_at(day: int, hour: float) -> int:
+	var d := WorldState.instance.day
+	var h := WorldState.instance.hour
+	WorldState.instance.day = day
+	WorldState.instance.hour = hour
+	WorldState.instance.is_night = hour >= Balance.NIGHT_START or hour < Balance.NIGHT_END
+	var b := Director.instance.budget(1)
+	WorldState.instance.day = d
+	WorldState.instance.hour = h
+	WorldState.instance.is_night = h >= Balance.NIGHT_START or h < Balance.NIGHT_END
+	return b
+
+
+func _equip(player: Player, id: StringName) -> void:
+	for i in range(1, player.state.slots.size()):
+		if not player.state.slots[i].is_empty() and player.state.slots[i]["id"] == id:
+			request(&"request_use_slot", [i])
+			return
+
+
+func _yaw_to(player: Player, p: Vector3) -> float:
+	var d := p - player.global_position
+	return atan2(d.x, d.z)
+
+
+## A zombie of `kind` `dist` m in front of the player (facing it).
+func _spawn_front(sys: ZombieSystem, player: Player, kind: int, dist: float, st: int = ZombieKinds.State.IDLE) -> int:
+	var p := player.global_position + player.facing() * dist
+	var i := sys.spawn(kind, p, player.aim_yaw + PI, st, -1, -2)
+	sys._assign_lod(i, dist)
+	if sys.lod[i] == 0 and not sys.l0.has(i):
+		sys.l0.append(i)
+	return i
+
+
+## Keeps a zombie at `dist` m in front of the player (tests: the melee target does not wander out of the cone).
+func _hold_zombie(sys: ZombieSystem, i: int, player: Player, dist: float) -> void:
+	if not sys.is_alive(i):
+		return
+	var p := player.global_position + player.facing() * dist
+	p.y = sys.world.get_height(p.x, p.z)
+	sys.pos[i] = p
+	if sys.body[i] != null:
+		(sys.body[i] as CharacterBody3D).global_position = p + Vector3(0, 0.05, 0)
 
 
 ## A stump node (chunk objects) at `pos` left by the tree `wid`.

@@ -31,7 +31,15 @@ sustituto de primitivas con los mismos nombres de nodo (`scripts/data/placeholde
 | Moverse | W A S D / flechas | Stick izquierdo |
 | Correr | Mayús (mantener) | L3 |
 | Interactuar / atacar lo que hay bajo el cursor | Clic izquierdo (R: lo más cercano) | X |
-| Atacar al lobo más cercano | Espacio | RT |
+| Golpe cargado (con un arma en la mano) | Mantener clic o Espacio | Mantener RT |
+| Atacar al más cercano (zombi o lobo) | Espacio | RT |
+| Empujar | V | LT |
+| Pisotear a un zombi derribado o a un reptador | Clic sobre él | X / RT |
+| Ejecución silenciosa (cuchillo) | Clic sobre un zombi congelado o que no te ha visto | X / RT |
+| Agacharse (sigilo) | Ctrl | R3 |
+| Reanimar a un compañero derribado | Mantener R a su lado | Mantener X |
+| Rendirse (derribado) | Mantener X (3 s) | Mantener Y |
+| Chat / comandos | Intro | — |
 | Cancelar / cerrar panel | Clic derecho, Esc | B |
 | Pausa | Esc | Start |
 | Girar cámara | Q / E | LB / RB |
@@ -44,14 +52,17 @@ sustituto de primitivas con los mismos nombres de nodo (`scripts/data/placeholde
 ## Pruebas
 
 ```bash
-tests/run_all.sh                 # parse, unit (persistencia), smoke, inspect_models, perf, red (basic/shared_world/far), determinismo, perf walk
+tests/run_all.sh                 # parse, unit (persistencia), smoke, inspect_models, perf, red (basic/shared_world/far/zombies), determinismo, perf walk, perf horde
 tests/run_smoke.sh               # solo el smoke test (servidor local en el mismo proceso)
 tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90                              # escenario basic (M1)
 tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world      # mundo compartido (M2)
 tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797   # 2 jugadores a 1 km (M3)
 tests/run_determinism.sh         # 50 chunks generados por cliente y servidor en dos procesos: hashes iguales (M3)
 tests/run_perf_walk.sh --cpu     # 2.26 km a 25 m/s: coste de streaming ≤ 2 ms/frame (headless); sin --cpu: xvfb + llvmpipe
+tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807   # zombis y combate en red (M4)
+tests/run_perf_horde.sh          # servidor dedicado + 4 bots + 200 zombis: tick mediano ≤ 8 ms (M4)
 RENDER=forward tests/run_screenshots.sh /tmp/shots   # capturas (Compatibility por defecto; Forward+ con lavapipe)
+RENDER=forward tests/run_screenshots.sh /tmp/shots zombies   # la pelea al atardecer delante de la cabaña (M4)
 tests/run_multi_shot.sh /tmp/shots/multi.png         # captura con 2 jugadores remotos (chaquetas distintas)
 ```
 
@@ -132,14 +143,109 @@ a cualquier punto (por ejemplo, `/tp -780 340` al lago).
 
 La demo del navegador es solo para un jugador: el navegador no puede abrir conexiones UDP.
 
+## Zombis y combate (M4)
+
+![Pelea al atardecer delante de la cabaña (Forward+)](docs/screenshots/m4/zombies.jpg)
+
+La captura se genera con `RENDER=forward tests/run_screenshots.sh <carpeta> zombies`.
+
+**Solo el servidor simula los zombis** (`ZombieSystem`, con los datos en arrays). Hay cinco tipos:
+
+- **Caminante**: el zombi normal.
+- **Corredor**: esprinta unos segundos y luego se cansa y trota.
+- **Reptador**: se arrastra por el suelo; se remata con un pisotón.
+- **Congelado**: está quieto en la nieve hasta que lo despierta un ruido fuerte cerca, alguien que se le acerca o el calor.
+- **Hinchado**: al morir revienta en una nube que roba calor.
+
+Cada zombi pasa por estos estados: reposo, deambular, investigar, perseguir, atacar, aturdido, derribado, muerto
+y congelado. Detecta a los jugadores así:
+
+- **Vista**: un cono de 120° que alcanza 25 m de día, 12 m de noche y 6 m en ventisca.
+- **Oído**: cada golpe o empujón es un `SoundEvent`, y en pantalla aparece como un anillo blanco. Los pasos
+  también se oyen: 2 m si vas agachado, 6 m andando y 14 m corriendo.
+- **Olfato**: a pocos metros, solo si estás sangrando.
+- **Memoria**: recuerda dónde te vio por última vez y va a buscarte allí.
+
+**Navegación.** Cada chunk tiene su propia navmesh (Recast), que se hornea en hilos de fondo y se une con las de
+los chunks vecinos. Si el camino está despejado, el zombi va en línea recta. Si no, pide una ruta para rodear la
+cabaña, los árboles, las rocas y la camioneta. Se hacen como mucho 40 consultas por tick, y un grupo que persigue
+a la misma persona comparte la ruta.
+
+**Población y director.** Cada chunk tiene su densidad de zombis. En el bosque hay zombis durmientes, y fuera,
+congelados. El director reparte la presión en tres fases: acumulación, pico y alivio. También manda hordas
+errantes. El primer día es suave: de día no aparece ninguno, y la primera noche solo unos pocos rondan el claro.
+Con `/director off` se apaga.
+
+**Red.** Cada jugador solo recibe los zombis de los chunks que tiene cerca: el servidor avisa cuando uno entra o
+sale de su zona. Las instantáneas ocupan 9 B por zombi y se envían con más frecuencia cuanto más cerca está el
+zombi, con un fotograma completo cada segundo. Con 4 jugadores y 100 zombis se gastan unos 5 kB/s por cliente
+(el límite de la prueba es 15 kB/s). El cliente dibuja hasta 48 zombis (24 en la web), con animaciones más
+sencillas para los que están lejos.
+
+### Combate cuerpo a cuerpo
+
+El servidor valida cada golpe: que el zombi esté en el cono de 110° delante de ti y dentro del alcance del arma
+más 0.5 m. También retrocede hasta 150 ms para ver dónde estaba el zombi en tu pantalla. El daño llega en el
+momento del impacto de la animación (`data/anim_events.json`): 0.27 s con armas de una mano, 0.36 s con las de dos.
+
+| Arma | Daño | Cadencia | Alcance | Notas |
+|---|---|---|---|---|
+| Puños | 6 | 0.6 s | 1.1 m | — |
+| Cuchillo | 18 | 0.4 s | 1.2 m | silencioso; ejecuta a congelados y a los que no te han visto |
+| Palanca | 28 | 0.7 s | 1.6 m | 15 % de crítico |
+| Bate | 30 | 0.65 s | 1.7 m | 2 objetivos, derriba (35 %) |
+| Bate con clavos | 38 | 0.65 s | 1.7 m | 2 objetivos, derriba, se gasta antes |
+| Machete | 38 | 0.55 s | 1.5 m | 20 % de crítico |
+| Hacha | 45 | 0.9 s | 1.7 m | 30 % de crítico, también tala |
+
+- Los críticos hacen ×3 de daño. Si un crítico mata, revienta la cabeza. Las armas contundentes hacen +50 %
+  contra los congelados.
+- El **golpe cargado** hace ×1.5 de daño y más ruido, y gasta 12 de aguante (necesitas al menos 20). El golpe
+  ligero gasta 8 y el empujón, 8. Sin aguante no puedes correr ni cargar.
+- Las armas tienen **durabilidad** (se ve en la ranura) y se gastan con cada golpe que acierta.
+- **Reglas del servidor** (`server.cfg`, solo las aplica `DamageResolver`):
+  - `pvp`: `off` / `on`. Con `off`, los jugadores se atraviesan.
+  - `friendly_fire`: `off` / `reduced` / `full`.
+
+### Derribado, reanimación y muerte
+
+- **Derribado.** Si el daño de combate te deja a 0 PV, caes derribado. Te arrastras a 0.8 m/s y te desangras en
+  60 s (40 s si tienes frío). Todos ven una calavera con la cuenta atrás. Cada mordisco te quita 5 s más.
+- **Reanimación.** Un compañero te levanta si mantiene R (en el mando, X) 4 s a tu lado. Si juegas solo en el
+  servidor, te levantas tú mismo una vez al día.
+- **Rendirse.** Mantén X (en el mando, Y) durante 3 s.
+- **Muerte.** El frío y el hambre matan directamente, sin pasar por derribado. Al morir dejas una mochila con todo
+  tu inventario, que cualquiera puede recoger durante 2 días de juego. Tras una cuenta atrás de 20 s, reapareces
+  junto a la cama de la cabaña.
+
+### Comandos de prueba
+
+Funcionan sin red o con `debug_commands=true` en `server.cfg`:
+
+| Comando | Qué hace |
+|---|---|
+| `/zombies <n> [walker\|runner\|crawler\|frozen\|bloater] [radio]` | Crea zombis a tu alrededor |
+| `/zombies clear` | Borra todos los zombis |
+| `/zombies freeze` | Congela a los zombis que tienes a menos de 60 m |
+| `/armas` | Te da cuchillo, palanca, bate y machete |
+| `/hurt <n>` | Te hace n de daño de combate |
+| `/rule pvp on` | Cambia una regla (también `friendly_fire full`, `zombie_count_scale 2`, `noise_scale 0.5` o `cold_scale 1`) |
+| `/hora <h>` | Cambia la hora del día |
+| `/director on\|off` | Enciende o apaga el director y la población por chunks |
+
+**Web (sin hilos):** hay como mucho 120 zombis (40 con cuerpo físico y 24 vistas), la población y el director
+bajan al 60 %, y la navmesh se hornea con celdas de 0.5 m, un chunk cada 0.3 s. El streaming sigue con su
+presupuesto de 2 ms por frame.
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M3: import, parse, persistencia, humo, contrato de arte, perf, red (basic, shared_world, far), determinismo, perf walk [, capturas]
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M4: import, parse, persistencia, humo, contrato de arte, perf, red (basic, shared_world, far, zombies), determinismo, perf walk, perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak
-./tests/run_screenshots.sh [carpeta] [presets] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (presets extra: `multi` = cliente unido a un servidor, `overview` = vista aérea del lago y una carretera, M3)
+./tests/run_screenshots.sh [carpeta] [presets] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (presets extra: `multi` = cliente unido a un servidor, `overview` = vista aérea del lago y una carretera, M3; `zombies` = la pelea al atardecer delante de la cabaña, M4)
 python3 tools/contact_sheet.py hoja.png 3 "ref=…jpg" "antes=…png" "después=…png"   # hoja de comparación (Pillow)
 ./tests/run_perf.sh [--placeholders] # sonda de rendimiento (draw calls, objetos, ms) → tests/perf/last.json vs tests/perf_budgets.json
 godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]  # contrato ASSET_SPEC v2 de cada .glb (o de los placeholders)

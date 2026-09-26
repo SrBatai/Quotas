@@ -156,6 +156,14 @@ chat={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":4194309), Object(InputEventKey,"physical_keycode":4194310)]
 }
+shove={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":86), Object(InputEventJoypadMotion,"axis":4,"axis_value":1.0)]
+}
+give_up={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":88), Object(InputEventJoypadButton,"button_index":3)]
+}
 net_debug={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":4194334)]
@@ -174,6 +182,7 @@ import/blender/enabled=false
 3d_physics/layer_5="heat"
 3d_physics/layer_6="shelter"
 3d_physics/layer_7="placement_blocker"
+3d_physics/layer_8="zombies"
 
 [physics]
 

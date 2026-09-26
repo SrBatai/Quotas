@@ -19,7 +19,7 @@ const REASONS := {
 	"accion": "No puedes hacer eso", "rate": "Demasiado rápido",
 }
 const RATE_LIMITS := {&"interact": Balance.NET_INTERACT_PER_SECOND, &"craft": Balance.NET_CRAFT_PER_SECOND,
-	&"attack": 4.0, &"hit": 4.0, &"slot": 10.0, &"container": 10.0}
+	&"attack": 4.0, &"hit": 4.0, &"slot": 10.0, &"container": 10.0, &"melee": 8.0, &"revive": 6.0}
 
 static var instance: NetWorld
 
@@ -43,15 +43,18 @@ var _interest_t: float = 0.0
 var _wid_chunk: Dictionary = {}     # wid -> chunk key
 var _rate: Dictionary = {}          # [peer, kind] -> Array of timestamps
 var _infractions: Dictionary = {}   # peer -> count
+var _revivers: Dictionary = {}      # reviver peer -> {target, t0}
 
 
 func _enter_tree() -> void:
 	instance = self
+	Melee.clear()
 
 
 func _exit_tree() -> void:
 	if instance == self:
 		instance = null
+	Melee.clear()
 
 
 func _ready() -> void:
@@ -218,6 +221,102 @@ func hit_result(victim_peer: int, blocked: bool, reason: String) -> void:
 	Events.hit_result.emit(victim_peer, blocked, reason)
 
 
+# ------------------------------------------------------------------ M4 melee / downed (ARQ v2 §6.8, §11.5)
+## Client → server: a melee attack (Weapons.Mode) facing `yaw`, aimed at the zombie `aim_id` (0 = none). The server
+## validates cadence, stamina, cone and reach (+ tolerance, with rewind) in Melee.perform.
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_melee(mode: int, yaw: float, aim_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer := Net.sender()
+	var p := _player_of(peer)
+	if p == null or not _allow(peer, &"melee"):
+		return
+	if mode < 0 or mode > Weapons.Mode.EXECUTE or not is_finite(yaw):
+		_note_infraction(peer, "melee:args")
+		return
+	var res := Melee.perform(p, mode, yaw, aim_id)
+	if not bool(res["pending"]):
+		send_melee_result(peer, res)
+
+
+## Server: the outcome of a swing to its attacker (at once for refusals, at the damage frame for hits: Melee.tick).
+func send_melee_result(peer: int, res: Dictionary) -> void:
+	if Net.is_dedicated and bool(Net.cfg_get("server", "debug_commands", false)):
+		print("[EVT] melee %d mode=%d -> ok=%s hits=%d kills=%d %s" % [peer, int(res["mode"]), res["ok"], res["hits"], res["kills"], res["reason"]])
+	Net.rpc_to(self, &"_melee_result", peer, [int(res["mode"]), bool(res["ok"]), int(res["hits"]), int(res["kills"]), str(res["reason"])])
+
+
+## Server → attacker: outcome of a swing (stamina / cadence refusals show a hint; hits drive the local feedback).
+@rpc("authority", "call_remote", "reliable", 1)
+func _melee_result(mode: int, ok: bool, hits: int, kills: int, reason: String) -> void:
+	if Net.is_dedicated:
+		return
+	Events.melee_result.emit(mode, ok, hits, kills, reason)
+	if not ok and reason == "aguante":
+		Events.notify.emit("Sin aliento", 1.2)
+
+
+## Client → server: start (`hold` true) or stop holding "reanimar" on the downed player `target_peer`.
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_revive(target_peer: int, hold: bool) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer := Net.sender()
+	var p := _player_of(peer)
+	var t := _player_of(target_peer)
+	if p == null or not _allow(peer, &"revive"):
+		return
+	if not hold:
+		if t != null and t.revive_by == peer:
+			t.state.stats.cancel_revive("soltar")
+		_revivers.erase(peer)
+		return
+	if t == null or t == p or not t.downed or p.dead or p.downed:
+		return
+	if p.global_position.distance_to(t.global_position) > Balance.REVIVE_RANGE + Balance.NET_INTERACT_TOLERANCE:
+		p.state.notify(REASONS["lejos"], 1.5)
+		return
+	if t.revive_by != 0 and t.revive_by != peer:
+		p.state.notify("Ya lo están reanimando", 1.5)
+		return
+	t.revive_by = peer
+	t.revive_pct = 0
+	_revivers[peer] = {"target": target_peer, "t0": Time.get_ticks_msec() / 1000.0}
+	p.face_toward(t.global_position)
+	print("[EVT] player %d starts reviving %d" % [peer, target_peer])
+
+
+## Client → server: a downed player gives up (held X for Balance.GIVE_UP_HOLD s).
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_give_up() -> void:
+	if not multiplayer.is_server():
+		return
+	var p := _player_of(Net.sender())
+	if p != null and p.downed:
+		p.state.stats.give_up()
+
+
+## Server: revive channels (4 s, interrupted by distance or damage, which clears `revive_by`).
+func _update_revives() -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	for peer in _revivers.keys():
+		var r: Dictionary = _revivers[peer]
+		var p := _player_of(int(peer))
+		var t := _player_of(int(r["target"]))
+		if p == null or t == null or not t.downed or t.revive_by != int(peer) or p.dead or p.downed \
+				or p.global_position.distance_to(t.global_position) > Balance.REVIVE_RANGE + Balance.NET_INTERACT_TOLERANCE + 0.5:
+			if t != null and t.revive_by == int(peer):
+				t.state.stats.cancel_revive("interrumpido")
+			_revivers.erase(peer)
+			continue
+		var k := (now - float(r["t0"])) / Balance.REVIVE_TIME
+		t.revive_pct = clampi(int(k * 100.0), 0, 100)
+		if k >= 1.0:
+			_revivers.erase(peer)
+			t.state.stats.revive(p)
+
+
 # ------------------------------------------------------------------ own state
 @rpc("any_peer", "call_remote", "reliable", 1)
 func request_use_slot(i: int) -> void:
@@ -300,8 +399,12 @@ func request_respawn() -> void:
 	if not multiplayer.is_server():
 		return
 	var p := _player_of(Net.sender())
-	if p != null and p.dead:
-		p.respawn()
+	if p == null or not p.dead:
+		return
+	if not p.state.stats.can_respawn():
+		p.state.notify("Aún no puedes reaparecer", 1.5)
+		return
+	p.respawn()
 
 
 # ------------------------------------------------------------------ containers (server state, mirrored to the opener)
@@ -382,6 +485,9 @@ func push_storage(st: Storage) -> void:
 func _physics_process(delta: float) -> void:
 	if not Net.is_server:
 		return
+	Melee.tick()
+	if not _revivers.is_empty():
+		_update_revives()
 	_interest_t -= delta
 	if _interest_t <= 0.0:
 		_interest_t = WorldConst.INTEREST_PERIOD
@@ -477,6 +583,8 @@ func set_delta(wid: int, fields: Dictionary, table: StringName = &"objects") -> 
 	deltas[wid] = merged
 	if bool(fields.get("felled", false)):
 		felled[wid] = true
+		if NavBaker.instance != null:
+			NavBaker.instance.mark_dirty_key(d.key())   # the trunk no longer blocks: re-bake after the cooldown
 	var key := d.key()
 	for peer in interest:
 		if (interest[peer] as Dictionary).has(key):
@@ -493,6 +601,28 @@ func set_container(wid: int, fields: Dictionary) -> void:
 func register_structure(wid: int, data: Dictionary) -> void:
 	if Net.is_server:
 		chunk_for(wid, WorldRegistry.get_object(wid)).merge(&"structures", wid, data)
+
+
+## Server: the ChunkDelta of a chunk key (created when missing): population counters (M4).
+func delta_for_key(key: int) -> ChunkDelta:
+	var d: ChunkDelta = chunks.get(key)
+	if d == null:
+		d = ChunkDelta.make(WorldConst.key_cx(key), WorldConst.key_cz(key))
+		chunks[key] = d
+	return d
+
+
+## Server: a placed structure goes away (a looted / expired corpse): forget its delta rows, despawn everywhere.
+func remove_structure(node: Node) -> void:
+	if not Net.is_server or node == null:
+		return
+	var wid := WorldRegistry.wid_of(node)
+	if _wid_chunk.has(wid):
+		var d := chunk_for(wid)
+		d.erase(&"structures", wid)
+		d.erase(&"containers", wid)
+	deltas.erase(wid)
+	node.queue_free()
 
 
 ## Server: a replicated drop exists / was taken.

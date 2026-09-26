@@ -52,7 +52,23 @@ static func cause_text(cause: StringName) -> String:
 		&"frio": return "Frío"
 		&"hambre": return "Hambre"
 		&"lobo": return "Lobos"
+		&"zombi": return "Zombis"
+		&"jugador": return "Otro superviviente"
+		&"rendirse": return "Te rendiste"
 	return "Frío"
+
+
+## One-line tip per cause (GDD v2 §13 "Muerte: causa, consejo de 1 línea").
+static func tip(cause: StringName) -> String:
+	match cause:
+		&"zombi": return "Los congelados despiertan con el ruido: usa el cuchillo."
+		&"lobo": return "El fuego y la antorcha mantienen lejos a los lobos."
+		&"hambre": return "Come antes de salir: la carne asada llena más."
+		&"rendirse": return "Un compañero puede reanimarte si aguantas."
+	return "Vuelve a la estufa antes de que caiga la noche."
+
+
+var _respawn_at: float = 0.0
 
 
 var _won_mode: bool = false
@@ -64,9 +80,23 @@ func show_death(days: int, hours: int, cause: StringName) -> void:
 	_title.text = "HAS MUERTO"
 	_title.add_theme_color_override("font_color", UiTheme.DANGER)
 	_line1.text = "Sobreviviste %d %s y %d %s" % [days, "día" if days == 1 else "días", hours, "hora" if hours == 1 else "horas"]
-	_line2.text = "Causa: %s" % cause_text(cause)
-	_retry.text = "Reaparecer"
+	_line2.text = "Causa: %s · %s\nTu mochila se queda en tu cadáver." % [cause_text(cause), tip(cause)]
+	_respawn_at = Time.get_ticks_msec() / 1000.0 + StatsComponent.respawn_delay
+	_update_retry()
 	visible = true
+
+
+func _update_retry() -> void:
+	if _won_mode:
+		return
+	var left := _respawn_at - Time.get_ticks_msec() / 1000.0
+	_retry.disabled = left > 0.0
+	_retry.text = "Reaparecer en la base (%d s)" % int(ceil(left)) if left > 0.0 else "Reaparecer en la base"
+
+
+func _process(_delta: float) -> void:
+	if visible and not _won_mode:
+		_update_retry()
 
 
 ## Five days survived: an achievement in the persistent world, not an end.
@@ -76,6 +106,7 @@ func show_win(_days: int) -> void:
 	_title.add_theme_color_override("font_color", UiTheme.ACCENT)
 	_line1.text = "Cinco días en el bosque helado."
 	_line2.text = "Mejor marca: %d días" % GameFlow.best_days
+	_retry.disabled = false
 	_retry.text = "Seguir jugando"
 	visible = true
 

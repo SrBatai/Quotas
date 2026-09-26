@@ -153,3 +153,84 @@ const NET_INTERACT_PER_SECOND := 5.0
 const NET_CRAFT_PER_SECOND := 3.0
 const NET_WORLDSTATE_SYNC_SECONDS := 5.0
 const NET_INFRACTIONS_KICK := 30
+
+# --- stamina (GDD v2 §5 "Aguante") ---
+const STAMINA_MAX := 100.0
+const STAMINA_RUN_DRAIN := 5.0          # /s running
+const STAMINA_REGEN_IDLE := 8.0         # /s standing still
+const STAMINA_REGEN_WALK := 4.0         # /s walking
+const STAMINA_MELEE := 8.0              # per light swing
+const STAMINA_CHARGED := 12.0
+const STAMINA_SHOVE := 8.0
+const STAMINA_MIN_RUN := 20.0           # below: no running, no charged swings (hysteresis: back at 30)
+const STAMINA_RESUME_RUN := 30.0
+
+# --- melee (GDD v2 §7.1, §7.5; ARQ v2 §6.8) ---
+const MELEE_REACH_TOLERANCE := 0.5      # m the server adds to the weapon reach (latency)
+const MELEE_CONE_DEG := 110.0           # full arc in front of the attacker
+const MELEE_REWIND_MAX := 0.15          # s of hit history the server may rewind (lag compensation)
+const MELEE_CRIT_MULT := 3.0
+const MELEE_CHARGED_MULT := 1.5
+const MELEE_CHARGED_EXTRA := 0.4        # s of wind-up
+const MELEE_CHARGED_NOISE := 4.0        # m added to the weapon noise
+const MELEE_CHARGE_HOLD := 0.35         # s the click is held before it becomes a charged swing
+const MELEE_MISS_NOISE := 8.0
+const FROZEN_BLUNT_MULT := 1.5          # "se astilla"
+const SHOVE_RANGE := 1.6
+const SHOVE_TIME := 0.5
+const SHOVE_KNOCKDOWN := 0.35
+const SHOVE_NOISE := 8.0
+const STOMP_TIME := 1.0
+const STOMP_DAMAGE := 200.0
+const STOMP_NOISE := 6.0
+const EXECUTE_TIME := 1.5
+const EXECUTE_RANGE := 1.4
+const HITSTOP_MELEE := 0.06
+const HITSTOP_CHARGED := 0.1
+const SHAKE_HIT := 0.12
+const SHAKE_HURT := 0.35
+const BLOOD_DECAL_SECONDS := 120.0
+
+# --- zombies (GDD v2 §6, ARQ v2 §10; PLAN C9) ---
+const ZOMBIE_L0_RADIUS := 40.0          # LOD 0 (body from the pool, 10 Hz brain)
+const ZOMBIE_L1_RADIUS := 120.0         # LOD 1 (record, 2 Hz, moves along its route)
+const ZOMBIE_DESPAWN_RADIUS := 200.0    # beyond: back into the chunk population counters
+const ZOMBIE_L0_MAX := 150              # bodies in the pool (web: ZOMBIE_L0_MAX_WEB)
+const ZOMBIE_L0_MAX_WEB := 40
+const ZOMBIE_MAX := 500                 # records (web: ZOMBIE_MAX_WEB)
+const ZOMBIE_MAX_WEB := 120
+const ZOMBIE_THINK_L0 := 6              # physics ticks between two thoughts (10 Hz)
+const ZOMBIE_THINK_L1 := 30             # (2 Hz)
+const ZOMBIE_LOD_PERIOD := 0.5
+const ZOMBIE_MEMORY := 20.0             # s the last known position is chased
+const ZOMBIE_FORGET := 45.0             # s without stimulus -> wander
+const ZOMBIE_INVESTIGATE_WAIT := 15.0   # s standing at the investigated point
+const ZOMBIE_PERIPHERAL := 3.0          # 360° vision radius
+const ZOMBIE_ATTACK_WINDUP := 0.45      # s to the damage window without data/anim_events.json (Zom_Attack_A/B hit_start)
+const ZOMBIE_ATTACK_CONE_DEG := 60.0
+const ZOMBIE_HIT_STAGGER := 0.4         # s of flinch after a hit
+const ZOMBIE_KNOCKED_TIME := 2.5        # s on the ground after a knockdown (stomp window)
+const ZOMBIE_FREEZE_AFTER := 300.0      # s outdoors at night without stimulus -> frozen (GDD §6.4)
+const ZOMBIE_WAKE_TIME := 1.5           # s of Zom_Wake before a woken frozen moves
+const ZOMBIE_SEPARATION := 0.75         # m between two zombies (spatial hash push)
+const ZOMBIE_STOP_DIST := 0.95          # m from the target player where a chaser stops
+const ZOMBIE_REPATH_L0 := 0.75          # s between two routes of the same zombie (target moved > 2 m)
+const ZOMBIE_CORPSE_SECONDS := 30.0     # dead record kept (replicated corpse pose), then freed
+const ZOMBIE_BITE_BLEED := 5.0          # s taken from a downed player's bleed-out per bite
+const NAV_QUERIES_PER_TICK := 40
+const NAV_SHARE_RADIUS := 6.0           # zombies this close with the same goal share the leader's route
+
+# --- downed / revive / death (GDD v2 §12.2, ARQ v2 §11.5) ---
+const DOWNED_BLEED := 60.0
+const DOWNED_BLEED_COLD := 40.0         # warmth < 30
+const DOWNED_CRAWL_SPEED := 0.8
+const DOWNED_MAX := 2                   # downs between rests (the third kills); reset at dawn until beds exist
+const REVIVE_TIME := 4.0
+const REVIVE_RANGE := 2.2
+const REVIVE_HEALTH := 30.0
+const SOLO_GETUP_TIME := 20.0           # alone on the server: get up once per day after this (GDD "Solo")
+const HURT_SPEED_MULT := 0.85           # "Malherido" after a revive
+const HURT_SECONDS := 300.0
+const RESPAWN_DELAY := 20.0
+const GIVE_UP_HOLD := 3.0
+const CORPSE_DAYS := 2                  # 48 h of game time

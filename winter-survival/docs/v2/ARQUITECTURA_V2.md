@@ -444,6 +444,223 @@ Pool de ≤ 64 `zombie_view.tscn` (`character_visual` con variante de malla por 
 - `director.gd`: intensidad por jugador, zonas activas (fusión a 150 m), fases, presupuesto por zona, eventos ponderados, reglas de cortesía (GDD §6.6). Tests en `tests/unit/director_test.gd` con reloj simulado.
 - `animal_brain.gd`: lobos y ciervos como `kind` del `ZombieSystem` con estados propios (M9b); hasta entonces `wolf.gd`/`deer.gd` del slice con `DamageResolver`.
 
+### 10.7 Nota de implementación M4 (vinculante hasta que se revise)
+
+Sustituye lo anterior de §10.1–§10.6 y §11 donde lo contradiga.
+
+#### Navmesh
+
+`scripts/world/nav/nav_baker.gd`, solo en el servidor. **No** usa `parse_source_geometry_data`, que exige el hilo
+principal y recorre nodos. Construye la geometría fuente en código:
+
+- el terreno: las muestras de 1 m del chunk más 3 m alrededor (`HeightFunction.sample_block`, pura);
+- los colisionadores de scatter del chunk y de sus vecinos, como *projected obstructions*;
+- los nodos de los grupos `nav_static` (cabaña, A‑frame, camioneta, vallas, poste) y `poi_prop`, como caras (cajas,
+  convexos, trimesh) o como obstrucciones (formas redondas).
+
+El hilo principal solo recoge arrays (máx. medido ≈ 4 ms). El horneado (`bake_from_source_geometry_data`) corre en
+`WorkerThreadPool` y tarda 20–85 ms por chunk. Se hornea **de uno en uno**, solo cuando el streamer está ocioso (sin
+chunks generándose ni montándose) y nunca alrededor de un jugador que va a velocidad de vehículo (> 8 m/s,
+`FAST_SPEED`): ahí los zombis no pueden seguirle, y el anillo se hornea cuando frena.
+
+Parámetros: `cell_size` 0.25 (web 0.5), `cell_height` 0.2, `agent_radius` 0.5 (el 0.4 del spec redondeado a 2
+celdas), `max_climb` 0.4, `max_slope` 45° y `edge_max_error` 1.0.
+
+**Qué chunks se hornean.** Solo los del anillo de cada jugador: centro del chunk a ≤ 96 m (`BAKE_RADIUS`); los
+zombis L0 viven a menos de 40 m. El resto de chunks cargados esperan en la cola.
+
+**Costuras entre chunks.**
+
+- *Borde*: `border_size` = radio + 3 celdas (1.25 m) y `filter_baking_aabb` = el chunk crecido por ese borde,
+  porque Godot deja el borde no navegable *dentro* del AABB. El suelo del AABB cae en la retícula global de
+  `cell_height`. Así los polígonos llegan justo al borde del chunk.
+- *Unión exacta*: `edge_connection_margin` **está desactivado** (`map_set_use_edge_connections(false)`), porque
+  Godot compara cada arista libre del mapa con todas las demás, y cada agujero de un árbol está rodeado de aristas
+  libres. Con 9 chunks eso eran 150–230 ms por reconstrucción del mapa, y el mapa se reconstruye en cada cambio de
+  región: perf walk pasaba de p99.9 2.0 a 5.5 ms. En su lugar, cada malla horneada se guarda editable (`NavTile`).
+  Al aplicarla, cada costura con un vecino ya horneado recibe la **unión de los vértices de los dos lados**: los
+  intermedios se insertan (colineales) en las aristas de la costura, y los coincidentes se copian bit a bit.
+  Después se actualizan las dos regiones. Godot las une por clave exacta de arista y la reconstrucción del mapa
+  baja a ≈ 1 ms. El cosido cuesta ≤ 0.4 ms.
+- *Primera versión de M4*: con AABB = chunk y borde = radio quedaba un hueco de 1 m en cada costura. Ninguna ruta la
+  cruzaba, y Godot imprimía "It's not expect to not find the most reachable polygons" en cada búsqueda acotada
+  hacia un objetivo del otro lado.
+- El smoke comprueba una ruta que cruza la costura x = −32.
+
+**Otros detalles.**
+
+- Al talar un árbol, su chunk se rehornea tras un *cooldown* de 2 s.
+- Las regiones de los chunks descargados se liberan en `_process`, nunca dentro del callback del streamer.
+- En la web (sin hilos) se hornea con celdas de 0.5 m, de forma síncrona, un chunk cada 0.3 s (20–55 ms cada uno).
+- Las regiones se aplican de forma asíncrona (*region async iterations*): los tests esperan a que el mapa las
+  recoja antes de pedir una ruta.
+
+#### Consultas de ruta
+
+`nav_query_queue.gd` usa `NavigationServer3D.query_path` con `path_search_max_polygons` 1200 y
+`path_search_max_distance` 90 m. Un objetivo a más de 63 m se acorta a un punto intermedio.
+
+Cada consulta cuesta **1–2 ms** en un mapa de 25 chunks (~29 k polígonos) y ≈ 1 ms en el anillo de 9. Por eso:
+
+- como mucho 40 consultas **y** 1.5 ms por tick;
+- las rutas se comparten entre zombis cuyo inicio está a ≤ 6 m y cuya meta está a ≤ 2 m, durante < 1 s;
+- **dirección directa**: si un rayo a la altura de la rodilla (capa mundo) hasta el objetivo está libre y el
+  objetivo está a ≤ 14 m, el zombi va recto (se recomprueba cada 0.35 s). Solo pide ruta si hay algo en medio.
+
+No hay RVO: los zombis se separan por *spatial hash* (0.75 m).
+
+#### `ZombieSystem`
+
+`scripts/ai/zombie_system.gd` guarda los datos en arrays (SoA, con los campos de §10.3 más la velocidad, la meta, la
+memoria, los temporizadores y el historial de posiciones para el rebobinado).
+
+- **L0**: un `CharacterBody3D` del pool (≤ 150; web 40) en la capa 8 `zombies`, con máscara solo de mundo. Los
+  jugadores no chocan con los zombis, así que la predicción del cliente sigue siendo exacta. A más de 22 m, un L0
+  piensa a 5 Hz y se mueve a 15 Hz; más cerca, 10 Hz y 30 Hz.
+- **L1**: un registro sin cuerpo que piensa a 2 Hz y sigue su ruta con la altura de la función de terreno.
+- **LOD**: se recalcula a 2 Hz y solo se ordena si hay más candidatos que cuerpos.
+- **Estados**: los de §10.3. `GRAB`, `SCREAM`, `EAT` y `SLEEP` están reservados.
+- **Sentidos**:
+  - vista en cono de 120° (25 / 12 / 6 m de día / noche / ventisca), con probabilidad = distancia × visibilidad
+    (luz, agachado);
+  - visión periférica de 3 m;
+  - oído: `SoundEvents` (vida 0.6 s) más los pasos (2 / 6 / 14 m);
+  - olfato de 8 m hacia un jugador derribado o con < 25 PV;
+  - memoria de 20 s.
+- **Congelación**: exterior de noche con 300 s sin estímulo. El congelado no tiene cuerpo. Despierta por ruido
+  (`on_noise`), proximidad o calor, con 1.5 s de `Zom_Wake`.
+- **Ataque**: la ventana de daño es el `hit_start` del clip (`Zom_Attack_A` 0.34 s, `Zom_Attack_B` 0.40 s,
+  `Zom_Crawl_Grab` 0.30 s; `AnimEvents` lee `data/anim_events.json` y quita el `-loop` de las claves). Alcance
+  + 0.3 m, cono de 60° + 15°. Cada mordisco a un derribado le quita 5 s de sangrado.
+
+#### Replicación
+
+`scripts/ai/zombie_net.gd` envía paquetes crudos con `SceneMultiplayer.send_bytes`, sin RPC:
+
+- **ZSNAP** (tipo 10, no fiable, canal 2): una base por chunk y **9 B por zombi**: u16 id, x/z de 12 bits sobre
+  64 m, i16 y en cm, u8 yaw y u8 `estado | flags << 5`.
+- **ZREL** (tipo 11, fiable, canal 1), con cuatro tipos de registro:
+  - `ENTER`: kind, variante, posición f32, yaw, PV;
+  - `LEAVE`;
+  - `EVENT`: hit, crit, die (bit 0 = silencio, bit 1 = cabeza reventada), wake, attack (variante), stagger,
+    knock, cloud, execute;
+  - `FX`: ruido, sangre, nube, jugador herido.
+
+El interés de cada peer son sus 3 × 3 chunks; se recalcula por turnos, un peer por llamada. Las instantáneas van en
+bandas (≤ 30 m cada 4 ticks, ≤ 60 m cada 6 y el resto cada 15), con un fotograma completo por chunk cada 1 s, y cada
+paquete ocupa ≤ 1 200 B. Offline, los mismos bytes llegan al `ZombieClient` por llamada directa. `NET_PROTOCOL` 3,
+`GAME_VERSION` 0.6.0-m4.
+
+#### Cliente
+
+`zombie_client.gd` + `zombie_view.gd`: buffer de instantáneas e interpolación con un retardo adaptativo de
+0.1–0.3 s. Pool de 48 vistas (web 24, offline sin pantalla 16, cliente sin pantalla 0).
+
+- **Modelo**: `zombies/zombie_<kind>_<nn>.glb` (24 caminantes). Los congelados usan `zombie_frozen_NN`, con la
+  malla `Ice` visible solo mientras están congelados o despertando.
+- **`AnimationTree`**:
+  - Transition de locomoción: Idle A/B, Walk (Shamble A–D según la variante), Investigate, Run, Tired, Crawl,
+    Heavy, Frozen, Dead (A/B o `Crawl_Death`; una vista que recoge un zombi ya muerto salta al final del clip) y
+    Knocked. Lleva `TimeScale` = v_real / v_autorada (1.2, 5.5, 3.0, 1.0, 0.9).
+  - OneShot de torso: `Alert` al empezar a perseguir.
+  - OneShot de cuerpo entero: los ataques (el zombi se para), `Wake`, `Stagger`, `GetUp` y `Bloat_Pop`.
+  - `Zom_Hit` aditivo (Add2 a 1, reiniciado con TimeSeek).
+- Sin clips `Gen_*` si la librería está completa.
+- **LOD de animación**: cada frame a < 30 m, 15 Hz a < 60 m, congelada más lejos.
+- **Muerte**: sin ragdoll; clip de muerte y pose final.
+- **Gore‑lite**: un crítico que mata (salvo con cuchillo) o un pisotón escalan el hueso `Head` a 0.001 y lanzan
+  `gore/head_fragments` desde `HeadSocket`, con balística propia durante 12 s.
+- **Sangre**: `gore/blood_splat_a/b/c` orientadas según el golpe, durante 120 s.
+
+#### Población y director
+
+`population_manager.gd` y `director.gd`. Presupuesto de zombis:
+
+| Momento | Zombis |
+|---|---|
+| Día 1, de día / de noche | 0 / 3 |
+| Día 2, de día / de noche | 2 / 5 |
+| Día 3 en adelante | 12 × rampa (×1.3 de noche) |
+
+Ese presupuesto se multiplica por (1 + 0.5 (n − 1)) con n jugadores, ×0.5 en ventisca y ×0.6 en la web, con un
+tope de 60. El director pasa por las fases acumulación / pico / alivio y lanza eventos (horda, despertar
+congelados). Los zombis aparecen a 35–55 m, fuera de la vista. No hay L2 `Horde` persistente ni zonas fusionadas.
+
+#### Combate
+
+`scripts/combat/melee.gd`, `damage_resolver.gd` y `data/weapons.gd`. El cliente envía
+`request_melee(mode, yaw, aim_id)`, limitado a 8 por segundo.
+
+**Al recibirla, el servidor valida** que el jugador esté vivo, no derribado, fuera de cadencia y con aguante
+(ligero 8, cargado 12 con ≥ 20, empujón 8). Si todo cuadra, el golpe se reproduce en todos los clientes
+(`Player.swing_seq`).
+
+**El daño se evalúa después**, pasados `Weapons.hit_delay` segundos (el `hit_start` del clip):
+
+| Golpe | Retraso |
+|---|---|
+| Una mano | 0.27 s |
+| Dos manos | 0.36 s |
+| Cargado | 0.06 s tras soltar |
+| Empujón | 0.25 s |
+| Pisotón | 0.46 s |
+| Ejecución | 0.7 s, con la víctima sujeta (`ZombieSystem.hold`) |
+
+En el golpe cargado, el dueño sostiene la pose `hold_start` mientras carga y al soltar salta a `hold_end`; los demás
+lo ven desde `hold_end`.
+
+En ese momento se usa la posición del atacante: cono de 110°, alcance del arma + 0.5 m, y cada zombi se prueba en
+su posición actual y en la de hace `rewind` = ½ RTT + 100 ms (≤ 150 ms). `Melee.tick()` corre en
+`NetWorld._physics_process` y manda el resultado al atacante (`NetWorld.send_melee_result`).
+
+Multiplicadores: crítico ×3, cargado ×1.5, congelado ×1.5 con arma contundente. Cada golpe hace ruido (acierto o
+fallo) por `SoundEvents`. La durabilidad baja 1 punto con probabilidad 100/N por acierto y viaja en el espejo de
+ranuras de 4 B (u16 id, u8 cantidad, u8 durabilidad). El arma va en `RightHandSocket` con transformación identidad.
+
+`DamageResolver` sigue siendo el único que lee `pvp` y `friendly_fire` (off 0, reduced 0.25, full 1). Con `pvp`
+activo, la capa de jugador entra en la máscara de los jugadores. El jugador herido hace `Hit_Front` en la capa
+aditiva de todos los clientes (`FX_PLAYER_HIT`).
+
+#### Derribado y muerte
+
+Solo el daño de combate (mordisco, cuerpo a cuerpo) derriba; el frío y el hambre matan directamente.
+
+- **Derribado**: se arrastra a 0.8 m/s y se desangra en 60 s (40 s con frío). El tercer derribo sin descansar
+  mata (el contador se reinicia al amanecer hasta que haya camas).
+- **Reanimar**: mantener 4 s a ≤ 2.2 m (`request_revive`). Se levanta con 30 PV y queda "Malherido" (×0.85
+  durante 300 s).
+- **Solo en el servidor**: se levanta por sí mismo una vez al día, a los 20 s.
+- **Rendirse**: mantener 3 s.
+- **Muerte**: deja un cadáver, que es una estructura `corpse` de `StructureSpawner` guardada en el `ChunkDelta`
+  (`structures` + `containers`), con todo el inventario, durante 48 h de juego. El jugador reaparece a los 20 s
+  junto a la `Bed` (`World.get_respawn_point`).
+
+#### Rendimiento
+
+Medido con `taskset -c 0,1 tests/run_all.sh` en 2 núcleos de una VM compartida. `perf_horde` es un servidor
+dedicado con 4 bots con hacha y 200 caminantes en el claro.
+
+| Medida | Resultado |
+|---|---|
+| Tick ocupado | p50 5.5 ms (4.9–6.2 entre ejecuciones; presupuesto 8), p99 9.6 ms, máx. 15 ms |
+| `ZombieSystem` | p50 2.4 ms, p99 4.8 ms |
+| `ZombieNet` | p50 1.3 ms |
+| `move_and_slide` de ~110 cuerpos L0 | p50 1.7 ms |
+| Rutas | 7.8/s a ≈ 1 ms cada una (peor tick 2 ms) |
+| Datos de zombis por bot | 10 kB/s |
+| Escenario de red `zombies` (4 clientes, ~94 zombis) | 4.9 kB/s de media por cliente (máx. 6.7; límite 15) |
+| `perf_walk --cpu` | streaming p99 1.86 ms, p99.9 2.03 ms, máx. 3.2 ms (igual que M3) |
+| Navmesh | reconstrucción del mapa ≈ 1 ms, cosido ≤ 0.4 ms |
+| Web, sin hilos (sonda de escritorio con `force_no_threads`) | 9 horneados de 20–55 ms en el hilo principal al arrancar; p99 del frame sin pantalla 10.7 ms; 40 zombis a 0.5 ms por tick |
+
+#### Lecciones
+
+- Un `PackedXArray` guardado en un `Dictionary` o en un `Array` es un valor: hay que leerlo, modificarlo y
+  volver a escribirlo.
+- Los monitores `TIME_PROCESS` y `TIME_PHYSICS_PROCESS` dan el máximo del último segundo, no el frame actual:
+  `perf_horde` mide con sondas (primer `_physics_process` → último `_process`).
+- Godot aplica la navmesh de una región de forma asíncrona.
+
 ---
 
 ## 11. Combate y daño
@@ -706,6 +923,7 @@ El del slice + `crouch` (Ctrl / R3), `aim` (RMB / stick der.), `fire` (= `intera
 | `tests/net/run_net_test.sh --clients N --duration S --scenario X` | Lanza 1 servidor + N clientes headless (`--client --name X --scenario X`), cada proceso imprime `RESULT OK/FAIL`; escenarios: `basic`, `shared_world`, `zombies`, `restart`, `hitscan` (con `net_sim`), `village`, `vehicle`, `base`, `hospital`, `great_blizzard`, `campaign`. *Soak* de 90 s incluido. | M1+ |
 | `tests/run_determinism.sh` → `determinism.gd` | Dos procesos generan los mismos 50 chunks, uno por la ruta del servidor (hilo principal, sin visuales) y otro por la del cliente (mallas + MultiMesh en hilos), y comparan hashes: alturas al cm, máscara de superficie, entradas de scatter + `wid`, props de POI y `height_at` en 200 puntos (M3; las aldeas se añaden en M6). | M3+ |
 | `tests/run_perf_walk.sh [--cpu]` → `perf_walk.gd` | Ruta fija de 2.26 km a 25 m/s con streaming; `--cpu` (headless) exige el presupuesto de 2 ms/frame; el modo render (xvfb + llvmpipe) exige suelo siempre y RSS ≤ 2.5 GB (§8.9). | M3+ |
+| `tests/run_perf_horde.sh` → `perf_horde.gd` | Servidor dedicado (puerto 7817) + 4 bots con hacha + 200 caminantes en el claro, director apagado: tiempo ocupado por tick medido con sondas (primer `_physics_process` → último `_process`); exige la mediana ≤ 8 ms (`perf_budgets.json` `perf_horde`), informa p99, coste de `ZombieSystem`, `ZombieNet`, rutas y kB/s por bot (§10.7). | M4+ |
 | `tests/run_perf.sh` → `perf_probe/perf_walk/perf_drive/perf_horde` | Escenas y rutas fijas; escriben `tests/perf/last.json`; se comparan con `perf_budgets.json` (draw calls, objetos, ms de frame p50/p99, tirones > 33 ms, ms de tick del servidor, kB/s). En CI (xvfb + `compat`) solo se exigen los presupuestos de CPU/streaming; los de GPU se validan en la máquina del usuario. | M0+ |
 | `tests/unit/*.gd` | Funciones puras: térmica, botín, habilidades, director, paquetes (pack/unpack), altura, daño, persistencia (3 backends). `SceneTree` + `assert`‑helpers, sin framework. | M5+ |
 | `tests/run_screenshots.sh` | xvfb + `compat`, presets por región/hora; revisión visual. | M0+ |

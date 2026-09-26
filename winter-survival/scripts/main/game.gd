@@ -17,6 +17,13 @@ var chat_box: ChatBox
 var net_hud: NetDebugHud
 var player_manager: PlayerManager
 var player: Player
+## M4 server systems (ARQ v2 §5 "Systems"): zombies, population, director, replication; client: views + fx.
+var zombies: ZombieSystem
+var population: PopulationManager
+var director: Director
+var zombie_net: ZombieNet
+var zombie_client: ZombieClient
+var combat_fx: CombatFx
 var _last_category: StringName = &"herramientas"
 var _ui: CanvasLayer
 
@@ -49,6 +56,22 @@ func _add_server_branches() -> void:
 	player_manager = PlayerManager.new()
 	player_manager.name = "PlayerManager"
 	add_child(player_manager)
+	var systems := Node.new()
+	systems.name = "Systems"
+	add_child(systems)
+	zombies = ZombieSystem.new()
+	systems.add_child(zombies)
+	population = PopulationManager.new()
+	systems.add_child(population)
+	director = Director.new()
+	systems.add_child(director)
+	zombie_net = ZombieNet.new()
+	zombie_net.name = "ZombieNet"
+	systems.add_child(zombie_net)
+	if world.is_configured:
+		_setup_zombies()
+	else:
+		world.configured.connect(_setup_zombies, CONNECT_ONE_SHOT)
 	if Net.is_dedicated:
 		var admin := AdminSocket.new()
 		admin.name = "AdminSocket"
@@ -56,7 +79,20 @@ func _add_server_branches() -> void:
 		admin.setup(player_manager)
 
 
+func _setup_zombies() -> void:
+	zombies.setup(world)
+	population.setup(zombies, world)
+	director.setup(zombies, world)
+	zombie_net.setup(zombies)
+
+
 func _add_client_branches() -> void:
+	zombie_client = ZombieClient.new()
+	zombie_client.world = world
+	add_child(zombie_client)
+	combat_fx = CombatFx.new()
+	combat_fx.world = world
+	add_child(combat_fx)
 	_ui = CanvasLayer.new()
 	_ui.name = "UI"
 	_ui.layer = 10
@@ -180,6 +216,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			pause_menu.open()
 			get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("toggle_craft"):
+		var lp := GameFlow.local_player() as Player
+		if lp != null and lp.downed:
+			return   # Y is also "rendirse" (give_up) while downed: the Interactor takes it
 		if craft_panel.visible:
 			craft_panel.close()
 		else:

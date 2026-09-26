@@ -256,6 +256,48 @@ Orden y razón: **M0** paga la deuda de convenciones (barato ahora, carísimo de
 - **Opus**: especiales lote 1 (corredor, reptador, congelado con esquirlas, hinchado); `anims`: `Zom_Run`, `Zom_Run_Tired`, `Zom_Crawl`, `Zom_Grab`, `Zom_Knock_Door`, `Zom_Stagger`, `Zom_Knockdown`, `Zom_GetUp`; jugador: `Melee1H_Light_A/B`, `Melee2H_Swing_A/B`, `Melee_Charged`, `Act_Shove`, `Act_Stomp`, `Act_Execute`, `Hit_Front`, `Hit_Back`, `Down_Crawl`, `Down_Idle`, `Act_Revive`, `Act_GetUp`, `Death_A` (+ configuración de ragdoll); props gore‑lite (muñones, cabeza fragmentada).
 - **Aceptación**: `perf_horde` en presupuesto; escenario `zombies` con 4 clientes: mismos zombis mueren en todos, derribado → reanimado → muerto → reaparece en la cama; `friendly_fire=off` sin daño y `full` con daño; `pvp=true` → colisión entre jugadores; `run_smoke.sh` ampliado (spawn de 20 zombis, matar 1, congelado despierta por ruido).
 - **Dependencias**: M3 (navmesh por chunk). **Riesgo**: R1 (CPU de IA).
+- **Estado M4 (código)**: hecho; los detalles vinculantes están en ARQ v2 §10.7. Desviaciones:
+  - **Rutas**: la mayoría de los zombis no piden ruta. Una consulta de `NavigationServer3D` cuesta 1–2 ms en un mapa
+    de 25 chunks, así que un zombi con el camino despejado (rayo a la altura de la rodilla, ≤ 14 m) va en línea
+    recta. Solo pide ruta cuando algo se interpone. Las consultas van acotadas (1 200 polígonos, 90 m) con un
+    máximo de 1.5 ms por tick, además del tope de 40.
+  - **Navmesh**: la geometría fuente se construye en código y se hornea en `WorkerThreadPool` (de uno en uno, sin
+    competir con el streaming), en lugar de usar `parse_source_geometry_data` más el horneado asíncrono. Solo se
+    hornea el anillo de cada jugador (≤ 96 m), y no mientras va a más de 8 m/s. Las costuras se cosen con vértices
+    exactos en lugar de `edge_connection_margin`, porque esa búsqueda es O(aristas libres²): 150–230 ms por
+    reconstrucción del mapa, que rompía el p99.9 de perf walk.
+  - **Instantáneas**: ocupan 9 B por zombi, no 8, porque llevan la altura en un i16.
+  - **Colisión**: los jugadores no chocan con los zombis (la predicción del cliente sigue siendo exacta). Entre
+    zombis, separación por *spatial hash*, sin RVO.
+  - **Director**: v0 simplificado. Tiene presupuesto, fases y eventos (horda, despertar congelados), pero no tiene
+    hordas L2 persistentes ni zonas fusionadas.
+  - **Muerte del zombi**: se usa el clip de muerte y se mantiene la pose final; no hay ragdoll.
+  - **Animación del jugador**: los golpes usan un OneShot de torso, salvo los de cuerpo entero (pisotón, ejecución,
+    derribo, levantarse). El golpe cargado sostiene la pose `hold_start` mientras se carga; los demás jugadores solo
+    ven el golpe desde `hold_end`.
+  - **Derribo**: solo el daño de combate derriba; el frío y el hambre matan directamente. El cadáver es una
+    estructura `corpse` que se guarda en el `ChunkDelta`.
+  - **Golpe**: el daño se evalúa en el `hit_start` del clip (`data/anim_events.json`). La ejecución mata en el
+    primer `stab`, a los 0.7 s, con la víctima sujeta.
+  - **Gore‑lite**: un crítico que mata o un pisotón revientan la cabeza (hueso `Head` a escala 0 +
+    `gore/head_fragments`). No hay miembros cortados.
+  - **P1 aplazado**: agarre (`Zom_Grab`), golpear puertas (`Zom_Knock_Door`), pulido del corredor cansado,
+    desmembramiento de brazos y sincronizar la animación de ejecución en la víctima.
+
+  Puertas nuevas en `tests/run_all.sh` y en CI:
+  - `run_net_test.sh --scenario zombies` (4 clientes, bloqueante);
+  - `run_perf_horde.sh` (200 zombis + 4 bots, tick mediano ≤ 8 ms; en CI con `continue-on-error`);
+  - smoke ampliado (194 comprobaciones);
+  - captura `RENDER=forward tests/run_screenshots.sh <dir> zombies`.
+
+  Cifras de `taskset -c 0,1 tests/run_all.sh` (2 núcleos de una VM compartida), **ALL PASSED**:
+
+  | Puerta | Resultado |
+  |---|---|
+  | `perf_horde` | tick ocupado p50 5.5 ms (4.9–6.2 entre ejecuciones; presupuesto 8), p99 9.6 ms. `ZombieSystem` p50 2.4 ms, `ZombieNet` 1.3 ms. 10 kB/s de datos de zombis por bot. Rutas: 7.8/s a ≈ 1 ms cada una |
+  | Escenario `zombies` | 4.9 kB/s de bajada por cliente (máx. 6.7) con ~94 zombis; el límite es 15 |
+  | `perf_walk --cpu` | streaming p99 1.86, p99.9 2.03 y máx. 3.2 ms (como en M3) |
+  | Resto (`basic`, `shared_world`, `far`, determinismo, perf probe, `inspect_models`, persistencia) | en verde |
 
 ### M5 — Armas de fuego, ruido, botín, persistencia SQLite y servidor operable · **L (código) + M (arte)**
 

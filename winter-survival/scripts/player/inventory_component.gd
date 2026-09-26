@@ -42,8 +42,16 @@ func clear() -> void:
 	_changed()
 
 
-## Adds n of id; returns the leftover that did not fit. Emits item_picked_up for the amount added.
-func add(id: StringName, n: int, silent: bool = false) -> int:
+static func _new_slot(id: StringName, count: int, dur: int) -> Dictionary:
+	var d := {"id": id, "count": count}
+	if Items.has_durability(id):
+		d["dur"] = dur if dur >= 0 else 100
+	return d
+
+
+## Adds n of id; returns the leftover that did not fit. Emits item_picked_up for the amount added. `dur` = the
+## durability carried by a weapon moved from a container / corpse (-1 = new, 100).
+func add(id: StringName, n: int, silent: bool = false, dur: int = -1) -> int:
 	if n <= 0 or not Items.exists(id):
 		return n
 	var slots := _slots()
@@ -52,7 +60,7 @@ func add(id: StringName, n: int, silent: bool = false) -> int:
 	if Items.is_tool_item(id):
 		if slots[0].is_empty():
 			var put := mini(left, stack)
-			slots[0] = {"id": id, "count": put}
+			slots[0] = _new_slot(id, put, dur)
 			left -= put
 		elif slots[0]["id"] == id and int(slots[0]["count"]) < stack:
 			var put := mini(left, stack - int(slots[0]["count"]))
@@ -71,7 +79,7 @@ func add(id: StringName, n: int, silent: bool = false) -> int:
 			break
 		if slots[i].is_empty():
 			var put := mini(left, stack)
-			slots[i] = {"id": id, "count": put}
+			slots[i] = _new_slot(id, put, dur)
 			left -= put
 	var added := n - left
 	if added > 0:
@@ -181,7 +189,7 @@ func take_from_container(storage: Storage, slot: int, all: bool) -> bool:
 	var entry: Dictionary = storage.slots[slot]
 	var id: StringName = entry["id"]
 	var want: int = int(entry["count"]) if all else 1
-	var left := add(id, want)
+	var left := add(id, want, false, int(entry.get("dur", -1)))
 	var moved := want - left
 	if moved <= 0:
 		state.notify("Inventario lleno", 2.0)
@@ -197,7 +205,7 @@ func deposit_to_container(storage: Storage, slot: int, all: bool) -> bool:
 		return false
 	var id: StringName = slots[slot]["id"]
 	var want: int = int(slots[slot]["count"]) if all else 1
-	var left: int = storage.add(id, want)
+	var left: int = storage.add(id, want, int(slots[slot].get("dur", -1)))
 	var moved := want - left
 	if moved <= 0:
 		state.notify("Contenedor lleno", 2.0)
@@ -210,6 +218,40 @@ func set_flag(flag: String, value: bool) -> void:
 	if flag == "has_coat":
 		state.has_coat = value
 		_changed()
+
+
+## Server: one use of the hand weapon (a hit, a chop): loses a point with probability 100/N (GDD §7.3) and
+## breaks at 0 ("se ha roto"). Returns false when it broke.
+func wear_hand(rng: RandomNumberGenerator) -> bool:
+	var slots := _slots()
+	if slots[0].is_empty() or not Items.has_durability(slots[0]["id"]):
+		return true
+	var n := int(Weapons.of(slots[0]["id"]).get("dur_n", 0))
+	if n <= 0 or rng.randf() >= 100.0 / float(n):
+		return true
+	var d := int(slots[0].get("dur", 100)) - 1
+	slots[0]["dur"] = d
+	state.mark(&"slots")
+	if d > 0:
+		return true
+	var id: StringName = slots[0]["id"]
+	slots[0] = {}
+	_changed()
+	state.notify("%s se ha roto" % Items.display_name(id), 3.0)
+	AudioManager.play(&"tool_break")
+	return false
+
+
+## Server: everything the player carries (death → corpse), leaving the inventory empty.
+func take_all() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for i in _slots().size():
+		if not _slots()[i].is_empty():
+			out.append(_slots()[i].duplicate())
+		_slots()[i] = {}
+	state.has_coat = false
+	_changed()
+	return out
 
 
 ## The torch in hand burnt out (server StatsComponent timer).

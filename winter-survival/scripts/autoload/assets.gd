@@ -7,8 +7,10 @@ extends Node
 ## the named exception materials (window, ember, …) stay separate surfaces so code can find them by name.
 
 const MODELS_DIR := "res://assets/models/"
-## Sub-folders searched (in this order, then the root) for a model name without a folder.
-const MODEL_SUBDIRS := ["vegetation/", "props/", "poi/"]
+## Sub-folders searched (in this order, then the root) for a model name without a folder. M4: weapons/.
+const MODEL_SUBDIRS := ["vegetation/", "props/", "poi/", "weapons/"]
+## Alternative file names accepted for a model (spec spelling vs delivered file).
+const ALIASES := {"bat_nailed": "bat_nails"}
 const SHARED_MATERIAL_PATH := "res://assets/materials/world_vcol.tres"
 ## The terrain's single ShaderMaterial (shared by every chunk; the trail map is set on it by Footprints).
 const TERRAIN_MATERIAL_PATH := "res://assets/materials/terrain.tres"
@@ -21,8 +23,9 @@ const VCOL_IMPORTED_NAMES := ["palette_vcol", "palette"]
 const EXCEPTION_MATERIALS := ["window", "glass", "ember", "ice_clear", "blood", "emissive_lamp"]
 ## Models that only exist as placeholders (no glb is expected): no warning.
 const PLACEHOLDER_ONLY := ["meat", "pelt"]
+## Props < 0.5 m (weapons in hand) do not cast shadows either (ASSET_SPEC v2 §14).
 ## Props < 0.5 m and interior furniture do not cast shadows (ASSET_SPEC v2 §14).
-const NO_SHADOW_MODELS := ["firewood", "stone", "meat", "pelt", "torch", "stone_axe", "lantern",
+const NO_SHADOW_MODELS := ["firewood", "stone", "meat", "pelt", "torch", "stone_axe", "lantern", "knife", "crowbar", "bat", "bat_nailed", "machete",
 	"bed", "desk", "chair", "shelf", "clock", "cabinet", "wood_stove", "storage_box"]
 
 ## Palette (ASSET_SPEC v2 §3), sRGB hex.
@@ -64,10 +67,13 @@ func model_path(model_name: String) -> String:
 		return _paths[model_name]
 	var path := MODELS_DIR + model_name + ".glb"
 	if not model_name.contains("/"):
-		for sub in MODEL_SUBDIRS:
-			var p: String = MODELS_DIR + sub + model_name + ".glb"
-			if ResourceLoader.exists(p, "PackedScene"):
-				path = p
+		for n in [model_name, str(ALIASES.get(model_name, model_name))]:
+			for sub in MODEL_SUBDIRS:
+				var p: String = MODELS_DIR + sub + n + ".glb"
+				if ResourceLoader.exists(p, "PackedScene"):
+					path = p
+					break
+			if path != MODELS_DIR + model_name + ".glb":
 				break
 	_paths[model_name] = path
 	return path

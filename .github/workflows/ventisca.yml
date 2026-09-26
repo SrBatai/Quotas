@@ -66,6 +66,11 @@ jobs:
           NET_TEST_OUT: /tmp/ventisca_net_far
         run: tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797
 
+      - name: Net test zombies (M4, 4 clients, combat, downed/revive, ff, pvp, bandwidth)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_zombies
+        run: tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807
+
       - name: World determinism (server path vs client path)
         run: tests/run_determinism.sh
 
@@ -74,6 +79,10 @@ jobs:
       - name: Streaming perf walk, CPU (informational)
         continue-on-error: true
         run: tests/run_perf_walk.sh --cpu
+
+      - name: Horde perf, 200 zombies + 4 bots (informational)
+        continue-on-error: true
+        run: tests/run_perf_horde.sh
 
       - name: Persistence unit test
         run: |

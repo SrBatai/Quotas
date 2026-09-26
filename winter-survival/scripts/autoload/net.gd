@@ -6,9 +6,10 @@ extends Node
 
 enum Role { NONE, OFFLINE, SERVER, CLIENT }
 
-const GAME_VERSION := "0.5.0-m3"
+const GAME_VERSION := "0.6.0-m4"
 ## 2 (M3): the auth nonce carries the world seed (8 bytes after the 16 random ones).
-const NET_PROTOCOL := 2
+## 3 (M4): zombie packets (ZSNAP / ZREL), 4-byte inventory slots (durability), downed / swing player properties.
+const NET_PROTOCOL := 3
 const GAME_SCENE := "res://scenes/main/game.tscn"
 const DEFAULT_PORT := 7777
 const DEFAULT_ADMIN_PORT := 7778
@@ -159,6 +160,8 @@ func load_config(path: String) -> void:
 	rules = {
 		"pvp": bool(cfg.get_value("rules", "pvp", false)),
 		"friendly_fire": str(cfg.get_value("rules", "friendly_fire", "off")).to_lower(),
+		"zombie_count_scale": float(cfg.get_value("rules", "zombie_count_scale", 1.0)),
+		"noise_scale": float(cfg.get_value("rules", "noise_scale", 1.0)),
 	}
 
 
@@ -221,9 +224,13 @@ func _wire_signals() -> void:
 	multiplayer.peer_packet.connect(_on_peer_packet)
 
 
-## Raw packets (SceneMultiplayer.send_bytes): first byte = type (Packets.PKT_*).
+## Raw packets (SceneMultiplayer.send_bytes): first byte = type (Packets.PKT_*, ZombieNet.PKT_Z*).
 func _on_peer_packet(from: int, packet: PackedByteArray) -> void:
 	if packet.is_empty() or from != 1 or role != Role.CLIENT:
+		return
+	if packet[0] == ZombieNet.PKT_ZSNAP or packet[0] == ZombieNet.PKT_ZREL:
+		if ZombieClient.instance != null:
+			ZombieClient.instance.on_packet(packet)
 		return
 	if packet[0] == Packets.PKT_POSES:
 		var d := Packets.unpack_poses(packet)

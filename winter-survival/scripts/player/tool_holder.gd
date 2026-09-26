@@ -7,6 +7,9 @@ extends Node
 ## RightHandSocket (ASSET_SPEC v2 §4.2): Y = handle axis toward the thumb, Z = along the forearm toward the
 ## knuckles. Tools: handle along +Y, useful end toward +Z (§12). Identity keeps the blade leading the swing.
 const HAND_TOOL_TRANSFORM := Transform3D(Basis.IDENTITY, Vector3(0, -0.06, 0))
+## M4 melee weapons (`weapons/*.glb`, ASSET_SPEC v2 M4.4): origin = grip centre, mounted with identity (the
+## humanoid_combat clips assume it; the −6 cm tool offset would put the fist above the grip).
+const WEAPON_TRANSFORM := Transform3D.IDENTITY
 
 var socket: Node3D
 var tool_model: Node3D
@@ -41,7 +44,7 @@ func apply(id: StringName, force: bool = false) -> void:
 		tool_model = Assets.spawn_model(model_name)
 		socket.add_child(tool_model)
 		if _visual != null and _visual.is_skeletal:
-			tool_model.transform = HAND_TOOL_TRANSFORM
+			tool_model.transform = WEAPON_TRANSFORM if bool(Items.DB[id].get("weapon", false)) else HAND_TOOL_TRANSFORM
 		else:
 			tool_model.transform = Transform3D.IDENTITY
 			# rigid placeholder: the socket must point the handle forward; half a turn fixes a hanging blade
