@@ -2,6 +2,8 @@
 // occluders) + wrap lighting + rim tint + sparkle + texture-less tone noise + footprint trail map (R = depression,
 // G = rim) read as displacement + normal + darkening. One ShaderMaterial (assets/materials/terrain.tres) shared
 // by every terrain chunk. Forward+ and Compatibility (no textures except the trail map, a plain RGBA8 texture).
+// M3: CUSTOM0 = surface mask of the streamed chunks (r asphalt road bed, g lake ice, b packed track; 0 = snow,
+// which is all of the hunter's clearing, so the G1 look there is untouched).
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque, specular_schlick_ggx;
 
@@ -34,11 +36,18 @@ uniform float trail_rim_height = 0.05;
 uniform float trail_darken : hint_range(0.0, 1.0) = 0.30;
 uniform float trail_normal_strength = 3.5;
 uniform bool trail_enabled = false;
+// Surface mask (M3): packed snow over the road beds (asphalt under it), wind-polished lake ice.
+uniform vec4 road_tint : source_color = vec4(0.80, 0.84, 0.91, 1.0);
+uniform vec4 track_tint : source_color = vec4(0.88, 0.91, 0.96, 1.0);
+uniform vec4 ice_color : source_color = vec4(0.62, 0.76, 0.88, 1.0);
+uniform float ice_roughness : hint_range(0.0, 1.0) = 0.32;
+uniform float ice_specular : hint_range(0.0, 1.0) = 0.45;
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
 varying float v_ao;
 varying vec3 v_tint;
+varying vec4 v_surface;
 
 vec3 linear_to_srgb(vec3 c) {
 	return mix(1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, 12.92 * c, lessThan(c, vec3(0.0031308)));
@@ -83,6 +92,7 @@ float trail_height(vec2 uv) {
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_ao = COLOR.a;
+	v_surface = CUSTOM0;
 	// COLOR.rgb is a linear multiplier (slope / lake tint) written by Terrain; Compatibility shades in sRGB.
 	v_tint = COLOR.rgb;
 	if (OUTPUT_IS_SRGB) {
@@ -116,6 +126,18 @@ void fragment() {
 	// tone variation (two octaves of value noise, no texture)
 	float nz = vnoise(v_world_pos.xz * noise_scale) * 0.65 + vnoise(v_world_pos.xz * noise_scale * 3.1) * 0.35;
 	albedo *= 1.0 + (nz - 0.5) * 2.0 * noise_strength;
+	// M3 surface mask: road beds (packed, greyer, dirtier), tracks, lake ice (bluer, glossy, faint streaks)
+	float road = v_surface.r;
+	float track = v_surface.b;
+	float ice = v_surface.g;
+	if (road + track + ice > 0.001) {
+		float grime = vnoise(v_world_pos.xz * 0.9) * 0.5 + vnoise(v_world_pos.xz * 0.23) * 0.5;
+		albedo *= mix(vec3(1.0), road_tint.rgb * (0.94 + 0.12 * grime), road);
+		albedo *= mix(vec3(1.0), track_tint.rgb, track);
+		float streak = vnoise(vec2(v_world_pos.x * 0.08 + v_world_pos.z * 0.05, v_world_pos.z * 0.9));
+		vec3 ice_c = ice_color.rgb * (0.9 + 0.2 * streak);
+		albedo = mix(albedo, ice_c, ice * 0.85);
+	}
 	// baked contact AO: darker and bluer under objects
 	float ao = mix(1.0, v_ao, ao_strength);
 	albedo = mix(albedo * ao_tint.rgb, albedo, ao);
@@ -124,8 +146,8 @@ void fragment() {
 	float fres = pow(1.0 - clamp(dot(nv, VIEW), 0.0, 1.0), rim_power);
 	albedo = mix(albedo, rim_color.rgb, fres * rim_strength);
 	ALBEDO = albedo;
-	ROUGHNESS = roughness_value;
-	SPECULAR = specular_value;
+	ROUGHNESS = mix(roughness_value, ice_roughness, v_surface.g);
+	SPECULAR = mix(specular_value, ice_specular, v_surface.g);
 	METALLIC = 0.0;
 	AO = ao;
 	AO_LIGHT_AFFECT = 0.35;

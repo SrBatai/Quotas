@@ -4,7 +4,7 @@ class_name Packets
 const CMD_SIZE := 18
 ## Raw packet types (SceneMultiplayer.send_bytes, first byte).
 const PKT_POSES := 2
-const POSES_HEADER := 1 + 4 + 6 + 1
+const POSES_HEADER := 1 + 4 + 6 + 10 + 1
 const POSE_SIZE := 4 + 8
 
 # button bits (u16)
@@ -63,22 +63,32 @@ static func unpack_cmds(bytes: PackedByteArray, pos: Vector3) -> Array[Dictionar
 
 ## Player poses, one raw packet per client per tick (replaces a 30 Hz MultiplayerSynchronizer stream per player
 ## and the separate ack): u8 PKT_POSES | u32 ack_seq (owner's last applied command) | 3 × i16 owner vel cm/s |
-## u8 n | n × { u32 peer | i16 x_cm | i16 y_cm | i16 z_cm | i16 yaw } = 12 + 12 n bytes (60 B with 4 players).
-static func pack_poses(ack: int, vel: Vector3, entries: Array) -> PackedByteArray:
+## base (i32 x_cm | i16 y_cm | i32 z_cm) | u8 n | n × { u32 peer | 3 × i16 cm relative to base | i16 yaw }.
+## M3: the base (the recipient's own position) makes the entries valid anywhere in the 3 km world while keeping
+## i16 offsets: interest management only sends players within the recipient's 3 × 3 chunks (< 200 m away).
+## = 22 + 12 n bytes (70 B with 4 players).
+static func pack_poses(ack: int, vel: Vector3, entries: Array, base: Vector3 = Vector3.ZERO) -> PackedByteArray:
 	var b := StreamPeerBuffer.new()
 	b.put_u8(PKT_POSES)
 	b.put_u32(ack)
 	b.put_16(_cm(vel.x))
 	b.put_16(_cm(vel.y))
 	b.put_16(_cm(vel.z))
+	var bx := int(round(base.x * 100.0))
+	var by := clampi(int(round(base.y * 100.0)), -32768, 32767)
+	var bz := int(round(base.z * 100.0))
+	b.put_32(bx)
+	b.put_16(by)
+	b.put_32(bz)
+	var basef := Vector3(float(bx), float(by), float(bz)) / 100.0
 	b.put_u8(mini(entries.size(), 255))
 	for e in entries:
 		var d: Dictionary = e
-		var pos: Vector3 = d["pos"]
+		var rel: Vector3 = (d["pos"] as Vector3) - basef
 		b.put_u32(int(d["peer"]) & 0xFFFFFFFF)
-		b.put_16(_cm(pos.x))
-		b.put_16(_cm(pos.y))
-		b.put_16(_cm(pos.z))
+		b.put_16(_cm(rel.x))
+		b.put_16(_cm(rel.y))
+		b.put_16(_cm(rel.z))
 		b.put_16(_yaw16(float(d["yaw"])))
 	return b.data_array
 
@@ -91,26 +101,33 @@ static func unpack_poses(bytes: PackedByteArray) -> Dictionary:
 	b.get_u8()
 	var ack := b.get_u32()
 	var vel := Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
+	var base := Vector3(float(b.get_32()), float(b.get_16()), float(b.get_32())) / 100.0
 	var n := b.get_u8()
 	if bytes.size() < POSES_HEADER + n * POSE_SIZE:
 		return {}
 	var poses := []
 	for i in n:
 		var peer := b.get_u32()
-		var pos := Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
+		var pos := base + Vector3(float(b.get_16()), float(b.get_16()), float(b.get_16())) / 100.0
 		poses.append({"peer": peer, "pos": pos, "yaw": float(b.get_16()) / 32767.0 * PI})
 	return {"ack": ack, "vel": vel, "poses": poses}
 
 
-## Actor pose (wolves, deer) in ONE int for the synchronizer: 16 bits each x_cm | y_cm | z_cm | yaw.
-## 12 B on the wire instead of 24 B for Vector3 + float.
+## Actor pose (wolves, deer) in ONE int for the synchronizer (12 B on the wire instead of 24 B for Vector3 +
+## float). M3 layout (whole 3 km world): x_cm 19 bits | z_cm 19 bits (±2.6 km) | y_cm 16 bits (±327 m) | yaw 10 bits.
 static func pack_pose(pos: Vector3, yaw: float) -> int:
-	return ((_cm(pos.x) & 0xFFFF) << 48) | ((_cm(pos.y) & 0xFFFF) << 32) | ((_cm(pos.z) & 0xFFFF) << 16) | (_yaw16(yaw) & 0xFFFF)
+	var x := clampi(int(round(pos.x * 100.0)), -262144, 262143) + 262144
+	var z := clampi(int(round(pos.z * 100.0)), -262144, 262143) + 262144
+	var y := clampi(int(round(pos.y * 100.0)), -32768, 32767) + 32768
+	var a := int(round(fposmod(yaw, TAU) / TAU * 1024.0)) & 1023
+	return (x << 45) | (z << 26) | (y << 10) | a
 
 
 static func unpack_pose(v: int) -> Dictionary:
-	return {"pos": Vector3(_s16((v >> 48) & 0xFFFF), _s16((v >> 32) & 0xFFFF), _s16((v >> 16) & 0xFFFF)) / 100.0,
-		"yaw": _s16(v & 0xFFFF) / 32767.0 * PI}
+	var x := ((v >> 45) & 0x7FFFF) - 262144
+	var z := ((v >> 26) & 0x7FFFF) - 262144
+	var y := ((v >> 10) & 0xFFFF) - 32768
+	return {"pos": Vector3(float(x), float(y), float(z)) / 100.0, "yaw": wrapf(float(v & 1023) / 1024.0 * TAU, -PI, PI)}
 
 
 static func _cm(v: float) -> int:

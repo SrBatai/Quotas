@@ -719,7 +719,7 @@ terreno) = **228 k ≤ 270 k**. Superficies por malla ≤ 2 (excepciones con nom
 ## M3 — mundo por chunks: vegetación MultiMesh, POIs del bosque y arranque del kit (Opus, M3)
 
 Todo se regenera con `cd blender && python3 build_all.py` → **ALL OK** (`verify_assets.py`: 55 assets + vista típica
-del claro 232 k y **del bosque 197 k ≤ 270 k**; `verify_kits.py`: `house_small_A` × 2 estilos; `verify_chars.py`). La
+del claro 233 k y **del bosque 198 k ≤ 270 k**; `verify_kits.py`: `house_small_A` × 2 estilos; `verify_chars.py`). La
 salida es determinista (una segunda pasada deja los 62 `.glb` idénticos). Importación en un proyecto Godot 4.7.2
 desechable: **0 errores**; `tests/inspect_models.gd` 38 assets ALL OK; comprobación M3 (`inspect_m3.gd`, fuera del
 repo) 29 assets ALL OK. Guía de arte v2.1 (sección G1) en todo: AO en `COLOR_0.a`, paleta v2.1, normales propias,
@@ -786,7 +786,7 @@ del alero **arriba** (y = 0), cuelga hasta y = −0.58; se repite cada 2 m a lo 
   `berry_bush`. `berry_bush` (nodo interactivo) sigue con su hijo `Berries`.
 - Nieve (`snow_*`) y carámbanos: sin colisión (`none`), decorativos; no ponerlos sobre caminos/puertas.
 - Presupuesto de bosque (vista típica a cámara por defecto: 49 pinos, 8 árboles desnudos + 4 abedules, 15 arbustos,
-  11 rocas, 12 montones, 4 troncos, 3 tocones, `cabin_small`, 4 jugadores) = 104 k + reserva 93 k = **197 k**.
+  11 rocas, 12 montones, 4 troncos, 3 tocones, `cabin_small`, 4 jugadores) = 104.5 k + reserva 93 k = **197.5 k**.
 
 ### M3.4 Props del claro rehechos en HD (mismos nombres, nodos, pivotes, anclas y tamaños ±10 %)
 
@@ -795,7 +795,7 @@ del alero **arriba** (y = 0), cuelga hasta y = −0.58; se repite cada 2 m a lo 
 | `signpost` | 130 → 522 | poste achaflanado con capuchón y nieve, listón bajo cada tablero, tableros con marco oscuro + cara clara embutida (cara de texto en y = −0.12 Blender), clavos, línea de nieve redondeada arriba de cada tablero, montículo al pie. `TextTop/TextBottom` iguales ((0.28, 0, 0.125) local, sin rotación); `BoardBottom` sigue girando sobre el eje del poste |
 | `berry_bush` | 382 → 524 | lóbulos facetados irregulares `bush`/`pine_light`/`pine_mid` + penachos + casquetes de nieve suaves; `Berries` (hijo, pivote en el origen) = 16 bayas en 5 racimos |
 | `fence` | 84 → 528 | postes achaflanados con remate piramidal y casquete de nieve, dos largueros algo irregulares con placas de clavos y línea de nieve, montículos al pie; largueros en +Y Blender como antes |
-| `lantern` | 114 → 312 | anilla de gancho toroidal (cima en z = 0), tejadillo piramidal con respiradero de latón, postes, dos aros de alambre sobre el cristal, base con banda de latón; `Lantern` = `palette_vcol` + `window`, `LightAnchor` igual |
+| `lantern` | 114 → 316 | anilla de gancho toroidal (cima en z = 0), tejadillo piramidal con respiradero de latón, postes, dos aros de alambre sobre el cristal, base con banda de latón; `Lantern` = `palette_vcol` + `window`, `LightAnchor` igual |
 | `fallen_log` | 80 → 472 | tronco suave con testas serradas (anillos), dos muñones de rama, línea de nieve, pequeño ventisquero; 1.6 × 0.42 m (caja de `tree.gd` igual) |
 
 ### M3.5 POIs del bosque (estructura de corte v2, §8.4)
@@ -813,12 +813,12 @@ primer nivel; las escaleras son **rampas** (cuñas de 6 vértices). La AO de los
 completos y el tejado ocultos; los cristales llevan AO constante 0.98 (el material `window` no la usa).
 
 **`poi/cabin_small.glb`** — cabaña de tronco del trampero, 5 × 5 m (muros exteriores ±2.5), suelo a y = 0.30, frente
-+Z con porche de 1.3 m bajo el alero (6.7 × 8.1 × 5.0 m, **11 470 tris**, 15 superficies; visibles 11 sin stubs).
++Z con porche de 1.3 m bajo el alero (6.7 × 8.1 × 5.0 m, **11 514 tris**, 15 superficies; visibles 11 sin stubs).
 Nodos: `Floor0` (zócalo de piedra, suelo de tablas, porche, postes de tronco, escalón, leñera, ventisqueros),
 `Walls0_S/N/E/W` (+ `_Stub`; las testas de las esquinas van con S/N), `Interior0` (mesa, taburete, estante con
 tarros, alfombra de piel, leñero), `Roof` (tejado a dos aguas de tablillas, hastiales, chimenea de estufa, nieve con
-cornisa, carámbanos), `Door_0` (origen (−0.48, 0.30, 2.39), `cut_group` `Walls0_S`), `Window_0` (E), `Window_1` (W),
-`Window_2` (N), `DoorAnchor` (0, 0.30, 3.05) en el porche. Spawns (posición; yaw): `Spawn_Stove_0` (−1.55, 0.30,
+cornisa, carámbanos), `Door_0` (origen (−0.48, 0.30, 2.39), `cut_group` `Walls0_S`), `Window_0` (E), `Window_1` (N),
+`Window_2` (W), `DoorAnchor` (0, 0.30, 3.05) en el porche. Spawns (posición; yaw): `Spawn_Stove_0` (−1.55, 0.30,
 −1.45; 90), `Spawn_Bed_0` (1.45, 0.30, −1.20; 0), `Spawn_Container_0` (1.95, 0.30, 1.20; −90; `table`
 `cabin_forest`), `Spawn_Light_0` (0, 2.65, 0), `Spawn_Loot_0` (−0.65, 1.07, 0.92), `Spawn_Zombie_0` (0.30, 0.30, −0.30;
 −160). Colisión: `ColFloor0`, `ColPorch`, `ColSteps` (rampa), `ColWalls0_S_0/1/2` (hueco de puerta), `ColWalls0_N_0`,
@@ -868,7 +868,7 @@ código en `data/loot/loot_tables.gd` (M5).
   decorativo, `spawns` en metros desde la esquina SO). La copia del código (`data/buildings/templates/`) es del agente
   de código; los `.glb` no dependen de ella en tiempo de ejecución.
 - **`buildings/{wood_blue,brick}/house_small_A.glb`** (8 × 10 m, 1 planta, porche, tabique con puerta, chimenea):
-  **11 910 / 11 706 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
+  **12 006 / 12 138 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
   `Walls0_S/N/E/W` (+ `_Stub`), `Interior0`, `Roof`, `Door_0` (exterior, S, origen (0.52, 0.30, 4.97)), `Door_1`
   (interior, `cut_group` `Interior0`), `Window_0..7`, `Spawn_Container_0` (`house_kitchen`), `Spawn_Stove_0`,
   `Spawn_Bed_0`, `Spawn_Furniture_0` (`furniture` `wardrobe`), `Spawn_Light_0/1`, `Spawn_Loot_0`, `Spawn_Zombie_0`;

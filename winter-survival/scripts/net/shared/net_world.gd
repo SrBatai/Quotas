@@ -508,7 +508,7 @@ func erase_drop(wid: int) -> void:
 
 ## Server: peers whose 3 × 3 interest holds the chunk of `pos` (live, from the players' positions).
 func sees(peer: int, pos: Vector3) -> bool:
-	if peer == 1 or peer == 0:
+	if peer == 1:
 		return true
 	var p := _player_of(peer)
 	if p == null:

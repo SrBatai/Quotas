@@ -17,7 +17,7 @@ Cut groups (ASSET_SPEC_V2 §8.4; floor index k = storey the player stands on):
   Interior1         fire-finder table (pedestal + map), stool, cot frame, shelf
   Roof              hip roof, ceiling, snow cap, lightning rod, icicles
   Door_0            cab door (E facade), origin on the hinge axis; extras kind=door, exterior=true, cut_group=Walls1_E
-  Window_0..3       one glazed band per facade (N, S, W full width; E beside the door), extras boarded / cut_group
+  Window_0..4       glazed bands: 0 N, 1-2 E (either side of the door), 3 S, 4 W; extras boarded / cut_group
   DoorAnchor        on the catwalk in front of the cab door; StairFoot = foot of the first flight (ground, S side);
   ViewAnchor        eye height in the cab (0, 0, 10.9): the code can use it for a map-reveal / lookout action
   Spawn_Radio_0, Spawn_Loot_0, Spawn_Container_0 (table "lookout"), Spawn_Bed_0, Spawn_Light_0

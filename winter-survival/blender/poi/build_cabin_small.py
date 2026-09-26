@@ -13,7 +13,7 @@ porch under the roof overhang. Nodes (all top level):
                     slabs with cornice, lumps, icicles under the eaves
   Door_0            plank door leaf, origin on the hinge axis (left seen from outside), closed; extras kind=door,
                     exterior=true, cut_group=Walls0_S, floor=0
-  Window_0..2       panes (material window, both faces): E, W, N; extras boarded=false, cut_group, floor
+  Window_0..2       panes (material window, both faces): E, N, W; extras boarded=false, cut_group, floor
   DoorAnchor        on the porch in front of the door (0, -3.05, 0.30) (like the hunter cabin's DoorAnchor)
   Spawn_Stove_0, Spawn_Bed_0, Spawn_Container_0 (table "cabin_forest"), Spawn_Light_0, Spawn_Loot_0, Spawn_Zombie_0
   Col*-convcolonly  ColFloor0, ColPorch, ColSteps (ramp), ColWalls0_S_0..2 (door open), ColWalls0_N_0,
@@ -242,6 +242,9 @@ def build_roof(g, rnd):
             mat = "bark" if k % 4 == 1 else ("roof" if k % 5 == 3 else "wood_dark")
             g.flat.poly([lo + Vector((0, Y_FRONT, 0)), lo + Vector((0, Y_BACK, 0)), hi + Vector((0, Y_BACK, 0)),
                          hi + Vector((0, Y_FRONT, 0))], mat, facing=n)
+            base = Vector((sg * x, 0, z_under(x) + dz))                            # butt edge (faces down-slope)
+            g.flat.poly([base + Vector((0, Y_FRONT, 0)), base + Vector((0, Y_BACK, 0)), lo + Vector((0, Y_BACK, 0)),
+                         lo + Vector((0, Y_FRONT, 0))], "wood_dark", facing=Vector((sg, 0, -t)))
             x = xu
             k += 1
         # fascia

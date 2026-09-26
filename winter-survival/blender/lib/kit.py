@@ -513,9 +513,12 @@ def gable_roof(ctx, g, pitch=35.0, over=0.4, rt=0.16):
                     xu = x - 0.36
                     lo = Vector((sg * x, 0, z_under(x) + dz)) + n * 0.035
                     hi = Vector((sg * max(xu, 0.08), 0, z_under(max(xu, 0.08)) + dz)) + n * 0.004
+                    mat = s.seam if int((x + sy0) * 7) % 5 == 0 else s.roof
                     g.flat.poly([lo + Vector((0, sy0, 0)), lo + Vector((0, sy1, 0)), hi + Vector((0, sy1, 0)),
-                                 hi + Vector((0, sy0, 0))], s.seam if int((x + sy0) * 7) % 5 == 0 else s.roof,
-                                facing=n)
+                                 hi + Vector((0, sy0, 0))], mat, facing=n)
+                    base = Vector((sg * x, 0, z_under(x) + dz))                    # butt edge (faces down-slope)
+                    g.flat.poly([base + Vector((0, sy0, 0)), base + Vector((0, sy1, 0)), lo + Vector((0, sy1, 0)),
+                                 lo + Vector((0, sy0, 0))], s.seam, facing=Vector((sg, 0, -t)))
                     x = xu
     g.hard.prism([Vector((-0.14, y0, ridge + dz - 0.02)), Vector((0.14, y0, ridge + dz - 0.02)),
                   Vector((0.0, y0, ridge + dz + 0.07))], (0, y0, 0), (0, y1, 0), s.seam)             # ridge cap

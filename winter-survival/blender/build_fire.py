@@ -93,7 +93,7 @@ def build_lantern():
               "iron", cap_start=False, cap_end=True)
     hard.box((-0.105, -0.105, -0.103), (0.105, 0.105, -0.088), "iron")
     # glass (window material), corner posts, wire guards
-    fine.box((-0.082, -0.082, -0.352), (0.082, 0.082, -0.103), "window", skip=('-z', '+z'))
+    fine.box((-0.082, -0.082, -0.352), (0.082, 0.082, -0.103), "window")
     for sx in (-1, 1):
         for sy in (-1, 1):
             fine.box((sx * 0.085 - 0.011, sy * 0.085 - 0.011, -0.36), (sx * 0.085 + 0.011, sy * 0.085 + 0.011, -0.103),

@@ -117,7 +117,11 @@ func _ready() -> void:
 		var sync := get_node_or_null("ServerSync") as MultiplayerSynchronizer
 		if sync != null:
 			sync.visibility_update_mode = MultiplayerSynchronizer.VISIBILITY_PROCESS_PHYSICS
+			# peer 0 = "everyone": answer false so the replication interface asks peer by peer (true would take its
+			# visible-to-all fast path and never despawn anything)
 			sync.add_visibility_filter(func(for_peer: int) -> bool:
+				if for_peer == 0:
+					return false
 				return for_peer == peer_id or for_peer == 1 or NetWorld.instance == null or NetWorld.instance.sees(for_peer, global_position))
 	# M3: the chunks under a simulated body must exist before it moves (spawn / restored profile far away)
 	if (Net.is_server or is_local) and World.instance != null:

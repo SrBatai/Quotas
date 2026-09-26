@@ -32,6 +32,8 @@ var hf: HeightFunction
 var menu_focus: Vector3 = Vector3(-3.0, 0.0, 1.0)
 var _menu_camera: Camera3D
 var _env_t: float = 0.0
+## Tools (overview shot): stop driving the fog from the focus.
+var env_override: bool = false
 var _spawn_ground: float = 0.0
 
 
@@ -356,7 +358,7 @@ func _setup_menu_camera() -> void:
 
 # ------------------------------------------------------------------ environment around the focus (client)
 func _process(delta: float) -> void:
-	if not Net.has_client or not is_configured:
+	if not Net.has_client or not is_configured or env_override:
 		return
 	_env_t -= delta
 	if _env_t > 0.0:

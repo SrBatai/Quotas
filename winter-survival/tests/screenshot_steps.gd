@@ -1,6 +1,8 @@
 extends RefCounted
 ## Screenshot preset body (loaded at runtime by tests/screenshot.gd). Presets day/dusk/night/blizzard/interior/menu run
 ## the offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
+## M3 `overview`: a camera 230 m up over the Lago de las Ánimas north shore (several streamed chunks, the flat ice,
+## the lake-north track and the Embarcadero road bed), streaming focused there with ring 4 (9 × 9 chunks).
 
 var tree: SceneTree
 var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run, quality=alto|medio|compat
@@ -128,6 +130,31 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				var game_node := tree.current_scene
 				if game_node.get("craft_panel") != null:
 					(game_node.get("craft_panel") as CraftPanel).open(&"fuego")
+			"overview":
+				WorldState.instance.set_time(1, 11.0)
+				world.get_node("WolfSpawner").enabled = false
+				var target := Vector3(-590.0, -4.0, 230.0)
+				var cam_pos := Vector3(-360.0, 230.0, -70.0)
+				world.env_override = true
+				Chat.instance.send("/tp -470 60")
+				await tree.process_frame
+				world.streamer.focus_override = target
+				world.streamer.ring_prefetch = 4
+				world.streamer.flush_all()
+				var dn: DayNight = world.get_node("DayNight")
+				dn.fog_density_scale = 0.12
+				dn.fog_height_offset = -60.0
+				var sun := world.get_node("Sun") as DirectionalLight3D
+				sun.directional_shadow_max_distance = 700.0
+				var cam := Camera3D.new()
+				cam.name = "OverviewCamera"
+				cam.fov = 48.0
+				cam.far = 1400.0
+				world.add_child(cam)
+				cam.global_position = cam_pos
+				cam.look_at(target, Vector3.UP)
+				cam.current = true
+				print("overview: %d chunks loaded around %s" % [world.streamer.loaded_keys().size(), target])
 			"multi":
 				# a networked client: wait for the other players to spawn and settle (interpolation)
 				await tree.create_timer(float(_flag_value("wait", "4.0"))).timeout
@@ -162,7 +189,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		if Net.is_server:
 			WorldState.instance.running = false  # freeze the clock for a stable shot
 		var rig := CameraRig.active()
-		if rig != null:
+		if rig != null and preset != "overview":
 			rig.snap_to_player()
 			if _flag_value("zoom", "") != "":
 				rig.set_dist(float(_flag_value("zoom", "27")))   # closeup of the survivor (M2 skeletal checks)

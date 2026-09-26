@@ -155,7 +155,7 @@ func _physics_process(_delta: float) -> void:
 		for o in all:
 			if o == p or nw == null or nw.sees(p.peer_id, o.position):
 				entries.append({"peer": o.peer_id, "pos": o.position, "yaw": o.aim_yaw})
-		multiplayer.send_bytes(Packets.pack_poses(p.net.last_applied_seq, p.velocity, entries), p.peer_id,
+		multiplayer.send_bytes(Packets.pack_poses(p.net.last_applied_seq, p.velocity, entries, p.position), p.peer_id,
 			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
 
 

@@ -8,7 +8,10 @@ class_name ActorInterest
 static func install(sync: MultiplayerSynchronizer, actor: Node3D, radius: float = 0.0) -> void:
 	sync.visibility_update_mode = MultiplayerSynchronizer.VISIBILITY_PROCESS_PHYSICS
 	sync.add_visibility_filter(func(for_peer: int) -> bool:
-		if for_peer == 1 or for_peer == 0:
+		# peer 0 = "everyone": false makes the replication interface evaluate each peer (true = visible to all)
+		if for_peer == 0:
+			return false
+		if for_peer == 1:
 			return true
 		if not actor.is_inside_tree() or NetWorld.instance == null:
 			return true
