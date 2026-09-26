@@ -61,6 +61,20 @@ jobs:
           NET_TEST_OUT: /tmp/ventisca_net_sw
         run: tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787
 
+      - name: Net test far (2 clients 1 km apart, chunk interest)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_far
+        run: tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797
+
+      - name: World determinism (server path vs client path)
+        run: tests/run_determinism.sh
+
+      # Timing-based: shared CI runners add scheduling noise, so this reports but does not block.
+      # The blocking perf gates run locally in tests/run_all.sh.
+      - name: Streaming perf walk, CPU (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu
+
       - name: Persistence unit test
         run: |
           godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
