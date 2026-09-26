@@ -123,12 +123,13 @@ def build_stairs(g, rnd, col):
         for k in range(4):
             t = k / 3.0
             base = p0.lerp(p1, t) + outward * 0.47 + Vector((0, 0, z0 + RISE * t + 0.05))
-            H.beam(g.flat, base, base + Vector((0, 0, 0.95)), 0.06, 0.06, "wood", up=(d.x, d.y, 0))
+            H.beam(g.flat, base, base + Vector((0, 0, 0.91)), 0.06, 0.06, "wood", up=(d.x, d.y, 0))   # to the rail underside
         r0 = p0 + outward * 0.47 + Vector((0, 0, z0 + 1.0))
         r1 = p1 + outward * 0.47 + Vector((0, 0, z0 + RISE + 1.0))
         H.beam(g.hard, r0, r1, 0.06, 0.08, "wood_light")
-        g.snow.append(H.snow_ridge(r0 + Vector((0, 0, 0.04)), r1 + Vector((0, 0, 0.04)), 0.08, 0.04, seed=fi + 1,
-                                   overhang=0.0, droop=0.01))
+        ru = (r1 - r0).normalized()                  # the snow line stops 5 cm short of the chamfered rail ends
+        g.snow.append(H.snow_ridge(r0 + ru * 0.05 + Vector((0, 0, 0.04)), r1 - ru * 0.05 + Vector((0, 0, 0.04)), 0.08,
+                                   0.04, seed=fi + 1, overhang=0.0, droop=0.01))
         # ramp collision (6-vertex wedge) + outer rail box
         lo, hi = p0, p1
         a = lo + outward * 0.45

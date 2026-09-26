@@ -16,6 +16,8 @@ signal chunk_unloaded(key: int)
 
 const LOOKAHEAD_SPEED := 8.0
 const UNLOAD_MARGIN := 1
+## Safety margin on the per-step cost estimate (EMA) so the step that closes a frame rarely overruns the budget.
+const STEP_MARGIN_USEC := 250
 
 var mode: int = Mode.OFFLINE
 var visual: bool = true
@@ -304,7 +306,8 @@ func _instantiate(t0: int) -> void:
 		var ch: WorldChunk = _building[0]
 		var kind := ch.step_kind()
 		var est := int(_step_costs.get(kind, 800))
-		if ran > 0 and elapsed + est > budget_usec:
+		# the step that would overrun (with a margin for estimate noise) waits for the next frame
+		if ran > 0 and elapsed + est + STEP_MARGIN_USEC > budget_usec:
 			break
 		ran += 1
 		var s0 := Time.get_ticks_usec()

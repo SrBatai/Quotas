@@ -124,7 +124,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		"route_m": snappedf(total_len, 0.1),
 		"frames": frames,
 		"frame_ms": {"p50": _pct(frame_ms, 0.5), "p99": _pct(frame_ms, 0.99), "max": frame_ms.max()},
-		"stream_ms": {"p50": _pct(stream_ms, 0.5), "p99": _pct(stream_ms, 0.99), "max": stream_ms.max()},
+		"stream_ms": {"p50": _pct(stream_ms, 0.5), "p99": _pct(stream_ms, 0.99), "p999": _pct(stream_ms, 0.999), "max": stream_ms.max()},
 		"frames_over_33ms": hitches,
 		"frames_over_33ms_streaming": hitches_streaming,
 		"missing_ground_frames": missing_ground,
@@ -137,6 +137,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		"sync_loads": int(s1["sync_loads"]) - int(stats0["sync_loads"]),
 		"phase_usec_max": s1.get("phase_usec_max", {}),
 		"frames_over_stream_budget": over_budget,
+		"frames_over_stream_budget_pct": snappedf(100.0 * over_budget / maxf(frames, 1), 0.01),
 		"worst_stream_frames": worst,
 		"unload_usec_max": int(s1.get("unload_usec_max", 0)),
 		"loaded_chunks_end": st.loaded_keys().size(),
@@ -148,7 +149,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	}
 	print("== perf walk%s (%s, %d cores): %.0f m at %.0f m/s, %d frames" % [" --cpu (headless, visual streaming forced)" if bool(opts.get("cpu", false)) else "", report["rendering_method"], report["cpu_cores"], total_len, speed, frames])
 	print("  frame ms      p50 %.1f  p99 %.1f  max %.1f  (> 33 ms: %d, caused by streaming: %d)" % [report["frame_ms"]["p50"], report["frame_ms"]["p99"], report["frame_ms"]["max"], hitches, hitches_streaming])
-	print("  streaming ms  p50 %.2f  p99 %.2f  max %.2f  (budget %.1f)  max step %.2f ms %s" % [report["stream_ms"]["p50"], report["stream_ms"]["p99"], report["stream_ms"]["max"], WorldConst.STREAM_BUDGET_USEC / 1000.0, report["step_ms_max"], report["step_max_by_kind_us"]])
+	print("  streaming ms  p50 %.2f  p99 %.2f  p99.9 %.2f  max %.2f  (budget %.1f)  max step %.2f ms %s" % [report["stream_ms"]["p50"], report["stream_ms"]["p99"], report["stream_ms"]["p999"], report["stream_ms"]["max"], WorldConst.STREAM_BUDGET_USEC / 1000.0, report["step_ms_max"], report["step_max_by_kind_us"]])
 	print("  phases µs max %s, unload one chunk max %d µs" % [report["phase_usec_max"], report["unload_usec_max"]])
 	print("  frames over the 2 ms streaming budget: %d of %d (%.2f %%); worst [stream ms, frame ms, [refresh, collect, instantiate, unload µs, step]]: %s" % [over_budget, frames, 100.0 * over_budget / maxf(frames, 1), worst])
 	print("  chunks        %d generated (avg %.1f ms, max %.1f ms in workers), %d unloaded, %d loaded at the end, %d sync loads, ground missing %d frames" % [report["chunks_generated"], report["gen_ms_avg"], report["gen_ms_max"], report["chunks_unloaded"], report["loaded_chunks_end"], report["sync_loads"], missing_ground])
@@ -165,7 +166,9 @@ func _check(report: Dictionary) -> bool:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(String(opts["budgets"]))) if FileAccess.file_exists(String(opts["budgets"])) else {}
 	var b: Dictionary = data.get("perf_walk_cpu" if bool(opts.get("cpu", false)) else "perf_walk", {}) if data is Dictionary else {}
 	var ok := true
-	var checks := [["stream_ms_max", report["stream_ms"]["max"]], ["frames_over_33ms_streaming_max", report["frames_over_33ms_streaming"]],
+	var checks := [["stream_ms_p99_max", report["stream_ms"]["p99"]], ["stream_ms_p999_max", report["stream_ms"]["p999"]],
+		["stream_ms_max", report["stream_ms"]["max"]], ["frames_over_stream_budget_pct_max", report["frames_over_stream_budget_pct"]],
+		["frames_over_33ms_streaming_max", report["frames_over_33ms_streaming"]],
 		["missing_ground_frames_max", report["missing_ground_frames"]], ["rss_mb_max", report["rss_mb_max"]]]
 	for c in checks:
 		if not b.has(c[0]):

@@ -614,8 +614,8 @@ def snow_ridge(p0, p1, width, thick, name=None, segs=None, prof=5, overhang=0.01
             mb.add_face((idx[k][j], idx[k][j + 1], idx[k + 1][j + 1], idx[k + 1][j]), mat, facing=N)
     for k, sgn in ((0, -1), (segs, 1)):
         cen = mb._v(sum((mb.verts[i] for i in idx[k]), Vector()) / prof + U * (sgn * width * 0.12))
-        for j in range(prof - 1):
-            mb.add_face((idx[k][j], idx[k][j + 1], cen), mat, facing=U * sgn + N * 0.5)
+        for j in range(prof - 1):                  # end cap: a shallow cone along +-U (orient by its axis only)
+            mb.add_face((idx[k][j], idx[k][j + 1], cen), mat, facing=U * sgn)
     return smooth(mk(mb, name))
 
 

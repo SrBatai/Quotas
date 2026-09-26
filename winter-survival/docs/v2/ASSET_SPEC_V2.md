@@ -824,7 +824,7 @@ cornisa, carámbanos), `Door_0` (origen (−0.48, 0.30, 2.39), `cut_group` `Wall
 −160). Colisión: `ColFloor0`, `ColPorch`, `ColSteps` (rampa), `ColWalls0_S_0/1/2` (hueco de puerta), `ColWalls0_N_0`,
 `ColWalls0_E_0`, `ColWalls0_W_0` (ventanas de 0.8 × 0.7: macizas), `ColPostL/R`, `ColWoodpile`.
 
-**`poi/lookout_tower.glb`** — torre de vigilancia de madera (6.9 × 6.9 × 13.9 m con escaleras, **9 231 tris**, 18
+**`poi/lookout_tower.glb`** — torre de vigilancia de madera (6.9 × 6.9 × 13.9 m con escaleras, **9 349 tris**, 18
 superficies). Cuatro patas inclinadas sobre zapatas, arriostrado en X, **4 tramos de escalera exteriores** (13
 peldaños 0.177 × 0.37, 0.9 m de ancho; S → W → N → E, rellanos en las esquinas) hasta un rellano en L que entra por el
 borde S de la pasarela; plataforma a **y = 9.20** (4.4 × 4.4, barandilla 1.05), caseta acristalada 3.2 × 3.2 (muros
@@ -868,7 +868,7 @@ código en `data/loot/loot_tables.gd` (M5).
   decorativo, `spawns` en metros desde la esquina SO). La copia del código (`data/buildings/templates/`) es del agente
   de código; los `.glb` no dependen de ella en tiempo de ejecución.
 - **`buildings/{wood_blue,brick}/house_small_A.glb`** (8 × 10 m, 1 planta, porche, tabique con puerta, chimenea):
-  **12 142 / 12 296 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
+  **12 270 / 12 296 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
   `Walls0_S/N/E/W` (+ `_Stub`), `Interior0`, `Roof`, `Door_0` (exterior, S, origen (0.52, 0.30, 4.97)), `Door_1`
   (interior, `cut_group` `Interior0`), `Window_0..7`, `Spawn_Container_0` (`house_kitchen`), `Spawn_Stove_0`,
   `Spawn_Bed_0`, `Spawn_Furniture_0` (`furniture` `wardrobe`), `Spawn_Light_0/1`, `Spawn_Loot_0`, `Spawn_Zombie_0`;
@@ -899,8 +899,8 @@ código en `data/loot/loot_tables.gd` (M5).
    `lib/kit.py`; `lib/hd.py` gana `snow_ridge`/`snow_cone_cap` (nieve barata para listones y postes) y
    `bake_ao(exclude=…)`.
 4. **Sin caras traseras visibles** (regla nueva de M3, comprobada por `verify_assets.py`/`verify_kits.py`,
-   `backface_problems`): rayos ortográficos desde la cámara del juego (pitch 48°, 8 yaws) y a 25° no pueden dar primero
-   en una cara trasera (tubos o conos abiertos, caras volteadas o plegadas, superficies coplanarias solapadas). En
+   `backface_problems`): rayos ortográficos desde la cámara del juego (pitch 48°, 8 yaws) y a 25°, también en los 8 estados de corte
+   (§9.3) de POIs y casas, no pueden dar primero en una cara trasera (tubos o conos abiertos, caras volteadas o plegadas, superficies coplanarias solapadas). En
    Godot los `.glb` llegan con `palette`/`window` de doble cara (`cull_mode` DISABLED: una cara trasera se vería oscura),
    pero `Assets.spawn_model` los cambia por `world_vcol.gdshader` (`cull_back`: la cara trasera sería un agujero).
    Arreglos de M3 (librería): `hd.pillow_cage` orienta las caras laterales por el borde de la jaula (antes las
