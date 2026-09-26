@@ -37,6 +37,11 @@ M3 checks (ASSET_SPEC_V2 "M3"):
   * typical FOREST view (M3 streaming, default camera): instances x tris + reserve <= 270 k;
   * no visible BACK faces (M3 assets + the HD clearing props): orthographic rays from the game camera directions
     must not first hit a back face (open ends, flipped / folded faces, coplanar overlaps) -- backface_problems().
+M4 checks (ASSET_SPEC_V2 "M4"): weapons/* (§12: origin = grip, Grip / Tip [/ SupportGrip] empties, handle along +Z = the
+    longest axis, business end toward -Y for edged / hooked / nailed weapons, v2.1 hand-held budget 900, extras
+    weapon_class / length) and gore/* (corpse, blood decals, severed limbs, head fragments: budgets, sizes, decals flat
+    4 mm above the ground and exempt from the asset-level AO minimum, head fragments = 6 meshes Frag_n with their own
+    origin); both families under the no-visible-back-face rule.
 Assets marked R180 were authored in the slice convention and rotated 180 degrees about Z by lib.lowpoly
 (new_scene(authored_front="+Y")); their slice pivots/collision boxes below are rotated the same way here.
 """
@@ -242,6 +247,38 @@ M3_ASSETS = {
                               dims={"x": 6.74, "y": 4.73, "z": 1.19}, hd=True, poi=True),
 }
 ASSETS.update(M3_ASSETS)
+
+# ------------------------------------------------------------------------------------------------
+# M4 (ASSET_SPEC_V2 "M4"): melee weapons (§12) and gore-lite props (§13). dims = built sizes (+-10 %).
+# ------------------------------------------------------------------------------------------------
+def _weapon(name, length, minz, tip, support=None, edge=True):
+    piv = {"Weapon": ZERO, "Grip": ZERO, "Tip": tip}
+    if support:
+        piv["SupportGrip"] = support
+    return a(0, 900, piv, dims={"z": length}, minz=minz, extra={"weapon": name, "edge": edge}, hd=True, bf=True)
+
+
+M4_ASSETS = {
+    "weapons/knife": _weapon("knife", 0.31, -0.066, (0.0, 0.007, 0.246)),
+    "weapons/machete": _weapon("machete", 0.553, -0.075, (0.0, -0.026, 0.478)),
+    "weapons/crowbar": _weapon("crowbar", 0.602, -0.205, (0.0, -0.096, 0.376)),
+    "weapons/bat": _weapon("bat", 0.854, -0.165, (0.0, 0.0, 0.689), (0.0, 0.0, -0.09), edge=False),
+    "weapons/bat_nailed": _weapon("bat_nailed", 0.854, -0.165, (0.0, 0.0, 0.689), (0.0, 0.0, -0.09)),
+    "gore/corpse_covered": a(0, 800, {"Corpse": ZERO}, dims={"x": 1.01, "y": 2.07, "z": 0.25}, hd=True, bf=True),
+    "gore/blood_splat_a": a(0, 150, {"Decal": ZERO}, dims={"x": 0.85, "y": 0.79}, extra={"decal": True, "maxz": 0.004},
+                            minz=0.004, hd=True, bf=True),
+    "gore/blood_splat_b": a(0, 150, {"Decal": ZERO}, dims={"x": 0.57, "y": 0.59}, extra={"decal": True, "maxz": 0.004},
+                            minz=0.004, hd=True, bf=True),
+    "gore/blood_splat_c": a(0, 150, {"Decal": ZERO}, dims={"x": 0.59, "y": 1.35}, extra={"decal": True, "maxz": 0.004},
+                            minz=0.004, hd=True, bf=True),
+    "gore/blood_trail": a(0, 200, {"Decal": ZERO}, dims={"x": 0.42, "y": 2.48}, extra={"decal": True, "maxz": 0.004},
+                          minz=0.004, hd=True, bf=True),
+    "gore/limb_arm": a(1, 300, {"Limb": ZERO}, dims={"y": 0.52, "z": 0.11}, hd=True, bf=True),
+    "gore/limb_leg": a(1, 300, {"Limb": ZERO}, dims={"y": 0.60, "z": 0.13}, hd=True, bf=True),
+    "gore/head_fragments": a(1, 400, {"Frag_%d" % k: None for k in range(6)}, dims={"x": 0.19, "y": 0.215, "z": 0.118},
+                             minz=None, extra={"fragments": 6}, hd=True, bf=True),
+}
+ASSETS.update(M4_ASSETS)
 MM_NODES = {"pine": "Tree", "dead_tree": "Tree", "birch": "Tree", "bush": "Bush", "rock": "Rock", "snow": "Snow",
             "log": "Log", "ice": "Icicles"}
 COL_KINDS = {"cylinder": 2, "sphere": 1, "box": 3, "none": 0}
@@ -846,6 +883,50 @@ def cut_problems(by, objs):
     return out
 
 
+def weapon_problems(spec, by, g):
+    """ASSET_SPEC_V2 §12: origin = grip, handle along +Z (the longest axis), business end toward -Y, no parent / child
+    mesh, extras weapon_class / length (read by the code)."""
+    out = []
+    w = by.get("Weapon")
+    if w is None:
+        return ["no Weapon mesh"]
+    if w.parent is not None or any(o.parent is not None for o in by.values()):
+        out.append("weapon nodes must be top level")
+    mn, mx = world_bounds([w])
+    size = mx - mn
+    if size.z < 3 * max(size.x, size.y):
+        out.append("handle not along +Z (size %s)" % tuple(round(c, 3) for c in size))
+    if not mn.z < 0.0 < mx.z:
+        out.append("origin (grip) outside the handle span")
+    if spec["extra"].get("edge"):
+        upper = [w.matrix_world @ v.co for v in w.data.vertices if (w.matrix_world @ v.co).z > 0.45 * mx.z]
+        ymin = min(v.y for v in upper)
+        ymax = max(v.y for v in upper)
+        if ymin > -0.012 or -ymin < ymax:
+            out.append("business end not toward -Y (upper part y %.3f..%.3f)" % (ymin, ymax))
+    node = next((nd for nd in g["nodes"] if nd.get("name") == "Weapon"), {})
+    ex = node.get("extras", {})
+    if ex.get("weapon_class") not in ("Melee1H", "Melee2H") or not ex.get("length"):
+        out.append("Weapon extras weapon_class / length missing (%s)" % ex)
+    return out
+
+
+def fragment_problems(spec, objs):
+    """Head fragments: exactly Frag_0..Frag_{n-1}, top-level meshes, each origin inside its own piece (centroid)."""
+    out = []
+    n = spec["extra"]["fragments"]
+    names = sorted(o.name for o in objs if o.type == 'MESH')
+    if names != sorted("Frag_%d" % k for k in range(n)):
+        out.append("fragment meshes %s" % names)
+    for o in objs:
+        if o.type != 'MESH':
+            continue
+        c = sum((o.matrix_world @ v.co for v in o.data.vertices), Vector()) / len(o.data.vertices)
+        if (c - o.matrix_world.translation).length > 0.02 or o.parent is not None:
+            out.append("%s origin not at its centroid / not top level" % o.name)
+    return out
+
+
 def verify(name, spec0, allowed_bytes, godot_targets):
     """Returns (status, message, tris, surfaces)."""
     spec = final_spec(spec0)
@@ -861,7 +942,7 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         return "FAIL", "FAIL %s: glb too small or bad header" % name, 0, 0
 
     g, binary = load_glb(glb)
-    problems, surfaces = gltf_problems(g, binary, godot_targets)
+    problems, surfaces = gltf_problems(g, binary, godot_targets, alphas=[] if spec["extra"].get("decal") else None)
     if spec["max_surfaces"] is not None and surfaces > spec["max_surfaces"]:
         problems.append("%d surfaces > %d" % (surfaces, spec["max_surfaces"]))
 
@@ -1004,6 +1085,10 @@ def verify(name, spec0, allowed_bytes, godot_targets):
                 problems.append("%s outside the visual bounds" % o.name)
     if spec["mm"]:
         problems += mm_problems(name, spec, objs, g)
+    if spec["extra"].get("weapon"):
+        problems += weapon_problems(spec, by, g)
+    if spec["extra"].get("fragments"):
+        problems += fragment_problems(spec, objs)
     if spec["bf"]:
         problems += backface_problems(objs, ground=spec["minz"] is not None and spec["minz"] >= -0.01
                                       and "maxz" not in spec["extra"],

@@ -44,6 +44,11 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 | `build_optional.py` | tent, storage_box | slice +Y → turned to −Y |
 | `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1; HD v2.1: Body + Outfit_backpack_m) | −Y |
 | `anims/build_loco.py` | anims/humanoid_loco (Loco_Idle/Idle_Cold/Walk/Run, Crouch_Idle/Walk) | −Y |
+| `zombies/build_zombie.py` (M4) | zombies/zombie_{walker_01..24, runner_01..06, crawler_01..04, bloater_01..04, frozen_01..04} (skeletal, survivor rig with per-body height / width; `Body` + `Ice` on frozen) | −Y |
+| `anims/build_zombie_anims.py` (M4) | anims/zombie_anims (27 `Zom_*` clips, `ZOMBIE_TABLE`) + data/anim_events.json | −Y |
+| `anims/build_combat.py` (M4) | anims/humanoid_combat (18 melee / act / hit / down / death clips, `COMBAT_TABLE`) + data/anim_events.json | −Y |
+| `weapons/build_weapons.py` (M4) | weapons/{knife, machete, crowbar, bat, bat_nailed} (`Weapon`, `Grip`, `Tip`, `SupportGrip`) | weapon convention (§12) |
+| `props/build_gore.py` (M4) | gore/{corpse_covered, blood_splat_a/b/c, blood_trail, limb_arm, limb_leg, head_fragments} | — |
 | `icons/build_icons.py` | 256 px RGBA item icons → `../assets/icons/items/*.png` (Cycles; reuses the torch / campfire / stone_axe / tent / storage_box sources; skips icons whose hash is unchanged; `--sheet out.png` contact sheet) | — |
 
 ## Conventions (v2, milestone M0)
@@ -90,6 +95,10 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
   contact-point locking and automatic pelvis drop (`LOCO_GAITS`), standing loops, key-pose actions, contact
   metrics, action-name rules. `python3 -m lib.anim --selftest`
 - `lib/gltf_anim.py` — reads exported `.glb` skeletons/animations and evaluates them (FK) for the verifiers.
+- `lib/keyanim.py` (M4) — key-pose clips (`Clip`: FK keys + planted feet / hand grips in the weapon-socket frame /
+  two-handed grip / ground settle, per-segment easing), `procedural()` loops, `gait_cycle()` (the heel-toe generator
+  with per-side limps / dragged feet), the "alive" layer (no track stays constant: Godot drops immutable tracks) and
+  `write_events()` (merges `data/anim_events.json`).
 
 ## Characters and animations (M1)
 
@@ -129,3 +138,12 @@ incl. ramps, exact boxes from `poi/build_cabin_small.py::COL_BOXES`) and the "ty
 `verify_kits.py` rebuilds every kit template in memory (`lib/kit.py`) and compares it with
 `assets/models/buildings/<style>/<id>.glb` (nodes, stubs, props, collision boxes ±2 cm, budget 14 k, ≤ 20 visible
 surfaces). Both run from `build_all.py`.
+
+## M4 (zombies, combat animations, melee weapons, gore-lite)
+
+`python3 build_all.py --only m4` rebuilds the M4 families (+ icons) and runs the verifiers (`--no-verify` skips them).
+`verify_chars.py` checks every zombie with its variant's rig parameters (`zombies/build_zombie.VARIANTS`), the new
+libraries with a clip KIND each (gait / crawl / stand / additive / move / ground), visible back faces of every zombie at
+rest and in animated poses, and imports survivor + zombies × libraries in a throwaway Godot project
+(`$VENTISCA_GODOT_SCRATCH`). `verify_assets.py` covers `weapons/*` (§12 grip / handle / business end) and `gore/*`.
+The contract for the code is the "M4" section of `../docs/v2/ASSET_SPEC_V2.md`.

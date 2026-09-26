@@ -50,7 +50,7 @@ from . import rig
 
 FPS = 30
 X, Y, Z = (1, 0, 0), (0, 1, 0), (0, 0, 1)
-SETS = ("Loco", "Crouch", "Melee1H", "Melee2H", "Spear", "Bow", "Pistol", "LongGun", "Throw", "Act", "Hit",
+SETS = ("Loco", "Crouch", "Melee1H", "Melee2H", "Melee", "Spear", "Bow", "Pistol", "LongGun", "Throw", "Act", "Hit",
         "Down", "Death", "Veh", "Emote", "Zom", "Wolf", "Deer")
 NAME_RE = re.compile(r"^(%s)_[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*(-loop)?$" % "|".join(SETS))
 GROUND_TOL = 0.005      # a contact point is on the ground below this height (m)

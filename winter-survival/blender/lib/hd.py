@@ -638,3 +638,41 @@ def snow_cone_cap(center, half, base_z, apex_z, thick, name=None, sides=8, droop
     rows.append([Vector((c.x, c.y, apex_z + thick))])
     mb.loft(rows, mat, cap_start=False, cap_end=False, inside=Vector((c.x, c.y, base_z - 1.0)))
     return smooth(mk(mb, name))
+
+
+def lined_shell(mb, rings, mat, lining=None, top_ring=None, t=0.006):
+    """Long open garment (parka / coat skirt) as a thin closed shell (M4 back-face fix): the outer loft hem -> top
+    (`rings`, point lists, hem first; `top_ring` appended and capped, tucked inside the body), an inward-facing lining
+    `t` m inside the first `lining` rings, and a downward annulus joining both at the hem. No cap across the hem (with
+    a thigh blend it folds) and no open edge (looking into the hem shows the lining, never a back face). Every quad of
+    the three parts is split along the SAME diagonal (first vertex), so the twisted quads between the thighs of the
+    outer shell and of the lining never intersect. Skin weights must depend on the horizontal direction, not |x|, so
+    the lining follows the outer shell (see chars/build_survivor.py blend_skirt)."""
+    outer = [[Vector(p) for p in r] for r in rings] + ([[Vector(p) for p in top_ring]] if top_ring else [])
+    k = len(rings) if lining is None else lining
+    inner = []
+    for r in rings[:k]:
+        c = sum((Vector(p) for p in r), Vector()) / len(r)
+        ring = []
+        for p in r:
+            p = Vector(p)
+            d = Vector((p.x - c.x, p.y - c.y, 0.0))
+            ring.append(p - d.normalized() * t if d.length > 1e-9 else p)
+        inner.append(ring)
+
+    def tri(f0, flip):
+        faces = mb.faces[f0:]
+        del mb.faces[f0:]
+        for idx, m, sn in faces:
+            ts = [idx] if len(idx) == 3 else [(idx[0], idx[j], idx[j + 1]) for j in range(1, len(idx) - 1)]
+            for tt in ts:
+                mb.faces.append([tuple(reversed(tt)) if flip else tuple(tt), m, sn])
+    f0 = len(mb.faces)
+    mb.loft(outer, mat, cap_start=False, cap_end=True)
+    tri(f0, False)
+    f0 = len(mb.faces)
+    mb.loft(inner, mat, cap_start=False, cap_end=False)
+    tri(f0, True)
+    f0 = len(mb.faces)
+    mb.loft([outer[0], inner[0]], mat, cap_start=False, cap_end=False, seg_facing=[(0, 0, -1)])
+    tri(f0, False)

@@ -7,6 +7,7 @@
 Output: ../assets/icons/items/<icon>.png (names = the `icon` fields of scripts/data/items.gd and recipes.gd; the
 UI loads them before the flat SVG pictograms, scripts/ui/ui_icons.gd).
 
+M4: knife, machete, crowbar, bat, bat_nailed (the weapons/*.glb game models, sources/<weapon>.blend).
 Models: small HD v2.1 props built here (palette colours in `Col`, smooth where soft, chamfered where hard, doc 05
 §4.2), or the game models reused from ../blender/sources/<asset>.blend (axe, torch, campfire, tent, box) with an
 emissive flame. Every icon uses ONE identical setup (camera, lights, colour management, samples):
@@ -689,11 +690,39 @@ def icon_box():
     return dict(rot=(0, 0, 0))
 
 
+def icon_weapon(asset, soften=0.0, rot=(0, 90, 0), post=(0, 0, 150)):
+    """M4 melee weapons (weapons/build_weapons.py): the game model laid diagonally like the axe icon."""
+    load_model(asset, soften=soften)
+    return dict(rot=rot, post=post)
+
+
+def icon_knife():
+    return icon_weapon("knife", 0.002)
+
+
+def icon_machete():
+    return icon_weapon("machete", 0.002)
+
+
+def icon_crowbar():
+    return icon_weapon("crowbar", 0.003)
+
+
+def icon_bat():
+    return icon_weapon("bat")
+
+
+def icon_bat_nailed():
+    return icon_weapon("bat_nailed")
+
+
 ICONS = {
     "wood": icon_wood, "stone": icon_stone, "berry": icon_berry, "berries_hot": icon_berries_hot,
     "meat_raw": icon_meat_raw, "meat_cooked": icon_meat_cooked, "can_beans": icon_can_beans,
     "can_soup": icon_can_soup, "pelt": icon_pelt, "axe": icon_axe, "torch": icon_torch, "campfire": icon_campfire,
     "tent": icon_tent, "box": icon_box, "coat": icon_coat,
+    # M4 melee weapons (icon file name = model name)
+    "knife": icon_knife, "machete": icon_machete, "crowbar": icon_crowbar, "bat": icon_bat, "bat_nailed": icon_bat_nailed,
 }
 
 

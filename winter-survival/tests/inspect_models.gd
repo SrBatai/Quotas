@@ -6,7 +6,14 @@ extends SceneTree
 ##   - the required anchors (Placeholders.ANCHORS) exist, Col* are top-level StaticBody3D, no `.001` names;
 ##   - the player's ToolSocket points a tool's handle (+Y) forward (+Z), blade (+Z) up.
 ##   - chars/*.glb: GeneralSkeleton with the 27 humanoid bones/sockets (ASSET_SPEC v2 §4), one skinned palette_vcol mesh;
-##   - anims/*.glb: AnimationLibrary with the loops of the LOCO table (names, durations, LOOP_LINEAR, hips position track).
+##   - anims/*.glb: AnimationLibrary with the loops of the LOCO table (names, durations, LOOP_LINEAR, hips position track);
+##     M4: zombie_anims (ZOMBIE_TABLE) and humanoid_combat (COMBAT_TABLE): names, durations, loop flags, >= 20 rotation
+##     tracks on %GeneralSkeleton, Hips position track;
+##   - zombies/*.glb (M4): GeneralSkeleton with the 27 bones, Hips rest 0.80-1.00 m (body types), RightHandSocket on the
+##     right, skinned meshes Body / Ice / Outfit_* with palette_vcol + COLOR_0, <= 2 500 tris;
+##   - weapons/*.glb (M4, §12): Weapon + Grip at the origin, Tip up the handle (+Y) and not behind (+Z >= 0),
+##     SupportGrip (two-handed) below the grip, extras weapon_class; gore/*.glb (M4): the generic mesh contract +
+##     head_fragments = 6 Frag_n meshes.
 ## Run: godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]
 ## --placeholders checks the primitive stand-ins (Placeholders.build) against the same contract instead of the .glb files.
 ## Ends with "ALL OK" (exit 0) or "N FAILURES" (exit 1).
@@ -38,6 +45,31 @@ const HUMANOID_BONES := ["Root", "Hips", "Spine", "Chest", "Neck", "Head", "Left
 	"RightHandSocket", "LeftHandSocket", "BackSocket", "HipSocketR", "HeadSocket"]
 ## Locomotion library (ASSET_SPEC v2 "M1 deviations"): name -> duration (s).
 const LOCO_TABLE := {"Loco_Idle": 3.0, "Loco_Idle_Cold": 2.0, "Loco_Walk": 0.8, "Loco_Run": 0.667, "Crouch_Idle": 3.0, "Crouch_Walk": 1.0}
+## M4 libraries (ASSET_SPEC v2 "M4"): clip (Godot name, `-loop` stripped) -> [duration s, looping].
+const ZOMBIE_TABLE := {
+	"Zom_Idle_A": [3.000, true], "Zom_Idle_B": [3.000, true], "Zom_Shamble_A": [1.200, true],
+	"Zom_Shamble_B": [1.200, true], "Zom_Shamble_C": [1.200, true], "Zom_Shamble_D": [1.200, true],
+	"Zom_Investigate": [1.200, true], "Zom_Alert": [0.600, false], "Zom_Attack_A": [1.000, false],
+	"Zom_Attack_B": [1.000, false], "Zom_Grab": [1.000, true], "Zom_Knock_Door": [1.000, true],
+	"Zom_Hit": [0.267, false], "Zom_Stagger": [0.600, false], "Zom_Knockdown": [0.800, false],
+	"Zom_GetUp": [1.500, false], "Zom_Death_A": [0.800, false], "Zom_Death_B": [0.800, false],
+	"Zom_Frozen_Idle": [4.000, true], "Zom_Wake": [1.500, false], "Zom_Run": [0.700, true],
+	"Zom_Run_Tired": [0.800, true], "Zom_Crawl": [1.400, true], "Zom_Crawl_Grab": [0.800, false],
+	"Zom_Crawl_Death": [0.800, false], "Zom_Walk_Heavy": [1.400, true], "Zom_Bloat_Pop": [0.500, false]
+}
+const COMBAT_TABLE := {
+	"Melee1H_Light_A": [0.567, false], "Melee1H_Light_B": [0.567, false], "Melee2H_Swing_A": [0.900, false],
+	"Melee2H_Swing_B": [0.900, false], "Melee_Charged": [1.300, false], "Act_Shove": [0.500, false],
+	"Act_Stomp": [1.000, false], "Act_Execute": [1.500, false], "Act_Revive": [2.000, true],
+	"Hit_Front": [0.267, false], "Hit_Back": [0.267, false], "Hit_Stagger": [0.600, false],
+	"Hit_Grabbed": [1.000, true], "Down_Fall": [0.800, false], "Down_Idle": [2.000, true],
+	"Down_Crawl": [1.200, true], "Down_Revived": [1.500, false], "Death_A": [0.500, false]
+}
+const ZOMBIE_BUDGET := 2500
+const ZOMBIE_MESHES := ["Body", "Ice"]
+## gore/*.glb triangle budgets (blender/props/build_gore.py GORE)
+const GORE_BUDGET := {"corpse_covered": 800, "blood_splat_a": 150, "blood_splat_b": 150, "blood_splat_c": 150,
+	"blood_trail": 200, "limb_arm": 300, "limb_leg": 300, "head_fragments": 400}
 
 var _quiet: bool = false
 var _placeholders: bool = false
@@ -90,6 +122,9 @@ func _initialize() -> void:
 		inst.free()
 	checked += _check_chars()
 	checked += _check_anims()
+	checked += _check_zombies()
+	checked += _check_subfolder("weapons")
+	checked += _check_subfolder("gore")
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
 
@@ -177,16 +212,27 @@ func _check_anims() -> int:
 			_fail(asset, "not imported as an AnimationLibrary")
 			continue
 		var problems: Array[String] = []
-		var table := LOCO_TABLE if name.begins_with("humanoid_loco") else {}
+		var table := {}
+		if name.begins_with("humanoid_loco"):
+			for an in LOCO_TABLE:
+				table[an] = [LOCO_TABLE[an], true]
+		elif name.begins_with("zombie_anims"):
+			table = ZOMBIE_TABLE
+		elif name.begins_with("humanoid_combat"):
+			table = COMBAT_TABLE
+		else:
+			problems.append("no clip table for %s" % name)
 		for an in table:
 			if not lib.has_animation(an):
 				problems.append("animation %s missing" % an)
 				continue
 			var a := lib.get_animation(an)
-			if absf(a.length - float(table[an])) > 0.04:
-				problems.append("%s lasts %.3f s, expected %.3f" % [an, a.length, float(table[an])])
-			if a.loop_mode != Animation.LOOP_LINEAR:
+			if absf(a.length - float(table[an][0])) > 0.04:
+				problems.append("%s lasts %.3f s, expected %.3f" % [an, a.length, float(table[an][0])])
+			if bool(table[an][1]) and a.loop_mode != Animation.LOOP_LINEAR:
 				problems.append("%s is not LOOP_LINEAR" % an)
+			elif not bool(table[an][1]) and a.loop_mode != Animation.LOOP_NONE:
+				problems.append("%s is a one-shot but loops" % an)
 			var rot := 0
 			var hips_pos := false
 			for t in a.get_track_count():
@@ -206,6 +252,129 @@ func _check_anims() -> int:
 		else:
 			for p in problems:
 				_fail(asset, p)
+		n += 1
+	return n
+
+
+## zombies/*.glb (M4): skeletal zombies sharing the humanoid skeleton (body types change the Hips rest height).
+func _check_zombies() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/zombies"):
+		var asset := "zombies/" + name.get_basename()
+		var scene := load("res://assets/models/zombies/" + name) as PackedScene
+		if scene == null:
+			_fail(asset, "cannot load")
+			continue
+		var inst := scene.instantiate()
+		if not _quiet:
+			print("== zombies/", name)
+			_dump(inst, 1)
+		var problems: Array[String] = []
+		var sk := inst.find_child("GeneralSkeleton", true, false) as Skeleton3D
+		if sk == null:
+			problems.append("no GeneralSkeleton (retarget bone map not applied)")
+		else:
+			for b in HUMANOID_BONES:
+				if sk.find_bone(b) < 0:
+					problems.append("bone %s missing" % b)
+			if sk.get_bone_count() != HUMANOID_BONES.size():
+				problems.append("%d bones, expected %d" % [sk.get_bone_count(), HUMANOID_BONES.size()])
+			var socket := sk.find_bone("RightHandSocket")
+			if socket >= 0 and sk.get_bone_global_rest(socket).origin.x > -0.45:
+				problems.append("RightHandSocket at x=%.2f, expected on the right (-X) in the T-pose" % sk.get_bone_global_rest(socket).origin.x)
+			var hips := sk.find_bone("Hips")
+			if hips >= 0:
+				var hy := sk.get_bone_global_rest(hips).origin.y
+				if hy < 0.80 or hy > 1.00:
+					problems.append("Hips rest at y=%.2f, expected 0.80-1.00" % hy)
+		var skinned := 0
+		var tris := 0
+		for node in _all(inst):
+			if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+				var mi := node as MeshInstance3D
+				if not ZOMBIE_MESHES.has(String(mi.name)) and not String(mi.name).begins_with("Outfit_"):
+					problems.append("unexpected mesh %s" % mi.name)
+				if mi.skin == null:
+					problems.append("%s has no skin" % mi.name)
+				skinned += 1
+				for i in mi.mesh.get_surface_count():
+					var m := mi.mesh.surface_get_material(i)
+					var mname := m.resource_name if m != null else ""
+					var has_color := bool(mi.mesh.surface_get_format(i) & Mesh.ARRAY_FORMAT_COLOR)
+					if not VCOL_IMPORTED.has(mname) or not has_color:
+						problems.append("%s surface %d: expected palette_vcol with COLOR_0 (got '%s')" % [mi.name, i, mname])
+					var arrays := mi.mesh.surface_get_arrays(i)
+					var idx = arrays[Mesh.ARRAY_INDEX]
+					tris += (idx.size() if idx is PackedInt32Array and idx.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+		if skinned == 0:
+			problems.append("no skinned mesh")
+		if tris > ZOMBIE_BUDGET:
+			problems.append("%d tris > %d" % [tris, ZOMBIE_BUDGET])
+		if problems.is_empty():
+			print("OK   %-24s bones=%d skinned=%d tris=%d" % [asset, sk.get_bone_count() if sk != null else 0, skinned, tris])
+		else:
+			for p in problems:
+				_fail(asset, p)
+		inst.free()
+		n += 1
+	return n
+
+
+## weapons/*.glb and gore/*.glb (M4): the generic mesh contract (_check) + family rules.
+func _check_subfolder(folder: String) -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/" + folder):
+		var asset := folder + "/" + name.get_basename()
+		var scene := load("res://assets/models/%s/%s" % [folder, name]) as PackedScene
+		if scene == null:
+			_fail(asset, "cannot load (run godot --headless --import)")
+			continue
+		var inst := scene.instantiate()
+		if not _quiet:
+			print("== ", asset)
+			_dump(inst, 1)
+		_check(asset, inst)
+		var problems: Array[String] = []
+		if folder == "weapons":
+			var grip := inst.find_child("Grip", true, false) as Node3D
+			var tip := inst.find_child("Tip", true, false) as Node3D
+			var weapon := inst.find_child("Weapon", true, false)
+			if grip == null or tip == null or weapon == null:
+				problems.append("Weapon / Grip / Tip missing")
+			else:
+				if _model_pos(grip, inst).length() > 0.005:
+					problems.append("Grip not at the origin (%s)" % _model_pos(grip, inst))
+				var tp := _model_pos(tip, inst)
+				if tp.y < 0.2 or tp.z < -0.02:
+					problems.append("Tip at %s: expected up the handle (+Y) and toward the business end (+Z >= 0)" % tp)
+				if not weapon.has_meta("extras") or not (weapon.get_meta("extras") as Dictionary).has("weapon_class"):
+					problems.append("Weapon lacks the weapon_class extras")
+			var support := inst.find_child("SupportGrip", true, false) as Node3D
+			if support != null and _model_pos(support, inst).y > -0.03:
+				problems.append("SupportGrip at %s: expected below the grip" % _model_pos(support, inst))
+		elif folder == "gore":
+			var tris := 0
+			var meshes := 0
+			for node in _all(inst):
+				if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+					meshes += 1
+					var mi := node as MeshInstance3D
+					for i in mi.mesh.get_surface_count():
+						var arrays := mi.mesh.surface_get_arrays(i)
+						var idx = arrays[Mesh.ARRAY_INDEX]
+						tris += (idx.size() if idx is PackedInt32Array and idx.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+			var budget := int(GORE_BUDGET.get(name.get_basename(), 400))
+			if tris > budget:
+				problems.append("%d tris > %d" % [tris, budget])
+			if name.begins_with("head_fragments"):
+				for k in 6:
+					if inst.find_child("Frag_%d" % k, true, false) == null:
+						problems.append("Frag_%d missing" % k)
+			elif meshes != 1:
+				problems.append("%d meshes (expected 1)" % meshes)
+		for p in problems:
+			_fail(asset, p)
+		inst.free()
 		n += 1
 	return n
 

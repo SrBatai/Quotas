@@ -21,6 +21,10 @@ tip y -0.19, z 0), the gait generator pivots the feet on them.
 Variants keep the M1 names and a distinct, muted jacket each (co-op readability, doc 05 §6.3) + a beanie accent:
 red = parka_rust + charcoal beanie, blue = parka_navy + cream beanie, green = parka_green + hunter-orange beanie,
 mustard = parka_mustard + charcoal beanie. Budget v2.1: Body + outfits <= 3 500 tris.
+M4 back-face fix (same names, sockets, skeleton, proportions and outer look): every loft end is closed or tucked inside
+its neighbour, the fur collar is a closed ring down to the neck, and the parka skirt is a lined shell (lib/hd.py
+lined_shell: inward-facing lining 6 mm inside + hem annulus, both shells triangulated with the same diagonals, skirt
+weights by horizontal direction), so no back face shows at rest or animated (verify_chars.py backface_check).
 """
 import math
 import os
@@ -87,19 +91,20 @@ def build_parts(M):
     hem = [sq_ring(0, 0.006, 0.625, 0.200, 0.150, y_bias=0.05), sq_ring(0, 0.006, 0.645, 0.214, 0.160, y_bias=0.05),
            sq_ring(0, 0.004, 0.76, 0.212, 0.156, y_bias=0.05), sq_ring(0, 0.0, 0.88, 0.206, 0.150, y_bias=0.05),
            sq_ring(0, 0.0, 1.00, 0.204, 0.146, y_bias=0.05)]
-    hips.loft(hem, P, cap_start=True, cap_end=False)
+    H.lined_shell(hips, hem, P, lining=4, top_ring=sq_ring(0, 0.0, 1.03, 0.180, 0.124, y_bias=0.05))
     # drawcord band at the waist
     hips.loft([sq_ring(0, 0.0, 0.975, 0.210, 0.152, y_bias=0.05), sq_ring(0, 0.0, 1.005, 0.210, 0.152, y_bias=0.05)],
-              M["dark"], cap_start=False, cap_end=False)
+              M["dark"], cap_start=True, cap_end=True)
     # trouser seat (inside the skirt, shows between the legs)
     hips.loft([sq_ring(0, 0.0, 0.70, 0.16, 0.11, n=10), sq_ring(0, 0.0, 0.95, 0.17, 0.115, n=10)], M["pants"])
     spine = mb("Spine")
     spine.loft([sq_ring(0, 0.0, 0.99, 0.204, 0.146, y_bias=0.05), sq_ring(0, 0.0, 1.10, 0.210, 0.150, y_bias=0.06),
-                sq_ring(0, 0.0, 1.22, 0.212, 0.150, y_bias=0.07)], P, cap_start=False, cap_end=False)
+                sq_ring(0, 0.0, 1.20, 0.208, 0.147, y_bias=0.07), sq_ring(0, 0.0, 1.25, 0.190, 0.132, y_bias=0.06)],
+               P, cap_start=True, cap_end=True)
     chest = mb("Chest")
     chest.loft([sq_ring(0, 0.0, 1.21, 0.212, 0.150, y_bias=0.07), sq_ring(0, 0.0, 1.33, 0.218, 0.148, y_bias=0.08),
                 sq_ring(0, 0.0, 1.42, 0.205, 0.138, y_bias=0.06), sq_ring(0, 0.004, 1.475, 0.16, 0.115),
-                sq_ring(0, 0.008, 1.50, 0.095, 0.085)], P, cap_start=False, cap_end=True)
+                sq_ring(0, 0.008, 1.50, 0.095, 0.085)], P, cap_start=True, cap_end=True)
     # front placket + chest pockets (dark), hand-warmer pocket flaps on the skirt
     for bone, z0, z1, yb in (("Hips", 0.66, 0.99, -0.168), ("Spine", 0.99, 1.21, -0.160), ("Chest", 1.21, 1.43, -0.160)):
         mb(bone).box((-0.008, yb - 0.006, z0), (0.008, yb + 0.03, z1), M["dark"])
@@ -117,11 +122,15 @@ def build_parts(M):
             w = 1.0 + (rnd.uniform(-0.07, 0.07) if k == 1 else 0.0)
             ring.append(Vector((math.cos(t) * rx * w, 0.012 + math.sin(t) * ry * w, z + (0.012 if math.sin(t) > 0.3 else 0))))
         fur.append(ring)
-    chest.loft(fur, M["fur"], cap_start=False, cap_end=False, inside=(0, 0.012, 1.505))
+    fur.insert(0, [Vector((p.x * 0.86, 0.012 + (p.y - 0.012) * 0.86, p.z - 0.008)) for p in fur[0]])
+    fur.append([Vector((math.cos(2 * math.pi * i / 14) * 0.046, 0.008 + math.sin(2 * math.pi * i / 14) * 0.046, 1.559))
+                for i in range(14)])
+    chest.loft(fur, M["fur"], cap_start=True, cap_end=True, inside=(0, 0.012, 1.505),
+               seg_facing=[None, None, None, (0, 0, 1)])                    # closed: no inner (back) face shows
     chest.loft([sq_ring(0, 0.12, 1.40, 0.13, 0.055, n=10), sq_ring(0, 0.135, 1.48, 0.14, 0.07, n=10),
                 sq_ring(0, 0.13, 1.56, 0.11, 0.06, n=10), sq_ring(0, 0.12, 1.60, 0.05, 0.03, n=10)], P)
     # ---- neck + head ----------------------------------------------------------------------------------
-    H.tube(mb("Neck"), [(0, 0.005, 1.46), (0, 0.005, 1.57)], [0.052, 0.050], 8, M["skin"], cap_end=False)
+    H.tube(mb("Neck"), [(0, 0.005, 1.46), (0, 0.005, 1.57)], [0.052, 0.050], 8, M["skin"], cap_end=True, cap_start=True)
     hd = mb("Head")
     hd.blob((0, 0.004, 1.628), (0.083, 0.098, 0.114), M["skin"], subdiv=2, jitter=0.0)
     # jaw/cheeks a little narrower: squash via a second small blob for the chin
@@ -142,31 +151,34 @@ def build_parts(M):
         ua, la, hn = (j[side + k] for k in ("UpperArm", "LowerArm", "Hand"))
         sh = mb(side + "Shoulder")
         sh.loft([yz_ring(s * 0.10, 0.0, 1.405, 0.105, 0.085), yz_ring(s * 0.19, 0.0, 1.40, 0.095, 0.090),
-                 yz_ring(s * 0.26, 0.0, 1.405, 0.085, 0.084)], P, cap_start=False, cap_end=False)
+                 yz_ring(s * 0.25, 0.0, 1.405, 0.083, 0.083), yz_ring(s * 0.28, 0.0, 1.41, 0.062, 0.062)],
+                P, cap_start=True, cap_end=True)
         um = mb(side + "UpperArm")
         um.loft([yz_ring(s * 0.19, 0.0, 1.405, 0.088, 0.086), yz_ring(s * 0.34, 0.0, 1.425, 0.080, 0.080),
-                 yz_ring(la.x + s * 0.03, 0.0, 1.435, 0.072, 0.072)], P, cap_start=False, cap_end=False)
+                 yz_ring(la.x + s * 0.025, 0.0, 1.435, 0.071, 0.071), yz_ring(la.x + s * 0.035, 0.0, 1.435, 0.052, 0.052)],
+                P, cap_start=True, cap_end=True)
         lm = mb(side + "LowerArm")
         lm.loft([yz_ring(la.x - s * 0.04, 0.0, 1.435, 0.072, 0.072), yz_ring(la.x + s * 0.12, 0.0, 1.44, 0.066, 0.064),
-                 yz_ring(hn.x - s * 0.03, 0.0, 1.44, 0.062, 0.060)], P, cap_start=False, cap_end=True)
+                 yz_ring(hn.x - s * 0.03, 0.0, 1.44, 0.062, 0.060)], P, cap_start=True, cap_end=True)
         lm.loft([yz_ring(hn.x - s * 0.055, 0.0, 1.44, 0.058, 0.056), yz_ring(hn.x + s * 0.005, 0.0, 1.44, 0.056, 0.054)],
-                M["dark"], cap_start=False, cap_end=True)                                       # knit cuff
+                M["dark"], cap_start=True, cap_end=True)                                        # knit cuff
         hm = mb(side + "Hand")
         hm.loft([yz_ring(hn.x - s * 0.01, 0.0, 1.44, 0.042, 0.036, n=8), yz_ring(hn.x + s * 0.05, -0.004, 1.438, 0.048, 0.030, n=8),
                  yz_ring(hn.x + s * 0.095, -0.006, 1.434, 0.040, 0.024, n=8)], M["glove"])
-        H.tube(hm, [(hn.x + s * 0.02, -0.03, 1.44), (hn.x + s * 0.05, -0.065, 1.44)], [0.018, 0.015], 6, M["glove"])
+        H.tube(hm, [(hn.x + s * 0.02, -0.03, 1.44), (hn.x + s * 0.05, -0.065, 1.44)], [0.018, 0.015], 6, M["glove"],
+               cap_start=True)
         # ---- legs ----------------------------------------------------------------------------------------
         x = j[side + "UpperLeg"].x
         ul = mb(side + "UpperLeg")
         ul.loft([sq_ring(x, 0.0, 0.95, 0.090, 0.098, n=10, p=2.2), sq_ring(x, -0.004, 0.72, 0.082, 0.090, n=10, p=2.2),
-                 sq_ring(x, 0.0, 0.47, 0.070, 0.078, n=10, p=2.2)], M["pants"], cap_start=False, cap_end=True)
+                 sq_ring(x, 0.0, 0.47, 0.070, 0.078, n=10, p=2.2)], M["pants"], cap_start=True, cap_end=True)
         ll = mb(side + "LowerLeg")
         ll.loft([sq_ring(x, 0.0, 0.53, 0.070, 0.077, n=10, p=2.2), sq_ring(x, 0.004, 0.36, 0.062, 0.068, n=10, p=2.2),
-                 sq_ring(x, 0.006, 0.31, 0.060, 0.066, n=10, p=2.2)], M["pants"], cap_start=False, cap_end=True)
+                 sq_ring(x, 0.006, 0.31, 0.060, 0.066, n=10, p=2.2)], M["pants"], cap_start=True, cap_end=True)
         ll.loft([sq_ring(x, 0.008, 0.285, 0.068, 0.074, n=10, p=2.2), sq_ring(x, 0.008, 0.335, 0.071, 0.077, n=10, p=2.2)],
                 M["sock"], cap_start=True, cap_end=True)                                          # sock cuff
         ll.loft([sq_ring(x, 0.012, 0.09, 0.060, 0.070, n=10, p=2.4), sq_ring(x, 0.010, 0.20, 0.063, 0.070, n=10, p=2.4),
-                 sq_ring(x, 0.008, 0.292, 0.066, 0.072, n=10, p=2.4)], M["boots"], cap_start=False, cap_end=True)
+                 sq_ring(x, 0.008, 0.292, 0.066, 0.072, n=10, p=2.4)], M["boots"], cap_start=True, cap_end=True)
         heel_y, ball_y, tip_y = j[side + "Heel"].y, j[side + "Ball"].y, j[side + "TipSole"].y
         ft = mb(side + "Foot")
         ft.loft([lp.rrect((x, heel_y, 0.075), 0.056, 0.075, 0.03, 'XZ'),
@@ -221,7 +233,8 @@ def blend_skirt(body):
         co = v.co
         if co.z > 0.90:
             continue
-        w = H.smoothstep(0.90, 0.64, co.z) * 0.7 * H.smoothstep(0.0, 0.07, abs(co.x))
+        # side factor from the horizontal direction (M4 back-face fix): the lining 6 mm inside gets the same weight
+        w = H.smoothstep(0.90, 0.64, co.z) * 0.7 * H.smoothstep(0.0, 0.35, abs(co.x) / max(math.hypot(co.x, co.y), 1e-6))
         if w <= 1e-3:
             continue
         leg = "LeftUpperLeg" if co.x > 0 else "RightUpperLeg"

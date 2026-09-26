@@ -916,3 +916,227 @@ código en `data/loot/loot_tables.gd` (M5).
    los pasos de rueda salían volteados), las ruedas son anillos cerrados con disco interior y buje de 18 lados (antes
    dejaba rendijas), y los cristales llevan junta hasta la chapa (5 644 tris). En `cabin` el verificador también
    recorre los estados de `scripts/world/cutaway.gd` (Roof, Chimney y los `Wall*` que miran a la cámara ocultos).
+
+## M4 — zombis, animaciones de combate, armas cuerpo a cuerpo y gore‑lite (Opus, M4)
+
+Todo se regenera con `cd blender && python3 build_all.py` (**ALL OK**) o de forma incremental con
+`python3 build_all.py --only m4` (zombis, las dos librerías, armas, gore e iconos; `--no-verify` salta los
+verificadores). Scripts nuevos: `blender/zombies/build_zombie.py`, `blender/anims/build_zombie_anims.py`,
+`blender/anims/build_combat.py`, `blender/weapons/build_weapons.py`, `blender/props/build_gore.py`; librería nueva
+`blender/lib/keyanim.py` (poses clave con IK de pies / manos / agarre a dos manos, suelo, marcha asimétrica, capa
+"viva"). Verificación: `verify_chars.py` **ALL OK** (4 supervivientes + 42 zombis + 3 librerías / 51 clips; import en
+Godot 4.7.2 de 6 pares modelo × librería), `verify_assets.py` **ALL OK** (+ 5 armas + 8 gore; vistas típicas del
+claro 233 k y del bosque 198 k ≤ 270 k), `tests/inspect_models.gd` en un proyecto desechable: **95 assets, ALL OK**
+(importación sin `ERROR`). Coordenadas de anclas **en Godot** (Y arriba, +Z = frente) salvo que se diga.
+
+### M4.1 Zombis (`res://assets/models/zombies/zombie_<kind>_<nn>.glb`, 42 ficheros, cada uno con su `.import` con `uid`)
+
+Mismo esqueleto que el superviviente (`lib/rig.py`: 22 huesos `SkeletonProfileHumanoid` + 5 sockets, pose T,
+frente −Y Blender) → al importar: **`%GeneralSkeleton`** (plantilla `.import` "char", retarget con
+`humanoid_bonemap.tres`). Sin animaciones dentro. Estructura:
+
+```
+zombie_<kind>_<nn>.glb
+└─ Armature → GeneralSkeleton (27 huesos: RightHandSocket, LeftHandSocket, BackSocket, HipSocketR, HeadSocket)
+    ├─ Body   malla con skin, 1 superficie palette (COLOR_0 RGBA, A = AO); rígida salvo el faldón de abrigo / bata
+    │         (Hips + Left/RightUpperLeg, ≤ 2 influencias)
+    └─ Ice    SOLO frozen_*: 3–5 esquirlas de hielo con skin rígido (Chest / Head / brazos), 1 superficie palette
+```
+
+Los tipos de cuerpo cambian **solo** `height` / `width` del rig (el retarget normaliza la pista de `Hips` por la altura
+de reposo de `Hips`: medido en Godot, los pies siguen plantados — tobillo mín. normalizado ≥ 0.0836 m en las marchas,
+ningún hueso bajo el suelo). La postura encorvada es de las animaciones, no del reposo.
+
+| Kind | Ficheros | Cuerpo (rig) | Hips reposo | Tris | Qué es |
+|---|---|---|---|---|---|
+| `walker` | `zombie_walker_01..24` | 01–08 delgado (h 1.83, w 0.94), 09–16 medio (1.78, 1.00), 17–24 corpulento (1.74, 1.10) | 0.94 / 0.91 / 0.89 m | 1 942–2 418 | 8 atuendos × 3 cuerpos: en cada bloque de 8, `_01+k` = abrigo, sudadera, camisa, chaqueta de nieve, policía, bata de hospital, mono de trabajo, cazador (k = 0..7); paletas A/B alternas |
+| `runner` | `zombie_runner_01..06` | delgado inclinado (h 1.79, w 0.86) | 0.91 | 1 866–2 122 | ropa deportiva: chándal, cortavientos de correr + mallas, sudadera con capucha, camiseta de tirantes + pantalón corto, cortavientos, ciclista |
+| `crawler` | `zombie_crawler_01..04` | (h 1.76, w 0.95) | 0.90 | 1 598–1 936 | sin piernas: muñones con tapa `gore` a medio muslo / rodilla (01 ambos a 0.70, 02 0.66 + 0.50, 03 ambas rodillas, 04 0.72 + 0.56), brazos flacos con garras largas; **sin pies**: los huesos de pierna existen pero no tienen malla |
+| `bloater` | `zombie_bloater_01..04` | ancho (h 1.80, w 1.34) | 0.92 | 2 266–2 478 | torso inflado (anillos de 0.32 m de radio), cabeza pequeña, piel amarillenta (`z_hay`) con pústulas, ropa rota (bata `hospital_green` 01/04, camisa 02, mono 03) |
+| `frozen` | `zombie_frozen_01..04` | medio / delgado / corpulento / medio | — | 2 182–2 424 (con `Ice`) | caminantes (abrigo, chaqueta de nieve, cazador, policía) con piel `skin_frozen`, escarcha `snow` / `snow_shadow` en las caras que miran arriba y la malla `Ice` |
+
+Paleta: ropa `z_*` (`palette.zombify`, 40 % hacia `cloth_gray`), piel `skin_zombie` o `z_skin_hd` / `z_skin_dark` con
+manchas `skin_zombie`, **un acento saturado** por atuendo: bufanda `paint_red` (abrigo), bolsillo `plastic_blue`
+(sudadera), corbata `paint_red` (camisa), franja `hivis_orange` (chaqueta de nieve), chaleco `paint_yellow` + placa
+`brass` (policía), pulsera `cloth_white` (bata; la bata `hospital_green` no se desatura), casco `paint_yellow` (mono),
+gorra + chaleco `hivis_orange` (cazador). Daño gore‑lite: boca abierta oscura con barbilla `blood_dry`, manchas
+`blood` / `blood_dry` y rotos (caras de ropa pintadas de piel) deterministas por variante; sin vísceras.
+
+**Ganchos gore para el código** (sin mallas extra): el extremo del cuello (dentro de la cabeza) y el de cada brazo
+(dentro del antebrazo) están cerrados con una tapa `gore`. Decapitación / crítico: `skeleton.set_bone_pose_scale(
+skeleton.find_bone("Head"), Vector3.ONE * 0.001)` → se ve el muñón del cuello; generar `gore/head_fragments.glb` en
+`HeadSocket`. Brazo cortado (cortante 20 %): lo mismo con `LeftLowerArm` / `RightLowerArm` (+ `gore/limb_arm.glb` en
+el suelo). Un caminante que pierde las piernas se sustituye por un `crawler`.
+
+**Frozen = ficheros aparte** (lo más simple para el código): `zombie_frozen_01..04` se instancian como cualquier
+zombi; `Zom_Frozen_Idle` → `Zom_Wake` → set de caminante. La malla `Ice` puede ocultarse al despertar / astillarse
+(`get_node("%GeneralSkeleton/Ice")` o `find_child("Ice")`); no es obligatorio.
+
+### M4.2 Librerías de animación (`res://assets/models/anims/…`, importador `animation_library`, sin malla)
+
+Mismo armature del jugador (27 huesos, reposo = superviviente); pistas sobre `%GeneralSkeleton:<Hueso>`; solo
+`Hips` lleva posición; **cada fotograma clave** (LINEAR, 30 fps); todos los clips conservan ≥ 20 pistas de rotación
+**y** la pista de posición de `Hips` tras `remove_immutable_tracks` (capa "viva" de ±0.25°: ningún hueso queda
+constante — una pista eliminada se mezclaría hacia el RESET en un `AnimationTree` determinista). En Godot el sufijo
+`-loop` desaparece y el clip queda `LOOP_LINEAR`; los demás `LOOP_NONE`. "Tipo" = contrato que mide
+`verify_chars.py`: **marcha** (tobillo ≥ 0.08 m también entre claves, pie izquierdo apoyado en t = 0, puntos de
+contacto a la velocidad autorada ± 5 %), **arrastre** (palma apoyada a la velocidad autorada ± 5 %), **de pie** (pies
+plantados), **aditiva** (delta desde el reposo T: empieza y acaba en el reposo, máx. 18°; para un nodo `Add2` con
+amount 1), **acción** / **suelo** (ningún hueso bajo el suelo; los de suelo mantienen `Hips` ≥ 5 cm).
+
+**`zombie_anims.glb`** (27 clips; `TimeScale = v_real / v_autorada`):
+
+| Clip (Godot) | Bucle | Duración | Vel. autorada | Tipo | Notas |
+|---|---|---|---|---|---|
+| `Zom_Idle_A` | sí | 3.0 | — | de pie | balanceo, cabeza colgando, brazos con retardo |
+| `Zom_Idle_B` | sí | 3.0 | — | de pie | mira alrededor (giro der./izq. + tic a 1.86 s) |
+| `Zom_Shamble_A` | sí | **1.2** | 1.2 | marcha | cojera izquierda (pie izq. arrastrado, pelvis cae sobre él), brazo der. medio alzado |
+| `Zom_Shamble_B` | sí | **1.2** | 1.2 | marcha | cojera derecha (espejo) |
+| `Zom_Shamble_C` | sí | **1.2** | 1.2 | marcha | brazos caídos con retardo, muy encorvado |
+| `Zom_Shamble_D` | sí | **1.2** | 1.2 | marcha | brazos al frente (clásico) |
+| `Zom_Investigate` | sí | **1.2** | 1.2 | marcha | cabeza / pecho girados 34° hacia la **izquierda** del zombi (el código puede sumar `LookAtModifier3D`) |
+| `Zom_Alert` | no | 0.6 | — | acción | sacudida + rugido (cabeza atrás, brazos abiertos) |
+| `Zom_Attack_A` | no | 1.0 | — | acción | zarpazo der.: anticipación 0–0.30, golpe 0.30→0.40 |
+| `Zom_Attack_B` | no | 1.0 | — | acción | agarrón a dos manos + mordisco: anticipación 0–0.30, embestida 0.30→0.42, mordisco 0.50 |
+| `Zom_Grab` | sí | 1.0 | — | de pie | manos en los hombros de la víctima a 0.45–0.55 m, tira y muerde dos veces |
+| `Zom_Knock_Door` | sí | 1.0 | — | de pie | golpea una puerta a 0.5 m con puños alternos |
+| `Zom_Hit` | no | **0.267** | — | aditiva | respingo (pecho / cabeza atrás en 0.06 s) |
+| `Zom_Stagger` | no | 0.6 | — | acción | tambaleo atrás con paso de recuperación (in‑place; el empujón lo pone el código) |
+| `Zom_Knockdown` | no | 0.8 | — | suelo | cae de espaldas; termina tumbado boca arriba (= inicio de `Zom_GetUp`) |
+| `Zom_GetUp` | no | 1.5 | — | suelo | se sienta, rueda a una rodilla, se levanta a la pose de zombi |
+| `Zom_Death_A` | no | 0.8 | — | suelo | se desploma hacia delante, boca abajo |
+| `Zom_Death_B` | no | 0.8 | — | suelo | cabeza atrás (disparo), cae de espaldas |
+| `Zom_Frozen_Idle` | sí | 4.0 | — | de pie | pose rígida a media zancada (crujido < 0.4°) |
+| `Zom_Wake` | no | 1.5 | — | acción | pose congelada → temblores, dos chasquidos → sacude el hielo → pose de zombi |
+| `Zom_Run` | sí | 0.7 | 5.5 | marcha | carrera inclinada, brazos por delante (tobillo 0.0845 entre claves) |
+| `Zom_Run_Tired` | sí | **0.8** | 3.0 | marcha | trote pesado, brazos bajos |
+| `Zom_Crawl` | sí | 1.4 | 1.0 | arrastre | boca abajo, brazos alternos tirando (palma izq. apoyada en t = 0) |
+| `Zom_Crawl_Grab` | no | 0.8 | — | suelo | se apoya en la mano izq. y agarra un tobillo 0.6 m delante / 0.28 m alto |
+| `Zom_Crawl_Death` | no | 0.8 | — | suelo | los brazos ceden, queda plano boca abajo |
+| `Zom_Walk_Heavy` | sí | **1.4** | 0.9 | marcha | hinchado: bamboleo ancho, brazos separados por la barriga |
+| `Zom_Bloat_Pop` | no | 0.5 | — | acción | se hincha (arqueado, brazos abiertos) y revienta en 0.34 s |
+
+**`humanoid_combat.glb`** (18 clips del jugador / NPC). Agarre (§12): la mano derecha se anima en el marco del socket
+(`RightHandSocket`: Y = mango, Z = filo), así que un arma de `weapons/` montada con **identidad** lleva el filo por
+delante en todos los golpes; los clips a dos manos mantienen el puño izquierdo sobre el mango **9 cm por debajo** del
+derecho (= `SupportGrip` de `bat` / `bat_nailed`). El giro del cuerpo va sobre todo en `Spine` / `Chest` (se lee con el
+filtro de torso del OneShot "action").
+
+| Clip | Bucle | Duración | Tipo | Notas |
+|---|---|---|---|---|
+| `Melee1H_Light_A` | no | **0.567** | acción | tajo diagonal de derecha arriba a izquierda abajo (cuchillo / machete / palanca) |
+| `Melee1H_Light_B` | no | **0.567** | acción | revés de izquierda a derecha a la altura del pecho |
+| `Melee2H_Swing_A` | no | 0.9 | acción | golpe vertical a dos manos por encima de la cabeza (hachazo / batazo alto) |
+| `Melee2H_Swing_B` | no | 0.9 | acción | barrido horizontal a dos manos de derecha a izquierda (= talar, batazo) |
+| `Melee_Charged` | no | 1.3 | acción | carga lenta 0–0.55, **mantener 0.55–0.72**, golpe diagonal 0.72→0.84, a una mano (mano izq. libre) |
+| `Act_Shove` | no | 0.5 | acción | empujón con las dos manos |
+| `Act_Stomp` | no | 1.0 | acción | rodilla arriba y pisotón sobre un derribado a ~0.3 m delante |
+| `Act_Execute` | no | 1.5 | acción | ejecución con cuchillo: agarra la cabeza (objetivo de pie a 0.5 m, cabeza a 1.5 m) y apuñala dos veces |
+| `Act_Revive` | sí | 2.0 | suelo | de rodillas (der.) junto a un derribado a ~0.6 m delante, dos presiones por bucle |
+| `Hit_Front` / `Hit_Back` | no | **0.267** | aditiva | respingo hacia atrás / hacia delante (máx. 14.7°) |
+| `Hit_Stagger` | no | 0.6 | acción | tambaleo atrás con paso de recuperación |
+| `Hit_Grabbed` | sí | 1.0 | de pie | forcejeo empujando al zombi que agarra (fila M4 de §6.2) |
+| `Down_Fall` | no | 0.8 | suelo | rodillas al suelo y caída boca abajo apoyado en los antebrazos (= pose de `Down_Idle`) |
+| `Down_Idle` | sí | 2.0 | suelo | derribado boca abajo sobre los antebrazos, respiración, cabeza alta |
+| `Down_Crawl` | sí | 1.2 | arrastre (0.8 m/s) | reptar con los antebrazos, rodillas alternas |
+| `Down_Revived` | no | 1.5 | suelo | de la pose derribada a rodillas, un pie, de pie en la pose de combate |
+| `Death_A` | no | 0.5 | suelo | las rodillas ceden y cae de lado; ragdoll desde ~0.35 s |
+
+Los clips de combate empiezan y acaban en una pose "lista" (arma delante a la altura de la cadera); los de
+`humanoid_loco` no cambian (G1).
+
+### M4.3 Eventos (`res://data/anim_events.json`, lo escriben los dos constructores de animación)
+
+Formato plano `{"<Clip sin -loop… salvo bucles>": {"<evento>": segundos}}` (claves = nombre de acción en el `.glb`,
+p. ej. `"Zom_Grab-loop"`; Godot quita el sufijo al importar, el código debe normalizar). `*_start` / `*_end` =
+ventana de daño que evalúa el servidor.
+
+| Clip | Eventos (s) |
+|---|---|
+| `Melee1H_Light_A`, `Melee1H_Light_B` | `swing` 0.22, `hit_start` 0.27, `hit_end` 0.37 |
+| `Melee2H_Swing_A`, `Melee2H_Swing_B` | `swing` 0.32, `hit_start` 0.36, `hit_end` 0.48 |
+| `Melee_Charged` | `hold_start` 0.55, `hold_end` 0.72 (el código puede pausar / repetir aquí mientras carga), `swing` 0.74, `hit_start` 0.78, `hit_end` 0.90 |
+| `Act_Shove` | `hit_start` 0.25, `hit_end` 0.36 |
+| `Act_Stomp` | `hit_start` 0.46, `stomp` 0.50, `hit_end` 0.56 |
+| `Act_Execute` | `grab` 0.35, `stab` 0.70, `stab_2` 1.00, `kill` 1.00 |
+| `Act_Revive-loop` | `press_1` 0.5, `press_2` 1.5 |
+| `Down_Fall` | `knees` 0.36, `ground` 0.62 · `Down_Revived`: `stand` 1.20 · `Death_A`: `ragdoll` 0.35 |
+| `Down_Crawl-loop` | `hand_l` 0.0, `hand_r` 0.6 |
+| `Zom_Attack_A` | `swing` 0.30, `hit_start` 0.34, `hit_end` 0.48 |
+| `Zom_Attack_B` | `hit_start` 0.40, `bite` 0.48, `hit_end` 0.56 |
+| `Zom_Crawl_Grab` | `hit_start` 0.30, `hit_end` 0.46 |
+| `Zom_Grab-loop` | `bite_1` 0.25, `bite_2` 0.75 · `Zom_Knock_Door-loop`: `knock_1` 0.25, `knock_2` 0.75 |
+| `Zom_Alert` | `roar` 0.18 · `Zom_Bloat_Pop`: `pop` 0.34 · `Zom_Wake`: `crack_1` 0.30, `crack_2` 0.62, `free` 1.05 |
+| `Zom_Knockdown` | `ground` 0.52 · `Zom_Death_A`: `ragdoll` 0.55, `ground` 0.62 · `Zom_Death_B`: `ragdoll` 0.50, `ground` 0.58 · `Zom_Crawl_Death`: `ground` 0.55 · `Zom_GetUp`: `stand` 1.20 |
+| marchas (pasos) | `Zom_Shamble_A-loop` `foot_l` 0 / `foot_r` 0.667; `_B` 0 / 0.533; `_C`, `_D`, `Zom_Investigate-loop` 0 / 0.6; `Zom_Run-loop` 0 / 0.35; `Zom_Run_Tired-loop` 0 / 0.4; `Zom_Walk_Heavy-loop` 0 / 0.7; `Zom_Crawl-loop` `hand_l` 0 / `hand_r` 0.7 |
+
+### M4.4 Armas cuerpo a cuerpo (`res://assets/models/weapons/<arma>.glb` + `.import`)
+
+Convención §12: origen = centro de la empuñadura principal; mango +Y Godot (+Z Blender); extremo útil +Z Godot (−Y
+Blender); montar con **transformación identidad** en `RightHandSocket` (la previsualización de arte y los clips de
+`humanoid_combat` asumen identidad: `ToolHolder.HAND_TOOL_TRANSFORM` debería ser identidad para `weapons/*`; con el
+desplazamiento actual de −0.06 en Y el puño quedaría 6 cm por encima de la empuñadura). Un solo modelo para mano y
+suelo. Nodos: `Weapon` (malla, 1 superficie palette, extras `weapon_class` = `Melee1H` | `Melee2H`, `length` m),
+`Grip` (0, 0, 0), `Tip` (punta / gancho / extremo: estelas, sondas de golpe, sangre), `SupportGrip` (solo dos manos,
+objetivo del `TwoBoneIK3D` de la mano izquierda).
+
+| Arma | Clase | Largo | Tris | `Tip` (Godot) | `SupportGrip` | Aspecto |
+|---|---|---|---|---|---|---|
+| `knife` | Melee1H | 0.31 (0.25 × 1.2, §12) | 136 | (0, 0.246, −0.007) | — | cuchillo de caza: hoja `metal_sheet` / filo `chrome`, guarda y pomo `brass`, mango `wood_dark` |
+| `machete` | Melee1H | 0.55 | 136 | (0, 0.478, 0.026) | — | hoja ancha con punta en ángulo, sangre cerca de la punta, óxido, mango `plastic_black` |
+| `crowbar` | Melee1H | 0.60 | 148 | (0, 0.376, 0.096) | — | barra hexagonal `paint_red`, extremos de acero, cincel abajo y gancho con uña hacia +Z |
+| `bat` | Melee2H | 0.85 | 320 | (0, 0.689, 0) | (0, −0.09, 0) | bate `wood_light` con cinta de agarre negra y anillo `paint_red` |
+| `bat_nailed` | Melee2H | 0.85 | 608 | (0, 0.689, 0) | (0, −0.09, 0) | el bate + 12 clavos `iron` sobre todo hacia la cara de golpe (+Z) y sangre seca |
+
+`stone_axe` no cambia (M0/G1). Iconos de inventario renderizados con `icons/build_icons.py` (mismo estilo que los 15
+existentes): `res://assets/icons/items/{knife,machete,crowbar,bat,bat_nailed}.png` (+ `.import`).
+
+### M4.5 Gore‑lite (`res://assets/models/gore/<prop>.glb` + `.import`)
+
+Una superficie palette por malla, sin colisión (§15). Calcas planas a 4 mm sobre y = 0 (cara arriba, sin cara
+trasera visible); el código las orienta al terreno y puede oscurecerlas / desvanecerlas con un `material_override`
+que lea `COLOR`.
+
+| Prop | Nodos | Tris | Tamaño (x × z Godot) | Qué es |
+|---|---|---|---|---|
+| `corpse_covered` | `Corpse` | 574 | 1.01 × 2.07, alto 0.25 | cuerpo bajo una lona oliva: cabeza hacia −Z, botas asomando en +Z, una mano pálida a la derecha, sangre seca junto a la cabeza, polvo de nieve |
+| `blood_splat_a` | `Decal` | 126 | 0.85 × 0.79 | charco redondo `blood` con borde `blood_dry` y gotas |
+| `blood_splat_b` | `Decal` | 72 | 0.57 × 0.59 | charco pequeño |
+| `blood_splat_c` | `Decal` | 138 | 0.59 × 1.35 | salpicadura alargada hacia +Z (dirección del golpe) |
+| `blood_trail` | `Decal` | 112 | 0.42 × 2.48 | rastro de arrastre a lo largo de Z; charco en +Z (donde acaba el cuerpo), se rompe hacia −Z |
+| `limb_arm` | `Limb` | 226 | 0.15 × 0.52 | antebrazo con manga rota tirado en el suelo, muñón `gore` + hueso, mancha |
+| `limb_leg` | `Limb` | 166 | 0.36 × 0.60 | pierna con bota tumbada, muñón `gore` + hueso, mancha |
+| `head_fragments` | `Frag_0`..`Frag_5` | 360 (6 superficies) | 0.19 × 0.21, alto 0.12 | casquete de cráneo en 6 trozos (piel / pelo fuera, hueso en los bordes, `gore` dentro) alrededor del origen = centro de la cabeza: instanciar en `HeadSocket`; cada `Frag_n` tiene su origen en su centroide (un `RigidBody3D` por trozo, impulso = dirección desde el origen) |
+
+### M4.6 Desviaciones y notas
+
+1. **Duraciones** (como la decisión de M1): `Zom_Shamble_*` / `Zom_Investigate` 1.2 s (§6.3: 1.6 s; a 1.2 m/s eran
+   zancadas de 0.96 m con 17 cm de caída de pelvis, una embestida y no un arrastre), `Zom_Walk_Heavy` 1.4 s (1.8),
+   `Zom_Run_Tired` 0.8 s (1.0); `Zom_Hit`, `Hit_Front`, `Hit_Back` 8 fotogramas = 0.267 s (0.25 s son 7.5);
+   `Melee1H_Light_A/B` 17 fotogramas = 0.567 s (0.55 s son 16.5). La tabla contractual está en
+   `anims/build_zombie_anims.py::ZOMBIE_TABLE` y `anims/build_combat.py::COMBAT_TABLE`.
+2. **Nombres de fichero**: la librería de zombis es `anims/zombie_anims.glb` (§18 M2 decía `humanoid_zombie.glb`); el
+   bate con clavos es `bat_nailed` (§12: `bat_nails`); el gore va en `assets/models/gore/` (no en `props/`).
+   `lib/anim.py::SETS` añade `Melee` para `Melee_Charged` (nombre de §6.2 que la regla de nombres rechazaba).
+3. **Presupuestos** v2.1 (doc 05 §4.5): zombi 1 500–2 500 (entregados 1 598–2 478); arma en mano ≤ 900; gore según
+   `props/build_gore.py::GORE`. Reserva de la vista típica sin cambios (30 zombis × 2 000).
+4. **Caminantes**: 24 (objetivo M4) = 8 atuendos × 3 cuerpos con paletas A/B alternas (cada atuendo aparece en las
+   dos). Las 48 de M9a: segunda pasada de paletas sobre los mismos atuendos.
+5. **Faldones** (abrigo, bata): capa exterior + forro hacia dentro a 6 mm unidos en el dobladillo, triangulados con las
+   mismas diagonales y pesos por dirección horizontal (no por |x|): sin caras traseras al separar los muslos ni tumbado.
+   `verify_chars.py` comprueba ahora las caras traseras de cada zombi en reposo **y** en 1–4 poses animadas por tipo.
+6. **No entregado en M4** (no estaba en el encargo): `fire_axe`, `corpse_animal_deer`, `humanoid_melee.glb` de M2
+   (`Act_Interact`, `Act_Pickup`, `Act_Search`); la variante B de paleta de los 24 caminantes (M9a).
+7. **P1 `Loco_Run`**: ya resuelto en G1 (G1.4 n.º 2); medido de nuevo en Godot 4.7.2: tobillo mín. 0.0824 m.
+8. **Superviviente sin caras traseras** (seguimiento de M4): `chars/survivor_{red,blue,green,mustard}.glb` enseñaban
+   caras traseras (13 impactos de cámara en reposo, 41–82 en marcha / carrera / hachazo: cuello de piel abierto, faldón
+   de la parka cuyo disco del dobladillo se plegaba con los muslos, extremos abiertos de hombros, codos, rodillas y
+   cordón de la cintura; en el juego serían agujeros porque el shader descarta las caras traseras). Arreglo en
+   `blender/chars/build_survivor.py` con el mismo método que los zombis: faldón = `lib/hd.py::lined_shell` (forro hacia
+   dentro a 6 mm + anillo del dobladillo, mismas diagonales; pesos del faldón por dirección horizontal), cuello de piel
+   cerrado hasta el cuello, y todos los extremos de loft cerrados o metidos dentro de la pieza vecina. **Contrato
+   idéntico**: mismos ficheros, nodos (`Body`, `Outfit_backpack_m`), esqueleto de 27 huesos, sockets, proporciones,
+   altura 1.790, suela en los puntos de contacto y `uid` de los `.import`; aspecto exterior igual (renders antes /
+   después con la misma luminancia media). Tris 2 650 → **3 202** (≤ 3 500; vista típica del claro 235.5 k, del bosque
+   200 k ≤ 270 k). `verify_chars.py` comprueba ahora las caras traseras del superviviente en reposo y en 10 poses de
+   `humanoid_loco` / `humanoid_combat` (`BF_POSES["survivor"]`) dentro de ALL OK.
