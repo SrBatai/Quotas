@@ -133,13 +133,16 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			"overview":
 				WorldState.instance.set_time(1, 11.0)
 				world.get_node("WolfSpawner").enabled = false
-				var target := Vector3(-590.0, -4.0, 230.0)
-				var cam_pos := Vector3(-360.0, 230.0, -70.0)
+				var target := Vector3(-520.0, -2.0, 250.0)
+				var cam_pos := Vector3(-190.0, 175.0, 40.0)
 				world.env_override = true
-				Chat.instance.send("/tp -470 60")
+				Chat.instance.send("/tp -300 200")
 				await tree.process_frame
+				var ui := game.get_node_or_null("UI") as CanvasLayer
+				if ui != null:
+					ui.visible = false
 				world.streamer.focus_override = target
-				world.streamer.ring_prefetch = 4
+				world.streamer.ring_prefetch = 5
 				world.streamer.flush_all()
 				var dn: DayNight = world.get_node("DayNight")
 				dn.fog_density_scale = 0.12

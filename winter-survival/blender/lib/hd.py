@@ -194,14 +194,16 @@ def remove(obj):
     bpy.data.objects.remove(obj, do_unlink=True)
 
 
-def drop_faces(obj, direction, below):
+def drop_faces(obj, direction, below, keep=None):
     """Delete faces whose normal . direction < below (hidden undersides of snow resting on a surface).
-    `direction` is in authoring coordinates (converted with the scene's front transform)."""
+    `direction` is in authoring coordinates (converted with the scene's front transform). keep(centre) -> True spares
+    a face (M3: the underside of a cornice that overhangs the eave must stay closed)."""
     d = (lp.front_xf().to_3x3() @ Vector(direction)).normalized()
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     bm.normal_update()
-    kill = [f for f in bm.faces if f.normal.dot(d) < below]
+    mw = obj.matrix_world
+    kill = [f for f in bm.faces if f.normal.dot(d) < below and not (keep and keep(mw @ f.calc_center_median()))]
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     bm.to_mesh(obj.data)
     bm.free()
@@ -244,7 +246,29 @@ def tube(mb, pts, radii, sides, mat, cap_end=True, cap_start=False, phase=0.0):
         else:
             t = pts[i + 1] - pts[i - 1]
         rings.append(lp.ring(p, t, radii[i], sides, phase))
+    untwist(rings)
     return mb.loft(rings, mat, cap_start=cap_start, cap_end=cap_end)
+
+
+def untwist(rings):
+    """Re-index every ring cyclically so its vertices follow the previous ring's (M3). lowpoly.ring picks its start
+    direction from the tangent (the 'most upward' side, or +X for vertical tangents), so where a bent tube passes
+    through vertical the start jumps and the loft makes bow-tie quads (inverted faces). A ring already aligned keeps
+    shift 0, so straight / gently bent tubes are unchanged."""
+    for i in range(1, len(rings)):
+        a, b = rings[i - 1], rings[i]
+        n = len(b)
+        if n != len(a) or n < 3:
+            continue
+        ca = sum(a, Vector()) / n
+        cb = sum(b, Vector()) / n
+        best, best_d = 0, None
+        for s in range(n):
+            d = sum(((b[(j + s) % n] - cb) - (a[j] - ca)).length_squared for j in range(n))
+            if best_d is None or d < best_d - 1e-12:
+                best, best_d = s, d
+        if best:
+            rings[i] = b[best:] + b[:best]
 
 
 def beam(mb, p0, p1, w, h=None, mat="wood", up=(0, 0, 1), snow=False):
@@ -290,19 +314,21 @@ def pillow_cage(mb, origin, U, V, N, us, vs, top_fn, bottom=-0.02, mat="snow", j
             mb.add_face((bi[i][j], bi[i][j + 1], bi[i + 1][j + 1], bi[i + 1][j]), mat, facing=-N)
     ring = [(0, j) for j in range(nu)] + [(i, nu - 1) for i in range(1, nv)] + \
            [(nv - 1, j) for j in range(nu - 2, -1, -1)] + [(i, 0) for i in range(nv - 2, 0, -1)]
-    c = sum((mb.verts[ti[i][j]] for i in range(nv) for j in range(nu)), Vector()) / (nu * nv)
     for k in range(len(ring)):
         a, b = ring[k], ring[(k + 1) % len(ring)]
         q = (ti[a[0]][a[1]], ti[b[0]][b[1]], bi[b[0]][b[1]], bi[a[0]][a[1]])
-        mid = sum((mb.verts[x] for x in q), Vector()) / 4.0
-        out = mid - c
-        out = out - N * out.dot(N)
+        # outward = the normal of the cage boundary the edge lies on (M3: the old "away from the centroid" test
+        # flipped the corner segments of long thin pillows -- rails, catwalk bands -- once jitter tilted them)
+        if a[0] == b[0]:
+            out = -V if a[0] == 0 else V
+        else:
+            out = -U if a[1] == 0 else U
         mb.add_face(q, mat, facing=out)
     return ti, bi
 
 
 def pillow(origin, U, V, N, size_u, size_v, thick, name=None, mat="snow", nu=6, nv=4, rim=0.18, jitter=0.0,
-           seed=0, lip=None, levels=None, bumps=0.0, bottom=-0.03, drop_bottom=True, top_fn=None):
+           seed=0, lip=None, levels=None, bumps=0.0, bottom=-0.03, drop_bottom=True, top_fn=None, keep_bottom=None):
     """Rounded snow slab / lump object: cage (nu x nv with support rows `rim` from the border) -> subsurf -> smooth.
     Budget rule v2.1: subdivision level 2 only when the long side is >= 1.5 m, else 1."""
     rnd = random.Random(seed)
@@ -328,7 +354,8 @@ def pillow(origin, U, V, N, size_u, size_v, thick, name=None, mat="snow", nu=6, 
     subsurf(o, levels)
     smooth(o)
     if drop_bottom:
-        drop_faces(o, Vector(N), -0.6)
+        bpy.context.view_layer.update()
+        drop_faces(o, Vector(N), -0.6, keep=keep_bottom)
     return o
 
 

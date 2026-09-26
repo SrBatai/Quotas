@@ -11,7 +11,8 @@ doors, windows, spawns and collision table) and compared with assets/models/buil
   * collision: exactly the template's Col* set, each box within 0.02 m of the table, convex / closed;
   * front: the exterior door on the S facade (y < 0), footprint centred on the origin, floor 0 at z = 0.30;
   * Roof holds no walls (its lowest point is above the eave minus the icicles);
-  * budgets (doc 05 §4.5 "casa del kit" 6-14 k) and VISIBLE surfaces (everything but the hidden _Stub) <= 20.
+  * budgets (doc 05 §4.5 "casa del kit" 6-14 k) and VISIBLE surfaces (everything but the hidden _Stub) <= 20;
+  * no visible back faces from game-camera directions (verify_assets.backface_problems).
 """
 import os
 import sys
@@ -101,6 +102,7 @@ def verify_building(tid, tpl, style, allowed_bytes, godot_targets):
             r = o.matrix_basis.to_3x3().normalized()
             if any(abs(r[i][j] - (1.0 if i == j else 0.0)) > 1e-4 for i in range(3) for j in range(3)):
                 problems.append("rotation on %s" % o.name)
+    problems += VA.backface_problems(objs, cutaway=True)
     tris = sum(VA.tris_of(o) for o in vis)
     if tris > BUDGET:
         problems.append("tris %d > %d" % (tris, BUDGET))

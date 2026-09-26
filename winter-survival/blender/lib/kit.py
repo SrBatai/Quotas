@@ -201,9 +201,11 @@ def _spans(a, b, cuts):
     return segs
 
 
-def lap_sheet(fac, mb, a, b, z0, z1, holes, mat, step=0.20, d_bot=0.030, d_top=0.006):
+def lap_sheet(fac, mb, a, b, z0, z1, holes, mat, step=0.20, d_bot=0.030, d_top=0.006, close=(False, False)):
     """Lap siding as a saw-tooth SHEET: one sloped quad per course and span (2 tris; the board lips face down and
-    are never seen from the game camera). Courses are cut around `holes` (u0, u1, z0, z1)."""
+    are never seen from the game camera). Courses are cut around `holes` (u0, u1, z0, z1). close = (at a, at b):
+    add the saw-tooth end profile there (M3: an E / W wall end is exposed when the S / N facade that owns the
+    corner is swapped for its stub in the cutaway)."""
     z = z0
     while z < z1 - 1e-6:
         zl, zh = z, min(z + step, z1)
@@ -211,6 +213,10 @@ def lap_sheet(fac, mb, a, b, z0, z1, holes, mat, step=0.20, d_bot=0.030, d_top=0
             if sb - sa > 0.04:
                 mb.poly([fac.p(sa, zl, d_bot), fac.p(sb, zl, d_bot), fac.p(sb, zh, d_top), fac.p(sa, zh, d_top)], mat,
                         facing=fac.n + Vector((0, 0, 0.1)))
+                for u, flag, sgn in ((sa, close[0] and abs(sa - a) < 1e-6, -1), (sb, close[1] and abs(sb - b) < 1e-6, 1)):
+                    if flag:
+                        mb.poly([fac.p(u, zl, 0.0), fac.p(u, zl, d_bot), fac.p(u, zh, d_top), fac.p(u, zh, 0.0)], mat,
+                                facing=fac.udir * sgn)
         z = zh
 
 
@@ -235,7 +241,8 @@ def finish(fac, g, a, b, z0, z1, holes, style, rnd, stub=False):
     """Exterior finish of one module span (siding sheet / brick courses). Skirt, frieze, plinth and soldier course
     run along the whole facade (facade_bands)."""
     if style.finish == "lap":
-        lap_sheet(fac, g.flat, a, b, z0 + 0.16, z1 - (0.0 if stub else 0.12), holes, style.wall)
+        ends = (fac.d in "EW" and abs(a - fac.u0) < 1e-6, fac.d in "EW" and abs(b - fac.u1) < 1e-6)
+        lap_sheet(fac, g.flat, a, b, z0 + 0.16, z1 - (0.0 if stub else 0.12), holes, style.wall, close=ends)
     else:
         brick_courses(fac, g.flat, a, b, z0 + 0.45, z1 - (0.0 if stub else 0.16), holes, style, rnd)
 
@@ -519,6 +526,10 @@ def gable_roof(ctx, g, pitch=35.0, over=0.4, rt=0.16):
                     base = Vector((sg * x, 0, z_under(x) + dz))                    # butt edge (faces down-slope)
                     g.flat.poly([base + Vector((0, sy0, 0)), base + Vector((0, sy1, 0)), lo + Vector((0, sy1, 0)),
                                  lo + Vector((0, sy0, 0))], s.seam, facing=Vector((sg, 0, -t)))
+                    for yy, sy in ((sy0, -1), (sy1, 1)):                         # closed ends at the rakes
+                        if (sy < 0 and abs(yy - y0) < 1e-6) or (sy > 0 and abs(yy - y1) < 1e-6):
+                            g.flat.poly([base + Vector((0, yy, 0)), lo + Vector((0, yy, 0)), hi + Vector((0, yy, 0))],
+                                        s.seam, facing=Vector((0, sy, 0)))
                     x = xu
     g.hard.prism([Vector((-0.14, y0, ridge + dz - 0.02)), Vector((0.14, y0, ridge + dz - 0.02)),
                   Vector((0.0, y0, ridge + dz + 0.07))], (0, y0, 0), (0, y1, 0), s.seam)             # ridge cap
@@ -573,11 +584,13 @@ def gable_roof(ctx, g, pitch=35.0, over=0.4, rt=0.16):
             dn = -0.11 * H.smoothstep(ov + 0.10, 0.0, v)
             dn -= 0.05 * H.smoothstep(0.14, 0.0, min(u, size_u - u))
             dv = 0.0
-            if v >= size_v - 1e-6:
-                dv = 0.4 * H.fbm(u * 0.7, seed * 1.3, 2, seed)
+            if v >= size_v - 1e-6:            # wavy upper rim; never pulled back past its support row (fold)
+                dv = max(-0.09, 0.4 * H.fbm(u * 0.7, seed * 1.3, 2, seed))
             return (0.0, dv, dn)
         g.snow.append(H.pillow(E - V * ov, Vector((0, 1, 0)), V, N, size_u, size_v, 0.22, nu=max(5, int(size_u / 1.5)),
-                               nv=4, rim=0.16, seed=seed, lip=lip, bumps=0.04, levels=1, bottom=-0.09))
+                               nv=4, rim=0.16, seed=seed, lip=lip, bumps=0.04, levels=1, bottom=-0.09,
+                               keep_bottom=lambda c, xo=xo, y0=y0, y1=y1: abs(c.x) > xo - 0.05 or c.y < y0 + 0.2
+                               or c.y > y1 - 0.2))                      # closed cornice underside (overhang)
         rnd = random.Random(seed)
         for k in range(2):
             yy = y0 + (y1 - y0) * (0.25 + 0.45 * k) + rnd.uniform(-0.4, 0.4)
@@ -678,7 +691,9 @@ def porch(ctx, gf, gr, cells, door_u):
     def lip(u, v, L=L):
         return (0.0, 0.0, -0.08 * H.smoothstep(0.2, 0.0, v))
     gr.snow.append(H.pillow(E - V * 0.1, Vector((1, 0, 0)), V, N, (x1 - x0) + 0.54, L + 0.05, 0.16, nu=5, nv=4,
-                            rim=0.14, seed=ctx.seed + 90, lip=lip, bumps=0.03, levels=1, bottom=-0.09))
+                            rim=0.14, seed=ctx.seed + 90, lip=lip, bumps=0.03, levels=1, bottom=-0.09,
+                            keep_bottom=lambda c, ya=ya, x0=x0, x1=x1: c.y < ya - 0.3 or c.x < x0 - 0.2
+                            or c.x > x1 + 0.2))
     ctx.porch_box = ((x0, ya, 0.0), (x1, yb, FOUND))
     ctx.steps = (sx0, sx1, ya - 0.68, ya)
 

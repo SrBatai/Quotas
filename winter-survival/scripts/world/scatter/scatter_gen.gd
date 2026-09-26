@@ -29,18 +29,21 @@ const TREE_P := [0.62, 0.42, 0.03, 0.0, 0.35, 0.05]
 const ROCK_P := [0.06, 0.10, 0.05, 0.0, 0.55, 0.03]
 const LOG_P := [0.45, 0.35, 0.08, 0.0, 0.25, 0.05]
 const TREE_W := [
-	[["pine_a", 0.26], ["pine_b", 0.20], ["pine_c", 0.12], ["pine_d", 0.16], ["pine_e", 0.12], ["pine_young", 0.06], ["dead_tree", 0.05], ["dead_tree_b", 0.03]],
-	[["pine_a", 0.22], ["pine_b", 0.22], ["pine_c", 0.18], ["pine_d", 0.06], ["pine_e", 0.08], ["pine_young", 0.12], ["dead_tree", 0.08], ["dead_tree_b", 0.04]],
-	[["pine_young", 0.45], ["pine_c", 0.25], ["dead_tree", 0.20], ["dead_tree_b", 0.10]],
+	[["pine_a", 0.22], ["pine_b", 0.16], ["pine_c", 0.10], ["pine_d", 0.16], ["pine_e", 0.10], ["pine_f", 0.12], ["pine_young", 0.05], ["dead_tree", 0.04], ["dead_tree_b", 0.03], ["birch", 0.02]],
+	[["pine_a", 0.18], ["pine_b", 0.18], ["pine_c", 0.14], ["pine_d", 0.05], ["pine_e", 0.07], ["pine_f", 0.10], ["pine_young", 0.10], ["dead_tree", 0.06], ["dead_tree_b", 0.03], ["dead_tree_c", 0.03], ["birch", 0.06]],
+	[["pine_young", 0.35], ["pine_c", 0.20], ["birch", 0.20], ["dead_tree", 0.10], ["dead_tree_c", 0.10], ["dead_tree_b", 0.05]],
 	[["pine_c", 1.0]],
-	[["pine_d", 0.30], ["pine_a", 0.25], ["pine_e", 0.15], ["pine_c", 0.10], ["dead_tree", 0.12], ["dead_tree_b", 0.08]],
-	[["pine_young", 0.40], ["pine_b", 0.30], ["dead_tree", 0.30]],
+	[["pine_d", 0.28], ["pine_a", 0.20], ["pine_e", 0.12], ["pine_f", 0.12], ["pine_c", 0.08], ["dead_tree", 0.10], ["dead_tree_b", 0.10]],
+	[["pine_young", 0.35], ["pine_b", 0.25], ["birch", 0.20], ["dead_tree", 0.20]],
 ]
-const ROCK_W_FOREST := [["rock_a", 0.35], ["rock_b", 0.20], ["rock_c", 0.30], ["rock_d", 0.15]]
-const ROCK_W_MOUNTAIN := [["rock_e", 0.35], ["rock_b", 0.25], ["rock_d", 0.20], ["rock_a", 0.20]]
-const LOG_W := [["fallen_log", 0.40], ["fallen_log_b", 0.30], ["stump", 0.20], ["branch_pile", 0.10]]
+const ROCK_W_FOREST := [["rock_a", 0.30], ["rock_b", 0.18], ["rock_c", 0.25], ["rock_d", 0.12], ["rock_f", 0.15]]
+const ROCK_W_MOUNTAIN := [["rock_e", 0.32], ["rock_b", 0.22], ["rock_d", 0.18], ["rock_a", 0.14], ["rock_f", 0.14]]
+const LOG_W := [["fallen_log", 0.32], ["fallen_log_b", 0.26], ["fallen_log_c", 0.14], ["stump", 0.18], ["branch_pile", 0.10]]
 const SNOW_W := [["snow_pile_a", 0.35], ["snow_pile_b", 0.30], ["snow_pile_c", 0.25], ["snow_drift_4", 0.10]]
-const BUSH_W := [["bush_a", 0.55], ["bush_b", 0.45]]
+## bush_b (holly) has red berries baked in (ASSET_SPEC M3.3): it never grows within BERRY_LOOKALIKE_DIST of a real,
+## interactive berry bush, so players do not click a decoration expecting berries next to one.
+const BUSH_W := [["bush_a", 0.70], ["bush_b", 0.30]]
+const BERRY_LOOKALIKE_DIST := 24.0
 
 static var _cum_cache: Dictionary = {}
 
@@ -255,6 +258,26 @@ static func _tree(c: Ctx, gx: int, gz: int) -> Dictionary:
 	return e
 
 
+## True when a berry-bush node (interactive) of the nodes pass lies within `r` of (x, z). Pure (cell hashes).
+static func _near_berry_bush(c: Ctx, x: float, z: float, r: float) -> bool:
+	if absf(x) < CLEARING_ZONE + r and absf(z) < CLEARING_ZONE + r:
+		return true   # the slice clearing has 40 berry bushes
+	var gx := int(floor(x / 16.0))
+	var gz := int(floor(z / 16.0))
+	var cells := int(ceil(r / 16.0))
+	for dz in range(-cells, cells + 1):
+		for dx in range(-cells, cells + 1):
+			var hn := WorldConst.hash64(c.world_seed, GEN_NODES, gx + dx, gz + dz, 2)
+			var nx := (float(gx + dx) + 0.5 + (sub(hn, 1) - 0.5) * 0.84) * 16.0
+			var nz := (float(gz + dz) + 0.5 + (sub(hn, 2) - 0.5) * 0.84) * 16.0
+			if Vector2(nx - x, nz - z).length() > r:
+				continue
+			var b := c.macro.biome_at(nx, nz)
+			if sub(hn, 0) < (0.07 if b <= MacroMap.Biome.FIELD else 0.02) and b != MacroMap.Biome.LAKE and b != MacroMap.Biome.MOUNTAIN:
+				return true
+	return false
+
+
 static func _near_tree(c: Ctx, x: float, z: float, r: float) -> bool:
 	var gx := int(floor(x / 4.0))
 	var gz := int(floor(z / 4.0))
@@ -322,7 +345,10 @@ static func procedural(hf: HeightFunction, rect: Rect2, margin: bool = false) ->
 						table = SNOW_W
 				if table.is_empty() or _near_tree(c, sx, sz, 1.2):
 					continue
-				out.append({"v": pick(table, sub(hs, 3)), "node": -1, "x": sx, "z": sz, "yaw": sub(hs, 4) * TAU,
+				var sv := pick(table, sub(hs, 3))
+				if ScatterCatalog.name_of(sv) == "bush_b" and _near_berry_bush(c, sx, sz, BERRY_LOOKALIKE_DIST):
+					sv = ScatterCatalog.index_of("bush_a")
+				out.append({"v": sv, "node": -1, "x": sx, "z": sz, "yaw": sub(hs, 4) * TAU,
 					"s": 0.8 + 0.45 * sub(hs, 5), "wid": hs})
 	# 4. logs / stumps / branch piles (16 m) and 5. interactive nodes (16 m, three candidates)
 	for gz in range(int(floor(r16.position.y / 16.0)), int(ceil(r16.end.y / 16.0))):

@@ -770,8 +770,8 @@ frente −Y Blender = +Z Godot. **Coordenadas de esta sección en Godot** (Y arr
 | `snow_pile_a/b/c` | Snow | 144 / 198 / 84 | 0.54 / 0.76 / 0.29 | 0.98 / 1.53 / 0.58 | none | 0 | montones redondos (b: 3 lóbulos) |
 | `snow_drift_4` | Snow | 476 | 0.46 | 2.02 | none | 0 | ventisquero de 4 m con cornisa (ver nota) |
 | `fallen_log_b` | Log | 515 | 0.46 | 1.91 | box (0, 0.22, 0) 3.4 × 0.45 × 0.5 | 1 | tronco 3.4 m (testa serrada −X, astillada +X, musgo) |
-| `fallen_log_c` | Log | 616 | 1.65 | 1.96 | box (0.25, 0.45, 0) 3.1 × 0.9 × 1.7 | 1 | árbol caído con **plato de raíces** vertical en −X |
-| `icicles` | Icicles | 251 | 0.0 (cuelga) | 1.01 | none | 0 | tira de carámbanos de 2 m |
+| `fallen_log_c` | Log | 598 | 1.65 | 1.96 | box (0.25, 0.45, 0) 3.1 × 0.9 × 1.7 | 1 | árbol caído con **plato de raíces** vertical en −X |
+| `icicles` | Icicles | 290 | 0.0 (cuelga) | 1.01 | none | 0 | tira de carámbanos de 2 m |
 
 Notas: `snow_drift_4` es largo en X (±2 m) con la cara de sotavento y la cornisa hacia **−Z Godot** (+Y Blender); el
 yaw por instancia la orienta según el viento. `icicles` es un asset **colgante** (§2.2): origen = centro de la línea
@@ -795,7 +795,7 @@ del alero **arriba** (y = 0), cuelga hasta y = −0.58; se repite cada 2 m a lo 
 | `signpost` | 130 → 522 | poste achaflanado con capuchón y nieve, listón bajo cada tablero, tableros con marco oscuro + cara clara embutida (cara de texto en y = −0.12 Blender), clavos, línea de nieve redondeada arriba de cada tablero, montículo al pie. `TextTop/TextBottom` iguales ((0.28, 0, 0.125) local, sin rotación); `BoardBottom` sigue girando sobre el eje del poste |
 | `berry_bush` | 382 → 524 | lóbulos facetados irregulares `bush`/`pine_light`/`pine_mid` + penachos + casquetes de nieve suaves; `Berries` (hijo, pivote en el origen) = 16 bayas en 5 racimos |
 | `fence` | 84 → 528 | postes achaflanados con remate piramidal y casquete de nieve, dos largueros algo irregulares con placas de clavos y línea de nieve, montículos al pie; largueros en +Y Blender como antes |
-| `lantern` | 114 → 316 | anilla de gancho toroidal (cima en z = 0), tejadillo piramidal con respiradero de latón, postes, dos aros de alambre sobre el cristal, base con banda de latón; `Lantern` = `palette_vcol` + `window`, `LightAnchor` igual |
+| `lantern` | 114 → 368 | anilla de gancho toroidal (cima en z = 0), tejadillo piramidal con respiradero de latón, postes, dos aros de alambre sobre el cristal, base con banda de latón; `Lantern` = `palette_vcol` + `window`, `LightAnchor` igual |
 | `fallen_log` | 80 → 472 | tronco suave con testas serradas (anillos), dos muñones de rama, línea de nieve, pequeño ventisquero; 1.6 × 0.42 m (caja de `tree.gd` igual) |
 
 ### M3.5 POIs del bosque (estructura de corte v2, §8.4)
@@ -813,7 +813,7 @@ primer nivel; las escaleras son **rampas** (cuñas de 6 vértices). La AO de los
 completos y el tejado ocultos; los cristales llevan AO constante 0.98 (el material `window` no la usa).
 
 **`poi/cabin_small.glb`** — cabaña de tronco del trampero, 5 × 5 m (muros exteriores ±2.5), suelo a y = 0.30, frente
-+Z con porche de 1.3 m bajo el alero (6.7 × 8.1 × 5.0 m, **11 514 tris**, 15 superficies; visibles 11 sin stubs).
++Z con porche de 1.3 m bajo el alero (6.7 × 8.1 × 5.0 m, **11 842 tris**, 15 superficies; visibles 11 sin stubs).
 Nodos: `Floor0` (zócalo de piedra, suelo de tablas, porche, postes de tronco, escalón, leñera, ventisqueros),
 `Walls0_S/N/E/W` (+ `_Stub`; las testas de las esquinas van con S/N), `Interior0` (mesa, taburete, estante con
 tarros, alfombra de piel, leñero), `Roof` (tejado a dos aguas de tablillas, hastiales, chimenea de estufa, nieve con
@@ -824,7 +824,7 @@ cornisa, carámbanos), `Door_0` (origen (−0.48, 0.30, 2.39), `cut_group` `Wall
 −160). Colisión: `ColFloor0`, `ColPorch`, `ColSteps` (rampa), `ColWalls0_S_0/1/2` (hueco de puerta), `ColWalls0_N_0`,
 `ColWalls0_E_0`, `ColWalls0_W_0` (ventanas de 0.8 × 0.7: macizas), `ColPostL/R`, `ColWoodpile`.
 
-**`poi/lookout_tower.glb`** — torre de vigilancia de madera (6.9 × 6.9 × 13.9 m con escaleras, **9 185 tris**, 18
+**`poi/lookout_tower.glb`** — torre de vigilancia de madera (6.9 × 6.9 × 13.9 m con escaleras, **9 231 tris**, 18
 superficies). Cuatro patas inclinadas sobre zapatas, arriostrado en X, **4 tramos de escalera exteriores** (13
 peldaños 0.177 × 0.37, 0.9 m de ancho; S → W → N → E, rellanos en las esquinas) hasta un rellano en L que entra por el
 borde S de la pasarela; plataforma a **y = 9.20** (4.4 × 4.4, barandilla 1.05), caseta acristalada 3.2 × 3.2 (muros
@@ -842,7 +842,7 @@ rellanos; `floor_z` 0), `Floor1` (plataforma, pasarela, barandilla; `floor_z` 9.
 suelo a la puerta (pendiente 25.6°).
 
 **`poi/campsite_remains.glb`** — restos de acampada (la tarea lo llama *camp_remains*; el nombre de contrato es
-`campsite_remains`), 6.9 × 4.9 m, **3 049 tris**: tienda de lona oliva derrumbada con un mástil aún en pie, anillo de
+`campsite_remains`), 6.7 × 4.7 m, **3 064 tris**: tienda de lona oliva derrumbada con un mástil aún en pie, anillo de
 fuego frío (piedras, tizones, ceniza, nieve dentro) con trípode y olla, dos cajas (una cerrada con nieve, otra rota con
 la tapa apoyada), banco de tronco, lata. Nodos: **una sola malla `Remains`** (1 superficie: también vale como
 instancia de `MultiMesh` si se ignora el resto), `FlameAnchor` (1.05, 0.18, 0.55) (se puede reencender como
@@ -868,7 +868,7 @@ código en `data/loot/loot_tables.gd` (M5).
   decorativo, `spawns` en metros desde la esquina SO). La copia del código (`data/buildings/templates/`) es del agente
   de código; los `.glb` no dependen de ella en tiempo de ejecución.
 - **`buildings/{wood_blue,brick}/house_small_A.glb`** (8 × 10 m, 1 planta, porche, tabique con puerta, chimenea):
-  **12 006 / 12 138 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
+  **12 142 / 12 296 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
   `Walls0_S/N/E/W` (+ `_Stub`), `Interior0`, `Roof`, `Door_0` (exterior, S, origen (0.52, 0.30, 4.97)), `Door_1`
   (interior, `cut_group` `Interior0`), `Window_0..7`, `Spawn_Container_0` (`house_kitchen`), `Spawn_Stove_0`,
   `Spawn_Bed_0`, `Spawn_Furniture_0` (`furniture` `wardrobe`), `Spawn_Light_0/1`, `Spawn_Loot_0`, `Spawn_Zombie_0`;
@@ -898,3 +898,16 @@ código en `data/loot/loot_tables.gd` (M5).
    `import_kind`. Librerías nuevas: `lib/veg.py` (generadores de vegetación compartidos; los G1 salen idénticos),
    `lib/kit.py`; `lib/hd.py` gana `snow_ridge`/`snow_cone_cap` (nieve barata para listones y postes) y
    `bake_ao(exclude=…)`.
+4. **Sin caras traseras visibles** (regla nueva de M3, comprobada por `verify_assets.py`/`verify_kits.py`,
+   `backface_problems`): rayos ortográficos desde la cámara del juego (pitch 48°, 8 yaws) y a 25° no pueden dar primero
+   en una cara trasera (tubos o conos abiertos, caras volteadas o plegadas, superficies coplanarias solapadas). En
+   Godot los `.glb` llegan con `palette`/`window` de doble cara (`cull_mode` DISABLED: una cara trasera se vería oscura),
+   pero `Assets.spawn_model` los cambia por `world_vcol.gdshader` (`cull_back`: la cara trasera sería un agujero).
+   Arreglos de M3 (librería): `hd.pillow_cage` orienta las caras laterales por el borde de la jaula (antes las
+   esquinas de almohadas largas —barandillas, pasarelas— salían volteadas), `hd.tube` realinea los anillos (sin
+   pajarita donde el tubo pasa por la vertical), `pillow(keep_bottom=…)` cierra la cornisa que vuela sobre el alero,
+   la cornisa superior ondulada ya no se pliega, carámbanos con la base cerrada, láminas de tejas/tablillas cerradas en
+   los hastiales, escalón superior de la torre fusionado con el rellano. Estos arreglos también tocan (sin cambiar
+   contrato, nodos ni tamaños ±1 %) `cabin` (22 418 → 22 406 tris), `a_frame_cabin` (9 614 → 9 616), `dead_tree`,
+   `pickup_truck` y `chars/survivor_*` (mismos tris, anillos reindexados). **Pendiente (G1, fuera de M3)**: `cabin` y
+   `pickup_truck` aún muestran caras traseras en ángulos bajos (tejado, ruedas/carrocería); no están bajo la regla.

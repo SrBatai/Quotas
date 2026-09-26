@@ -92,6 +92,7 @@ func configure(s: int) -> void:
 		return
 	seed_value = s
 	var t0 := Time.get_ticks_usec()
+	ScatterCatalog.load_manifests()   # main thread, before any chunk job reads the variant table
 	if _macro_cache == null:
 		_macro_cache = MacroMap.load_default()
 	if not _hf_cache.has(s):

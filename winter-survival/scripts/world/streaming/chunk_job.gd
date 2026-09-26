@@ -15,8 +15,8 @@ const TINT_SLOPE := Color(0.90, 0.93, 1.0)
 const TINT_LAKE := Color(0.86, 0.95, 1.0)
 const BLOCK := 32.0
 ## Contact AO rects of the POI props (full w × d, strength, soft edge).
-const PROP_OCCLUDERS := {"cabin_small": [7.0, 6.0, 0.45, 1.8], "lookout_tower": [4.6, 4.6, 0.4, 1.2],
-	"campsite_remains": [3.6, 3.0, 0.3, 1.0]}
+const PROP_OCCLUDERS := {"cabin_small": [6.0, 7.2, 0.45, 1.8], "lookout_tower": [6.4, 6.4, 0.35, 1.4],
+	"campsite_remains": [5.6, 4.0, 0.3, 1.0]}
 
 # ---- inputs
 var cx: int = 0
@@ -39,6 +39,13 @@ var nodes: Array = []            # own node entries (+ "y")
 var occluders: Array = []        # every occluder that reaches this chunk
 var ao := PackedFloat32Array()
 var tints := PackedColorArray()
+## The terrain is rendered as 4 quadrant meshes of 33 × 33 vertices (32 m: finer frustum culling, and each upload
+## is a quarter of the work). Per quadrant q = qz * 2 + qx: vertices, normals, CUSTOM0 bytes, colours.
+const QN := 33
+var quad_verts: Array[PackedVector3Array] = []
+var quad_normals: Array[PackedVector3Array] = []
+var quad_custom: Array[PackedByteArray] = []
+var quad_colors: Array[PackedColorArray] = []
 var verts := PackedVector3Array()
 var normals := PackedVector3Array()
 var custom := PackedByteArray()
@@ -162,9 +169,32 @@ func _build_mesh(ox: int, oz: int, hb: PackedFloat32Array, nb: int) -> void:
 			custom[k * 4] = s & 255
 			custom[k * 4 + 1] = (s >> 8) & 255
 			custom[k * 4 + 2] = (s >> 16) & 255
-			custom[k * 4 + 3] = 0
+			custom[k * 4 + 3] = (s >> 24) & 255
 	for o in occluders:
 		apply_occluder(o, true)
+	for q in 4:
+		var qv := PackedVector3Array()
+		var qnrm := PackedVector3Array()
+		var qc := PackedByteArray()
+		qv.resize(QN * QN)
+		qnrm.resize(QN * QN)
+		qc.resize(QN * QN * 4)
+		var i0 := (q % 2) * (QN - 1)
+		var j0 := (q / 2) * (QN - 1)
+		for jj in QN:
+			for ii in QN:
+				var k := (j0 + jj) * N + i0 + ii
+				var kk := jj * QN + ii
+				qv[kk] = verts[k]
+				qnrm[kk] = normals[k]
+				qc[kk * 4] = custom[k * 4]
+				qc[kk * 4 + 1] = custom[k * 4 + 1]
+				qc[kk * 4 + 2] = custom[k * 4 + 2]
+				qc[kk * 4 + 3] = custom[k * 4 + 3]
+		quad_verts.append(qv)
+		quad_normals.append(qnrm)
+		quad_custom.append(qc)
+		quad_colors.append(quad_colors_of(q))
 
 
 ## Multiplies (`apply`) or divides the AO of this chunk's samples inside the occluder's reach (terrain.gd G1
@@ -225,6 +255,20 @@ static func occluder_reach(o: Dictionary) -> float:
 	if o.has("size"):
 		return (o["size"] as Vector2).length() * 0.5 + float(o.get("soft", 1.5))
 	return float(o.get("r", 0.0))
+
+
+## COLOR array of one terrain quadrant for the current `ao`.
+func quad_colors_of(q: int) -> PackedColorArray:
+	var out := PackedColorArray()
+	out.resize(QN * QN)
+	var i0 := (q % 2) * (QN - 1)
+	var j0 := (q / 2) * (QN - 1)
+	for jj in QN:
+		for ii in QN:
+			var k := (j0 + jj) * N + i0 + ii
+			var t := tints[k]
+			out[jj * QN + ii] = Color(t.r, t.g, t.b, ao[k])
+	return out
 
 
 ## COLOR array (tint rgb + AO alpha) for the current `ao`.

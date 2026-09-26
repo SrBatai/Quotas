@@ -110,8 +110,9 @@ def build_fallen_log_c():
     parts += [plate, roots]
     parts.append(stubs(pts, radii, [(0.45, 90, 0.22, 0.055), (0.7, 280, 0.28, 0.05)]))
     parts.append(V.snow_on_log(pts[1:], radii[1:], width_k=1.2, thick=0.065, seed=132))
-    zf = V.surface_fn([plate])
-    parts.append(H.snow_cap((x0 - 0.12, 0.0, 0), 0.2, 0.62, 0.08, zf, seed=133, sides=10, rings=3, droop=0.03))
+    ztop = max((plate.matrix_world @ v.co).z for v in plate.data.vertices)
+    parts.append(H.snow_ridge((x0 - 0.12, -0.5, ztop - 0.07), (x0 - 0.12, 0.5, ztop - 0.07), 0.26, 0.08, seed=133,
+                              overhang=0.0, droop=0.04))                  # snow line on the plate's upper edge
     parts.append(H.mound((x0 + 0.25, 0.0, 0), 0.75, 0.3, seed=134, sides=12, sink=0.08, stretch=(0.7, 1.3)))
     V.export_scatter("fallen_log_c", parts, "Log", "log", "box", (0.25, 0, 0.45), (3.1, 0.9, 1.7),
                      choppable=True, ao=LOG_AO)

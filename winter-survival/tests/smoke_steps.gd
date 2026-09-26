@@ -532,7 +532,7 @@ func _m3_checks(world: World, player: Player) -> void:
 		await tree.process_frame
 		waited += 1
 	check(st.loaded_keys().size() == 25, "ring 2 (5 × 5) streamed around the player: %d chunks after %d frames" % [st.loaded_keys().size(), waited])
-	check(int(st.stats["step_usec_max"]) < WorldConst.STREAM_BUDGET_USEC, "streaming steps within the 2 ms/frame budget (max step %d µs, gen max %d µs in workers)" % [int(st.stats["step_usec_max"]), int(st.stats["gen_usec_max"])])
+	check(int(st.stats["step_usec_max"]) < WorldConst.STREAM_BUDGET_USEC, "streaming steps within the 2 ms/frame budget (max step %d µs %s, gen max %d µs in workers)" % [int(st.stats["step_usec_max"]), st.stats.get("step_max_by_kind", {}), int(st.stats["gen_usec_max"])])
 	# hover pick through a tree crown (the ray misses the trunk collider): materializes that tree
 	var fp := world.nearest_scatter(player.global_position, "pine", 1)
 	if not fp.is_empty():

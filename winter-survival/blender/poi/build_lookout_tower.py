@@ -105,6 +105,8 @@ def build_stairs(g, rnd, col):
         p1 = start + d * run
         rise_step = RISE / N_STEPS
         for k in range(N_STEPS):
+            if fi == 3 and k == N_STEPS - 1:
+                continue                       # the top landing is this step (no coplanar overlapping treads)
             a = p0 + d * (k * TREAD)
             zt = z0 + (k + 1) * rise_step
             c0 = a + outward * 0.45
@@ -177,7 +179,7 @@ def build_platform(g, rnd, col):
     g.hard.box((-PL, -PL, PZ0), (PL, PL, PZ0 + 0.12), "wood_dark")
     for k in range(5):
         x = -PL + 0.2 + k * (2 * PL - 0.4) / 4
-        g.flat.box((x - 0.06, -PL, PZ0 - 0.18), (x + 0.06, PL, PZ0), "wood", skip=("+z",))
+        g.flat.box((x - 0.06, -PL, PZ0 - 0.18), (x + 0.06, PL, PZ0), "wood")
     n = 16
     bw = (2 * PL - (n - 1) * 0.015) / n
     for k in range(n):
@@ -248,7 +250,8 @@ def build_cab_wall(d, g, stub, panes, seed):
         if u1 - u0 > 1e-3 and z1 - z0 > 1e-3:
             fac.box(g.flat, u0, u1, z0, z1, -CAB_T, 0.0, "wood", mats=mats)
     holes = [(hole_d[0] - 0.1, hole_d[1] + 0.1, PZ, PZ + 2.1)] if hole_d else []
-    kit.lap_sheet(fac, g.flat, a, b, PZ + 0.12, min(zt, WIN[0] - 0.08), holes, "wood")
+    kit.lap_sheet(fac, g.flat, a, b, PZ + 0.12, min(zt, WIN[0] - 0.08), holes, "wood",
+                  close=(d in "EW", d in "EW"))          # E / W ends are exposed when S / N is cut away
     fac.box(g.hard, a, b, PZ - 0.02, PZ + 0.12, 0.0, 0.03, "wood_dark", skip=(fac.in_key,))
     if stub:
         for sa, sb in spans:
@@ -263,9 +266,9 @@ def build_cab_wall(d, g, stub, panes, seed):
             n = max(2, int(round((w1 - w0) / 0.5)))
             for k in range(n + 1):
                 u = w0 + (w1 - w0) * k / n
-                fac.box(g.flat, u - 0.025, u + 0.025, WIN[0], WIN[1], -0.07, -0.02, "wood_light", skip=(fac.in_key,))
+                fac.box(g.flat, u - 0.025, u + 0.025, WIN[0], WIN[1], -0.07, -0.02, "wood_light")   # closed: seen
             fac.box(g.flat, w0, w1, (WIN[0] + WIN[1]) / 2 - 0.02, (WIN[0] + WIN[1]) / 2 + 0.02, -0.07, -0.03,
-                    "wood_light", skip=(fac.in_key,))
+                    "wood_light")                                                      # from inside (cutaway)
             pane = lp.MeshBuilder()
             pane.poly(fac.rect(w0, w1, WIN[0], WIN[1], -0.05), "window", facing=fac.n)
             pane.poly(fac.rect(w0, w1, WIN[0], WIN[1], -0.054), "window", facing=-fac.n)

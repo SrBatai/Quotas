@@ -34,7 +34,9 @@ M3 checks (ASSET_SPEC_V2 "M3"):
     along the facade, inside the full wall in plan), cut_group / floor props on every group, floor_z on Floor<k>,
     Door_n (kind, exterior, cut_group), Window_n (material window only, boarded, cut_group), Spawn_* (pure yaw, kind,
     table on containers), convex closed Col* (6-8 vertices, ramps allowed), exact boxes where a table is given;
-  * typical FOREST view (M3 streaming, default camera): instances x tris + reserve <= 270 k.
+  * typical FOREST view (M3 streaming, default camera): instances x tris + reserve <= 270 k;
+  * no visible BACK faces (M3 assets + the HD clearing props): orthographic rays from the game camera directions
+    must not first hit a back face (open ends, flipped / folded faces, coplanar overlaps) -- backface_problems().
 Assets marked R180 were authored in the slice convention and rotated 180 degrees about Z by lib.lowpoly
 (new_scene(authored_front="+Y")); their slice pivots/collision boxes below are rotated the same way here.
 """
@@ -76,12 +78,13 @@ ZERO = (0.0, 0.0, 0.0)
 
 
 def a(pri, budget, pivots, parents=None, dims=None, minz=0.0, extra=None, col=None, dims_of=None, r180=False,
-      max_surfaces=None, hd=False, mm=None, poi=False):
+      max_surfaces=None, hd=False, mm=None, poi=False, bf=None):
     """mm = MultiMesh family (M3 rule set); poi = v2 cutaway structure (M3); col=None (with poi) = any Col* set
     (structural checks only)."""
     return dict(pri=pri, budget=budget, pivots=pivots, parents=parents or {}, dims=dims or {}, minz=minz,
                 extra=extra or {}, col=col if col is not None else ({} if not poi else None), dims_of=dims_of or {},
-                r180=r180, max_surfaces=max_surfaces, hd=hd, mm=mm, poi=poi)
+                r180=r180, max_surfaces=max_surfaces, hd=hd, mm=mm, poi=poi,
+                bf=bf if bf is not None else bool(mm or poi))
 
 
 QUAD_PARENTS = {"Head": "Body", "Tail": "Body", "LegFL": "Body", "LegFR": "Body", "LegBL": "Body",
@@ -133,9 +136,9 @@ ASSETS = {
     "stone": a(0, 40, {"Stone": ZERO}, dims={"x": 0.30, "y": 0.25, "z": 0.20}),
     # M3 HD (guide v2.1): same nodes / sizes, v2.1 prop budgets (no slack)
     "berry_bush": a(0, 700, {"Bush": ZERO, "Berries": ZERO}, parents={"Berries": "Bush"},
-                    dims={"x": 1.0, "y": 1.0, "z": 0.55}, hd=True),
+                    dims={"x": 1.0, "y": 1.0, "z": 0.55}, hd=True, bf=True),
     "firewood": a(0, 120, {"Firewood": ZERO}, dims={"x": 0.55, "y": 0.55, "z": 0.22}),
-    "fallen_log": a(0, 500, {"Log": ZERO}, dims={"x": 1.6, "z": 0.40}, hd=True),
+    "fallen_log": a(0, 500, {"Log": ZERO}, dims={"x": 1.6, "z": 0.40}, hd=True, bf=True),
     "campfire": a(0, 400, {"Stones": ZERO, "Logs": ZERO, "FlameAnchor": (0, 0, 0.18)},
                   dims={"x": 1.2, "y": 1.2, "z": 0.35}),
     # weapon convention (v2 §12): origin at the grip, handle +Z, useful end (blade) toward -Y
@@ -180,10 +183,10 @@ ASSETS = {
                            "TextTop": (0.28, -0.125, 1.84), "TextBottom": (0.28, -0.125, 1.44)},
                   parents={"TextTop": "BoardTop", "TextBottom": "BoardBottom"}, dims={"z": 2.2},
                   extra={"forward": ["TextTop", "TextBottom"], "tip": "BoardTop",
-                         "front_mesh": {"BoardTop": "<", "BoardBottom": "<"}}, hd=True),
-    "fence": a(1, 600, {"Fence": ZERO}, dims={"x": 2.0, "z": 1.1}, hd=True),
+                         "front_mesh": {"BoardTop": "<", "BoardBottom": "<"}}, hd=True, bf=True),
+    "fence": a(1, 600, {"Fence": ZERO}, dims={"x": 2.0, "z": 1.1}, hd=True, bf=True),
     "lantern": a(1, 400, {"Lantern": ZERO, "LightAnchor": (0, 0, -0.23)}, dims={"z": 0.40}, minz=-0.40,
-                 extra={"maxz": 0.0, "window": ["Lantern"]}, hd=True),
+                 extra={"maxz": 0.0, "window": ["Lantern"]}, hd=True, bf=True),
     "tent": a(2, 250, {"Tent": ZERO}, dims={"x": 2.4, "y": 2.6, "z": 1.7},
               col={"ColBack": ((-1.2, -1.3, 0.0), (1.2, -1.2, 1.7))}, r180=True),
     "storage_box": a(2, 150, {"Box": ZERO}, dims={"x": 0.8, "y": 0.6, "z": 0.6}, r180=True),
@@ -615,6 +618,99 @@ def col_shape_problems(o):
     return problems
 
 
+BF_MAX_HITS = 8                 # grazing single rays at intersections are tolerated, open / inverted parts are not
+BF_MAX_FRAC = 2e-5
+
+
+_FACADE_N = {"N": Vector((0, 1, 0)), "S": Vector((0, -1, 0)), "E": Vector((1, 0, 0)), "W": Vector((-1, 0, 0))}
+
+
+def _cut_hidden(objs, to_cam):
+    """Names hidden in the cutaway seen from `to_cam` (ASSET_SPEC_V2 §8.6 / §9.3): Roof, every Walls<k>_<dir> whose
+    normal faces the camera (> 0.15) with its doors / windows (cut_group), and the _Stub of every other facade."""
+    facing = lambda n: _FACADE_N[n.split("_")[1]].dot(to_cam) > 0.15      # noqa: E731
+    hidden = set()
+    for o in objs:
+        n = o.name
+        if n == "Roof":
+            hidden.add(n)
+        elif re.match(r"^Walls\d+_[NSEW]$", n) and facing(n):
+            hidden.add(n)
+        elif re.match(r"^Walls\d+_[NSEW]_Stub$", n) and not facing(n):
+            hidden.add(n)
+    for o in objs:
+        cg = o.get("cut_group") if o.name.startswith(("Door_", "Window_")) else None
+        if cg and cg in hidden:
+            hidden.add(o.name)
+    return hidden
+
+
+def _bf_hits(vis, views, ground, step_div=150):
+    from mathutils.bvhtree import BVHTree
+    verts, polys, owner = [], [], []
+    for o in vis:
+        mw = o.matrix_world
+        base = len(verts)
+        verts += [mw @ v.co for v in o.data.vertices]
+        m3 = mw.to_3x3()
+        for p in o.data.polygons:
+            polys.append(tuple(base + i for i in p.vertices))
+            owner.append((o.name, (m3 @ p.normal).normalized()))
+    if not polys:
+        return 0, {}
+    tree = BVHTree.FromPolygons(verts, polys, epsilon=0.0)
+    mn = Vector([min(v[i] for v in verts) for i in range(3)])
+    mx = Vector([max(v[i] for v in verts) for i in range(3)])
+    c = (mn + mx) / 2
+    R = (mx - mn).length / 2 + 0.2
+    step = max(0.035, R / step_div)
+    n = int(2 * R / step)
+    total, bad = 0, {}
+    for d in views:
+        u = d.cross(Vector((0, 0, 1))).normalized()
+        w = u.cross(d).normalized()
+        for i in range(n):
+            for j in range(n):
+                org = c - d * (R + 5) + u * (-R + i * step) + w * (-R + j * step)
+                loc, _nrm, idx, _dist = tree.ray_cast(org, d, 2 * R + 10)
+                if idx is None or (ground and loc.z < -0.001):
+                    continue
+                total += 1
+                oname, fn = owner[idx]
+                if fn.dot(d) > 1e-4:
+                    bad[oname] = bad.get(oname, 0) + 1
+    return total, bad
+
+
+def _view_dir(pitch, yaw):
+    p, y = math.radians(pitch), math.radians(yaw)
+    return -Vector((math.sin(y) * math.cos(p), math.cos(y) * math.cos(p), math.sin(p)))
+
+
+def backface_problems(objs, ground=True, cutaway=False):
+    """M3: no BACK face may be the first thing a game-camera ray sees (open tube ends / cone tops, flipped or folded
+    snow faces, coplanar overlaps show as magenta in the previews and as holes / flicker in Godot, whose game shader
+    culls back faces). Orthographic rays over the asset from pitch 48 (8 yaws, the game camera) and 25 deg (8 yaws);
+    hits below z = 0 are hidden by the terrain (ground=False for hanging assets); the `_Stub` walls are hidden. With
+    cutaway=True (POIs / kit buildings) also the 8 cutaway states of §9.3 (Roof + camera-facing facades hidden, their
+    stubs shown), seen from their own yaw."""
+    meshes = [o for o in objs if o.type == 'MESH' and not is_col(o)]
+    views = [_view_dir(48.0, 45 * k) for k in range(8)] + [_view_dir(25.0, 45 * k + 22.5) for k in range(8)]
+    total, bad = _bf_hits([o for o in meshes if not o.name.endswith("_Stub")], views, ground)
+    if cutaway and any(o.name.startswith("Walls") for o in meshes):
+        for k in range(8):
+            d = _view_dir(48.0, 45 * k)
+            hidden = _cut_hidden(meshes, -d)
+            t, b = _bf_hits([o for o in meshes if o.name not in hidden], [d], ground, step_div=200)
+            total += t
+            for kk, v in b.items():
+                bad[kk + " (cutaway)"] = bad.get(kk + " (cutaway)", 0) + v
+    nb = sum(bad.values())
+    if nb > BF_MAX_HITS and nb > BF_MAX_FRAC * total:
+        return ["%d visible back-face hits of %d game-camera rays (%s)" % (nb, total, bad)]
+    return []
+
+
 def mm_problems(name, spec, objs, g):
     """MultiMesh rule set (ASSET_SPEC_V2 §13 + M3)."""
     out = []
@@ -899,6 +995,9 @@ def verify(name, spec0, allowed_bytes, godot_targets):
                 problems.append("%s outside the visual bounds" % o.name)
     if spec["mm"]:
         problems += mm_problems(name, spec, objs, g)
+    if spec["bf"]:
+        problems += backface_problems(objs, ground=spec["minz"] is not None and spec["minz"] >= -0.01
+                                      and "maxz" not in spec["extra"], cutaway=spec["poi"])
     if spec["poi"]:
         problems += cut_problems(by, objs)
 

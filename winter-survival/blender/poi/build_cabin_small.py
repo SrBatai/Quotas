@@ -245,6 +245,9 @@ def build_roof(g, rnd):
             base = Vector((sg * x, 0, z_under(x) + dz))                            # butt edge (faces down-slope)
             g.flat.poly([base + Vector((0, Y_FRONT, 0)), base + Vector((0, Y_BACK, 0)), lo + Vector((0, Y_BACK, 0)),
                          lo + Vector((0, Y_FRONT, 0))], "wood_dark", facing=Vector((sg, 0, -t)))
+            for yy, sy in ((Y_FRONT, -1), (Y_BACK, 1)):                            # closed ends at the rakes
+                g.flat.poly([base + Vector((0, yy, 0)), lo + Vector((0, yy, 0)), hi + Vector((0, yy, 0))],
+                            "wood_dark", facing=Vector((0, sy, 0)))
             x = xu
             k += 1
         # fascia
@@ -297,10 +300,11 @@ def build_roof(g, rnd):
 
         def lip(u, v, ov=ov, size_v=size_v, seed=seed, size_u=size_u):
             dn = -0.10 * H.smoothstep(ov + 0.10, 0.0, v) - 0.05 * H.smoothstep(0.14, 0.0, min(u, size_u - u))
-            dv = 0.35 * H.fbm(u * 0.8, seed * 1.3, 2, seed) if v >= size_v - 1e-6 else 0.0
+            dv = max(-0.09, 0.35 * H.fbm(u * 0.8, seed * 1.3, 2, seed)) if v >= size_v - 1e-6 else 0.0   # no fold
             return (0.0, dv, dn)
         g.snow.append(H.pillow(E - Vv * ov, Vector((0, 1, 0)), Vv, N, size_u, size_v, 0.24, nu=6, nv=4, rim=0.16,
-                               seed=seed, lip=lip, bumps=0.04, levels=1, bottom=-0.09))
+                               seed=seed, lip=lip, bumps=0.04, levels=1, bottom=-0.09,
+                               drop_bottom=False))       # closed slab: the drooping cornice shows its underside
         x = xo * 0.1
         base = Vector((sg * x, -0.4 + sg * 1.1, z_under(x) + dz))
         g.snow.append(H.pillow(base - Vector((0, 0.4, 0)) - Vv * 0.22, Vector((0, 1, 0)), Vv, N, 0.8, 0.44, 0.13, nu=3,

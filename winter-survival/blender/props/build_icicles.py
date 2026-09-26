@@ -42,7 +42,7 @@ def icicle_strip(p0, p1, seed=0, max_len=0.55, spacing=0.12, ridge=True, sides=5
         mid = base.lerp(tip, 0.35) + Vector((0, 0, 0))
         rings = [lp.ring(base + Vector((0, 0, 0.012)), (0, 0, 1), r, sides, rnd.uniform(0, 72)),
                  lp.ring(mid, (0, 0, 1), r * 0.62, sides, rnd.uniform(0, 72)), [tip]]
-        mb.loft(rings, "ice", cap_start=False, cap_end=False)
+        mb.loft(rings, "ice", cap_start=True, cap_end=False)             # closed top: no see-through cone
     parts = [H.smooth(H.mk(mb))]
     if ridge:
         parts.append(H.snow_ridge(p0 + Vector((0, 0, 0.0)), p1, 0.07, 0.035, seed=seed + 1, overhang=0.0, droop=0.03,

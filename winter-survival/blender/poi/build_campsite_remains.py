@@ -48,10 +48,10 @@ def tent(parts, rnd):
         lift = max(0.0, 1.0 - u / 1.7) ** 1.25 * 1.05                # pole end (u = 0) still up: an A profile
         ridge = max(0.0, 1.0 - abs(v - W / 2) / (W / 2 * 0.9))
         fold = 0.06 * math.sin(u * 5.1 + v * 2.3) + 0.04 * math.sin(v * 7.0)
-        return max(0.03, 0.05 + lift * ridge ** 1.1 + fold * (0.4 + 0.6 * ridge))
-    origin = TENT - Vector((L / 2, W / 2, 0))
+        return max(0.06, 0.08 + lift * ridge ** 1.1 + fold * (0.4 + 0.6 * ridge))
+    origin = TENT - Vector((L / 2, W / 2, 0.03))            # sunk 3 cm: the rounded lower rim stays under the snow
     o = H.pillow(origin, (1, 0, 0), (0, 1, 0), (0, 0, 1), L, W, 0.3, mat="military_green", nu=8, nv=7, rim=0.10,
-                 seed=5, top_fn=top, jitter=0.03, bottom=0.01, drop_bottom=False, levels=1)
+                 seed=5, top_fn=top, jitter=0.03, bottom=-0.04, drop_bottom=False, levels=1)
     _apply(o, Matrix.Translation(TENT) @ Matrix.Rotation(math.radians(yaw), 4, 'Z') @ Matrix.Translation(-TENT))
     parts.append(o)
     # the pole holding the up end, a fallen pole, guy line pegs
@@ -60,7 +60,7 @@ def tent(parts, rnd):
     H.tube(mb, [pe + Vector((0.06, 0.04, -0.05)), pe + Vector((0.0, 0.0, 1.12))], [0.03, 0.025], 5, "wood",
            cap_end=True)
     q = rot_about(TENT + Vector((0.6, -W / 2 - 0.35, 0.03)), TENT, yaw)
-    H.tube(mb, [q, q + Vector((1.1, 0.35, 0.02))], [0.028, 0.026], 5, "wood", cap_end=True)
+    H.tube(mb, [q, q + Vector((1.1, 0.35, 0.02))], [0.028, 0.026], 5, "wood", cap_end=True, cap_start=True)
     for dx, dy in ((-L / 2 - 0.3, -W / 2 - 0.2), (-L / 2 - 0.3, W / 2 + 0.2), (L / 2 + 0.25, W / 2 + 0.25)):
         c = rot_about(TENT + Vector((dx, dy, 0)), TENT, yaw)
         H.tube(mb, [c - Vector((0, 0, 0.05)), c + Vector((0, 0, 0.14))], [0.018, 0.012], 4, "wood_dark",
@@ -102,9 +102,9 @@ def fire_ring(parts, rnd):
         d = Vector((math.cos(a), math.sin(a), 0))
         p0 = FIRE + d * 0.5 + Vector((0, 0, 0.05))
         p1 = FIRE - d * 0.05 + Vector((0, 0, 0.08))
-        H.tube(logs, [p0, p1], [0.06, 0.05], 6, "bark", cap_end=True)
+        H.tube(logs, [p0, p1], [0.06, 0.05], 6, "bark", cap_end=True, cap_start=True)
         logs.faces[-1][1] = "paint_black"
-        for fi in range(len(logs.faces) - 7, len(logs.faces) - 1):       # the 6 sides: burnt near the centre
+        for fi in range(len(logs.faces) - 8, len(logs.faces) - 2):       # the 6 sides: burnt near the centre
             if (logs.center(fi) - FIRE).length < 0.22:
                 logs.faces[fi][1] = "paint_black"
     parts.append(H.smooth(H.mk(logs), angle=60))

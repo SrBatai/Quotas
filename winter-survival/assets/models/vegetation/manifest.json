@@ -130,7 +130,7 @@
   "node": "Log",
   "path": "res://assets/models/vegetation/fallen_log_c.glb",
   "radius": 1.957,
-  "tris": 616
+  "tris": 598
  },
  "pine_d": {
   "choppable": 1,

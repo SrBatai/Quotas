@@ -13,7 +13,8 @@ extends RefCounted
 ##
 ## The world height is defined on the 1 m integer grid (`sample`); between samples it is bilinear (`height_at`),
 ## which is what the chunk meshes / HeightMapShape3D show (to < 1 cm). `surface_*` returns the CUSTOM0 mask:
-## r = asphalt, g = ice, b = packed snow (tracks), a = rock (reserved).
+## r = asphalt road bed, g = ice, b = packed snow (tracks), a = signed distance to the road centreline
+## (128 + 16 × metres, 0 = not on a road) so the terrain shader can draw wheel ruts.
 
 ## Slice clearing (ex scripts/world/terrain.gd): amplitude ramp and stamps, in world metres.
 const CLEAR_AMP_INNER := 14.0
@@ -175,10 +176,11 @@ func context(rect: Rect2) -> Dictionary:
 
 
 ## Height and surface mask at a world point with a context (exact function; chunk samples use integer x, z).
-## Returns Vector2(height, packed surface): surface = r | g << 8 | b << 16 (bytes 0…255).
-func eval(x: float, z: float, ctx: Dictionary) -> Vector2:
+## Returns Vector3(height, packed surface r | g << 8 | b << 16, road lateral byte a) (bytes 0…255).
+func eval(x: float, z: float, ctx: Dictionary) -> Vector3:
 	var h := legacy_raw(x, z)
 	var surf := 0
+	var lat_byte := 0
 	if ctx["clearing"]:
 		var dl := Vector2(x, z).distance_to(SMALL_LAKE_CENTER)
 		if dl < SMALL_LAKE_RADIUS:
@@ -215,6 +217,7 @@ func eval(x: float, z: float, ctx: Dictionary) -> Vector2:
 		var best_d := INF
 		var best_s := 0.0
 		var best_r := -1
+		var best_side := 1.0
 		for si in segs:
 			var o := si * 6
 			var ax := _seg[o]
@@ -232,6 +235,7 @@ func eval(x: float, z: float, ctx: Dictionary) -> Vector2:
 				best_d = d
 				best_s = _seg[o + 4] + t * _seg[o + 5]
 				best_r = _seg_road[si]
+				best_side = 1.0 if dx * (z - az) - dz * (x - ax) >= 0.0 else -1.0
 		if best_r >= 0:
 			var hw := _road_hw[best_r]
 			if best_d < hw + ROAD_SHOULDER:
@@ -247,7 +251,9 @@ func eval(x: float, z: float, ctx: Dictionary) -> Vector2:
 						surf |= m << 16
 					else:
 						surf |= m
-	return Vector2(h, float(surf))
+				if best_d < hw + 2.0:
+					lat_byte = clampi(int(round(128.0 + best_side * best_d * 16.0)), 1, 255)
+	return Vector3(h, float(surf), float(lat_byte))
 
 
 # ------------------------------------------------------------------ point queries
@@ -272,8 +278,9 @@ func height_at(x: float, z: float) -> float:
 
 ## Surface mask at the nearest sample (Color r = asphalt, g = ice, b = packed track).
 func surface_at(x: float, z: float) -> Color:
-	var s := int(eval(roundf(x), roundf(z), context(Rect2(x - 1.0, z - 1.0, 2.0, 2.0))).y)
-	return Color8(s & 255, (s >> 8) & 255, (s >> 16) & 255, 0)
+	var v := eval(roundf(x), roundf(z), context(Rect2(x - 1.0, z - 1.0, 2.0, 2.0)))
+	var s := int(v.y)
+	return Color8(s & 255, (s >> 8) & 255, (s >> 16) & 255, int(v.z))
 
 
 func is_big_lake(x: float, z: float) -> bool:
@@ -333,5 +340,5 @@ func sample_block(x0: int, z0: int, n: int) -> Dictionary:
 		for i in n:
 			var v := eval(float(x0 + i), z, ctx)
 			hs[j * n + i] = v.x
-			ss[j * n + i] = int(v.y)
+			ss[j * n + i] = int(v.y) | (int(v.z) << 24)
 	return {"h": hs, "s": ss}

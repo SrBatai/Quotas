@@ -33,28 +33,31 @@ func _ready() -> void:
 	_model = Assets.spawn_model(variant)
 	visual.add_child(_model)
 	var vi := ScatterCatalog.index_of(variant)
-	var chop: String = ScatterCatalog.VARIANTS[vi]["chop"] if vi >= 0 else "pine"
+	var vd: Dictionary = ScatterCatalog.variant(vi) if vi >= 0 else ScatterCatalog.variant(0)
+	var chop: String = vd["chop"] if vd["chop"] != "" else "pine"
 	var st := ScatterCatalog.chop_stats(chop)
 	total_hits = st[0]
 	wood = st[1]
 	var is_log := chop == "log"
-	var col: Array = ScatterCatalog.VARIANTS[vi]["col"] if vi >= 0 else ["cyl", 0.35, 3.0, 1.5]
-	var pick: Array = ScatterCatalog.VARIANTS[vi]["pick"] if vi >= 0 else [1.1, 7.0]
+	var col: Dictionary = vd["col"]
+	var size: Array = col.get("s", [0.35, 3.0])
+	var center: Vector3 = col.get("c", Vector3(0, 1.5, 0))
+	var pick: Array = vd["pick"] if not (vd["pick"] as Array).is_empty() else [1.1, 7.0]
 	if is_log:
 		var box := BoxShape3D.new()
-		box.size = Vector3(float(col[1]), float(col[2]), float(col[3]))
+		box.size = Vector3(float(size[0]), float(size[1]), float(size[2]))
 		shape.shape = box
-		shape.position = Vector3(0, float(col[4]), 0)
+		shape.position = center
 		var ibox := BoxShape3D.new()
-		ibox.size = Vector3(float(col[1]) + 0.2, 0.7, 0.7)
-		interactable.set_shape(ibox, Vector3(0, 0.3, 0))
+		ibox.size = Vector3(float(size[0]) + 0.2, maxf(float(size[1]) + 0.3, 0.7), maxf(float(size[2]) + 0.3, 0.7))
+		interactable.set_shape(ibox, Vector3(center.x, maxf(center.y, 0.3), center.z))
 		interactable.ring_radius = 0.9
 	else:
 		var cyl := CylinderShape3D.new()
-		cyl.radius = float(col[1])
-		cyl.height = float(col[2])
+		cyl.radius = float(size[0])
+		cyl.height = float(size[1])
 		shape.shape = cyl
-		shape.position = Vector3(0, float(col[3]), 0)
+		shape.position = center
 		var icyl := CylinderShape3D.new()
 		icyl.radius = float(pick[0])
 		icyl.height = float(pick[1])

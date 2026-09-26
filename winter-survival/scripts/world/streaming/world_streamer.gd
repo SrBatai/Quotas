@@ -30,17 +30,24 @@ var focus_override: Vector3 = Vector3.INF
 var ring_prefetch: int = WorldConst.RING_PREFETCH
 var budget_usec: int = WorldConst.STREAM_BUDGET_USEC
 var max_tasks: int = 2
+## Tools (perf_walk --cpu): build the client's visual data (meshes, MultiMeshes) even on the headless dummy
+## renderer, to measure the streaming CPU cost without a (software) GPU competing for the cores.
+static var force_visual: bool = false
 
 var chunks: Dictionary = {}        # key -> WorldChunk (building or loaded)
 var _jobs: Dictionary = {}         # key -> ChunkJob in flight
 var _ready_jobs: Array[ChunkJob] = []
 var _building: Array[WorldChunk] = []
+var _dying: Array[WorldChunk] = []    # unloaded chunks being freed a few nodes per frame
 var _desired: Dictionary = {}      # key -> priority (lower first)
 var _last_near: Dictionary = {}    # server: key -> last time a player was within HIBERNATE_RADIUS (s)
 var _focus_keys: Array[int] = []
 var _refresh_t: float = 0.0
 ## Main-thread µs spent this frame (streaming cost, PLAN M3 budget) and running stats.
 var frame_usec: int = 0
+## [refresh, collect, instantiate, unload] µs of the last frame + the last step kind (perf tools).
+var last_phases: Array = []
+var _last_step_kind: String = ""
 var stats: Dictionary = {"generated": 0, "gen_usec": 0, "gen_usec_max": 0, "loaded": 0, "unloaded": 0,
 	"hibernated": 0, "sync_loads": 0, "frame_usec_max": 0, "step_usec_max": 0, "over_budget_frames": 0}
 var _step_costs: Dictionary = {}   # step kind -> EMA µs (budget planning)
@@ -52,7 +59,7 @@ func setup(p_mode: int, p_hf: HeightFunction, p_clearing: Array, p_static_occ: A
 	clearing = p_clearing
 	static_occ = p_static_occ
 	chunks_root = root
-	visual = mode != Mode.SERVER and DisplayServer.get_name() != "headless"
+	visual = mode != Mode.SERVER and (DisplayServer.get_name() != "headless" or force_visual)
 	with_nodes = mode != Mode.DECORATIVE
 	max_tasks = clampi(OS.get_processor_count() - 1, 1, 3) if OS.get_processor_count() > 1 else 1
 	enabled = true
@@ -179,10 +186,20 @@ func _process(delta: float) -> void:
 		_refresh_t = 0.2
 		_refresh_desired()
 		_launch_jobs()
+	var t1 := Time.get_ticks_usec()
 	_collect_jobs()
+	var t2 := Time.get_ticks_usec()
 	_instantiate(t0)
+	var t3 := Time.get_ticks_usec()
 	_unload_some(t0)
 	frame_usec = Time.get_ticks_usec() - t0
+	last_phases = [t1 - t0, t2 - t1, t3 - t2, frame_usec - (t3 - t0), _last_step_kind]
+	var parts: Dictionary = stats.get("phase_usec_max", {})
+	parts["refresh"] = maxi(int(parts.get("refresh", 0)), t1 - t0)
+	parts["collect"] = maxi(int(parts.get("collect", 0)), t2 - t1)
+	parts["instantiate"] = maxi(int(parts.get("instantiate", 0)), t3 - t2)
+	parts["unload"] = maxi(int(parts.get("unload", 0)), frame_usec - (t3 - t0))
+	stats["phase_usec_max"] = parts
 	stats["frame_usec_max"] = maxi(int(stats["frame_usec_max"]), frame_usec)
 	if frame_usec > budget_usec:
 		stats["over_budget_frames"] = int(stats["over_budget_frames"]) + 1
@@ -291,6 +308,7 @@ func _instantiate(t0: int) -> void:
 			break
 		ran += 1
 		var s0 := Time.get_ticks_usec()
+		_last_step_kind = kind
 		var done := ch.step()
 		var cost := Time.get_ticks_usec() - s0
 		_step_costs[kind] = int(lerpf(float(_step_costs.get(kind, cost)), float(cost), 0.3))
@@ -305,7 +323,20 @@ func _instantiate(t0: int) -> void:
 
 
 func _unload_some(t0: int) -> void:
-	if Time.get_ticks_usec() - t0 > budget_usec:
+	# finish freeing chunks unloaded earlier, a few nodes at a time, inside the frame budget
+	while not _dying.is_empty():
+		var left := budget_usec - (Time.get_ticks_usec() - t0)
+		if left <= 150:
+			return
+		var d: WorldChunk = _dying[0]
+		var t1 := Time.get_ticks_usec()
+		var done := d.teardown_step(left - 100)
+		stats["unload_usec_max"] = maxi(int(stats.get("unload_usec_max", 0)), Time.get_ticks_usec() - t1)
+		if done:
+			_dying.pop_front()
+			chunks_root.remove_child(d)
+			d.free()
+	if Time.get_ticks_usec() - t0 > budget_usec or _dying.size() >= 2:
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	for k in chunks.keys():
@@ -332,8 +363,8 @@ func _unload_some(t0: int) -> void:
 func _free_chunk(k: int, c: WorldChunk) -> void:
 	chunks.erase(k)
 	_building.erase(c)
-	chunks_root.remove_child(c)
-	c.free()
+	c.begin_teardown()
+	_dying.append(c)
 	stats["unloaded"] = int(stats["unloaded"]) + 1
 	chunk_unloaded.emit(k)
 
@@ -409,7 +440,7 @@ func flush_all() -> void:
 
 
 func is_idle() -> bool:
-	if not _jobs.is_empty() or not _ready_jobs.is_empty() or not _building.is_empty():
+	if not _jobs.is_empty() or not _ready_jobs.is_empty() or not _building.is_empty() or not _dying.is_empty():
 		return false
 	for k in _desired:
 		if not chunks.has(k):

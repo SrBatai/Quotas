@@ -51,5 +51,17 @@
       "mesh_surfaces": 905,
       "nodes": 5312
     }
+  },
+  "perf_walk": {
+    "_doc": "tests/perf_walk.gd render mode (PLAN M3): 2.26 km route at 25 m/s, streaming on, xvfb + Compatibility on llvmpipe (LP_NUM_THREADS=2). A software GPU makes every frame slow (p50 ~250 ms) and preempts the main thread / syncs on GL buffer uploads, so frame-level streaming numbers are informative here; the hard gates are no missing ground and memory. The 2 ms/frame streaming budget is gated by perf_walk_cpu.",
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
+  "perf_walk_cpu": {
+    "_doc": "tests/perf_walk.gd --cpu: same route headless (dummy renderer) with the client's visual streaming path forced on: stream_ms_max = main-thread streaming cost per frame (budget WorldConst.STREAM_BUDGET_USEC 2 ms + 0.5 ms tolerance for the one step a frame always runs); frames_over_33ms_streaming = frames > 33 ms where streaming took > 2 ms or > 25 % of the frame.",
+    "stream_ms_max": 2.5,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
   }
 }

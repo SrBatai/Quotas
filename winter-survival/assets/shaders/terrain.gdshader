@@ -2,8 +2,9 @@
 // occluders) + wrap lighting + rim tint + sparkle + texture-less tone noise + footprint trail map (R = depression,
 // G = rim) read as displacement + normal + darkening. One ShaderMaterial (assets/materials/terrain.tres) shared
 // by every terrain chunk. Forward+ and Compatibility (no textures except the trail map, a plain RGBA8 texture).
-// M3: CUSTOM0 = surface mask of the streamed chunks (r asphalt road bed, g lake ice, b packed track; 0 = snow,
-// which is all of the hunter's clearing, so the G1 look there is untouched).
+// M3: CUSTOM0 = surface mask of the streamed chunks (r asphalt road bed, g lake ice, b packed track, a signed
+// distance to the road centreline 128 + 16·m; all 0 = snow, which is all of the hunter's clearing, so the G1 look
+// there is untouched).
 shader_type spatial;
 render_mode cull_back, depth_draw_opaque, specular_schlick_ggx;
 
@@ -37,8 +38,9 @@ uniform float trail_darken : hint_range(0.0, 1.0) = 0.30;
 uniform float trail_normal_strength = 3.5;
 uniform bool trail_enabled = false;
 // Surface mask (M3): packed snow over the road beds (asphalt under it), wind-polished lake ice.
-uniform vec4 road_tint : source_color = vec4(0.80, 0.84, 0.91, 1.0);
-uniform vec4 track_tint : source_color = vec4(0.88, 0.91, 0.96, 1.0);
+uniform vec4 road_tint : source_color = vec4(0.74, 0.79, 0.88, 1.0);
+uniform vec4 track_tint : source_color = vec4(0.85, 0.89, 0.95, 1.0);
+uniform float rut_darken : hint_range(0.0, 1.0) = 0.22;
 uniform vec4 ice_color : source_color = vec4(0.62, 0.76, 0.88, 1.0);
 uniform float ice_roughness : hint_range(0.0, 1.0) = 0.32;
 uniform float ice_specular : hint_range(0.0, 1.0) = 0.45;
@@ -134,6 +136,14 @@ void fragment() {
 		float grime = vnoise(v_world_pos.xz * 0.9) * 0.5 + vnoise(v_world_pos.xz * 0.23) * 0.5;
 		albedo *= mix(vec3(1.0), road_tint.rgb * (0.94 + 0.12 * grime), road);
 		albedo *= mix(vec3(1.0), track_tint.rgb, track);
+		// wheel ruts from the lateral offset (two per lane on roads, one pair on tracks)
+		if (v_surface.a > 0.002) {
+			float lane = abs((v_surface.a * 255.0 - 128.0) / 16.0);
+			float ruts = 1.0 - smoothstep(0.10, 0.28, abs(lane - 0.85));
+			ruts = max(ruts, road * (1.0 - smoothstep(0.10, 0.28, abs(lane - 2.55))));
+			ruts *= max(road, track) * (0.8 + 0.4 * grime);
+			albedo *= 1.0 - rut_darken * ruts;
+		}
 		float streak = vnoise(vec2(v_world_pos.x * 0.08 + v_world_pos.z * 0.05, v_world_pos.z * 0.9));
 		vec3 ice_c = ice_color.rgb * (0.9 + 0.2 * streak);
 		albedo = mix(albedo, ice_c, ice * 0.85);
