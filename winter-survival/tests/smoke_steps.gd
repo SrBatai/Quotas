@@ -583,6 +583,27 @@ func _m3_checks(world: World, player: Player) -> void:
 	check(_felled_wid != 0 and _stump_near(world, _felled_pos, _felled_wid), "back in the clearing: the felled pine is a stump again (chunk rebuilt from its delta)")
 	var fc := world.streamer.chunk_at(_felled_pos.x, _felled_pos.z)
 	check(fc != null and fc.wid_index.has(_felled_wid) and fc.removed[fc.wid_index[_felled_wid]] == 1, "…and its MultiMesh instance / collider stay removed")
+	# server hibernation of a chunk nobody is near: its ChunkDelta keeps the drop, the node goes away and comes back
+	var nw := NetWorld.instance
+	if nw != null and DropSpawner.instance != null:
+		var hp := Vector3(300.0, 0.0, -900.0)
+		hp.y = world.get_height(hp.x, hp.z) + 0.3
+		var hk := WorldConst.key(WorldConst.chunk_of(hp.x), WorldConst.chunk_of(hp.z))
+		var hdrop := DropSpawner.instance.spawn_drop(&"madera", "firewood", hp)
+		var hname := String(hdrop.name)
+		var hwid := WorldRegistry.wid_of(hdrop)
+		nw.hibernate_chunk(hk)
+		await frames(2)
+		var gone := DropSpawner.instance.drops_root().get_node_or_null(hname) == null
+		var kept := nw.chunk_for(hwid).drops.has(hwid)
+		nw.wake_chunk(hk)
+		await frames(1)
+		var back := DropSpawner.instance.drops_root().get_node_or_null(hname) as Node3D
+		check(gone and kept and nw.is_hibernated(hk) == false and back != null and back.global_position.distance_to(hp) < 0.01,
+			"chunk hibernation: drop despawned with its delta kept (%s, %s), restored on wake (%s)" % [gone, kept, back != null])
+		if back != null:
+			nw.erase_drop(WorldRegistry.wid_of(back))
+			back.queue_free()
 	# world border
 	check(not world.terrain.in_bounds(WorldConst.WALL + 5.0, 0.0) and world.get_node("Bounds").get_child_count() == 4, "world wall at ±%.0f m" % WorldConst.WALL)
 	Chat.instance.send("/tp 1460 60")

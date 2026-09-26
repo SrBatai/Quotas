@@ -102,7 +102,8 @@ func cancel() -> void:
 	_warning_left = -1.0
 	_active = false
 	_time_left = 0.0
-	WorldState.instance.set_weather(&"clear", _wind_yaw)
+	if WorldState.instance != null:   # the main menu's decorative world has no WorldState
+		WorldState.instance.set_weather(&"clear", _wind_yaw)
 
 
 func is_active() -> bool:

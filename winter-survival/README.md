@@ -139,7 +139,7 @@ cd winter-survival
 ./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M3: import, parse, persistencia, humo, contrato de arte, perf, red (basic, shared_world, far), determinismo, perf walk [, capturas]
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak
-./tests/run_screenshots.sh [carpeta] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (preset `multi` = cliente unido a un servidor)
+./tests/run_screenshots.sh [carpeta] [presets] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (presets extra: `multi` = cliente unido a un servidor, `overview` = vista aérea del lago y una carretera, M3)
 python3 tools/contact_sheet.py hoja.png 3 "ref=…jpg" "antes=…png" "después=…png"   # hoja de comparación (Pillow)
 ./tests/run_perf.sh [--placeholders] # sonda de rendimiento (draw calls, objetos, ms) → tests/perf/last.json vs tests/perf_budgets.json
 godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]  # contrato ASSET_SPEC v2 de cada .glb (o de los placeholders)
