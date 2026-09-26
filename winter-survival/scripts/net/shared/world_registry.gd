@@ -42,6 +42,15 @@ static func register(node: Node) -> int:
 	return wid
 
 
+## Drops a node's id at once. A chunk being unloaded frees its nodes over several frames and they stay valid until
+## then: a reload of the same chunk in the meantime must get the ids (hidden, inert nodes must not answer requests).
+static func unregister(node: Node) -> void:
+	if node.has_meta("wid"):
+		var wid := int(node.get_meta("wid"))
+		if _by_wid.get(wid) == node:
+			_by_wid.erase(wid)
+
+
 static func wid_of(node: Node) -> int:
 	if node == null:
 		return 0

@@ -123,6 +123,9 @@ func begin_teardown() -> void:
 	set_process(false)
 	for b in _bodies:
 		b.collision_layer = 0
+	if objects != null:
+		for o in objects.get_children():
+			WorldRegistry.unregister(o)
 
 
 ## Frees children, then the chunk data piece by piece, until `budget_usec` is spent; true when nothing is left

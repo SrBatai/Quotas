@@ -116,6 +116,8 @@ for ((i=0; i<CLIENTS; i++)); do grep -q "RESULT OK" "$OUT/client_${NAMES[$i]}.lo
 if grep -v -E "$NOISE" "$OUT"/*.log | grep -qE "SCRIPT ERROR|ERROR:"; then
   echo "!! errors found in logs"; grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" | sort | uniq -c | head -n 20; FAIL=1
 fi
+# an id collision means a chunk was rebuilt while its old nodes were alive (WorldStreamer / WorldRegistry, M3)
+if grep -q "wid collision" "$OUT"/*.log; then echo "!! WorldRegistry wid collisions"; grep -h "wid collision" "$OUT"/*.log | head -n 5; FAIL=1; fi
 if grep -hE "WARNING:" "$OUT"/*.log | grep -qv -E "$NOISE"; then echo "(warnings)"; grep -hE "WARNING:" "$OUT"/*.log | grep -v -E "$NOISE" | sort | uniq -c | head -n 10; fi
 [ "$QUICK" -eq 1 ] && echo "quick check: server exit=$SRV_EXIT, errors=$(grep -v -E "$NOISE" "$OUT/server.log" | grep -cE 'SCRIPT ERROR|ERROR:')"
 [ "$FAIL" -eq 0 ] && echo "NET TEST PASSED" || echo "NET TEST FAILED"

@@ -18,6 +18,9 @@ const LOOKAHEAD_SPEED := 8.0
 const UNLOAD_MARGIN := 1
 ## Safety margin on the per-step cost estimate (EMA) so the step that closes a frame rarely overruns the budget.
 const STEP_MARGIN_USEC := 250
+## A chunk built by `ensure_loaded` is kept this long even when the desired set (refreshed every 0.2 s, and the
+## focus that moves right after a teleport) does not include it yet: otherwise it is unloaded and rebuilt at once.
+const SYNC_PIN_SECONDS := 2.0
 
 var mode: int = Mode.OFFLINE
 var visual: bool = true
@@ -45,6 +48,7 @@ var _building: Array[WorldChunk] = []
 var _dying: Array[WorldChunk] = []    # unloaded chunks being freed a few nodes per frame
 var _desired: Dictionary = {}      # key -> priority (lower first)
 var _last_near: Dictionary = {}    # server: key -> last time a player was within HIBERNATE_RADIUS (s)
+var _pinned: Dictionary = {}       # key -> time (s) until which a synchronously loaded chunk is not unloaded
 var _focus_keys: Array[int] = []
 var _refresh_t: float = 0.0
 ## Main-thread µs spent this frame (streaming cost, PLAN M3 budget) and running stats.
@@ -151,6 +155,9 @@ func _refresh_desired() -> void:
 	_desired.clear()
 	_focus_keys.clear()
 	var now := Time.get_ticks_msec() / 1000.0
+	for k in _pinned.keys():
+		if float(_pinned[k]) <= now:
+			_pinned.erase(k)
 	for f in _foci():
 		var pos: Vector3 = f[0]
 		var vel: Vector3 = f[1]
@@ -356,7 +363,7 @@ func _unload_some(t0: int) -> void:
 		return
 	var now := Time.get_ticks_msec() / 1000.0
 	for k in chunks.keys():
-		if _desired.has(k):
+		if _desired.has(k) or float(_pinned.get(k, 0.0)) > now:
 			continue
 		var c: WorldChunk = chunks[k]
 		var far := true
@@ -395,6 +402,7 @@ func ensure_loaded(pos: Vector3, radius: int = 1) -> int:
 	var keys := WorldConst.ring_keys(cx, cz, radius)
 	var started: Array[ChunkJob] = []
 	var built := 0
+	var pin_until := Time.get_ticks_msec() / 1000.0 + SYNC_PIN_SECONDS
 	for k in keys:
 		if chunks.has(k) or _is_ready_job(k):
 			continue
@@ -437,8 +445,11 @@ func ensure_loaded(pos: Vector3, radius: int = 1) -> int:
 			stats["loaded"] = int(stats["loaded"]) + 1
 			chunk_loaded.emit(k)
 		_wanted_sync.erase(k)
+		if chunks.has(k):
+			_pinned[k] = pin_until
 	if built > 0:
 		stats["sync_loads"] = int(stats["sync_loads"]) + 1
+		_refresh_t = 0.0   # the focus (teleport, spawn) is where these chunks are: re-plan on the next frame
 	if mode == Mode.SERVER:
 		var now := Time.get_ticks_msec() / 1000.0
 		for k in WorldConst.ring_keys(cx, cz, WorldConst.HIBERNATE_RADIUS):
