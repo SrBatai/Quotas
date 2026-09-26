@@ -53,7 +53,7 @@ var frame_usec: int = 0
 var last_phases: Array = []
 var _last_step_kind: String = ""
 var stats: Dictionary = {"generated": 0, "gen_usec": 0, "gen_usec_max": 0, "loaded": 0, "unloaded": 0,
-	"hibernated": 0, "sync_loads": 0, "frame_usec_max": 0, "step_usec_max": 0, "over_budget_frames": 0}
+	"hibernated": 0, "sync_loads": 0, "frame_usec_max": 0, "step_usec_max": 0, "over_budget_frames": 0, "steps": 0, "steps_over_budget": 0}
 var _step_costs: Dictionary = {}   # step kind -> EMA µs (budget planning)
 
 
@@ -326,6 +326,9 @@ func _instantiate(t0: int) -> void:
 		var cost := Time.get_ticks_usec() - s0
 		_step_costs[kind] = int(lerpf(float(_step_costs.get(kind, cost)), float(cost), 0.3))
 		stats["step_usec_max"] = maxi(int(stats["step_usec_max"]), cost)
+		stats["steps"] = int(stats["steps"]) + 1
+		if cost > budget_usec:
+			stats["steps_over_budget"] = int(stats["steps_over_budget"]) + 1
 		var by: Dictionary = stats.get("step_max_by_kind", {})
 		by[kind] = maxi(int(by.get(kind, 0)), cost)
 		stats["step_max_by_kind"] = by
