@@ -715,3 +715,186 @@ terreno) = **228 k ≤ 270 k**. Superficies por malla ≤ 2 (excepciones con nom
    AABB). Dimensiones 6.58 × 9.26 × 6.19 (ventisqueros y escalón del porche); colisión igual.
 5. **Mínimo z** de los assets apoyados: [−0.25, +0.02] m (antes ±0.02) por la nieve hundida.
 6. `player.glb` (rígido, se retira en M2) y los 24 assets no migrados solo cambian paleta + AO.
+
+## M3 — mundo por chunks: vegetación MultiMesh, POIs del bosque y arranque del kit (Opus, M3)
+
+Todo se regenera con `cd blender && python3 build_all.py` → **ALL OK** (`verify_assets.py`: 55 assets + vista típica
+del claro 232 k y **del bosque 197 k ≤ 270 k**; `verify_kits.py`: `house_small_A` × 2 estilos; `verify_chars.py`). La
+salida es determinista (una segunda pasada deja los 62 `.glb` idénticos). Importación en un proyecto Godot 4.7.2
+desechable: **0 errores**; `tests/inspect_models.gd` 38 assets ALL OK; comprobación M3 (`inspect_m3.gd`, fuera del
+repo) 29 assets ALL OK. Guía de arte v2.1 (sección G1) en todo: AO en `COLOR_0.a`, paleta v2.1, normales propias,
+frente −Y Blender = +Z Godot. **Coordenadas de esta sección en Godot** (Y arriba, +Z = frente) salvo que se diga.
+
+### M3.1 Ficheros (`res://assets/models/…`, cada `.glb` con su `.import` ya normalizado con `uid`)
+
+| Carpeta | Assets | Script |
+|---|---|---|
+| `vegetation/` | `pine_d`, `pine_e`, `pine_f`, `pine_young`, `dead_tree_b`, `dead_tree_c`, `birch`, `bush_a`, `bush_b`, `rock_d`, `rock_e`, `rock_f`, `snow_pile_a`, `snow_pile_b`, `snow_pile_c`, `snow_drift_4`, `fallen_log_b`, `fallen_log_c` + **`manifest.json`** | `blender/vegetation/build_{trees,bushes,rocks,snow,logs}.py` |
+| `props/` | `icicles` + `manifest.json` | `blender/props/build_icicles.py` |
+| `poi/` | `cabin_small`, `lookout_tower`, `campsite_remains` | `blender/poi/build_<poi>.py` |
+| `buildings/<estilo>/` | `wood_blue/house_small_A`, `brick/house_small_A` (casa de prueba del kit) | `blender/kits/build_buildings.py` + `lib/kit.py` |
+| raíz (sin cambio de ruta ni de nodos) | `pine_a/b/c`, `dead_tree`, `stump`, `rock_a/b/c`, `stone`, `firewood`, … y los **HD de M3**: `signpost`, `berry_bush`, `fence`, `lantern`, `fallen_log` (§M3.4) | los de siempre |
+
+### M3.2 Contrato MultiMesh (vegetation/*, props/icicles)
+
+- Escena = raíz + **un solo `MeshInstance3D`** (nombre por familia: `Tree` pinos/árboles, `Bush`, `Rock`, `Snow`, `Log`,
+  `Icicles`); **una superficie** (`palette`, = `palette_vcol` del `.glb`) con `COLOR` RGBA (A = AO); sin hijos, sin
+  empties, sin `Col*`. Origen = pie del tronco / centro de la base en y = 0 (la nieve se hunde hasta 0.25 m: sin
+  huecos en pendiente). Sin frente: yaw aleatorio libre; escala por instancia 0.85–1.15 recomendada.
+- Para el `MultiMesh`: `var mi := (load(path) as PackedScene).instantiate().get_child(0) as MeshInstance3D` →
+  `mi.mesh` (poner el `ShaderMaterial` del mundo como `material_override` del `MultiMeshInstance3D`; el shader lee
+  `AO = COLOR.a`). Godot genera LODs al importar (índices medidos: `pine_d` 1143 → 433/183/7, `birch` 2110 → 1044/522/
+  195/80/23, rocas 1 nivel, nieve 3 niveles); en `MultiMesh` el LOD se elige por la AABB de todo el `MultiMesh`: usar
+  multimeshes por chunk (no por mundo) para que actúe.
+- **Proxy de colisión por variante** (el código crea la forma; §15): en los *extras* del `MeshInstance3D`
+  (`mi.get_meta("extras")`) y en `vegetation/manifest.json` / `props/manifest.json` (mismas claves + `path`, `node`,
+  `tris`). Claves: `family` (`pine|dead_tree|birch|bush|rock|snow|log|ice`), `height` (m, cima), `radius` (m, radio de
+  huella para el espaciado Poisson), `col` (`cylinder|sphere|box|none`), `col_center` [x, y, z] (centro de la forma,
+  marco Godot local), `col_size` (`cylinder` [radio, alto] vertical; `sphere` [radio]; `box` [x, y, z]; `none` []),
+  `choppable` (1 = acción `chop` con hacha como `ChoppableTree`: árboles y troncos).
+
+| Asset | Nodo | Tris | Alto | Radio huella | Proxy (`col`, centro, tamaño) | chop | Qué es |
+|---|---|---|---|---|---|---|---|
+| `pine_d` | Tree | 1 143 | 8.97 | 2.13 | cylinder (0, 1.5, 0) r 0.33 h 3.0 | 1 | abeto muy alto 9 m, 8 pisos, poca nieve |
+| `pine_e` | Tree | 1 191 | 7.07 | 2.14 | cylinder (0, 1.5, 0) r 0.32 h 3.0 | 1 | doble copa (guía bifurcada a 4.2 m) |
+| `pine_f` | Tree | 873 | 6.15 | 1.80 | cylinder (0, 1.5, 0) r 0.29 h 3.0 | 1 | cargado de nieve (puntas caídas, capa 14 cm hasta las puntas) |
+| `pine_young` | Tree | 621 | 2.58 | 0.84 | cylinder (0, 0.8, 0) r 0.135 h 1.6 | 1 | abeto joven 2.5 m |
+| `dead_tree_b` | Tree | 1 026 | 5.57 | 1.10 | cylinder (0, 1.5, 0) r 0.40 h 3.0 | 1 | tocón alto partido (copa astillada, ramas rotas) |
+| `dead_tree_c` | Tree | 2 529 | 3.47 | 1.35 | cylinder (0, 1.0, 0) r 0.25 h 2.0 | 1 | árbol seco pequeño de 3 troncos |
+| `birch` | Tree | 2 110 | 7.42 | 2.08 | cylinder (0, 1.5, 0) r 0.24 h 3.0 | 1 | abedul desnudo (corteza `paint_white` con bandas) |
+| `bush_a` | Bush | 545 | 0.85 | 0.85 | sphere (0, 0.35, 0) r 0.50 | 0 | enebro perenne con nieve |
+| `bush_b` | Bush | 567 | 0.89 | 0.67 | sphere (0, 0.38, 0) r 0.45 | 0 | acebo oscuro **con bayas rojas horneadas** (ver M3.3) |
+| `rock_d` | Rock | 342 | 0.62 | 1.49 | box (0, 0.25, 0) 2.3 × 0.5 × 1.5 | 0 | losa inclinada 2.4 × 1.6 m |
+| `rock_e` | Rock | 652 | 2.40 | 1.97 | box (0, 1.0, 0) 3.0 × 2.0 × 2.3 | 0 | afloramiento 3.4 × 2.7 × 2.3 m (hito) |
+| `rock_f` | Rock | 439 | 0.50 | 0.95 | box (0, 0.2, 0) 1.6 × 0.4 × 1.2 | 0 | pedrera de 5 piedras |
+| `snow_pile_a/b/c` | Snow | 144 / 198 / 84 | 0.54 / 0.76 / 0.29 | 0.98 / 1.53 / 0.58 | none | 0 | montones redondos (b: 3 lóbulos) |
+| `snow_drift_4` | Snow | 476 | 0.46 | 2.02 | none | 0 | ventisquero de 4 m con cornisa (ver nota) |
+| `fallen_log_b` | Log | 515 | 0.46 | 1.91 | box (0, 0.22, 0) 3.4 × 0.45 × 0.5 | 1 | tronco 3.4 m (testa serrada −X, astillada +X, musgo) |
+| `fallen_log_c` | Log | 616 | 1.65 | 1.96 | box (0.25, 0.45, 0) 3.1 × 0.9 × 1.7 | 1 | árbol caído con **plato de raíces** vertical en −X |
+| `icicles` | Icicles | 251 | 0.0 (cuelga) | 1.01 | none | 0 | tira de carámbanos de 2 m |
+
+Notas: `snow_drift_4` es largo en X (±2 m) con la cara de sotavento y la cornisa hacia **−Z Godot** (+Y Blender); el
+yaw por instancia la orienta según el viento. `icicles` es un asset **colgante** (§2.2): origen = centro de la línea
+del alero **arriba** (y = 0), cuelga hasta y = −0.58; se repite cada 2 m a lo largo de un alero (volteo 180° libre).
+
+### M3.3 Notas de uso para el código
+
+- Talables por índice (`scatter_index`): todo `choppable = 1`. Sugerencia de `Balance`: `pine_young` y `dead_tree_c`
+  dan la mitad de leña; `fallen_log_b/c` como `fallen_log` (`LOG_HITS`).
+- `bush_b` se ve igual que un arbusto con bayas: si se esparce, que sea interactivo como `berry_bush` (sustituir la
+  instancia por `berry_bush.tscn` al acercarse/al interactuar, igual que los árboles) o no mezclarlo cerca de
+  `berry_bush`. `berry_bush` (nodo interactivo) sigue con su hijo `Berries`.
+- Nieve (`snow_*`) y carámbanos: sin colisión (`none`), decorativos; no ponerlos sobre caminos/puertas.
+- Presupuesto de bosque (vista típica a cámara por defecto: 49 pinos, 8 árboles desnudos + 4 abedules, 15 arbustos,
+  11 rocas, 12 montones, 4 troncos, 3 tocones, `cabin_small`, 4 jugadores) = 104 k + reserva 93 k = **197 k**.
+
+### M3.4 Props del claro rehechos en HD (mismos nombres, nodos, pivotes, anclas y tamaños ±10 %)
+
+| Asset | Tris antes → ahora | Qué cambia |
+|---|---|---|
+| `signpost` | 130 → 522 | poste achaflanado con capuchón y nieve, listón bajo cada tablero, tableros con marco oscuro + cara clara embutida (cara de texto en y = −0.12 Blender), clavos, línea de nieve redondeada arriba de cada tablero, montículo al pie. `TextTop/TextBottom` iguales ((0.28, 0, 0.125) local, sin rotación); `BoardBottom` sigue girando sobre el eje del poste |
+| `berry_bush` | 382 → 524 | lóbulos facetados irregulares `bush`/`pine_light`/`pine_mid` + penachos + casquetes de nieve suaves; `Berries` (hijo, pivote en el origen) = 16 bayas en 5 racimos |
+| `fence` | 84 → 528 | postes achaflanados con remate piramidal y casquete de nieve, dos largueros algo irregulares con placas de clavos y línea de nieve, montículos al pie; largueros en +Y Blender como antes |
+| `lantern` | 114 → 312 | anilla de gancho toroidal (cima en z = 0), tejadillo piramidal con respiradero de latón, postes, dos aros de alambre sobre el cristal, base con banda de latón; `Lantern` = `palette_vcol` + `window`, `LightAnchor` igual |
+| `fallen_log` | 80 → 472 | tronco suave con testas serradas (anillos), dos muñones de rama, línea de nieve, pequeño ventisquero; 1.6 × 0.42 m (caja de `tree.gd` igual) |
+
+### M3.5 POIs del bosque (estructura de corte v2, §8.4)
+
+Reglas comunes (también para el kit, §M3.6): grupos de corte **de primer nivel** `Floor<k>`, `Walls<k>_{N,S,E,W}` y su
+`Walls<k>_<dir>_Stub` (mismo contorno en planta, corte a 0.6 m del suelo de la planta), `Interior<k>`, `Roof`;
+**extras**: todo grupo `cut_group` (= su nombre) y `floor` (int); `Floor<k>` además `floor_z` (altura del suelo
+pisable, m). `Door_<n>`: hoja cerrada con el **origen en el eje de bisagra** (abre hacia dentro girando en Y), extras
+`kind` (`door`), `exterior` (bool), `cut_group` (fachada a la que pertenece), `floor`, `hinge` (`L` = a la izquierda
+vista desde fuera), `width`; **sin colisión** (el código pone la caja). `Window_<n>`: cristal (material `window`, dos
+caras), extras `boarded` (false), `cut_group`, `floor`. **El código debe ocultar `Door_n`/`Window_n` junto con su
+`cut_group`** cuando sustituye esa fachada por su `_Stub`. `Spawn_<Kind>_<n>`: empties con **solo yaw** (su +Z local
+= frente del objeto que se instancia), extras `kind` y `table` (contenedores). `Col*-convcolonly`: cajas convexas de
+primer nivel; las escaleras son **rampas** (cuñas de 6 vértices). La AO de los `_Stub` se hornea con los muros
+completos y el tejado ocultos; los cristales llevan AO constante 0.98 (el material `window` no la usa).
+
+**`poi/cabin_small.glb`** — cabaña de tronco del trampero, 5 × 5 m (muros exteriores ±2.5), suelo a y = 0.30, frente
++Z con porche de 1.3 m bajo el alero (6.7 × 8.1 × 5.0 m, **11 470 tris**, 15 superficies; visibles 11 sin stubs).
+Nodos: `Floor0` (zócalo de piedra, suelo de tablas, porche, postes de tronco, escalón, leñera, ventisqueros),
+`Walls0_S/N/E/W` (+ `_Stub`; las testas de las esquinas van con S/N), `Interior0` (mesa, taburete, estante con
+tarros, alfombra de piel, leñero), `Roof` (tejado a dos aguas de tablillas, hastiales, chimenea de estufa, nieve con
+cornisa, carámbanos), `Door_0` (origen (−0.48, 0.30, 2.39), `cut_group` `Walls0_S`), `Window_0` (E), `Window_1` (W),
+`Window_2` (N), `DoorAnchor` (0, 0.30, 3.05) en el porche. Spawns (posición; yaw): `Spawn_Stove_0` (−1.55, 0.30,
+−1.45; 90), `Spawn_Bed_0` (1.45, 0.30, −1.20; 0), `Spawn_Container_0` (1.95, 0.30, 1.20; −90; `table`
+`cabin_forest`), `Spawn_Light_0` (0, 2.65, 0), `Spawn_Loot_0` (−0.65, 1.07, 0.92), `Spawn_Zombie_0` (0.30, 0.30, −0.30;
+−160). Colisión: `ColFloor0`, `ColPorch`, `ColSteps` (rampa), `ColWalls0_S_0/1/2` (hueco de puerta), `ColWalls0_N_0`,
+`ColWalls0_E_0`, `ColWalls0_W_0` (ventanas de 0.8 × 0.7: macizas), `ColPostL/R`, `ColWoodpile`.
+
+**`poi/lookout_tower.glb`** — torre de vigilancia de madera (6.9 × 6.9 × 13.9 m con escaleras, **9 185 tris**, 18
+superficies). Cuatro patas inclinadas sobre zapatas, arriostrado en X, **4 tramos de escalera exteriores** (13
+peldaños 0.177 × 0.37, 0.9 m de ancho; S → W → N → E, rellanos en las esquinas) hasta un rellano en L que entra por el
+borde S de la pasarela; plataforma a **y = 9.20** (4.4 × 4.4, barandilla 1.05), caseta acristalada 3.2 × 3.2 (muros
+9.2–11.4), tejado a cuatro aguas con pararrayos hasta 13.65. Nodos: `Floor0` (zapatas, patas, arriostrado, escaleras,
+rellanos; `floor_z` 0), `Floor1` (plataforma, pasarela, barandilla; `floor_z` 9.2), `Walls1_S/N/E/W` (+ `_Stub`),
+`Interior1` (buscador de incendios con mapa, taburete, catre, estante), `Roof`, `Door_0` (fachada E, origen (1.48, 9.20,
+0.43), `cut_group` `Walls1_E`), `Window_0` (N), `Window_1`/`Window_2` (E, a los lados de la puerta), `Window_3` (S),
+`Window_4` (W); anclas `DoorAnchor` (1.90, 9.20, 0), `StairFoot` (2.90, 0, 2.85) (pie del primer tramo),
+`ViewAnchor` (0, 10.90, 0) (altura de ojos en la caseta: acción "otear"/revelar mapa). Spawns: `Spawn_Radio_0` (0,
+10.10, −1.24; 180), `Spawn_Loot_0` (0.20, 10.13, 0), `Spawn_Container_0` (−1.0, 9.2, −1.05; 180; `table` `lookout`),
+`Spawn_Bed_0` (−0.95, 9.2, 0.40; 90), `Spawn_Light_0` (0, 11.2, 0). Colisión (31): `ColFooting_0..3`, `ColLeg_0..3`
+(cajas inclinadas), `ColStair_0..3` (**rampas**), `ColStairRail_0..3` (barandilla exterior de cada tramo),
+`ColLanding_0..3`, `ColFloor1`, `ColRail1_N/S/E/W` (la S se corta en el rellano), `ColWalls1_N/S/W`,
+`ColWalls1_E_0..2` (hueco de puerta). Navegación: las rampas + rellanos + `ColFloor1` forman un camino continuo del
+suelo a la puerta (pendiente 25.6°).
+
+**`poi/campsite_remains.glb`** — restos de acampada (la tarea lo llama *camp_remains*; el nombre de contrato es
+`campsite_remains`), 6.9 × 4.9 m, **3 049 tris**: tienda de lona oliva derrumbada con un mástil aún en pie, anillo de
+fuego frío (piedras, tizones, ceniza, nieve dentro) con trípode y olla, dos cajas (una cerrada con nieve, otra rota con
+la tapa apoyada), banco de tronco, lata. Nodos: **una sola malla `Remains`** (1 superficie: también vale como
+instancia de `MultiMesh` si se ignora el resto), `FlameAnchor` (1.05, 0.18, 0.55) (se puede reencender como
+`campfire`), `Spawn_Container_0` (2.25, 0, −1.25; 12; `table` `campsite`), `Spawn_Loot_0` (caja rota),
+`Spawn_Loot_1` (bajo la lona); colisión `ColCrate_0`, `ColCrate_1`, `ColBench`, `ColTent`.
+
+Tablas de botín nombradas (`cabin_forest`, `lookout`, `campsite`, `house_kitchen`): propuestas de arte; las crea el
+código en `data/loot/loot_tables.gd` (M5).
+
+### M3.6 Kit de edificios — arranque (M6a)
+
+- **`blender/lib/kit.py`** (compartido): rejilla 2 m, planta 3.0 m (muro 2.8 + forjado 0.2), cimiento 0.3, muros 0.2
+  centrados en la línea de rejilla, tabiques 0.12, puerta 1.0 × 2.2, ventana 1.2 × 1.2 (alféizar 0.9), `_Stub` 0.6,
+  tejado a dos aguas 35° con vuelo 0.4. **Módulos** (se escriben en el constructor de su grupo de corte y se fusionan
+  al final, nunca se exportan sueltos): `Wall_2`, `Wall_Window_2`, `Wall_Door_2` (+ `_Stub`), `Corner_Out` (con la
+  fachada S/N), `Floor_2x2`, `Foundation_Skirt_2`, `Roof_Gable_2`, `Roof_Gable_End`, `Porch_2x2`, `Porch_Roof_2`,
+  `Stair_Porch`, `Chimney`, `IWall_2`, `IWall_Door_2`. **Estilos**: `wood_blue` (tablilla solapada `cabin_wall` como
+  lámina en diente de sierra, molduras crema, tejado de junta alzada) y `brick` (hiladas, dintel/alféizar/zócalo de
+  hormigón, cadenas de esquina, tejado de tejas).
+- **Plantilla** (formato ampliado de §8.3): `blender/kits/templates/house_small_A.json` (`footprint` [8, 10],
+  `floors`, `doors`/`windows` = muro del lado `dir` de la celda `pos` [i, j] con la celda (0, 0) al SO,
+  `partitions` [{`axis`, `at`, `from`, `to`, `doors`}], `roof`, `porch.cells`, `chimney.pos/offset`, `furniture`
+  decorativo, `spawns` en metros desde la esquina SO). La copia del código (`data/buildings/templates/`) es del agente
+  de código; los `.glb` no dependen de ella en tiempo de ejecución.
+- **`buildings/{wood_blue,brick}/house_small_A.glb`** (8 × 10 m, 1 planta, porche, tabique con puerta, chimenea):
+  **11 910 / 11 706 tris**, 21 superficies (17 visibles: los `_Stub` están ocultos por defecto). Nodos: `Floor0`,
+  `Walls0_S/N/E/W` (+ `_Stub`), `Interior0`, `Roof`, `Door_0` (exterior, S, origen (0.52, 0.30, 4.97)), `Door_1`
+  (interior, `cut_group` `Interior0`), `Window_0..7`, `Spawn_Container_0` (`house_kitchen`), `Spawn_Stove_0`,
+  `Spawn_Bed_0`, `Spawn_Furniture_0` (`furniture` `wardrobe`), `Spawn_Light_0/1`, `Spawn_Loot_0`, `Spawn_Zombie_0`;
+  colisión (36): `ColFloor0`, `ColWalls0_<dir>_<n>` (troceados alrededor de puertas **y ventanas**: las ventanas
+  quedan abiertas para entrar por una rota; el código pone la caja de `Window_n` como la de `Door_n`),
+  `ColIWalls0_<p>_<n>`, `ColPorch`, `ColSteps` (rampa).
+- `verify_kits.py` reconstruye cada plantilla en memoria y compara con el `.glb`: nodos esperados, contorno de los
+  `_Stub`, extras, **cajas de colisión exactas (±0.02 m)**, puerta exterior en S, `Roof` sin muros, presupuesto 14 k,
+  ≤ 20 superficies visibles.
+- **Falta para M6a**: estilos `concrete` y `sheet_metal`; `Wall_1`, `Wall_DoubleDoor_2`, `Wall_Shop_4`,
+  `Wall_Garage_4`, `Wall_Broken_2`, `Wall_Boarded_2`, `Corner_In`, `Post`; plantas altas (`Floor_Stair_Opening_2x6`,
+  `Stair_2x6`, `Stair_Exterior_2x6`) y el esquema `Walls1_*` en casas de 2 plantas; tejados a cuatro aguas / planos
+  (`Roof_Hip_Corner`, `Roof_Flat_2x2`, `Parapet_2`), `Awning_4`, `Shutter`, `Planks`; mobiliario §9 como
+  `Spawn_Furniture`; las demás plantillas de §8.5; baldosas de carretera (§10).
+
+### M3.7 Desviaciones y notas
+
+1. Nombres: 3 pinos nuevos = `pine_d`, `pine_e`, `pine_f` + abeto joven `pine_young`; 2 árboles secos =
+   `dead_tree_b`, `dead_tree_c` + `birch` (§13); 4 de nieve (`snow_pile_a/b/c`, `snow_drift_4`); troncos
+   `fallen_log_b/c` + `fallen_log` rehecho en HD; carámbanos `props/icicles`. `campsite_remains` va en `poi/` (lleva
+   colisión y spawns) aunque su malla única cumple la regla MultiMesh.
+2. Presupuestos v2.1 comprobados sin holgura: pino 1 200 (joven 800), árbol desnudo 2 600, arbusto/roca 700, nieve 500,
+   tronco 700, carámbanos 300, POI 14 000, campamento 4 000, casa del kit 14 000; props HD del claro: `signpost` 700,
+   `fence` 600, `lantern` 400, `berry_bush` 700, `fallen_log` 500.
+3. `lib/export.py`: los empties `Spawn_*` pueden llevar yaw (única excepción nueva a "rotación 0"); `save_and_export`
+   acepta `blend_name` (una `.blend` por plantilla × estilo: `sources/house_small_A__wood_blue.blend`) e
+   `import_kind`. Librerías nuevas: `lib/veg.py` (generadores de vegetación compartidos; los G1 salen idénticos),
+   `lib/kit.py`; `lib/hd.py` gana `snow_ridge`/`snow_cone_cap` (nieve barata para listones y postes) y
+   `bake_ao(exclude=…)`.

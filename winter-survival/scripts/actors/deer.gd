@@ -33,6 +33,8 @@ enum State { GRAZE, WANDER, FLEE, DEAD }
 var state: State = State.GRAZE
 var _timer: float = 3.0
 var _target: Vector3 = Vector3.INF
+## Where the deer spawned (wander targets drift back toward it near unloaded ground).
+var _home: Vector3 = Vector3.ZERO
 var _rng := RandomNumberGenerator.new()
 var _gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity", 9.8)
 
@@ -74,6 +76,7 @@ func _ready() -> void:
 		collision_mask = 0
 		_apply_remote_state(net_state)
 		return
+	_home = net_position
 	ActorInterest.install($ActorSync, self, 60.0)   # only peers with a player within 60 m receive it
 	for pair in [["WhiskerL", 25.0], ["WhiskerR", -25.0]]:
 		var ray := RayCast3D.new()
@@ -126,6 +129,11 @@ func server_interact(p: Node, action: StringName, _arg: int) -> bool:
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	# M3: never simulate over a chunk whose collider is not loaded (the server streams around the players)
+	var world := World.instance
+	if world != null and not world.has_collision_at(global_position):
+		velocity = Vector3.ZERO
+		return
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:
@@ -145,8 +153,8 @@ func _physics_process(delta: float) -> void:
 				var ang := _rng.randf_range(0.0, TAU)
 				var r := _rng.randf_range(5.0, 15.0)
 				_target = global_position + Vector3(cos(ang) * r, 0, sin(ang) * r)
-				if absf(_target.x) > Balance.BOUNDS - 4.0 or absf(_target.z) > Balance.BOUNDS - 4.0:
-					_target = global_position * 0.8
+				if not WorldConst.in_playable(_target.x, _target.z) or (World.instance != null and not World.instance.has_collision_at(_target)):
+					_target = global_position.lerp(_home, 0.3)
 		State.WANDER:
 			desired = steering.seek(_target, 1.5)
 			if Vector2(_target.x - global_position.x, _target.z - global_position.z).length() < 1.0:

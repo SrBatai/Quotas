@@ -458,7 +458,7 @@ def _occluder_tree(objs, planes):
 
 
 def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0, floor=0.0, walls=(),
-            inset=0.05, inset_frac=0.25, eps=0.002):
+            inset=0.05, inset_frac=0.25, eps=0.002, exclude=()):
     """Bake ambient occlusion per corner into the alpha of `Col` for every object in `objs` (ray cast against a
     BVH of every visual mesh of the scene; Col* collision objects never occlude). A ground plane at z = ground_z
     darkens the bases (ground=False for hanging / hand-held assets); `walls` = [(point, normal)] adds occluder
@@ -470,12 +470,13 @@ def bake_ao(objs, distance=1.0, samples=64, ground=True, ground_z=0.0, gamma=1.0
     roof panel) came out 50-97 % occluded. Here a corner of a FLAT face (flat shaded, or a hardened chamfer face)
     is sampled `inset` m (at most `inset_frac` of the way) toward its face centre, 2 mm above the face; a corner
     of a SMOOTH surface is sampled at its vertex along its normal (one value per vertex: no seams on snow / cloth).
+    `exclude` = object names that do not occlude (M3: cutaway stubs are baked without the full walls they replace).
     Returns the bake time (s)."""
     from .export import is_col
     t0 = time.time()
     sc = bpy.context.scene
     bpy.context.view_layer.update()          # objects made with a pivot / parent have a stale matrix_world before
-    occ = [o for o in sc.objects if o.type == 'MESH' and not is_col(o.name)]
+    occ = [o for o in sc.objects if o.type == 'MESH' and not is_col(o.name) and o.name not in exclude]
     planes = []
     if ground:
         planes.append((Vector((0, 0, ground_z)), Vector((0, 0, 1))))
@@ -551,3 +552,62 @@ def bake_scene_ao(distance=None, samples=None, ground=None, walls=(), force=Fals
             samples=auto["samples"] if samples is None else samples,
             ground=auto["ground"] if ground is None else ground, walls=walls)
     return objs
+
+
+def snow_ridge(p0, p1, width, thick, name=None, segs=None, prof=5, overhang=0.01, droop=0.01, seed=0, mat="snow"):
+    """Cheap rounded snow line (M3) for thin rails / board tops / post tops of repeated props: a half-dome profile
+    (`prof` points) swept from p0 to p1 (points on the top surface) in `segs` segments, thickness tapering to the
+    rounded ends, rim drooping `droop` below the surface. Smooth, open bottom. ~8 x segs + 8 tris (vs ~130 for a
+    subdivided snow_strip)."""
+    rnd = random.Random(seed)
+    p0, p1 = Vector(p0), Vector(p1)
+    U = (p1 - p0)
+    L = U.length
+    U.normalize()
+    N = Vector((0, 0, 1))
+    V = N.cross(U).normalized()
+    segs = segs or max(2, min(6, int(L / 0.35) + 1))
+    mb = lp.MeshBuilder()
+    rows = []
+    for k in range(segs + 1):
+        t = k / segs
+        c = p0 - U * overhang + U * ((L + 2 * overhang) * t)
+        end = min(1.0, min(t, 1 - t) * (L + 2 * overhang) / max(0.04, width * 0.6))
+        th = thick * (0.35 + 0.65 * end ** 0.6) * rnd.uniform(0.9, 1.1)
+        row = []
+        for j in range(prof):
+            a = math.pi * j / (prof - 1)                     # 0 .. pi across the width
+            w = -math.cos(a) * (width / 2) * (0.75 + 0.25 * end)
+            h = math.sin(a) * th - droop * (1 - math.sin(a))
+            row.append(c + V * w + N * h)
+        rows.append(row)
+    idx = [[mb._v(p) for p in r] for r in rows]
+    for k in range(segs):
+        for j in range(prof - 1):
+            mb.add_face((idx[k][j], idx[k][j + 1], idx[k + 1][j + 1], idx[k + 1][j]), mat, facing=N)
+    for k, sgn in ((0, -1), (segs, 1)):
+        cen = mb._v(sum((mb.verts[i] for i in idx[k]), Vector()) / prof + U * (sgn * width * 0.12))
+        for j in range(prof - 1):
+            mb.add_face((idx[k][j], idx[k][j + 1], cen), mat, facing=U * sgn + N * 0.5)
+    return smooth(mk(mb, name))
+
+
+def snow_cone_cap(center, half, base_z, apex_z, thick, name=None, sides=8, droop=0.015, seed=0, mat="snow"):
+    """Snow cap on a square post top / pyramid cap (M3): 2 rings + apex, smooth; ~3 x sides tris."""
+    rnd = random.Random(seed)
+    c = Vector(center)
+    mb = lp.MeshBuilder()
+    rows = []
+    for k, (f, dz) in enumerate(((1.12, -droop), (0.62, None))):
+        row = []
+        for i in range(sides):
+            a = 2 * math.pi * (i + 0.5) / sides
+            r = half * f * rnd.uniform(0.95, 1.08) / max(abs(math.cos(a)), abs(math.sin(a))) ** 0.35
+            x, y = math.cos(a) * r, math.sin(a) * r
+            zs = base_z + (apex_z - base_z) * max(0.0, 1 - max(abs(x), abs(y)) / half)
+            z = zs + dz if dz is not None else zs + thick * 0.85
+            row.append(c + Vector((x, y, 0)) + Vector((0, 0, z - c.z)))
+        rows.append(row)
+    rows.append([Vector((c.x, c.y, apex_z + thick))])
+    mb.loft(rows, mat, cap_start=False, cap_end=False, inside=Vector((c.x, c.y, base_z - 1.0)))
+    return smooth(mk(mb, name))

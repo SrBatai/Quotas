@@ -3,6 +3,8 @@ extends Node
 ## Owner client: cursor raycast → hovered InteractableComponent; click → predicted auto-walk when far, then a
 ## validated `NetWorld.request_interact(wid, action, arg)` with an optimistic `client_preview` (reverted on a
 ## denial); attack → `request_attack`. Labels use the owner's state mirror.
+## M3: trees are MultiMesh instances; a ray that meets a chunk's scatter trunk, or passes through a tree's crown
+## (World.pick_scatter over the scatter index), materializes that one tree so the usual component takes over.
 
 var target: InteractableComponent
 var pending: InteractableComponent
@@ -49,6 +51,17 @@ func _physics_process(_delta: float) -> void:
 	var found: InteractableComponent = null
 	if not hit.is_empty() and hit.collider != null:
 		found = InteractableComponent.find_from(hit.collider)
+		if found == null and hit.collider.has_meta("scatter_chunk"):
+			var ch: WorldChunk = hit.collider.get_meta("scatter_chunk")
+			var i := ch.entry_of_hit(hit.collider, int(hit.get("shape", -1)))
+			if i >= 0 and ScatterCatalog.is_choppable(int(ch.data.entries[i]["v"])):
+				var t := ch.materialize(i)
+				found = t.interactable if t != null else null
+	if found == null and World.instance != null:
+		var ground: Vector3 = hit.position if not hit.is_empty() else to
+		var t := World.instance.pick_scatter(from, (to - from).normalized(), ground)
+		if t != null and t.is_inside_tree():
+			found = t.interactable
 	if found != null and not is_instance_valid(found):
 		found = null
 	var text := ""
@@ -145,6 +158,16 @@ func _interact_nearest() -> void:
 		if d < best_d:
 			best_d = d
 			best = comp
+	# M3: the nearest MultiMesh tree / log in reach counts too (materialized when chosen)
+	if World.instance != null and World.instance.is_configured:
+		var f := World.instance.nearest_scatter(_player.global_position, "", 0)
+		if not f.is_empty():
+			var ch: WorldChunk = f[0]
+			var d := Vector2(ch.entry_position(f[1]).x - _player.global_position.x, ch.entry_position(f[1]).z - _player.global_position.z).length()
+			if d < best_d:
+				var t := ch.materialize(int(f[1]))
+				if t != null and t.interactable.can_interact(_player):
+					best = t.interactable
 	if best != null:
 		_go_or_interact(best)
 

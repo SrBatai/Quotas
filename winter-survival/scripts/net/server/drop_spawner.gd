@@ -5,7 +5,8 @@ extends MultiplayerSpawner
 ## (ARQ v2 §6.4 "Drops", M2 spawner version of DROP_ADD/DROP_REMOVE). Each drop is recorded in its ChunkDelta
 ## (`drops` table) so a save restores it.
 
-const PICKUP_SCENE := preload("res://scenes/world/pickup.tscn")
+## Loaded lazily: World → spawner → scene → interactable.gd → Player → World would be a preload cycle.
+const PICKUP_SCENE_PATH := "res://scenes/world/pickup.tscn"
 
 static var instance: DropSpawner
 
@@ -55,7 +56,7 @@ func spawn_drop(item_id: StringName, model: String, pos: Vector3, amount: int = 
 ## spawn_function (server and clients).
 func _spawn_node(data: Variant) -> Node:
 	var d: Dictionary = data
-	var p: Pickup = PICKUP_SCENE.instantiate()
+	var p: Pickup = (load(PICKUP_SCENE_PATH) as PackedScene).instantiate()
 	p.name = str(d["name"])
 	p.item_id = StringName(str(d["item"]))
 	p.model = str(d["model"])

@@ -11,7 +11,7 @@ pass-through decoration; keep them off paths / doors), origin at the base centre
   snow_pile_a  round pile 1.8 x 1.6 x 0.55 m
   snow_pile_b  big lumpy pile 2.9 x 2.3 x 0.85 m (three lobes)
   snow_pile_c  small low pile 1.2 x 0.9 x 0.3 m
-  snow_drift_4 elongated drift 4.0 x 1.7 x 0.7 m with a cornice on the lee side (+Y)
+  snow_drift_4 elongated drift 4.0 x 1.65 x 0.55 m with a cornice on the lee side (+Y)
 """
 import os
 import sys
@@ -45,7 +45,7 @@ def build_pile(name):
 
 def build_drift():
     lp.new_scene()
-    L, D, Hh = 4.0, 1.55, 0.70
+    L, D, Hh = 4.0, 1.55, 0.95
     crest_v = 1.12
 
     def top(u, v):
@@ -62,8 +62,8 @@ def build_drift():
             e = H.smoothstep(0.0, 0.9, min(u, L - u))
             return (0.0, 0.10 * e, -0.06 * e)
         return (0.0, 0.0, 0.0)
-    o = H.pillow(Vector((-L / 2, -D / 2, -0.05)), (1, 0, 0), (0, 1, 0), (0, 0, 1), L, D, Hh, nu=9, nv=6, rim=0.22,
-                 seed=8, top_fn=top, lip=lip, jitter=0.04, bottom=-0.05, levels=2)
+    o = H.pillow(Vector((-L / 2, -D / 2, -0.05)), (1, 0, 0), (0, 1, 0), (0, 0, 1), L, D, Hh, nu=9, nv=5, rim=0.22,
+                 seed=8, top_fn=top, lip=lip, jitter=0.04, bottom=-0.05, levels=1)
     V.export_scatter("snow_drift_4", [o], "Snow", "snow", "none", ao=SNOW_AO)
 
 

@@ -181,6 +181,11 @@ func _dist_to(p: Vector3) -> float:
 func _physics_process(delta: float) -> void:
 	if state == State.DEAD:
 		return
+	# M3: never simulate over a chunk whose collider is not loaded (the server streams around the players)
+	var world := World.instance
+	if world != null and not world.has_collision_at(global_position):
+		velocity = Vector3.ZERO
+		return
 	if not is_on_floor():
 		velocity.y -= _gravity * delta
 	else:

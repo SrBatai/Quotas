@@ -1,52 +1,34 @@
-"""berry_bush (slice ASSET_SPEC §4.9; ASSET_SPEC_V2 §13/§17: keeps the child `Berries` the code hides; no front)."""
-import math
+"""berry_bush (slice ASSET_SPEC §4.9; ASSET_SPEC_V2 §13/§17: keeps the child `Berries` the code hides; no front).
+
+M3 HD (guide v2.1): the shrub recipe of vegetation/build_bushes.py (lumpy faceted foliage lobes, spiky tufts, smooth
+snow caps draped on the tops) in the slightly brighter `bush` green that marks it as interactive, with 16 berries in
+five clusters as the separate child `Berries` (pivot at the bush origin, hidden by berry_bush.gd after picking).
+Size unchanged (1.0 x 1.0 x 0.55 m, the code's sphere collider r 0.5 at 0.4).
+"""
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bpy  # noqa: E402,F401  (must precede mathutils)
-from mathutils import Vector  # noqa: E402
-from mathutils.bvhtree import BVHTree  # noqa: E402
 
 from lib import export  # noqa: E402
+from lib import hd as H  # noqa: E402
 from lib import lowpoly as lp  # noqa: E402
+from vegetation.build_bushes import berries, shrub  # noqa: E402
 
 
 def build_berry_bush():
     lp.new_scene()
-    rnd = lp.rng(7)
-    mb = lp.MeshBuilder()
-    # union of 3 jittered icospheres (r 0.35 / 0.40 / 0.30, offsets +-0.2), bottom clipped at z = 0
-    for center, r in (((0.02, 0.14, 0.12), 0.40), ((-0.2, -0.13, 0.08), 0.35), ((0.22, -0.12, 0.05), 0.30)):
-        mb.blob(center, (r, r, r * 0.9), "bush", subdiv=1, jitter=0.08, rnd=rnd, clamp_z=0.0,
-                drop_bottom=True, snow=True)
-    lp.fit_bounds(mb, (1.0, 1.0, 0.55))
-    mb.snow(0.6)
-    bush = lp.to_object(mb, "Bush")
-
-    # berries: 10 tiny icospheres in 4 clusters on the upper surface (found by ray casting)
-    bvh = BVHTree.FromPolygons([v.copy() for v in mb.verts], [f[0] for f in mb.faces])
-    berries = lp.MeshBuilder()
-    clusters = [(0.25, 30), (0.28, 140), (0.22, 250), (0.12, 330)]
-    counts = [3, 3, 2, 2]
-    for (rad, az), cnt in zip(clusters, counts):
-        a = math.radians(az)
-        cx, cy = rad * math.cos(a), rad * math.sin(a)
-        placed = 0
-        tries = 0
-        while placed < cnt and tries < 50:
-            tries += 1
-            x = cx + rnd.uniform(-0.07, 0.07)
-            y = cy + rnd.uniform(-0.07, 0.07)
-            hit = bvh.ray_cast(Vector((x, y, 2.0)), Vector((0, 0, -1)))
-            if hit[0] is None or hit[1].z < 0.12:
-                continue
-            p = hit[0] + hit[1].normalized() * 0.02
-            berries.blob(p, 0.045, "berry", subdiv=0, jitter=0.0, rnd=rnd)
-            placed += 1
-    lp.to_object(berries, "Berries", pivot=(0, 0, 0), parent=bush)
-    export.save_and_export("berry_bush")
+    lobes = [((0.02, 0.08, 0.13), (0.40, 0.38, 0.28)), ((-0.22, -0.14, 0.10), (0.31, 0.29, 0.24)),
+             ((0.24, -0.12, 0.08), (0.29, 0.27, 0.22)), ((0.20, 0.28, 0.06), (0.22, 0.20, 0.17))]
+    parts, bvh, rnd = shrub(7, lobes, top="bush", side="pine_light", under="pine_mid", tufts=6, tuft_mat="pine_light",
+                            caps=[(0.02, 0.08, 0.26, 0.24, 0.05), (-0.22, -0.14, 0.18, 0.16, 0.04)], sink=0.02)
+    bush = H.join(parts, "Bush")
+    b = berries(bvh, rnd, [(0.25, 0.10, 4, 0.07), (-0.10, 0.32, 3, 0.06), (-0.30, -0.25, 3, 0.07),
+                           (0.25, -0.30, 3, 0.06), (0.35, 0.30, 3, 0.05)], r=(0.036, 0.046))
+    H.join([b], "Berries", parent=bush)
+    export.save_and_export("berry_bush", ao=dict(distance=0.4, samples=64, ground=True))
 
 
 def main():

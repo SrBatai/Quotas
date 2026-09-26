@@ -4,6 +4,9 @@ extends RefCounted
 ## gameplay action goes through the validated NetWorld requests, exactly like a networked client would.
 ## M2: skeletal survivor (feet metric: ankle >= 0.08 m, sliding < 5 %), action-based interaction, ChunkDelta,
 ## DropSpawner / StructureSpawner, DamageResolver v0 on wolves and deer, persistence backends.
+## M3: 3 km world in 64 m chunks (WorldConst, HeightFunction, macro map, streamer rings), the slice clearing kept
+## exactly (legacy scatter port), MultiMesh trees choppable by index (materialized on request), big lake, road
+## beds, regions per chunk, world border, teleport far + back (felled tree survives an unload), trail map follows.
 
 var tree: SceneTree
 
@@ -12,6 +15,8 @@ var _checks: int = 0
 var _signals: Dictionary = {}
 var _chat_lines: Array = []
 var _hit_results: Array = []
+var _felled_wid: int = 0
+var _felled_pos: Vector3 = Vector3.ZERO
 
 
 func check(cond: bool, msg: String) -> void:
@@ -86,16 +91,33 @@ func run(p_tree: SceneTree) -> void:
 	check(player.view != null and player.input != null and player.interactor != null and player.camera_rig != null, "local player has the client branches (View/Input/Interactor/CameraRig)")
 	check(game.get_node_or_null("WorldState") != null and game.get_node_or_null("NetWorld") != null and game.get_node_or_null("Chat") != null, "WorldState / NetWorld / Chat at fixed paths")
 	check(game.get_node_or_null("UI/HUD") != null and game.get_node_or_null("PlayerManager") != null, "client UI and server PlayerManager branches added at runtime")
-	check(world.terrain.get_node_or_null("Shape") != null and world.terrain.get_node("Shape").shape != null, "terrain collision shape present")
+	var under := world.streamer.loaded_chunk_at(player.global_position.x, player.global_position.z)
+	var hm: HeightMapShape3D = under.terrain_body.get_child(0).shape if under != null and under.terrain_body != null else null
+	check(hm != null and hm.map_width == WorldConst.SAMPLES and hm.map_depth == WorldConst.SAMPLES, "terrain collision under the player: chunk %s HeightMapShape3D %dx%d" % [under.name if under != null else "-", hm.map_width if hm != null else 0, hm.map_depth if hm != null else 0])
+	var ring1_ok := true
+	for k in WorldConst.ring_keys(WorldConst.CENTER_CHUNK, WorldConst.CENTER_CHUNK, 1):
+		if not world.streamer.chunks.has(k) or (world.streamer.chunks[k] as WorldChunk).state != WorldChunk.State.LOADED:
+			ring1_ok = false
+	check(ring1_ok, "clearing chunks 23–25 loaded synchronously before the spawn (%d chunks loaded)" % world.streamer.loaded_keys().size())
 	check(world.cabin != null, "cabin exists")
 	var stove: WoodStove = world.cabin.get_node("Stove")
 	check(stove != null and stove.is_lit, "stove exists and is lit")
 	var cabinet := world.cabin.get_node("Cabinet")
 	check(cabinet != null, "cabinet exists")
-	var trees := tree.get_nodes_in_group("tree")
-	check(trees.size() >= 200, "trees in group 'tree': %d" % trees.size())
+	check(world.scatter_tree_count() >= 200, "choppable scatter trees (MultiMesh entries) in the loaded chunks: %d" % world.scatter_tree_count())
+	check(tree.get_nodes_in_group("tree").size() < 20, "trees are not nodes until needed (%d materialized)" % tree.get_nodes_in_group("tree").size())
 	check(tree.get_nodes_in_group("pickup").size() >= 1, "pickups exist: %d" % tree.get_nodes_in_group("pickup").size())
-	check(String(trees[0].name).begins_with("tree_") and WorldRegistry.get_object(WorldRegistry.wid_of(trees[0])) == trees[0], "scatter names are deterministic and registered (wid)")
+	var clearing: Array = ScatterGen.clearing_entries(world.seed_value)
+	var e0: Dictionary = clearing[0]
+	check(clearing.size() == 723 and ScatterCatalog.name_of(int(e0["v"])) == "pine_b" and absf(float(e0["x"]) - 13.100) < 0.001 and absf(float(e0["z"]) - 75.295) < 0.001
+		and absf(float(e0["yaw"]) - 3.2761) < 0.0001, "slice clearing scatter ported exactly (%d entries, first %s at %.3f, %.3f)" % [clearing.size(), ScatterCatalog.name_of(int(e0["v"])), float(e0["x"]), float(e0["z"])])
+	var f0 := world.nearest_scatter(world.get_spawn_point(), "pine", 1)
+	var t0: ChoppableTree = (f0[0] as WorldChunk).materialize(int(f0[1])) if not f0.is_empty() else null
+	check(t0 != null and WorldRegistry.get_object(WorldRegistry.wid_of(t0)) == t0 and WorldRegistry.wid_of(t0) == int((f0[0] as WorldChunk).data.entries[int(f0[1])]["wid"]),
+		"a MultiMesh tree materializes on demand with its deterministic wid (hash64) registered")
+	if t0 != null:
+		(f0[0] as WorldChunk).dematerialize(int(f0[1]))
+	check(t0 == null or not is_instance_valid(t0), "an untouched materialized tree goes back to the MultiMesh")
 	check(WorldState.instance.day == 1, "day == 1")
 	check(absf(WorldState.instance.hour - 8.0) < 0.2, "hour ≈ 8 (%.2f)" % WorldState.instance.hour)
 	check(tree.get_nodes_in_group("deer").size() >= 1, "deer spawned: %d" % tree.get_nodes_in_group("deer").size())
@@ -212,30 +234,27 @@ func run(p_tree: SceneTree) -> void:
 	var hand_i: int = visual.skeleton.find_bone("RightHand")
 	var hand_world: Vector3 = visual.skeleton.global_transform * visual.skeleton.get_bone_global_pose(hand_i).origin
 	check(player.tool_holder.tool_model.global_position.distance_to(hand_world) < 0.15, "tool follows the animated hand (%.2f m from RightHand)" % player.tool_holder.tool_model.global_position.distance_to(hand_world))
-	# 5. chop the nearest pine through the validated request (distance + tool checked on the server)
-	var nearest: ChoppableTree = null
-	var best := INF
-	for t in tree.get_nodes_in_group("tree"):
-		if not String(t.variant).begins_with("pine"):
-			continue
-		var d: float = t.global_position.distance_to(player.global_position)
-		if d < best:
-			best = d
-			nearest = t
-	check(nearest != null, "found a tree to chop")
-	if nearest != null:
-		var wid := WorldRegistry.wid_of(nearest)
-		var far := nearest.global_position + Vector3(12.0, 0.3, 0)
+	# 5. chop the nearest pine through the validated request (distance + tool checked on the server). M3: trees
+	# are MultiMesh entries; the server materializes the one a request names (WorldRegistry.resolve).
+	var fnear := world.nearest_scatter(player.global_position, "pine", 1)
+	var nchunk: WorldChunk = fnear[0] if not fnear.is_empty() else null
+	var nidx: int = fnear[1] if not fnear.is_empty() else -1
+	var wid: int = int(nchunk.data.entries[nidx]["wid"]) if nchunk != null else 0
+	var tree_pos: Vector3 = nchunk.entry_position(nidx) if nchunk != null else Vector3.ZERO
+	check(nchunk != null and WorldRegistry.get_object(wid) == null, "found a MultiMesh pine to chop (entry %d of %s, not a node yet)" % [nidx, nchunk.name if nchunk != null else "-"])
+	if nchunk != null:
+		var far := tree_pos + Vector3(12.0, 0.3, 0)
 		far.y = world.get_height(far.x, far.z) + 0.3
 		player.global_position = far
 		await frames(3)
 		request(&"request_interact", [wid, &"chop", 0])
 		await frames(2)
-		check(nearest.hits == 0, "far request_interact rejected by the server (hits=%d)" % nearest.hits)
-		var side := (player.global_position - nearest.global_position)
+		var nearest := WorldRegistry.get_object(wid) as ChoppableTree
+		check(nearest != null and nearest.hits == 0 and nearest.scatter_chunk == nchunk, "far request_interact: the server materialized the tree and rejected the hit (hits=%d)" % (nearest.hits if nearest != null else -1))
+		var side := (player.global_position - tree_pos)
 		side.y = 0.0
 		side = side.normalized() * 1.5
-		player.global_position = nearest.global_position + side + Vector3(0, 0.3, 0)
+		player.global_position = tree_pos + side + Vector3(0, 0.3, 0)
 		await frames(3)
 		var infr_before: int = NetWorld.instance.infractions_of(1)
 		request(&"request_interact", [wid, &"open", 0])
@@ -252,15 +271,16 @@ func run(p_tree: SceneTree) -> void:
 		check(player.state.count(&"madera") == Balance.TREE_WOOD, "wood after chop == %d (got %d)" % [Balance.TREE_WOOD, player.state.count(&"madera")])
 		check(NetWorld.instance.delta_of(wid).get("felled", false) == true, "tree felled recorded as a world delta")
 		var cd: ChunkDelta = NetWorld.instance.chunk_for(wid)
-		check(cd != null and cd.objects.has(wid) and cd.cx >= 23 and cd.cx <= 25 and cd.cz >= 23 and cd.cz <= 25 and cd.is_dirty(), "delta stored in ChunkDelta (%d, %d) of the clearing, dirty" % [cd.cx, cd.cz])
+		check(cd != null and cd.objects.has(wid) and cd.cx >= 23 and cd.cx <= 25 and cd.cz >= 23 and cd.cz <= 25 and cd.is_dirty() and cd.key() == nchunk.key, "delta stored in the tree's own ChunkDelta (%d, %d) of the clearing, dirty" % [cd.cx, cd.cz])
 		var cpk := cd.pack()
 		var cback := ChunkDelta.unpack(int(cpk["size"]), cpk["bytes"])
 		check(not cback.is_empty() and (cback["objects"] as Dictionary).has(wid) and bool(cback["objects"][wid]["felled"]) and (cpk["bytes"] as PackedByteArray).size() < int(cpk["size"]), "CHUNK_DELTA pack/unpack round trip (%d B zstd of %d)" % [(cpk["bytes"] as PackedByteArray).size(), int(cpk["size"])])
-		var stump_near := false
-		for c in world.get_node("Scatter").get_children():
-			if String(c.name).begins_with("stump_of_") and c.global_position.distance_to(nearest.global_position) < 0.5:
-				stump_near = true
-		check(stump_near, "stump left where the tree stood")
+		await seconds(1.6)   # the fall animation frees the tree node after ≈ 1.3 s
+		check(_stump_near(world, tree_pos, wid), "stump left where the tree stood")
+		check(bool(nchunk.data.entries[nidx]["felled"]) and nchunk.removed[nidx] == 1 and NetWorld.instance.felled.has(wid) and WorldRegistry.get_object(wid) == null,
+			"scatter entry marked felled (instance hidden, shape disabled, NetWorld.felled, node freed)")
+		_felled_wid = wid
+		_felled_pos = tree_pos
 	# 6. stove
 	var fuel_before := stove.burner.fuel
 	var fed := stove.add_wood_from_player(player)
@@ -446,8 +466,142 @@ func run(p_tree: SceneTree) -> void:
 	check(fired(&"game_won") >= 1, "game_won fired")
 	check(GameFlow.best_days >= 5, "best_days saved (%d)" % GameFlow.best_days)
 	check(go.visible and WorldState.instance.day == 6, "win screen shown, world keeps running (day %d)" % WorldState.instance.day)
+	# 16. M3 — open world by chunks (PLAN M3)
+	await _m3_checks(world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
 	tree.quit(1 if _failed else 0)
+
+
+func _m3_checks(world: World, player: Player) -> void:
+	var hf := world.hf
+	var st := world.streamer
+	# grid + hashing
+	check(WorldConst.WORLD_CHUNKS == 48 and WorldConst.CHUNK_SIZE == 64.0 and WorldConst.chunk_of(0.0) == 24 and WorldConst.chunk_of(-31.9) == 24
+		and WorldConst.chunk_of(32.1) == 25 and WorldConst.key_cx(WorldConst.key(47, 3)) == 47 and WorldConst.key_cz(WorldConst.key(47, 3)) == 3,
+		"WorldConst: 48 × 48 chunks of 64 m, chunk 24 centred on the origin, key round trip")
+	var h1 := WorldConst.hash64(1337, 101, -5, 7, 0)
+	check(h1 == WorldConst.hash64(1337, 101, -5, 7, 0) and h1 != WorldConst.hash64(1337, 101, -5, 8, 0) and h1 >= 0, "hash64 deterministic, 63-bit (%d)" % h1)
+	# height function: clearing untouched by the macro, big lake, road beds, border
+	check(hf.macro.ok and hf.macro.height_rel(50.0, -60.0) == 0.0 and hf.macro.height_rel(-100.0, 90.0) == 0.0 and hf.macro.height_rel(900.0, 300.0) != 0.0, "macro map loaded; exactly 0 around the clearing")
+	var lake_ok := true
+	for q in [Vector2(-760, 380), Vector2(-700, 300), Vector2(-660, 520), Vector2(-900, 450)]:
+		if absf(hf.height_at(q.x, q.y) - PoiRegistry.LAKE_LEVEL) > 0.001 or hf.surface_at(q.x, q.y).g8 < 250 or not world.terrain.is_lake(q.x, q.y):
+			lake_ok = false
+	check(lake_ok, "Lago de las Ánimas: flat ice at %.1f m (surface mask ice)" % PoiRegistry.LAKE_LEVEL)
+	var rp := Vector2(646, -240)
+	var rdir := (Vector2(662, -60) - rp).normalized()
+	var rh0 := hf.height_at(rp.x, rp.y)
+	var rh1 := hf.height_at(rp.x + rdir.x * 2.0, rp.y + rdir.y * 2.0)
+	check(hf.surface_at(rp.x, rp.y).r8 > 200 and absf(rh1 - rh0) < 0.3 and hf.road_distance(rp.x, rp.y, 10.0, "highway") < 0.0, "N‑140 road bed: asphalt mask, smooth profile (%.2f m over 2 m)" % absf(rh1 - rh0))
+	check(hf.height_at(1400.0, 0.0) > hf.height_at(0.0, 0.0) + 40.0, "border mountains rise at the world edge (%.0f m)" % hf.height_at(1400.0, 0.0))
+	# regions per chunk (+ the slice's small zones inside the clearing)
+	var names := [Regions.name_at(0, 0), Regions.name_at(-21, -13), Regions.name_at(-760, 380), Regions.name_at(646, -240), Regions.name_at(1400, 100), Regions.name_at(176, -512)]
+	check(names == ["CLARO", "CABAÑA DEL PESCADOR", "LAGO DE LAS ÁNIMAS", "N-140", "LAS CUMBRES", "VALDENIEVE"], "regions by chunk: %s" % [names])
+	# a client-side chunk build (headless runs have no meshes): mesh arrays, CUSTOM0 mask, baked AO, MultiMesh buffers
+	var job := ChunkJob.new()
+	job.cx = 24
+	job.cz = 24
+	job.key = WorldConst.key(24, 24)
+	job.hf = hf
+	job.visual = true
+	job.clearing = ScatterGen.clearing_entries(world.seed_value)
+	job.run()
+	var ao_min := 1.0
+	for a in job.ao:
+		ao_min = minf(ao_min, a)
+	var instances := 0
+	for mk in job.mm_keys:
+		instances += (job.mm[mk]["idx"] as PackedInt32Array).size()
+	check(job.verts.size() == 65 * 65 and job.custom.size() == 65 * 65 * 4 and job.normals.size() == 65 * 65 and ao_min < 0.8 and instances > 50 and job.mm_keys.size() >= 8,
+		"visual chunk data: 4225 verts, CUSTOM0 RGBA8, AO baked (min %.2f), %d MultiMesh instances in %d blocks×variants (%d ms)" % [ao_min, instances, job.mm_keys.size(), job.usec / 1000])
+	var lake_job := ChunkJob.new()
+	lake_job.cx = WorldConst.chunk_of(-760.0)
+	lake_job.cz = WorldConst.chunk_of(380.0)
+	lake_job.key = WorldConst.key(lake_job.cx, lake_job.cz)
+	lake_job.hf = hf
+	lake_job.visual = true
+	lake_job.run()
+	var ice := 0
+	for k in 65 * 65:
+		if lake_job.custom[k * 4 + 1] > 200:
+			ice += 1
+	check(ice > 3000 and lake_job.region == "LAGO DE LAS ÁNIMAS", "lake chunk: %d ice samples in CUSTOM0.g, region %s" % [ice, lake_job.region])
+	# streaming around the player: ring 2 (5 × 5) loaded, main-thread steps inside the budget
+	var waited := 0
+	while not st.is_idle() and waited < 600:
+		await tree.process_frame
+		waited += 1
+	check(st.loaded_keys().size() == 25, "ring 2 (5 × 5) streamed around the player: %d chunks after %d frames" % [st.loaded_keys().size(), waited])
+	check(int(st.stats["step_usec_max"]) < WorldConst.STREAM_BUDGET_USEC, "streaming steps within the 2 ms/frame budget (max step %d µs, gen max %d µs in workers)" % [int(st.stats["step_usec_max"]), int(st.stats["gen_usec_max"])])
+	# hover pick through a tree crown (the ray misses the trunk collider): materializes that tree
+	var fp := world.nearest_scatter(player.global_position, "pine", 1)
+	if not fp.is_empty():
+		var tp: Vector3 = (fp[0] as WorldChunk).entry_position(fp[1])
+		var from := tp + Vector3(0.0, 20.0, 12.0)
+		var picked := world.pick_scatter(from, (tp + Vector3(0.0, 3.5, 0.0) - from).normalized(), tp + Vector3(0.0, 0.0, -3.0))
+		check(picked != null and picked.global_position.distance_to(tp) < 0.01, "cursor ray through a crown picks (materializes) that MultiMesh tree")
+	# teleport 1 km away onto the lake (debug /tp): synchronous load, standing on the ice, banner, clearing unloaded
+	var region_now := [""]   # lambdas capture locals by value: a reference holder
+	var rc := func(n: String) -> void: region_now[0] = n
+	Events.region_changed.connect(rc)
+	Chat.instance.send("/tp -760 380")
+	await frames(3)
+	check(player.global_position.distance_to(Vector3(-760, PoiRegistry.LAKE_LEVEL, 380)) < 1.0 and st.loaded_chunk_at(-760, 380) != null, "teleported 900 m onto the lake: its chunk loaded synchronously (y %.2f)" % player.global_position.y)
+	await seconds(1.0)
+	check(player.is_on_floor() and absf(player.global_position.y - PoiRegistry.LAKE_LEVEL) < 0.2, "standing on the flat lake ice (y %.2f)" % player.global_position.y)
+	check(region_now[0] == PoiRegistry.REGION_LAKE, "region banner from the chunk data: %s" % region_now[0])
+	# walk east across a chunk seam: no fall, no bump
+	var seam := WorldConst.chunk_origin(WorldConst.chunk_of(player.global_position.x) + 1, 0).x
+	player.global_position = Vector3(seam - 3.0, PoiRegistry.LAKE_LEVEL + 0.2, 380.0)
+	await frames(10)
+	player.input.scripted_move = Vector2(1, 0)
+	var y_min := INF
+	var y_max := -INF
+	var floor_all := true
+	for i in 150:
+		await tree.physics_frame
+		if i > 10:
+			y_min = minf(y_min, player.global_position.y)
+			y_max = maxf(y_max, player.global_position.y)
+			floor_all = floor_all and player.is_on_floor()
+	player.input.scripted_move = Vector2.INF
+	check(player.global_position.x > seam + 1.0 and floor_all and y_max - y_min < 0.05, "walked across the chunk seam at x=%.0f on the ice (Δy %.3f m, always on floor)" % [seam, y_max - y_min])
+	check(world.footprints == null or (world.footprints.rect.has_point(Vector2(player.global_position.x, player.global_position.z)) and world.footprints.count_near(player.global_position, 6.0) >= 2),
+		"snow trail map re-projected with the player 900 m away (%d prints near it)" % (world.footprints.count_near(player.global_position, 6.0) if world.footprints != null else -1))
+	waited = 0
+	while (st.chunks.has(WorldConst.key(24, 24)) or not st.is_idle()) and waited < 900:
+		await tree.process_frame
+		waited += 1
+	check(not st.chunks.has(WorldConst.key(24, 24)) and st.loaded_keys().size() <= 35 and int(st.stats["unloaded"]) >= 20, "the clearing unloaded behind the player (%d loaded incl. the 1-chunk hysteresis, %d unloaded)" % [st.loaded_keys().size(), int(st.stats["unloaded"])])
+	# back home: the felled tree is still felled after its chunk was unloaded and rebuilt from the delta
+	Chat.instance.send("/tp %.2f %.2f" % [world.get_spawn_point().x, world.get_spawn_point().z])
+	await frames(5)
+	check(_felled_wid != 0 and _stump_near(world, _felled_pos, _felled_wid), "back in the clearing: the felled pine is a stump again (chunk rebuilt from its delta)")
+	var fc := world.streamer.chunk_at(_felled_pos.x, _felled_pos.z)
+	check(fc != null and fc.wid_index.has(_felled_wid) and fc.removed[fc.wid_index[_felled_wid]] == 1, "…and its MultiMesh instance / collider stay removed")
+	# world border
+	check(not world.terrain.in_bounds(WorldConst.WALL + 5.0, 0.0) and world.get_node("Bounds").get_child_count() == 4, "world wall at ±%.0f m" % WorldConst.WALL)
+	Chat.instance.send("/tp 1460 60")
+	await seconds(1.0)
+	player.input.scripted_move = Vector2(1, 0)
+	await seconds(1.0)
+	player.input.scripted_move = Vector2.INF
+	var dn := world.get_node_or_null("DayNight") as DayNight
+	check(player.global_position.x < WorldConst.WALL and (dn == null or dn.fog_density_scale > 2.0), "the border stops the player (x %.1f) and the fog thickens (×%.1f)" % [player.global_position.x, dn.fog_density_scale if dn != null else 0.0])
+	Events.region_changed.disconnect(rc)
+	Chat.instance.send("/tp %.2f %.2f" % [world.get_spawn_point().x, world.get_spawn_point().z])
+	await frames(5)
+
+
+## A stump node (chunk objects) at `pos` left by the tree `wid`.
+func _stump_near(world: World, pos: Vector3, wid: int) -> bool:
+	var c := world.streamer.chunk_at(pos.x, pos.z)
+	if c == null or c.objects == null:
+		return false
+	for n in c.objects.get_children():
+		if String(n.name).begins_with("stump_of_") and int(n.get_meta("of_wid", 0)) == wid and (n as Node3D).global_position.distance_to(pos) < 0.6:
+			return true
+	return false
 
 
 func multiplayer_id() -> int:

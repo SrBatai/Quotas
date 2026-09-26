@@ -114,6 +114,7 @@ func spawn_player(peer_id: int, pname: String, token_hash: String) -> Player:
 		p.aim_yaw = float(profile.get("yaw", 0.0))
 		p.outfit = int(profile.get("outfit", _pick_outfit())) % OUTFITS
 	p.pending_profile = profile
+	_world.ensure_area(p.net_position, 1)   # M3: the player's chunks exist before its body does
 	_world.get_node("Players").add_child(p, true)
 	print("[EVT] spawn player %d '%s' at %s outfit=%d%s" % [peer_id, pname, p.net_position.snapped(Vector3(0.1, 0.1, 0.1)),
 		p.outfit, " (restored)" if not profile.is_empty() else ""])
@@ -144,13 +145,16 @@ func _physics_process(_delta: float) -> void:
 	var all := players()
 	if all.is_empty():
 		return
-	var entries := []
-	for p in all:
-		entries.append({"peer": p.peer_id, "pos": p.position, "yaw": p.aim_yaw})
 	var peers := multiplayer.get_peers()
+	var nw := NetWorld.instance
 	for p in all:
 		if p.disconnected or not peers.has(p.peer_id):
 			continue
+		# M3 interest: only the players in the recipient's 3 × 3 chunks (+ itself for the ack)
+		var entries := []
+		for o in all:
+			if o == p or nw == null or nw.sees(p.peer_id, o.position):
+				entries.append({"peer": o.peer_id, "pos": o.position, "yaw": o.aim_yaw})
 		multiplayer.send_bytes(Packets.pack_poses(p.net.last_applied_seq, p.velocity, entries), p.peer_id,
 			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
 

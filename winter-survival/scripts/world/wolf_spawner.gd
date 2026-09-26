@@ -57,24 +57,17 @@ func _world() -> Node:
 
 
 func _random_spawn_pos() -> Vector3:
-	var world := _world()
-	var terrain: Terrain = world.get_node("Terrain")
+	var world := _world() as World
+	var terrain: Terrain = world.terrain
 	var players := get_tree().get_nodes_in_group("player")
 	var origin := Vector3.ZERO
 	if not players.is_empty():
 		origin = (players[_rng.randi() % players.size()] as Node3D).global_position
-	for i in 40:
-		var ang := _rng.randf_range(0.0, TAU)
-		var d := _rng.randf_range(Balance.WOLF_SPAWN_MIN, Balance.WOLF_SPAWN_MAX)
-		var x := origin.x + cos(ang) * d
-		var z := origin.z + sin(ang) * d
-		if not terrain.in_bounds(x, z) or terrain.is_lake(x, z):
-			continue
-		if Vector2(x, z).length() < 15.0:
-			continue
-		return Vector3(x, terrain.get_height(x, z), z)
-	var p := terrain.random_point(_rng, 30.0)
-	return p
+	# M3: around a player, on loaded ground, off the lakes, never inside the clearing's 15 m around the cabin
+	var p := terrain.random_point_near(_rng, origin, Balance.WOLF_SPAWN_MIN, Balance.WOLF_SPAWN_MAX, 15.0)
+	if p != Vector3.INF:
+		return p
+	return terrain.random_point(_rng, 30.0)
 
 
 func spawn_wolf(pos: Vector3) -> Node:

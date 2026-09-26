@@ -24,12 +24,24 @@ v2.1 checks (milestone G1, docs/research/05_graficos_arte.md §4.5/§4.6):
   * snow may sink into the ground: grounded assets have their lowest vertex in [-0.25, +0.02] m;
   * v2.1 triangle budgets per asset (HD assets: no slack) and the "typical clearing view" of doc 05 §4.5:
     instances of TYPICAL_VIEW x tris + VIEW_RESERVE (zombies, kit houses, terrain) <= 270 k.
+M3 checks (ASSET_SPEC_V2 "M3"):
+  * assets in sub-folders (vegetation/, props/, poi/) are named by their path (`vegetation/pine_d`);
+  * MultiMesh rule (§13, `mm=`): exactly ONE object (the mesh `Tree` / `Bush` / `Rock` / `Snow` / `Log` / `Icicles`),
+    no parent / children / empties / Col*, ONE surface, origin at the base centre (bbox centre within 25 % of its
+    size), collision-proxy extras (family, col, col_center, col_size, height, radius, choppable) consistent with the
+    geometry and with <folder>/manifest.json;
+  * v2 cutaway structure (§8.4, `poi=True`): every Walls<k>_<dir> has its _Stub with the same outline (same extent
+    along the facade, inside the full wall in plan), cut_group / floor props on every group, floor_z on Floor<k>,
+    Door_n (kind, exterior, cut_group), Window_n (material window only, boarded, cut_group), Spawn_* (pure yaw, kind,
+    table on containers), convex closed Col* (6-8 vertices, ramps allowed), exact boxes where a table is given;
+  * typical FOREST view (M3 streaming, default camera): instances x tris + reserve <= 270 k.
 Assets marked R180 were authored in the slice convention and rotated 180 degrees about Z by lib.lowpoly
 (new_scene(authored_front="+Y")); their slice pivots/collision boxes below are rotated the same way here.
 """
 import json
 import math
 import os
+import re
 import struct
 import sys
 
@@ -64,9 +76,12 @@ ZERO = (0.0, 0.0, 0.0)
 
 
 def a(pri, budget, pivots, parents=None, dims=None, minz=0.0, extra=None, col=None, dims_of=None, r180=False,
-      max_surfaces=None, hd=False):
+      max_surfaces=None, hd=False, mm=None, poi=False):
+    """mm = MultiMesh family (M3 rule set); poi = v2 cutaway structure (M3); col=None (with poi) = any Col* set
+    (structural checks only)."""
     return dict(pri=pri, budget=budget, pivots=pivots, parents=parents or {}, dims=dims or {}, minz=minz,
-                extra=extra or {}, col=col or {}, dims_of=dims_of or {}, r180=r180, max_surfaces=max_surfaces, hd=hd)
+                extra=extra or {}, col=col if col is not None else ({} if not poi else None), dims_of=dims_of or {},
+                r180=r180, max_surfaces=max_surfaces, hd=hd, mm=mm, poi=poi)
 
 
 QUAD_PARENTS = {"Head": "Body", "Tail": "Body", "LegFL": "Body", "LegFR": "Body", "LegBL": "Body",
@@ -116,10 +131,11 @@ ASSETS = {
     "rock_b": a(0, 700, {"Rock": ZERO}, dims={"x": 2.2, "y": 1.8, "z": 1.2}, hd=True),
     "rock_c": a(1, 400, {"Rock": ZERO}, dims={"x": 0.6, "y": 0.5, "z": 0.35}, hd=True),
     "stone": a(0, 40, {"Stone": ZERO}, dims={"x": 0.30, "y": 0.25, "z": 0.20}),
-    "berry_bush": a(0, 400, {"Bush": ZERO, "Berries": ZERO}, parents={"Berries": "Bush"},
-                    dims={"x": 1.0, "y": 1.0, "z": 0.55}),
+    # M3 HD (guide v2.1): same nodes / sizes, v2.1 prop budgets (no slack)
+    "berry_bush": a(0, 700, {"Bush": ZERO, "Berries": ZERO}, parents={"Berries": "Bush"},
+                    dims={"x": 1.0, "y": 1.0, "z": 0.55}, hd=True),
     "firewood": a(0, 120, {"Firewood": ZERO}, dims={"x": 0.55, "y": 0.55, "z": 0.22}),
-    "fallen_log": a(0, 120, {"Log": ZERO}, dims={"x": 1.6, "z": 0.40}),
+    "fallen_log": a(0, 500, {"Log": ZERO}, dims={"x": 1.6, "z": 0.40}, hd=True),
     "campfire": a(0, 400, {"Stones": ZERO, "Logs": ZERO, "FlameAnchor": (0, 0, 0.18)},
                   dims={"x": 1.2, "y": 1.2, "z": 0.35}),
     # weapon convention (v2 §12): origin at the grip, handle +Z, useful end (blade) toward -Y
@@ -160,18 +176,84 @@ ASSETS = {
                            "ColCab": ((-0.95, -0.2, 1.3), (0.95, 1.0, 2.0))},
                       extra={"back": ["BedAnchor"], "window": ["Body"]}, r180=True, hd=True),
     # authored directly in v2: boards point to +X, text faces -Y, text empties unrotated
-    "signpost": a(1, 150, {"Post": ZERO, "BoardTop": (0, 0, 1.84), "BoardBottom": (0, 0, 1.44),
+    "signpost": a(1, 700, {"Post": ZERO, "BoardTop": (0, 0, 1.84), "BoardBottom": (0, 0, 1.44),
                            "TextTop": (0.28, -0.125, 1.84), "TextBottom": (0.28, -0.125, 1.44)},
                   parents={"TextTop": "BoardTop", "TextBottom": "BoardBottom"}, dims={"z": 2.2},
                   extra={"forward": ["TextTop", "TextBottom"], "tip": "BoardTop",
-                         "front_mesh": {"BoardTop": "<", "BoardBottom": "<"}}),
-    "fence": a(1, 120, {"Fence": ZERO}, dims={"x": 2.0, "z": 1.1}),
-    "lantern": a(1, 120, {"Lantern": ZERO, "LightAnchor": (0, 0, -0.23)}, dims={"z": 0.40}, minz=-0.40,
-                 extra={"maxz": 0.0, "window": ["Lantern"]}),
+                         "front_mesh": {"BoardTop": "<", "BoardBottom": "<"}}, hd=True),
+    "fence": a(1, 600, {"Fence": ZERO}, dims={"x": 2.0, "z": 1.1}, hd=True),
+    "lantern": a(1, 400, {"Lantern": ZERO, "LightAnchor": (0, 0, -0.23)}, dims={"z": 0.40}, minz=-0.40,
+                 extra={"maxz": 0.0, "window": ["Lantern"]}, hd=True),
     "tent": a(2, 250, {"Tent": ZERO}, dims={"x": 2.4, "y": 2.6, "z": 1.7},
               col={"ColBack": ((-1.2, -1.3, 0.0), (1.2, -1.2, 1.7))}, r180=True),
     "storage_box": a(2, 150, {"Box": ZERO}, dims={"x": 0.8, "y": 0.6, "z": 0.6}, r180=True),
 }
+
+# ------------------------------------------------------------------------------------------------
+# M3 (ASSET_SPEC_V2 "M3"): MultiMesh scatter families + POIs. dims = the built sizes (regression, +-10 %).
+# Budgets (doc 05 §4.5, no slack): pine 1 200 (young 800), bare tree 2 600, bush / rock 700, snow 500, log 700,
+# icicles 300, POI cabin / tower 14 000, campsite 4 000.
+# ------------------------------------------------------------------------------------------------
+TREE = {"Tree": ZERO}
+M3_ASSETS = {
+    "vegetation/pine_d": a(0, 1200, TREE, dims={"z": 9.17}, mm="pine", hd=True),
+    "vegetation/pine_e": a(0, 1200, TREE, dims={"z": 7.27}, mm="pine", hd=True),
+    "vegetation/pine_f": a(0, 1200, TREE, dims={"z": 6.35}, mm="pine", hd=True),
+    "vegetation/pine_young": a(0, 800, TREE, dims={"z": 2.78}, mm="pine", hd=True),
+    "vegetation/dead_tree_b": a(0, 2600, TREE, dims={"z": 5.77}, mm="dead_tree", hd=True),
+    "vegetation/dead_tree_c": a(0, 2600, TREE, dims={"z": 3.67}, mm="dead_tree", hd=True),
+    "vegetation/birch": a(1, 2600, TREE, dims={"z": 7.62}, mm="birch", hd=True),
+    "vegetation/bush_a": a(0, 700, {"Bush": ZERO}, dims={"x": 1.67, "y": 1.40, "z": 0.88}, mm="bush", hd=True),
+    "vegetation/bush_b": a(0, 700, {"Bush": ZERO}, dims={"x": 1.27, "y": 0.96, "z": 0.92}, mm="bush", hd=True),
+    "vegetation/rock_d": a(0, 700, {"Rock": ZERO}, dims={"x": 2.69, "y": 1.85, "z": 0.70}, mm="rock", hd=True),
+    "vegetation/rock_e": a(0, 700, {"Rock": ZERO}, dims={"x": 3.88, "y": 2.84, "z": 2.48}, mm="rock", hd=True),
+    "vegetation/rock_f": a(0, 700, {"Rock": ZERO}, dims={"x": 1.90, "y": 1.50, "z": 0.53}, mm="rock", hd=True),
+    "vegetation/snow_pile_a": a(0, 500, {"Snow": ZERO}, dims={"x": 1.90, "y": 1.63, "z": 0.59}, mm="snow", hd=True),
+    "vegetation/snow_pile_b": a(0, 500, {"Snow": ZERO}, dims={"x": 3.06, "y": 2.31, "z": 0.81}, mm="snow", hd=True),
+    "vegetation/snow_pile_c": a(0, 500, {"Snow": ZERO}, dims={"x": 1.13, "y": 0.86, "z": 0.34}, mm="snow", hd=True),
+    "vegetation/snow_drift_4": a(0, 500, {"Snow": ZERO}, dims={"x": 4.02, "y": 1.65, "z": 0.59}, mm="snow", hd=True),
+    "vegetation/fallen_log_b": a(0, 700, {"Log": ZERO}, dims={"x": 3.63, "z": 0.52}, mm="log", hd=True),
+    "vegetation/fallen_log_c": a(1, 700, {"Log": ZERO}, dims={"x": 3.53, "z": 1.79}, mm="log", hd=True),
+    "props/icicles": a(1, 300, {"Icicles": ZERO}, dims={"x": 2.02, "z": 0.58}, minz=None, extra={"maxz": 0.0},
+                       mm="ice", hd=True),
+    "poi/cabin_small": a(0, 14000, {"Floor0": ZERO, "Walls0_S": ZERO, "Walls0_N": ZERO, "Walls0_E": ZERO,
+                                    "Walls0_W": ZERO, "Walls0_S_Stub": ZERO, "Walls0_N_Stub": ZERO,
+                                    "Walls0_E_Stub": ZERO, "Walls0_W_Stub": ZERO, "Interior0": ZERO, "Roof": ZERO,
+                                    "Door_0": (-0.48, -2.39, 0.30), "Window_0": ZERO, "Window_1": ZERO,
+                                    "Window_2": ZERO, "DoorAnchor": (0.0, -3.05, 0.30), "Spawn_Stove_0": None,
+                                    "Spawn_Bed_0": None, "Spawn_Container_0": None, "Spawn_Light_0": None,
+                                    "Spawn_Loot_0": None, "Spawn_Zombie_0": None},
+                         dims={"x": 6.70, "y": 8.06, "z": 5.00}, extra={"forward": ["DoorAnchor", "Door_0"]},
+                         max_surfaces=20, hd=True, poi=True, col="poi.build_cabin_small"),
+    "poi/lookout_tower": a(0, 14000, {"Floor0": ZERO, "Floor1": ZERO, "Walls1_S": ZERO, "Walls1_N": ZERO,
+                                      "Walls1_E": ZERO, "Walls1_W": ZERO, "Walls1_S_Stub": ZERO, "Walls1_N_Stub": ZERO,
+                                      "Walls1_E_Stub": ZERO, "Walls1_W_Stub": ZERO, "Interior1": ZERO, "Roof": ZERO,
+                                      "Door_0": None, "Window_0": ZERO, "Window_1": ZERO, "Window_2": ZERO,
+                                      "Window_3": ZERO, "DoorAnchor": (1.9, 0.0, 9.2), "StairFoot": (2.9, -2.85, 0.0),
+                                      "ViewAnchor": (0.0, 0.0, 10.9), "Spawn_Radio_0": None, "Spawn_Loot_0": None,
+                                      "Spawn_Container_0": None, "Spawn_Bed_0": None, "Spawn_Light_0": None},
+                           dims={"x": 6.90, "y": 6.88, "z": 13.86}, max_surfaces=20, hd=True, poi=True),
+    "poi/campsite_remains": a(0, 4000, {"Remains": ZERO, "FlameAnchor": (1.05, -0.55, 0.18),
+                                        "Spawn_Container_0": (2.25, 1.25, 0.0), "Spawn_Loot_0": None,
+                                        "Spawn_Loot_1": None},
+                              dims={"x": 6.74, "y": 4.73, "z": 1.19}, hd=True, poi=True),
+}
+ASSETS.update(M3_ASSETS)
+MM_NODES = {"pine": "Tree", "dead_tree": "Tree", "birch": "Tree", "bush": "Bush", "rock": "Rock", "snow": "Snow",
+            "log": "Log", "ice": "Icicles"}
+COL_KINDS = {"cylinder": 2, "sphere": 1, "box": 3, "none": 0}
+
+# M3 streaming: a typical forest view at the default camera (instances on screen + shadow range) + a forest POI
+FOREST_VIEW = {
+    "pine_a": 8, "pine_b": 7, "pine_c": 6, "vegetation/pine_d": 6, "vegetation/pine_e": 4, "vegetation/pine_f": 6,
+    "vegetation/pine_young": 8, "dead_tree": 3, "vegetation/dead_tree_b": 3, "vegetation/dead_tree_c": 2,
+    "vegetation/birch": 4, "vegetation/bush_a": 8, "vegetation/bush_b": 4, "berry_bush": 3, "rock_a": 3,
+    "rock_b": 2, "vegetation/rock_d": 2, "vegetation/rock_e": 1, "vegetation/rock_f": 3,
+    "vegetation/snow_pile_a": 4, "vegetation/snow_pile_b": 2, "vegetation/snow_pile_c": 4,
+    "vegetation/snow_drift_4": 2, "fallen_log": 1, "vegetation/fallen_log_b": 2, "vegetation/fallen_log_c": 1,
+    "stump": 3, "poi/cabin_small": 1, "chars/survivor_red": 4,
+}
+FOREST_RESERVE = {"zombies (30 x 2 000)": 60000, "terrain": 30000, "wolves / deer": 3000}
 
 # final (exported) XYZ Euler degrees of the only rotated empty
 ROTATED = dict(export.ROTATED_SOCKETS)
@@ -507,11 +589,163 @@ def front_mesh_problems(by, rules):
     return out
 
 
+def col_shape_problems(o):
+    """Closed convex hull with 6 (wedge / ramp) or 8 (box / slanted box) unique vertices, 5-6 planes, top level."""
+    problems = []
+    if o.parent is not None:
+        problems.append("%s has a parent" % o.name)
+    mw = o.matrix_world
+    pts = {tuple(round(c, 4) for c in (mw @ v.co)) for v in o.data.vertices}
+    if len(pts) not in (6, 8):
+        problems.append("%s has %d unique vertices" % (o.name, len(pts)))
+    planes = []
+    for p in o.data.polygons:
+        n = (mw.to_3x3() @ p.normal).normalized()
+        d = n.dot(mw @ o.data.vertices[p.vertices[0]].co)
+        if not any((n - q[0]).length < 1e-3 and abs(d - q[1]) < 1e-3 for q in planes):
+            planes.append((n, d))
+    if len(planes) not in (5, 6):
+        problems.append("%s has %d faces" % (o.name, len(planes)))
+    for n, d in planes:
+        if any(n.dot(Vector(p)) - d > 1e-3 for p in pts):
+            problems.append("%s is not convex/outward" % o.name)
+            break
+    if len(o.data.materials) or len(o.data.color_attributes):
+        problems.append("%s has materials / colours" % o.name)
+    return problems
+
+
+def mm_problems(name, spec, objs, g):
+    """MultiMesh rule set (ASSET_SPEC_V2 §13 + M3)."""
+    out = []
+    node = MM_NODES[spec["mm"]]
+    if [o.name for o in objs] != [node]:
+        out.append("MultiMesh asset must hold exactly one object %s, has %s" % (node, sorted(o.name for o in objs)))
+        return out
+    o = objs[0]
+    if o.type != 'MESH' or o.parent is not None or o.children:
+        out.append("%s must be a top-level mesh without children" % node)
+    prims = sum(len(g["meshes"][nd["mesh"]]["primitives"]) for nd in g["nodes"] if "mesh" in nd)
+    if prims != 1:
+        out.append("%d surfaces (MultiMesh: 1)" % prims)
+    mn, mx = world_bounds([o])
+    size = mx - mn
+    c = (mn + mx) * 0.5
+    if math.hypot(c.x, c.y) > 0.25 * max(size.x, size.y):
+        out.append("origin not at the base centre (bbox centre %.2f, %.2f)" % (c.x, c.y))
+    for key in ("family", "col", "col_center", "col_size", "height", "radius", "choppable"):
+        if key not in o.keys():
+            out.append("extras: missing %s" % key)
+    if out:
+        return out
+    if o["family"] != spec["mm"]:
+        out.append("extras family %s != %s" % (o["family"], spec["mm"]))
+    kind = o["col"]
+    if kind not in COL_KINDS:
+        out.append("extras col %s not in %s" % (kind, sorted(COL_KINDS)))
+    elif len(list(o["col_size"])) != COL_KINDS[kind] or len(list(o["col_center"])) != 3:
+        out.append("extras col_size %s / col_center %s do not fit col=%s" % (list(o["col_size"]), list(o["col_center"]),
+                                                                          kind))
+    if abs(o["height"] - mx.z) > 0.03:
+        out.append("extras height %.3f != top %.3f" % (o["height"], mx.z))
+    if o["radius"] <= 0 or o["radius"] > 0.5 * math.hypot(size.x, size.y) + 0.3:
+        out.append("extras radius %.3f implausible" % o["radius"])
+    if kind != "none":
+        cc = list(o["col_center"])
+        cs = list(o["col_size"])
+        top = cc[1] + (cs[1] / 2 if kind == "cylinder" else (cs[0] if kind == "sphere" else cs[1] / 2))
+        if top > mx.z + 0.1 or cc[1] < -0.3:
+            out.append("collision proxy outside the asset (centre %s size %s, top %.2f)" % (cc, cs, mx.z))
+    folder, base = name.split("/")
+    man = export.MODELS_DIR / folder / "manifest.json"
+    try:
+        rec = json.loads(man.read_text())[base]
+    except (OSError, ValueError, KeyError):
+        out.append("no entry in %s/manifest.json" % folder)
+        return out
+    if rec.get("node") != node or rec.get("path") != "res://assets/models/%s.glb" % name:
+        out.append("manifest node/path mismatch %s %s" % (rec.get("node"), rec.get("path")))
+    if rec.get("tris") != tris_of(o):
+        out.append("manifest tris %s != %d" % (rec.get("tris"), tris_of(o)))
+    for key in ("family", "col", "choppable"):
+        if rec.get(key) != o[key]:
+            out.append("manifest %s %s != extras %s" % (key, rec.get(key), o[key]))
+    return out
+
+
+def stub_outline_problems(full, stub):
+    """_Stub: same extent along the facade, and inside the full wall in plan (+-3 cm)."""
+    mn, mx = world_bounds([full])
+    smn, smx = world_bounds([stub])
+    out = []
+    along = 0 if (mx.x - mn.x) >= (mx.y - mn.y) else 1
+    if abs(smn[along] - mn[along]) > 0.05 or abs(smx[along] - mx[along]) > 0.05:
+        out.append("%s extent along the facade %.2f..%.2f != %s %.2f..%.2f" % (
+            stub.name, smn[along], smx[along], full.name, mn[along], mx[along]))
+    for i in (0, 1):
+        if smn[i] < mn[i] - 0.03 or smx[i] > mx[i] + 0.03:
+            out.append("%s outline leaves %s in plan" % (stub.name, full.name))
+            break
+    if smx.z > mn.z + 0.8 + 0.45:
+        out.append("%s too tall (top %.2f, wall base %.2f)" % (stub.name, smx.z, mn.z))
+    return out
+
+
+def cut_problems(by, objs):
+    """v2 cutaway structure (ASSET_SPEC_V2 §8.4 / §8.6 / §16.12)."""
+    out = []
+    groups = [o for o in objs if o.type == 'MESH' and re.match(r"^(Floor\d+|Walls\d+_[NSEW](_Stub)?|Interior\d+|Roof)$",
+                                                                o.name)]
+    names = {o.name for o in groups}
+    for o in groups:
+        if o.get("cut_group") != o.name:
+            out.append("%s: cut_group prop %r" % (o.name, o.get("cut_group")))
+        if "floor" not in o.keys():
+            out.append("%s: no floor prop" % o.name)
+        if o.name.startswith("Floor") and "floor_z" not in o.keys():
+            out.append("%s: no floor_z prop" % o.name)
+        if o.parent is not None:
+            out.append("%s must be top level" % o.name)
+        m = re.match(r"^(Walls\d+_[NSEW])$", o.name)
+        if m:
+            stub = by.get(o.name + "_Stub")
+            if stub is None:
+                out.append("%s has no _Stub" % o.name)
+            else:
+                out += stub_outline_problems(o, stub)
+    for o in objs:
+        if re.match(r"^Door_\d+$", o.name):
+            if o.get("kind") not in ("door", "double", "garage"):
+                out.append("%s kind %r" % (o.name, o.get("kind")))
+            if "exterior" not in o.keys():
+                out.append("%s has no exterior prop" % o.name)
+            if o.get("cut_group") not in names:
+                out.append("%s cut_group %r is not a group" % (o.name, o.get("cut_group")))
+        elif re.match(r"^Window_\d+$", o.name):
+            mats = [m.name for m in o.data.materials if m]
+            if mats != ["window"]:
+                out.append("%s materials %s (want [window])" % (o.name, mats))
+            if o.get("boarded") not in (False, 0):
+                out.append("%s boarded prop %r" % (o.name, o.get("boarded")))
+            if o.get("cut_group") not in names:
+                out.append("%s cut_group %r is not a group" % (o.name, o.get("cut_group")))
+        elif o.name.startswith("Spawn_"):
+            if o.type != 'EMPTY':
+                out.append("%s must be an empty" % o.name)
+            if not export.is_pure_yaw(o.matrix_basis.to_3x3().normalized()):
+                out.append("%s rotation is not a pure yaw" % o.name)
+            if o.name.startswith("Spawn_Container_") and not o.get("table"):
+                out.append("%s has no loot table prop" % o.name)
+            if o.get("kind") != o.name.split("_")[1]:
+                out.append("%s kind prop %r" % (o.name, o.get("kind")))
+    return out
+
+
 def verify(name, spec0, allowed_bytes, godot_targets):
     """Returns (status, message, tris, surfaces)."""
     spec = final_spec(spec0)
     glb = export.MODELS_DIR / ("%s.glb" % name)
-    blend = export.SOURCES_DIR / ("%s.blend" % name)
+    blend = export.SOURCES_DIR / ("%s.blend" % name.split("/")[-1])
     if not glb.exists() or not blend.exists():
         if spec["pri"] >= 2:
             return "SKIP", "SKIP %s (P2, not built)" % name, 0, 0
@@ -544,11 +778,16 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         if o.type not in ('MESH', 'EMPTY'):
             problems.append("stray %s %s" % (o.type, o.name))
     col_objs = [o for o in objs if is_col(o)]
-    want_col = set(n + "-convcolonly" for n in spec["col"])
+    col_table = spec["col"]
+    if isinstance(col_table, str):                        # POI builder module exposing COL_BOXES
+        import importlib
+        col_table = importlib.import_module(col_table).COL_BOXES
     have_col = set(o.name for o in col_objs)
-    if want_col != have_col:
-        problems.append("collision set mismatch: missing %s extra %s" % (sorted(want_col - have_col),
-                                                                       sorted(have_col - want_col)))
+    if col_table is not None:
+        want_col = set(n + "-convcolonly" for n in col_table)
+        if want_col != have_col:
+            problems.append("collision set mismatch: missing %s extra %s" % (sorted(want_col - have_col),
+                                                                           sorted(have_col - want_col)))
     # hierarchy
     for child, par in spec["parents"].items():
         if child in by and (by[child].parent is None or by[child].parent.name != par):
@@ -600,6 +839,8 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems.append("max z %.3f, expected %.2f" % (mx.z, spec["extra"]["maxz"]))
     # transforms
     for o in objs:
+        if o.type == 'EMPTY' and export.yaw_allowed(o.name):
+            continue                                       # Spawn_*: checked by cut_problems (pure yaw)
         want = ROTATED.get(o.name, (0.0, 0.0, 0.0))
         r = o.matrix_basis.to_3x3().normalized()
         target = Euler(tuple(math.radians(x) for x in want)).to_matrix()
@@ -648,9 +889,18 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems.append("tris %d > %d x %.1f" % (tris, spec["budget"], slack))
     # collision
     for o in col_objs:
-        box = spec["col"].get(o.name[:-len("-convcolonly")])
+        box = col_table.get(o.name[:-len("-convcolonly")]) if col_table else None
         if box:
             problems += check_collision(o, box)
+        elif spec["poi"]:
+            problems += col_shape_problems(o)
+            cmn, cmx = world_bounds([o])
+            if any(cmn[i] < mn[i] - 0.15 or cmx[i] > mx[i] + 0.15 for i in range(3)):
+                problems.append("%s outside the visual bounds" % o.name)
+    if spec["mm"]:
+        problems += mm_problems(name, spec, objs, g)
+    if spec["poi"]:
+        problems += cut_problems(by, objs)
 
     if problems:
         return "FAIL", "FAIL %s: %s" % (name, "; ".join(problems)), tris, surfaces
@@ -676,6 +926,20 @@ def view_budget(per):
     return 0 if ok else 1
 
 
+def forest_budget(per):
+    """M3: typical forest view (streamed chunks at the default camera) + reserve <= VIEW_BUDGET."""
+    view = 0
+    for name, n in FOREST_VIEW.items():
+        path = export.MODELS_DIR / ("%s.glb" % name)
+        t = per[name] if name in per else (glb_tris(path) if path.exists() else 0)
+        view += n * t
+    reserve = sum(FOREST_RESERVE.values())
+    ok = view + reserve <= VIEW_BUDGET
+    print("%s typical forest view (M3): assets %d + reserve %d (%s) = %d tris (budget %d)" % (
+        "OK  " if ok else "FAIL", view, reserve, ", ".join(FOREST_RESERVE), view + reserve, VIEW_BUDGET))
+    return 0 if ok else 1
+
+
 def main():
     failures = 0
     total = 0
@@ -693,6 +957,7 @@ def main():
             failures += 1
     print("TOTAL tris=%d surfaces=%d (all %d assets once)" % (total, total_surf, len(ASSETS)))
     failures += view_budget(per)
+    failures += forest_budget(per)
     print("ALL OK" if failures == 0 else "%d FAILURES" % failures)
     return 0 if failures == 0 else 1
 

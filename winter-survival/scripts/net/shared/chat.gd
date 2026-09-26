@@ -86,8 +86,9 @@ func _debug_command(peer: int, line: String) -> void:
 		"/tp":
 			if parts.size() >= 3 and parts[1].is_valid_float() and parts[2].is_valid_float():
 				var world := get_tree().get_first_node_in_group("world") as World
-				var x := clampf(float(parts[1]), -Balance.BOUNDS, Balance.BOUNDS)
-				var z := clampf(float(parts[2]), -Balance.BOUNDS, Balance.BOUNDS)
+				var x := clampf(float(parts[1]), -WorldConst.WALL + 2.0, WorldConst.WALL - 2.0)
+				var z := clampf(float(parts[2]), -WorldConst.WALL + 2.0, WorldConst.WALL - 2.0)
+				world.ensure_area(Vector3(x, 0.0, z), 1)   # M3: the collider must exist before the body lands
 				var pos := Vector3(x, world.get_height(x, z) + 0.3, z)
 				p.position = pos
 				p.net_position = pos

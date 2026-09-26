@@ -3,6 +3,8 @@ extends StaticBody3D
 ## Pines, dead trees and fallen logs: chopped with the axe (action `chop`). Server authoritative
 ## (`server_interact` only runs there); hits / felled travel as a world delta so every client (late joiners
 ## included) plays the same result. The owner client previews the hit (shake + chips) while the request travels.
+## M3: trees live as MultiMesh instances of their chunk (ScatterCatalog); WorldChunk materializes this node only
+## when the tree is needed (hover, request, event) with the entry's wid as meta, and gets it back when felled.
 
 const STUMP_SCENE := preload("res://scenes/world/stump.tscn")
 
@@ -18,6 +20,9 @@ var wood: int = Balance.TREE_WOOD
 var felled: bool = false
 var _cooldown: float = 0.0
 var _model: Node3D
+## Set by WorldChunk.materialize (null for a free-standing tree).
+var scatter_chunk: WorldChunk
+var scatter_entry: int = -1
 
 
 func _ready() -> void:
@@ -27,40 +32,44 @@ func _ready() -> void:
 	add_to_group("tree")
 	_model = Assets.spawn_model(variant)
 	visual.add_child(_model)
-	var is_log := variant == "fallen_log"
-	if variant == "dead_tree":
-		total_hits = Balance.DEAD_TREE_HITS
-		wood = Balance.DEAD_TREE_WOOD
-	elif is_log:
-		total_hits = Balance.LOG_HITS
-		wood = Balance.LOG_WOOD
+	var vi := ScatterCatalog.index_of(variant)
+	var chop: String = ScatterCatalog.VARIANTS[vi]["chop"] if vi >= 0 else "pine"
+	var st := ScatterCatalog.chop_stats(chop)
+	total_hits = st[0]
+	wood = st[1]
+	var is_log := chop == "log"
+	var col: Array = ScatterCatalog.VARIANTS[vi]["col"] if vi >= 0 else ["cyl", 0.35, 3.0, 1.5]
+	var pick: Array = ScatterCatalog.VARIANTS[vi]["pick"] if vi >= 0 else [1.1, 7.0]
 	if is_log:
 		var box := BoxShape3D.new()
-		box.size = Vector3(1.6, 0.4, 0.4)
+		box.size = Vector3(float(col[1]), float(col[2]), float(col[3]))
 		shape.shape = box
-		shape.position = Vector3(0, 0.2, 0)
+		shape.position = Vector3(0, float(col[4]), 0)
 		var ibox := BoxShape3D.new()
-		ibox.size = Vector3(1.8, 0.7, 0.7)
+		ibox.size = Vector3(float(col[1]) + 0.2, 0.7, 0.7)
 		interactable.set_shape(ibox, Vector3(0, 0.3, 0))
 		interactable.ring_radius = 0.9
 	else:
 		var cyl := CylinderShape3D.new()
-		cyl.radius = 0.35
-		cyl.height = 3.0
+		cyl.radius = float(col[1])
+		cyl.height = float(col[2])
 		shape.shape = cyl
-		shape.position = Vector3(0, 1.5, 0)
+		shape.position = Vector3(0, float(col[3]), 0)
 		var icyl := CylinderShape3D.new()
-		var h := 7.0 if variant == "pine_a" else (5.5 if variant == "pine_b" else 4.2)
-		icyl.radius = 1.1 if variant != "dead_tree" else 0.6
-		icyl.height = h
-		interactable.set_shape(icyl, Vector3(0, h * 0.5, 0))
-		interactable.ring_radius = 0.9
+		icyl.radius = float(pick[0])
+		icyl.height = float(pick[1])
+		interactable.set_shape(icyl, Vector3(0, float(pick[1]) * 0.5, 0))
+		interactable.ring_radius = 0.9 if chop != "young" else 0.6
 	interactable.interact_range = Balance.INTERACT_RANGE
 	interactable.requires_tool = &"hacha"
 	interactable.no_tool_label = "Necesitas un hacha"
 	interactable.default_action = &"chop"
 	if not Net.is_server and NetWorld.instance != null:
-		apply_net_delta(NetWorld.instance.delta_of(WorldRegistry.wid_of(self)))
+		var d := NetWorld.instance.delta_of(WorldRegistry.wid_of(self))
+		if bool(d.get("felled", false)):
+			apply_net_delta.call_deferred(d)   # the fall adds a stump sibling: not while the parent is adding us
+		else:
+			apply_net_delta(d)
 
 
 func _process(delta: float) -> void:
@@ -73,7 +82,7 @@ func interact_actions() -> Array:
 
 
 func get_interact_label(_player: Node) -> String:
-	if variant == "fallen_log":
+	if variant.begins_with("fallen_log"):
 		return "Cortar leña (%d/%d)" % [hits, total_hits]
 	return "Talar árbol (%d/%d)" % [hits, total_hits]
 
@@ -110,7 +119,7 @@ func _hit_fx(from: Vector3) -> void:
 	_shake()
 	if not Net.has_client:
 		return
-	var puff_pos := global_position + Vector3(0, 1.0 if variant != "fallen_log" else 0.3, 0)
+	var puff_pos := global_position + Vector3(0, 1.0 if not variant.begins_with("fallen_log") else 0.3, 0)
 	puff_pos += (from - global_position).normalized() * 0.4
 	HitPuff.spawn(get_tree().current_scene, puff_pos)
 	AudioManager.play(&"chop_hit", global_position)
@@ -152,16 +161,20 @@ func _fell_visual(away: Vector3, animate: bool = true) -> void:
 	remove_from_group("choppable")
 	remove_from_group("tree")
 	# baked terrain AO (G1): the tree's contact disc shrinks to the stump's (logs lose theirs)
+	var wid := WorldRegistry.wid_of(self)
+	var is_log := variant.begins_with("fallen_log")
 	var world := get_tree().get_first_node_in_group("world") as World
 	if world != null and world.terrain != null:
-		if variant == "fallen_log":
-			world.terrain.update_occluder(String(name), 0.0, 0.0)
+		if is_log:
+			world.terrain.update_occluder(str(wid), 0.0, 0.0)
 		else:
-			world.terrain.update_occluder(String(name), 0.45 * scale.x, 0.3)
+			world.terrain.update_occluder(str(wid), 0.45 * scale.x, 0.3)
+	if scatter_chunk != null and is_instance_valid(scatter_chunk):
+		scatter_chunk.on_tree_felled(scatter_entry)
 	if animate:
 		AudioManager.play(&"tree_fall", global_position)
 	var tw := create_tween()
-	if variant == "fallen_log":
+	if is_log:
 		tw.tween_property(visual, "scale", Vector3(0.01, 0.01, 0.01), 0.4 if animate else 0.01).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	else:
 		var axis := away.cross(Vector3.UP).normalized()
@@ -169,7 +182,8 @@ func _fell_visual(away: Vector3, animate: bool = true) -> void:
 		var target := Basis(local_axis.normalized(), deg_to_rad(-82.0)) * visual.basis
 		tw.tween_property(visual, "basis", target, 1.0 if animate else 0.01).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		var stump := STUMP_SCENE.instantiate()
-		stump.name = "stump_of_" + String(name)
+		stump.name = "stump_of_%x" % wid
+		stump.set_meta("of_wid", wid)
 		get_parent().add_child(stump)
 		stump.global_position = global_position
 		stump.rotation.y = rotation.y

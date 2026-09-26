@@ -160,6 +160,19 @@ static func _build_parts(root: Node3D, asset_name: String) -> void:
 		"storage_box": _mesh_node(root, "Box", asset_name)
 		"meat": _mesh_node(root, "Meat", asset_name)
 		"pelt": _mesh_node(root, "Pelt", asset_name)
+		# M3 scatter (MultiMesh-friendly: one mesh node at the origin) and POIs (ASSET_SPEC v2 §13, M3 notes)
+		"pine_d", "pine_e", "pine_young", "dead_tree_b": _mesh_node(root, "Tree", asset_name)
+		"fallen_log_b": _mesh_node(root, "Log", asset_name)
+		"bush_a", "bush_b": _mesh_node(root, "Bush", asset_name)
+		"rock_d", "rock_e": _mesh_node(root, "Rock", asset_name)
+		"snow_pile_a", "snow_pile_b", "snow_pile_c", "snow_drift_4": _mesh_node(root, "Snow", asset_name)
+		"branch_pile": _mesh_node(root, "Branches", asset_name)
+		"icicles": _mesh_node(root, "Icicles", asset_name)
+		"campsite_remains":
+			_mesh_node(root, "Camp", asset_name)
+			_col_box(root, "ColTent", Vector3(-1.4, 0, -1.7), Vector3(0.6, 1.1, 0.2))
+		"cabin_small": _build_cabin_small(root)
+		"lookout_tower": _build_lookout_tower(root)
 		_:
 			push_warning("Placeholders: unknown asset '%s'" % asset_name)
 
@@ -343,6 +356,72 @@ static func _mesh(key: String) -> ArrayMesh:
 			b.cone("paper", Vector3(0.12, 0.08, 0), 0.03, 0.03, 0.18, 5, {"xform": Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3.ZERO)})
 		"pelt":
 			b.blob("wolf_fur", Vector3(0, 0.05, 0), Vector3(0.7, 0.12, 0.55), {"rng": rng, "segments": 8, "rings": 4, "jitter": 0.12, "flat_bottom": true})
+		"pine_d": _pine(b, rng, 9.0, 0.30, 0.13, [[1.6, 2.1, 2.3, "pine_dark"], [3.2, 1.8, 2.1, "pine_dark"], [4.8, 1.4, 1.9, "pine_light"], [6.3, 1.0, 1.7, "pine_light"], [7.5, 0.6, 1.4, "pine_light"]], 0.55)
+		"pine_e":
+			_pine(b, rng, 6.6, 0.26, 0.12, [[1.3, 1.8, 1.9, "pine_dark"], [2.8, 1.4, 1.7, "pine_dark"], [4.2, 1.0, 1.5, "pine_light"]], 0.55)
+			var side := Transform3D(Basis(Vector3.FORWARD, 0.18), Vector3(0.35, 2.4, 0.1))
+			b.cone("bark", Vector3.ZERO, 0.12, 0.06, 3.6, 6, {"xform": side})
+			for t in [[1.1, 1.1, 1.5, "pine_dark"], [2.1, 0.8, 1.3, "pine_light"], [3.0, 0.5, 1.1, "pine_light"]]:
+				b.cone(t[3], Vector3(0, t[0], 0), t[1], 0.0, t[2], 7, {"xform": side, "ring_frac": 0.55, "mat_high": "snow", "cap_bottom": t[3], "jitter": 0.06, "rng": rng})
+		"pine_young": _pine(b, rng, 2.6, 0.09, 0.04, [[0.35, 0.85, 1.0, "pine_light"], [1.0, 0.65, 0.9, "pine_light"], [1.6, 0.42, 0.85, "pine_light"]], 0.5)
+		"dead_tree_b": _dead_tree(b, rng)
+		"fallen_log_b":
+			var xf := Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(0, 0.22, 0))
+			b.cone("bark", Vector3(-0.95, 0, 0), 0.23, 0.2, 1.9, 8, {"xform": xf, "cap_bottom": "wood_light", "cap_top": "wood_light"})
+			b.box("snow", Vector3(-0.8, 0.40, -0.13), Vector3(0.8, 0.46, 0.13))
+		"bush_a", "bush_b":
+			var big := key == "bush_b"
+			b.blob("bush", Vector3(-0.15, 0.2, 0.1), Vector3(0.8, 0.6, 0.8) * (1.2 if big else 1.0), {"rng": rng, "snow_mat": "snow", "snow_limit": 0.6, "flat_bottom": true, "segments": 7, "rings": 4})
+			b.blob("bush", Vector3(0.25, 0.22, -0.1), Vector3(0.7, 0.62, 0.7) * (1.2 if big else 1.0), {"rng": rng, "snow_mat": "snow", "snow_limit": 0.6, "flat_bottom": true, "segments": 7, "rings": 4})
+		"rock_d": b.blob("stone", Vector3(0, 0.12, 0), Vector3(1.9, 0.5, 1.4), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone_dark", "flat_bottom": true, "segments": 9, "rings": 4})
+		"rock_e":
+			b.blob("stone", Vector3(0, 0.9, 0), Vector3(3.0, 2.6, 2.6), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone_dark", "flat_bottom": true, "segments": 10, "rings": 6})
+			b.blob("stone", Vector3(1.1, 0.4, 0.6), Vector3(1.6, 1.3, 1.4), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone_dark", "flat_bottom": true, "segments": 8, "rings": 4})
+		"snow_pile_a": b.blob("snow", Vector3(0, 0.05, 0), Vector3(1.3, 0.45, 1.1), {"rng": rng, "flat_bottom": true, "segments": 8, "rings": 4, "jitter": 0.06})
+		"snow_pile_b": b.blob("snow", Vector3(0, 0.05, 0), Vector3(1.8, 0.6, 1.4), {"rng": rng, "flat_bottom": true, "segments": 9, "rings": 4, "jitter": 0.06})
+		"snow_pile_c": b.blob("snow", Vector3(0, 0.04, 0), Vector3(0.9, 0.35, 0.8), {"rng": rng, "flat_bottom": true, "segments": 7, "rings": 3, "jitter": 0.06})
+		"snow_drift_4": b.blob("snow", Vector3(0, 0.02, 0), Vector3(4.0, 0.45, 1.2), {"rng": rng, "flat_bottom": true, "segments": 10, "rings": 3, "jitter": 0.05})
+		"branch_pile":
+			for i in 5:
+				var yaw := rng.randf() * TAU
+				var xf := Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.FORWARD, PI * 0.5 - 0.15), Vector3(rng.randf_range(-0.3, 0.3), 0.06 + 0.05 * i, rng.randf_range(-0.3, 0.3)))
+				b.cone("bark", Vector3(-0.6, 0, 0), 0.05, 0.03, 1.2, 5, {"xform": xf})
+			b.blob("snow", Vector3(0, 0.2, 0), Vector3(0.8, 0.12, 0.6), {"rng": rng, "segments": 6, "rings": 3})
+		"icicles":
+			for i in 7:
+				b.cone("ice_clear", Vector3(-0.9 + 0.3 * i, 0, 0), 0.05, 0.0, -(0.25 + rng.randf() * 0.35), 5)
+		"campsite_remains":
+			b.prism("cloth", [Vector3(-1.2, 0, -1.6), Vector3(0.4, 0, -1.6), Vector3(-0.5, 1.0, -1.6)],
+				[Vector3(-1.2, 0, 0.0), Vector3(0.4, 0, 0.0), Vector3(-0.3, 0.6, 0.0)], "wood_dark")
+			for i in 7:
+				var ang := TAU * float(i) / 7.0
+				b.blob("stone", Vector3(1.3 + cos(ang) * 0.45, 0.08, 0.6 + sin(ang) * 0.45), Vector3(0.22, 0.16, 0.2), {"rng": rng, "snow_mat": "snow", "segments": 5, "rings": 3})
+			var lx := Transform3D(Basis(Vector3.UP, 0.4) * Basis(Vector3.FORWARD, PI * 0.5), Vector3(1.4, 0.15, -0.6))
+			b.cone("bark", Vector3(-0.6, 0, 0), 0.14, 0.14, 1.2, 6, {"xform": lx, "cap_bottom": "wood_light", "cap_top": "wood_light"})
+		"cabin_small_body":
+			b.box("wood", Vector3(-2.5, 0, -2.0), Vector3(2.5, 0.3, 2.0))
+			b.box("cabin_wall", Vector3(-2.4, 0.3, -1.9), Vector3(2.4, 2.6, 1.9))
+			b.box("wood_dark", Vector3(-0.5, 0.3, 1.9), Vector3(0.5, 2.1, 1.95))
+			b.box("window", Vector3(1.1, 1.2, 1.9), Vector3(1.9, 1.9, 1.96))
+		"cabin_small_roof":
+			b.prism("roof", [Vector3(-2.8, 2.5, -2.3), Vector3(0.0, 4.0, -2.3), Vector3(2.8, 2.5, -2.3)],
+				[Vector3(-2.8, 2.5, 2.3), Vector3(0.0, 4.0, 2.3), Vector3(2.8, 2.5, 2.3)], "snow")
+		"tower_frame":
+			for sx in [-1.6, 1.6]:
+				for sz in [-1.6, 1.6]:
+					b.box("wood_dark", Vector3(sx - 0.12, 0, sz - 0.12), Vector3(sx + 0.12, 6.0, sz + 0.12))
+			b.box("wood", Vector3(-2.0, 5.8, -2.0), Vector3(2.0, 6.0, 2.0), "snow")
+			b.box("wood", Vector3(-2.0, 6.0, -2.0), Vector3(2.0, 7.0, -1.9))
+			b.box("wood", Vector3(-2.0, 6.0, 1.9), Vector3(2.0, 7.0, 2.0))
+			b.box("wood", Vector3(-2.0, 6.0, -2.0), Vector3(-1.9, 7.0, 2.0))
+			b.box("wood", Vector3(1.9, 6.0, -2.0), Vector3(2.0, 7.0, 2.0))
+			for i in 10:
+				b.box("wood_light", Vector3(-0.4, 0.3 + 0.55 * i, 1.75), Vector3(0.4, 0.36 + 0.55 * i, 1.85))
+		"tower_roof":
+			b.cone("roof", Vector3(0, 8.4, 0), 2.6, 0.0, 1.4, 4, {"cap_bottom": "roof", "mat_high": "snow", "ring_frac": 0.4})
+			for sx in [-1.8, 1.8]:
+				for sz in [-1.8, 1.8]:
+					b.box("wood_dark", Vector3(sx - 0.07, 7.0, sz - 0.07), Vector3(sx + 0.07, 8.4, sz + 0.07))
 		_:
 			b.box("stone", Vector3(-0.25, 0, -0.25), Vector3(0.25, 0.5, 0.25))
 	var mesh := b.commit()
@@ -355,6 +434,27 @@ static func _pine(b: MeshBuilder, rng: RandomNumberGenerator, height: float, r0:
 	b.cone("snow", Vector3(0, 0, 0), 0.45, 0.42, 0.08, 8, {"cap_top": "snow"})
 	for t in tiers:
 		b.cone(t[3], Vector3(0, t[0], 0), t[1], 0.0, t[2], 8, {"ring_frac": ring_frac, "mat_high": "snow", "cap_bottom": t[3], "jitter": 0.06, "rng": rng})
+
+
+static func _build_cabin_small(root: Node3D) -> void:
+	# v2 frame (door at +Z = MODEL_FRONT); cut groups as in ASSET_SPEC v2 §8.4 (Floor, Walls, Roof)
+	_mesh_node(root, "Walls0", "cabin_small_body")
+	_mesh_node(root, "Roof", "cabin_small_roof")
+	_col_box(root, "ColFloor", Vector3(-2.5, 0, -2.0), Vector3(2.5, 0.3, 2.0))
+	_col_box(root, "ColWallBack", Vector3(-2.4, 0.3, -1.9), Vector3(2.4, 2.6, -1.7))
+	_col_box(root, "ColWallLeft", Vector3(2.2, 0.3, -1.9), Vector3(2.4, 2.6, 1.9))
+	_col_box(root, "ColWallRight", Vector3(-2.4, 0.3, -1.9), Vector3(-2.2, 2.6, 1.9))
+	_col_box(root, "ColWallFrontL", Vector3(0.5, 0.3, 1.7), Vector3(2.4, 2.6, 1.9))
+	_col_box(root, "ColWallFrontR", Vector3(-2.4, 0.3, 1.7), Vector3(-0.5, 2.6, 1.9))
+
+
+static func _build_lookout_tower(root: Node3D) -> void:
+	_mesh_node(root, "Frame", "tower_frame")
+	_mesh_node(root, "Roof", "tower_roof")
+	for sx in [-1.6, 1.6]:
+		for sz in [-1.6, 1.6]:
+			_col_box(root, "ColLeg_%d_%d" % [int(sx), int(sz)], Vector3(sx - 0.15, 0, sz - 0.15), Vector3(sx + 0.15, 6.0, sz + 0.15))
+	_col_box(root, "ColDeck", Vector3(-2.0, 5.8, -2.0), Vector3(2.0, 6.0, 2.0))
 
 
 static func _dead_tree(b: MeshBuilder, rng: RandomNumberGenerator) -> void:

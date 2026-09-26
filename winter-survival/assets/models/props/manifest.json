@@ -1,0 +1,18 @@
+{
+ "icicles": {
+  "choppable": 0,
+  "col": "none",
+  "col_center": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "col_size": [],
+  "family": "ice",
+  "height": -0.002,
+  "node": "Icicles",
+  "path": "res://assets/models/props/icicles.glb",
+  "radius": 1.008,
+  "tris": 251
+ }
+}

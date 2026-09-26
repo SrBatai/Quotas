@@ -4,7 +4,8 @@ extends MultiplayerSpawner
 ## under World/Placed and replicated by this spawner (ARQ v2 §6.4 "Estructura colocada"). The placement is
 ## recorded in the ChunkDelta `structures` table; the structure's own fields (lit, fuel) travel as object deltas.
 
-const CAMPFIRE_SCENE := preload("res://scenes/world/campfire.tscn")
+## Loaded lazily: World → spawner → scene → interactable.gd → Player → World would be a preload cycle.
+const CAMPFIRE_SCENE_PATH := "res://scenes/world/campfire.tscn"
 
 static var instance: StructureSpawner
 
@@ -55,7 +56,7 @@ func _spawn_node(data: Variant) -> Node:
 	var d: Dictionary = data
 	var node: Node3D
 	if str(d["kind"]) == "campfire":
-		node = CAMPFIRE_SCENE.instantiate()
+		node = (load(CAMPFIRE_SCENE_PATH) as PackedScene).instantiate()
 	else:
 		node = Node3D.new()
 		node.add_child(Assets.spawn_model(str(d["kind"])))

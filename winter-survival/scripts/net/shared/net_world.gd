@@ -7,6 +7,11 @@ extends Node
 ## whole chunk travels as `chunk_delta_snapshot` (zstd) to late joiners; the dirty chunks are dumped by the
 ## persistence backend and re-applied when the server restarts. Same node path on client and server;
 ## offline = direct calls.
+## M3 interest management (ARQ v2 §6.5): every INTEREST_PERIOD the server computes each peer's 3 × 3 chunks
+## around its player; chunks entering the set send their `chunk_delta_snapshot`, `_event`s only go to peers
+## whose set holds the object's chunk, and `_interest_update(entered, left)` lets the client forget the deltas
+## of chunks it no longer follows (a fresh snapshot comes when they re-enter). Chunks the server hibernates
+## save their delta and despawn their drops / placed structures (restored on wake).
 
 const REASONS := {
 	"lejos": "Acércate", "sin_herramienta": "Necesitas un hacha", "no_disponible": "No disponible",
@@ -22,8 +27,19 @@ static var instance: NetWorld
 var chunks: Dictionary = {}
 ## wid -> replicated fields (index over the chunks' objects/structures tables; `delta_of` reads it).
 var deltas: Dictionary = {}
-## Test hook (client): number of chunk snapshots received.
+## Test hook (client): number of chunk snapshots received (and their keys).
 var snapshots_received: int = 0
+var snapshot_keys: Dictionary = {}
+## wid -> true for every felled tree known here (chunk builders bake stumps / AO from it).
+var felled: Dictionary = {}
+## Server: peer -> {chunk key: true} (3 × 3 interest). Client: its own interest (from _interest_update).
+var interest: Dictionary = {}
+var my_interest: Dictionary = {}
+## Test hooks (client): events received and their wids.
+var events_received: int = 0
+var event_wids: Dictionary = {}
+var _hibernated: Dictionary = {}    # server: chunk key -> true (drops / structures despawned)
+var _interest_t: float = 0.0
 var _wid_chunk: Dictionary = {}     # wid -> chunk key
 var _rate: Dictionary = {}          # [peer, kind] -> Array of timestamps
 var _infractions: Dictionary = {}   # peer -> count
@@ -40,10 +56,10 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	if Net.is_server:
-		Net.peer_joined.connect(func(peer_id: int, _n: String) -> void: send_snapshots(peer_id))
 		Net.peer_left.connect(func(peer_id: int) -> void:
 			_rate.erase([peer_id, &"interact"])
-			_infractions.erase(peer_id))
+			_infractions.erase(peer_id)
+			interest.erase(peer_id))
 
 
 # ------------------------------------------------------------------ helpers (server)
@@ -130,7 +146,7 @@ func request_interact(wid: int, action: StringName, arg: int) -> void:
 	var player := _player_of(peer)
 	if player == null or not _allow(peer, &"interact"):
 		return
-	var obj := WorldRegistry.get_object(wid)
+	var obj := WorldRegistry.resolve(wid)   # materializes a MultiMesh tree of a loaded chunk
 	if obj == null:
 		_deny(peer, "no_existe", wid, action)
 		return
@@ -363,8 +379,14 @@ func push_storage(st: Storage) -> void:
 		Net.rpc_to(self, &"_storage_slots", st.open_by, [st.wid(), st.slots.duplicate(true)])
 
 
-func _physics_process(_delta: float) -> void:
-	if not Net.is_server or Engine.get_physics_frames() % 30 != 0:
+func _physics_process(delta: float) -> void:
+	if not Net.is_server:
+		return
+	_interest_t -= delta
+	if _interest_t <= 0.0:
+		_interest_t = WorldConst.INTEREST_PERIOD
+		_update_interest()
+	if Engine.get_physics_frames() % 30 != 0:
 		return
 	# containers close when their user walks away or leaves
 	for n in get_tree().get_nodes_in_group("storage"):
@@ -433,6 +455,10 @@ func chunk_for(wid: int, hint: Node = null) -> ChunkDelta:
 		var pos := Vector3.ZERO
 		if node is Node3D and (node as Node3D).is_inside_tree():
 			pos = (node as Node3D).global_position
+		elif World.instance != null and World.instance.is_configured:
+			var f := World.instance.streamer.find_scatter(wid)
+			if not f.is_empty():
+				pos = (f[0] as WorldChunk).entry_position(int(f[1]))
 		key = WorldConst.key_of(pos)
 		_wid_chunk[wid] = key
 	var d: ChunkDelta = chunks.get(key)
@@ -442,14 +468,19 @@ func chunk_for(wid: int, hint: Node = null) -> ChunkDelta:
 	return d
 
 
-## Server: merges `fields` into the object's replicated delta, applies it locally (offline) and broadcasts it.
+## Server: merges `fields` into the object's replicated delta and sends it to the peers that follow its chunk.
 func set_delta(wid: int, fields: Dictionary, table: StringName = &"objects") -> void:
 	if not Net.is_server:
 		return
 	var d := chunk_for(wid)
 	var merged := d.merge(table, wid, fields)
 	deltas[wid] = merged
-	Net.rpc_all(self, &"_event", [wid, fields])
+	if bool(fields.get("felled", false)):
+		felled[wid] = true
+	var key := d.key()
+	for peer in interest:
+		if (interest[peer] as Dictionary).has(key):
+			Net.rpc_to(self, &"_event", peer, [wid, fields])
 
 
 ## Server: container contents / opener (persisted, not broadcast).
@@ -475,17 +506,91 @@ func erase_drop(wid: int) -> void:
 		chunk_for(wid).erase(&"drops", wid)
 
 
+## Server: peers whose 3 × 3 interest holds the chunk of `pos` (live, from the players' positions).
+func sees(peer: int, pos: Vector3) -> bool:
+	if peer == 1 or peer == 0:
+		return true
+	var p := _player_of(peer)
+	if p == null:
+		return false
+	return WorldConst.ring_dist(WorldConst.chunk_of(pos.x), WorldConst.chunk_of(pos.z),
+		WorldConst.chunk_of(p.global_position.x), WorldConst.chunk_of(p.global_position.z)) <= WorldConst.INTEREST_RADIUS
+
+
+## Server: recomputes every peer's 3 × 3 interest; entering chunks send their snapshot.
+func _update_interest() -> void:
+	var peers := multiplayer.get_peers() if multiplayer.multiplayer_peer != null else PackedInt32Array()
+	for peer in interest.keys():
+		if not peers.has(peer):
+			interest.erase(peer)
+	for peer in peers:
+		var p := _player_of(peer)
+		if p == null or p.disconnected:
+			continue
+		var now := {}
+		for k in WorldConst.ring_keys(WorldConst.chunk_of(p.global_position.x), WorldConst.chunk_of(p.global_position.z), WorldConst.INTEREST_RADIUS):
+			now[k] = true
+		var old: Dictionary = interest.get(peer, {})
+		var entered := PackedInt32Array()
+		var left := PackedInt32Array()
+		for k in now:
+			if not old.has(k):
+				entered.append(k)
+		for k in old:
+			if not now.has(k):
+				left.append(k)
+		interest[peer] = now
+		if entered.is_empty() and left.is_empty():
+			continue
+		entered.sort()
+		for k in entered:
+			var d: ChunkDelta = chunks.get(k)
+			if d != null and not d.is_empty():
+				var packed := d.pack()
+				Net.rpc_to(self, &"chunk_delta_snapshot", peer, [int(packed["key"]), int(packed["size"]), packed["bytes"]])
+		Net.rpc_to(self, &"_interest_update", peer, [entered, left])
+
+
+## Server → client: the chunks that entered / left its interest (after their snapshots).
+@rpc("authority", "call_remote", "reliable", 1)
+func _interest_update(entered: PackedInt32Array, left: PackedInt32Array) -> void:
+	if Net.is_server:
+		return
+	for k in entered:
+		my_interest[k] = true
+	for k in left:
+		my_interest.erase(k)
+		forget_chunk(k)
+
+
+## Client: drops what it knew about a chunk it no longer follows (the next snapshot is the truth).
+func forget_chunk(key: int) -> void:
+	var d: ChunkDelta = chunks.get(key)
+	if d == null:
+		return
+	for table in [d.objects, d.structures]:
+		for wid in table:
+			deltas.erase(int(wid))
+			felled.erase(int(wid))
+			_wid_chunk.erase(int(wid))
+	chunks.erase(key)
+
+
 @rpc("authority", "call_remote", "reliable", 1)
 func _event(wid: int, fields: Dictionary) -> void:
 	if Net.is_server:
 		return
+	events_received += 1
 	var d: Dictionary = deltas.get(wid, {})
 	d.merge(fields, true)
 	deltas[wid] = d
-	_apply_to(wid, fields)
+	if bool(fields.get("felled", false)):
+		felled[wid] = true
+	event_wids[wid] = true
+	_apply_to(wid, fields, true)
 
 
-## Server: every chunk with a delta goes to the peer (M2: whole world; M3 filters by the 3 × 3 interest).
+## Server: every chunk with a delta goes to the peer — M2 compatibility (tools); M3 sends by interest instead.
 func send_snapshots(peer: int) -> void:
 	if not Net.is_server or peer == Net.local_peer_id():
 		return
@@ -507,6 +612,7 @@ func chunk_delta_snapshot(key: int, size: int, bytes: PackedByteArray) -> void:
 	if dict.is_empty():
 		return
 	snapshots_received += 1
+	snapshot_keys[key] = true
 	var d: ChunkDelta = chunks.get(key)
 	if d == null:
 		d = ChunkDelta.make(WorldConst.key_cx(key), WorldConst.key_cz(key))
@@ -519,13 +625,61 @@ func chunk_delta_snapshot(key: int, size: int, bytes: PackedByteArray) -> void:
 			var fields: Dictionary = deltas.get(int(wid), {})
 			fields.merge(t[wid], true)
 			deltas[int(wid)] = fields
-			_apply_to(int(wid), fields)
+			if bool(fields.get("felled", false)):
+				felled[int(wid)] = true
+			_apply_to(int(wid), fields, false)
 
 
-func _apply_to(wid: int, fields: Dictionary) -> void:
+## Applies replicated fields to the live object, or to the scatter entry of a loaded chunk (felled trees).
+## `live` = a real-time event (animate), false = snapshot / restore (instant).
+func _apply_to(wid: int, fields: Dictionary, live: bool = false) -> void:
 	var obj := WorldRegistry.get_object(wid)
-	if obj != null and obj.has_method("apply_net_delta"):
-		obj.apply_net_delta(fields)
+	if obj != null:
+		if obj.has_method("apply_net_delta"):
+			obj.apply_net_delta(fields)
+		return
+	if World.instance != null:
+		World.instance.apply_scatter_delta(wid, fields, live)
+
+
+# ------------------------------------------------------------------ server hibernation (ARQ v2 §8.5)
+## Chunk leaves memory: its delta is saved, its drops / placed structures despawn (restored on wake).
+func hibernate_chunk(key: int) -> void:
+	if not Net.is_server:
+		return
+	var d: ChunkDelta = chunks.get(key)
+	_hibernated[key] = true
+	if d == null:
+		return
+	var pm := get_tree().current_scene.get_node_or_null("PlayerManager") if get_tree().current_scene != null else null
+	if pm != null and pm.get("backend") != null and d.is_dirty():
+		(pm.backend as PersistenceBackend).save_chunk_delta(d)
+	for table in [d.structures, d.drops]:
+		for wid in table:
+			var n := WorldRegistry.get_object(int(wid))
+			if n != null:
+				n.queue_free()
+
+
+## Chunk back in memory (the streamer is about to build it): respawn what hibernation despawned.
+func wake_chunk(key: int) -> void:
+	if not Net.is_server or not _hibernated.has(key):
+		return
+	_hibernated.erase(key)
+	var d: ChunkDelta = chunks.get(key)
+	if d == null:
+		return
+	if StructureSpawner.instance != null:
+		StructureSpawner.instance.restore(d.structures)
+	if DropSpawner.instance != null:
+		DropSpawner.instance.restore(d.drops)
+	for wid in d.structures:
+		if deltas.has(int(wid)):
+			_apply_to(int(wid), deltas[int(wid)])
+
+
+func is_hibernated(key: int) -> bool:
+	return _hibernated.has(key)
 
 
 ## The delta known for an object (objects that spawn after the snapshot arrived read it in _ready).
@@ -561,19 +715,27 @@ func load_from(backend: PersistenceBackend) -> int:
 	if not Net.is_server:
 		return 0
 	var n := 0
+	var world := World.instance
 	for k in backend.chunk_keys():
 		var d := backend.load_chunk_delta(WorldConst.key_cx(k), WorldConst.key_cz(k))
 		if d == null:
 			continue
 		chunks[k] = d
 		n += 1
-		if StructureSpawner.instance != null:
-			StructureSpawner.instance.restore(d.structures)
-		if DropSpawner.instance != null:
-			DropSpawner.instance.restore(d.drops)
+		# drops / structures of chunks nobody is near stay stored until the streamer wakes the chunk
+		var loaded := world != null and world.streamer.chunks.has(k)
+		if loaded:
+			if StructureSpawner.instance != null:
+				StructureSpawner.instance.restore(d.structures)
+			if DropSpawner.instance != null:
+				DropSpawner.instance.restore(d.drops)
+		else:
+			_hibernated[k] = true
 		for wid in d.objects:
 			_wid_chunk[int(wid)] = k
 			deltas[int(wid)] = d.objects[wid]
+			if bool((d.objects[wid] as Dictionary).get("felled", false)):
+				felled[int(wid)] = true
 			_apply_to(int(wid), d.objects[wid])
 		for wid in d.containers:
 			_wid_chunk[int(wid)] = k

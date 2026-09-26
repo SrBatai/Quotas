@@ -1,6 +1,7 @@
 """Build every VENTISCA asset (ASSET_SPEC_V2 §1) and the rendered item icons (icons/build_icons.py, after the models
 it reuses), run the lib self-tests (lib/rig.py, lib/anim.py),
-then verify_assets.py (props, slice models) and verify_chars.py (characters + animation libraries).
+then verify_assets.py (props, slice models, M3 scatter + POIs), verify_kits.py (kit buildings vs their templates) and
+verify_chars.py (characters + animation libraries).
 
     cd winter-survival/blender && python3 build_all.py        # exit code 0 = everything built and ALL OK
 """
@@ -19,9 +20,14 @@ import bpy  # noqa: E402,F401
 SCRIPTS = [
     "build_player", "chars.build_survivor", "anims.build_loco", "build_animals", "build_trees", "build_rocks",
     "build_plants", "build_pickups", "build_fire", "build_tools", "build_cabin", "build_furniture", "build_props",
-    "build_optional", "icons.build_icons",
+    "build_optional",
+    # M3: MultiMesh scatter families, icicles, forest POIs, building kit test house
+    "vegetation.build_trees", "vegetation.build_bushes", "vegetation.build_rocks", "vegetation.build_snow",
+    "vegetation.build_logs", "props.build_icicles", "poi.build_cabin_small", "poi.build_lookout_tower",
+    "poi.build_campsite_remains", "kits.build_buildings",
+    "icons.build_icons",
 ]
-VERIFIERS = ["verify_assets", "verify_chars"]
+VERIFIERS = ["verify_assets", "verify_kits", "verify_chars"]
 
 
 def main():

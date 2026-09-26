@@ -11,6 +11,7 @@ import bpy  # noqa: E402,F401  (must precede mathutils)
 from mathutils import Vector  # noqa: E402
 
 from lib import export  # noqa: E402
+from lib import hd as H  # noqa: E402
 from lib import lowpoly as lp  # noqa: E402
 
 
@@ -61,26 +62,55 @@ def build_torch():
 
 
 def build_lantern():
+    """lantern (slice §4.21, v2 §17; HD v2.1 in M3): ONE object `Lantern` (palette_vcol + `window` glass, which the
+    code swaps for its glow material at night) hanging from its hook ring (top at z = 0), LightAnchor (0, 0, -0.23).
+    HD: chamfered base and top plate, pyramid roof with a brass vent, corner posts, two wire guard bands around the
+    glass, round hook ring."""
     lp.new_scene()
-    mb = lp.MeshBuilder()
-    # hook ring (box loop) z -0.06..0
-    mb.box((-0.02, -0.006, -0.012), (0.02, 0.006, 0.0), "iron")
-    mb.box((-0.02, -0.006, -0.06), (-0.008, 0.006, -0.012), "iron")
-    mb.box((0.008, -0.006, -0.06), (0.02, 0.006, -0.012), "iron")
-    # cap with a small pyramid roof, z -0.10..-0.06
-    mb.box((-0.10, -0.10, -0.10), (0.10, 0.10, -0.085), "iron")
-    mb.loft([[Vector((x, y, -0.085)) for x, y in ((-0.1, -0.1), (0.1, -0.1), (0.1, 0.1), (-0.1, 0.1))],
-             [Vector((x, y, -0.06)) for x, y in ((-0.03, -0.03), (0.03, -0.03), (0.03, 0.03), (-0.03, 0.03))]],
-            "iron", cap_start=False)
-    mb.box((-0.08, -0.08, -0.36), (0.08, 0.08, -0.10), "window")               # glass
-    mb.box((-0.10, -0.10, -0.40), (0.10, 0.10, -0.36), "iron")                 # base
+    hard, fine = lp.MeshBuilder(), lp.MeshBuilder()
+    # hook ring (torus in the XZ plane), top of the tube at z = 0
+    n, m, R, r = 10, 4, 0.021, 0.006
+    cz = -R - r
+    idx = []
+    for k in range(n):
+        a_ = 2 * math.pi * k / n
+        rad = Vector((math.cos(a_), 0, math.sin(a_)))
+        idx.append([fine._v(Vector((0, 0, cz)) + rad * R + (rad * math.cos(2 * math.pi * j / m + 0.785) +
+                                                             Vector((0, 1, 0)) * math.sin(2 * math.pi * j / m + 0.785)) * r)
+                    for j in range(m)])
+    for k in range(n):
+        a_, b_ = idx[k], idx[(k + 1) % n]
+        for j in range(m):
+            q = (a_[j], a_[(j + 1) % m], b_[(j + 1) % m], b_[j])
+            c = sum((fine.verts[i] for i in q), Vector()) / 4
+            ang = 2 * math.pi * (k + 0.5) / n
+            core = Vector((0, 0, cz)) + Vector((math.cos(ang), 0, math.sin(ang))) * R
+            fine.add_face(q, "iron", facing=c - core)
+    # vent (brass) + pyramid roof + top plate
+    fine.cylinder((0, 0, -0.075), (0, 0, -0.050), 0.026, 0.022, 8, "brass", cap0=False, phase=22.5)
+    hard.loft([[Vector((x, y, -0.088)) for x, y in ((-0.105, -0.105), (0.105, -0.105), (0.105, 0.105), (-0.105, 0.105))],
+               [Vector((x, y, -0.062)) for x, y in ((-0.035, -0.035), (0.035, -0.035), (0.035, 0.035), (-0.035, 0.035))]],
+              "iron", cap_start=False, cap_end=True)
+    hard.box((-0.105, -0.105, -0.103), (0.105, 0.105, -0.088), "iron")
+    # glass (window material), corner posts, wire guards
+    fine.box((-0.082, -0.082, -0.352), (0.082, 0.082, -0.103), "window", skip=('-z', '+z'))
     for sx in (-1, 1):
         for sy in (-1, 1):
-            mb.box((sx * 0.085 - 0.012, sy * 0.085 - 0.012, -0.36), (sx * 0.085 + 0.012, sy * 0.085 + 0.012, -0.10),
-                   "iron", skip=('-z', '+z'))
-    lp.to_object(mb, "Lantern")
+            fine.box((sx * 0.085 - 0.011, sy * 0.085 - 0.011, -0.36), (sx * 0.085 + 0.011, sy * 0.085 + 0.011, -0.103),
+                     "iron", skip=('-z', '+z'))
+    for z in (-0.19, -0.27):
+        for (x0, y0, x1, y1) in ((-0.085, -0.090, 0.085, -0.084), (-0.085, 0.084, 0.085, 0.090),
+                                 (-0.090, -0.085, -0.084, 0.085), (0.084, -0.085, 0.090, 0.085)):
+            fine.box((x0, y0, z - 0.004), (x1, y1, z + 0.004), "iron", skip=('-z', '+z'))
+    # base with a brass trim band
+    hard.box((-0.10, -0.10, -0.40), (0.10, 0.10, -0.36), "iron")
+    fine.box((-0.102, -0.102, -0.372), (0.102, 0.102, -0.364), "brass", skip=('-z', '+z'))
+    body = H.mk(hard)
+    H.bevel(body, 0.006, 1, angle=30)
+    H.snap_colors(body)
+    H.join([body, H.flat(H.mk(fine))], "Lantern")
     lp.add_empty("LightAnchor", (0, 0, -0.23))
-    export.save_and_export("lantern", ao=dict(ground=False))  # hangs from its hook
+    export.save_and_export("lantern", ao=dict(ground=False, distance=0.12, samples=48))  # hangs from its hook
 
 
 def main():

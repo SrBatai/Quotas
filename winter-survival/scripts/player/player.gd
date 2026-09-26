@@ -112,6 +112,16 @@ func _ready() -> void:
 		camera_rig = null
 	if view != null:
 		view.setup(self)
+	# M3 interest (ARQ v2 §6.5): other peers only get this player while it is in their 3 × 3 chunks
+	if Net.is_dedicated:
+		var sync := get_node_or_null("ServerSync") as MultiplayerSynchronizer
+		if sync != null:
+			sync.visibility_update_mode = MultiplayerSynchronizer.VISIBILITY_PROCESS_PHYSICS
+			sync.add_visibility_filter(func(for_peer: int) -> bool:
+				return for_peer == peer_id or for_peer == 1 or NetWorld.instance == null or NetWorld.instance.sees(for_peer, global_position))
+	# M3: the chunks under a simulated body must exist before it moves (spawn / restored profile far away)
+	if (Net.is_server or is_local) and World.instance != null:
+		World.instance.ensure_area(position, 1)
 	if Net.is_server:
 		state.server_setup()
 		Events.stove_changed.connect(func(lit: bool) -> void: stove_on = lit)

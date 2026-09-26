@@ -45,27 +45,21 @@ def build_firewood():
 
 
 def build_fallen_log():
+    """fallen_log (slice §4.11, v2 §13/§17; HD v2.1 in M3 with the vegetation/build_logs.py recipe): one object `Log`,
+    1.6 m along X, 0.40 m high with its snow (the code's chop box 1.6 x 0.4 x 0.4). Smooth bark tube with sawn ends
+    (growth rings), two broken branch stubs, rounded snow line on top, a little drift on one side."""
+    from lib import hd as H
+    from lib import veg as V
+    from vegetation.build_logs import stubs
     lp.new_scene()
-    mb = lp.MeshBuilder()
-    xs = [-0.8, -0.28, 0.27, 0.8]
-    rs = [0.20, 0.19, 0.20, 0.185]
-    offs = [(0.0, 0.0), (0.025, 0.004), (-0.02, 0.0), (0.012, -0.012)]
-    rings = [lp.ring((x, dy, 0.20 + dz), X, r, 8, 0.0) for x, r, (dy, dz) in zip(xs, rs, offs)]
-    faces = mb.loft(rings, "bark", cap_mats=("wood_light", "wood_light"), snow=True)
-    # end caps: slight inner ring look via wood_light caps; snow on the upper faces
-    mb.snow(0.55, faces)
-    # broken branch stubs
-    d = Vector((0.3, 0.75, 0.45)).normalized()
-    p0 = Vector((0.15, 0.05, 0.25))
-    mb.cylinder(p0, p0 + d * 0.24, 0.055, 0.042, 4, "bark", cap0=False, cap_mats=(None, "wood_light"),
-                phase=45)
-    d2 = Vector((-0.2, -0.85, 0.35)).normalized()
-    p1 = Vector((-0.45, -0.05, 0.22))
-    mb.cylinder(p1, p1 + d2 * 0.22, 0.045, 0.035, 4, "bark", cap0=False, cap_mats=(None, "wood_light"),
-                phase=45)
-    lp.clamp_ground(mb)
-    lp.to_object(mb, "Log")
-    export.save_and_export("fallen_log")
+    r0, r1 = 0.185, 0.17
+    parts, pts, radii = V.log_body((-0.8, 0, r0 - 0.01), (0.8, 0.0, r1 - 0.01), r0, r1, sides=10, segs=3, bend=0.03,
+                                   seed=141, cap0="rings", cap1="rings")
+    parts.append(stubs(pts, radii, [(0.35, 60, 0.2, 0.05), (0.7, 250, 0.16, 0.042)]))
+    parts.append(V.snow_on_log(pts, radii, width_k=1.2, thick=0.055, seed=142))
+    parts.append(H.mound((0.1, -0.26, 0), 0.4, 0.12, seed=143, sides=10, sink=0.05, stretch=(1.6, 0.5)))
+    H.join(parts, "Log")
+    export.save_and_export("fallen_log", ao=dict(distance=0.4, samples=64, ground=True))
 
 
 def main():

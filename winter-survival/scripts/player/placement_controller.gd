@@ -100,7 +100,7 @@ static func check_position(player: Node3D, pos: Vector3) -> bool:
 	var hits := player.get_world_3d().direct_space_state.intersect_shape(sq, 16)
 	for h in hits:
 		var c: Node = h.collider
-		if c is Terrain:
+		if c is Terrain or (c != null and c.is_in_group("terrain")):
 			continue
 		return false
 	return true

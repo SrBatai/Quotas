@@ -71,6 +71,11 @@ var ambient_scale: float = 1.0
 var sun_follows_camera: bool = false
 ## Hour shown when there is no WorldState (decorative world in the main menu).
 var menu_hour: float = 17.75
+## M3 (set by World around the camera focus): fog density multiplier (thicker toward the world border) and
+## height-fog offset (the ground height of the focus relative to the clearing, so valleys and hills keep the
+## clearing's fog look). 1 / 0 at the clearing.
+var fog_density_scale: float = 1.0
+var fog_height_offset: float = 0.0
 
 var _camera_yaw: float = Balance.CAMERA_YAW_DEG
 var _last_spill: float = -1.0
@@ -240,8 +245,8 @@ func apply(hour: float) -> void:
 	e.ambient_light_color = k[K_AMBIENT]
 	e.ambient_light_energy = k[K_AMBIENT_ENERGY] * ambient_scale
 	e.fog_light_color = k[K_FOG]
-	e.fog_density = k[K_FOG_DENSITY]
-	e.fog_height = k[K_FOG_HEIGHT]
+	e.fog_density = k[K_FOG_DENSITY] * fog_density_scale
+	e.fog_height = k[K_FOG_HEIGHT] + fog_height_offset
 	e.fog_height_density = k[K_FOG_HEIGHT_DENSITY]
 	e.fog_aerial_perspective = k[K_AERIAL]
 	e.tonemap_exposure = k[K_EXPOSURE] * Quality.exposure_scale()

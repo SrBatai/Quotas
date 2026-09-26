@@ -1,10 +1,14 @@
 extends Node
-## Model loader: uses res://assets/models/<name>.glb when present, primitive placeholders otherwise.
+## Model loader: uses res://assets/models/<name>.glb when present, primitive placeholders otherwise. M3: plain
+## names are also looked up in the v2 sub-folders (vegetation/, props/, poi/ — ASSET_SPEC v2 §1), which win over
+## the legacy root file, so assets Opus delivers there are picked up without a code change.
 ## Always guarantees the anchor nodes from ASSET_SPEC v2 exist (front = +Z, Vector3.MODEL_FRONT).
 ## Every `palette_vcol` surface is rendered with ONE shared ShaderMaterial (assets/materials/world_vcol.tres);
 ## the named exception materials (window, ember, …) stay separate surfaces so code can find them by name.
 
 const MODELS_DIR := "res://assets/models/"
+## Sub-folders searched (in this order, then the root) for a model name without a folder.
+const MODEL_SUBDIRS := ["vegetation/", "props/", "poi/"]
 const SHARED_MATERIAL_PATH := "res://assets/materials/world_vcol.tres"
 ## The terrain's single ShaderMaterial (shared by every chunk; the trail map is set on it by Footprints).
 const TERRAIN_MATERIAL_PATH := "res://assets/materials/terrain.tres"
@@ -51,10 +55,73 @@ var _lantern_glow: StandardMaterial3D
 var _ghost_ok: StandardMaterial3D
 var _ghost_bad: StandardMaterial3D
 var _missing_warned: Dictionary = {}
+var _paths: Dictionary = {}
+var _inst_meshes: Dictionary = {}
 
 
 func model_path(model_name: String) -> String:
-	return MODELS_DIR + model_name + ".glb"
+	if _paths.has(model_name):
+		return _paths[model_name]
+	var path := MODELS_DIR + model_name + ".glb"
+	if not model_name.contains("/"):
+		for sub in MODEL_SUBDIRS:
+			var p: String = MODELS_DIR + sub + model_name + ".glb"
+			if ResourceLoader.exists(p, "PackedScene"):
+				path = p
+				break
+	_paths[model_name] = path
+	return path
+
+
+## One Mesh for MultiMesh instancing (ASSET_SPEC v2 §13): the model's single mesh when it is one node at the
+## origin, else every MeshInstance3D merged (transforms baked, one surface per material). Placeholder when the
+## .glb is missing. Cached per name.
+func instancing_mesh(model_name: String) -> Mesh:
+	if _inst_meshes.has(model_name):
+		return _inst_meshes[model_name]
+	var root := spawn_model(model_name)
+	var parts: Array = []
+	_collect_parts(root, Transform3D.IDENTITY, parts, true)
+	var mesh: Mesh = null
+	if parts.size() == 1 and (parts[0][1] as Transform3D).is_equal_approx(Transform3D.IDENTITY):
+		mesh = parts[0][0]
+	else:
+		var by_mat := {}
+		var order: Array = []
+		for p in parts:
+			var m: Mesh = p[0]
+			for si in m.get_surface_count():
+				var mat := m.surface_get_material(si)
+				if not by_mat.has(mat):
+					by_mat[mat] = []
+					order.append(mat)
+				(by_mat[mat] as Array).append([m, si, p[1]])
+		var out := ArrayMesh.new()
+		for mat in order:
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for e in by_mat[mat]:
+				st.append_from(e[0], e[1], e[2])
+			st.commit(out)
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+		mesh = out
+	root.free()
+	if mesh == null:
+		mesh = BoxMesh.new()
+	_inst_meshes[model_name] = mesh
+	return mesh
+
+
+func _collect_parts(node: Node, xf: Transform3D, out: Array, is_root: bool) -> void:
+	var here := xf
+	if not is_root and node is Node3D:
+		here = xf * (node as Node3D).transform
+	if node is MeshInstance3D and (node as MeshInstance3D).mesh != null and (node as MeshInstance3D).visible:
+		out.append([(node as MeshInstance3D).mesh, here])
+	for c in node.get_children():
+		if c is StaticBody3D or c is CollisionShape3D:
+			continue
+		_collect_parts(c, here, out, false)
 
 
 func has_model(model_name: String) -> bool:

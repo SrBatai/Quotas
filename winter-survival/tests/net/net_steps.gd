@@ -6,6 +6,9 @@ extends RefCounted
 ##                 gets the wood; A opens the cabinet, B is told "en uso"; A crafts a torch and places a campfire that
 ##                 B sees; C joins late (22 s) and receives the chunk deltas (felled tree, campfire, cabinet state).
 ##                 The test server enables the /kit and /tp chat commands (server.cfg `debug_commands=true`).
+##   far           (PLAN M3 acceptance, 2 clients) B teleports ≈ 1 km away: each client stops receiving the other
+##                 player (despawned, not in its poses), both chop a tree near themselves and only receive their own
+##                 world events / chunk snapshots (3 × 3 interest), and B's client streams its own ring.
 ##   idle          join and stand still (screenshot proof of remote players).
 ## Server: soak with the main scene; prints "alive" lines every 5 s; "SERVER RESULT" at quit (admin save-and-quit).
 
@@ -140,6 +143,8 @@ func _run_client() -> void:
 			_log("reconnect: position before dc %s, after %s, delta=%.2f m -> %s" % [_pos_before_dc.snapped(Vector3(0.01, 0.01, 0.01)), p.global_position.snapped(Vector3(0.01, 0.01, 0.01)), d, "OK" if _reconnect_ok else "FAIL"]))
 	if scenario == "shared_world":
 		_build_shared_world_timeline()
+	elif scenario == "far":
+		_build_far_timeline()
 	if _late > 0.0:
 		_log("late joiner: waiting %.0f s" % _late)
 		tree.create_timer(_late).timeout.connect(_join)
@@ -247,7 +252,7 @@ func _client_frame() -> void:
 			tree.create_timer(4.0).timeout.connect(_join)
 		elif _step == 2 and ct > 9.0:
 			_step = 3
-	elif scenario == "shared_world":
+	elif scenario == "shared_world" or scenario == "far":
 		while not _timeline.is_empty() and ct >= float(_timeline[0][0]):
 			var entry: Array = _timeline.pop_front()
 			(entry[1] as Callable).call(lp, world)
@@ -260,21 +265,24 @@ func _cabinet(world: Node) -> Node:
 	return world.get_node_or_null("Cabin/Cabinet") if world != null else null
 
 
-## The pine closest to the porch spawn (deterministic scatter: the same node on every peer).
-func _pick_target_tree(world: Node) -> void:
+## The pine closest to `near` (default the porch spawn): a MultiMesh scatter entry with a deterministic wid, the
+## same on every peer (M3: trees are not nodes until the server materializes the one a request names).
+func _pick_target_tree(world: Node, near: Vector3 = Vector3.INF) -> void:
 	if _target_tree_wid != 0:
 		return
-	var spawn: Vector3 = world.get_spawn_point()
-	var best := INF
-	for t in tree.get_nodes_in_group("tree"):
-		if not String(t.variant).begins_with("pine"):
-			continue
-		var d: float = t.global_position.distance_to(spawn)
-		if d < best:
-			best = d
-			_target_tree_wid = WorldRegistry.wid_of(t)
-			_target_tree_pos = t.global_position
-	_log("target tree wid=%d at %s (%.1f m from the spawn)" % [_target_tree_wid, _target_tree_pos.snapped(Vector3(0.1, 0.1, 0.1)), best])
+	var at: Vector3 = world.get_spawn_point() if near == Vector3.INF else near
+	var f: Array = (world as World).nearest_scatter(at, "pine", 1)
+	if f.is_empty():
+		f = (world as World).nearest_scatter(at, "", 1)
+	if f.is_empty():
+		var lp: Node3D = GameFlow.local_player()
+		_log("no pine near %s (me at %s, chunk loaded=%s, loaded=%d)" % [at, lp.global_position if lp != null else Vector3.INF,
+			(world as World).streamer.loaded_chunk_at(at.x, at.z) != null, (world as World).streamer.loaded_keys().size()])
+		return
+	var c: WorldChunk = f[0]
+	_target_tree_wid = int(c.data.entries[int(f[1])]["wid"])
+	_target_tree_pos = c.entry_position(int(f[1]))
+	_log("target tree wid=%d at %s (%.1f m from %s)" % [_target_tree_wid, _target_tree_pos.snapped(Vector3(0.1, 0.1, 0.1)), _target_tree_pos.distance_to(at), at.snapped(Vector3(1, 1, 1))])
 
 
 func _tp(pos: Vector3) -> void:
@@ -289,10 +297,26 @@ func _player_named(world: Node, pname: String) -> Player:
 
 
 func _stump_near(world: Node, pos: Vector3) -> bool:
-	for c in world.get_node("Scatter").get_children():
-		if String(c.name).begins_with("stump_of_") and c.global_position.distance_to(pos) < 0.5:
+	var c: WorldChunk = (world as World).streamer.chunk_at(pos.x, pos.z)
+	if c == null or c.objects == null:
+		return false
+	for n in c.objects.get_children():
+		if String(n.name).begins_with("stump_of_") and (n as Node3D).global_position.distance_to(pos) < 0.6:
 			return true
 	return false
+
+
+## Every stump of the loaded chunks: [wid, position] (the late joiner finds the felled pine through it).
+func _stumps(world: Node) -> Array:
+	var out: Array = []
+	for k in (world as World).streamer.chunks:
+		var c: WorldChunk = (world as World).streamer.chunks[k]
+		if c.objects == null:
+			continue
+		for n in c.objects.get_children():
+			if String(n.name).begins_with("stump_of_") and n.has_meta("of_wid"):
+				out.append([int(n.get_meta("of_wid")), (n as Node3D).global_position])
+	return out
 
 
 func _campfire_seen() -> bool:
@@ -398,14 +422,13 @@ func _build_shared_world_timeline() -> void:
 				[1.0, func(_lp: Player, world: Node) -> void:
 					_pick_target_tree(world)],
 				[3.0, func(lp: Player, world: Node) -> void:
-					# the felled pine is already gone here: find it through its stump (name = stump_of_<tree>) and
-					# the deterministic wid (hash of the node path under World)
+					# the felled pine is already gone here: find it through its stump (meta of_wid = the scatter
+					# entry's deterministic hash64 wid, rebuilt from the chunk delta snapshot)
 					var felled_wid := 0
 					var stump_pos := Vector3.INF
-					for c in world.get_node("Scatter").get_children():
-						if String(c.name).begins_with("stump_of_tree_"):
-							felled_wid = ("Scatter/" + String(c.name).trim_prefix("stump_of_")).hash()
-							stump_pos = c.global_position
+					for st in _stumps(world):
+						felled_wid = int(st[0])
+						stump_pos = st[1]
 					var d := NetWorld.instance.delta_of(felled_wid)
 					var keys := NetWorld.instance.chunk_keys()
 					var in_clearing := not keys.is_empty()
@@ -425,6 +448,85 @@ func _build_shared_world_timeline() -> void:
 			]
 	tl.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
 	_timeline = tl
+
+
+## PLAN M3: two clients ≈ 1 km apart only receive their own ring.
+const FAR_POS := Vector3(-850.0, 0.0, -450.0)   # ≈ 960 m from the clearing, forest
+var _far_t0: float = -1.0
+var _other_peer: int = 0
+
+
+func _build_far_timeline() -> void:
+	var tl := []
+	var chop_at := func(t0: float) -> Array:
+		var out := []
+		for i in 4:
+			out.append([t0 + 0.7 * i, func(_lp: Player, _world: Node) -> void: _chop()])
+		return out
+	if client_name == "A":
+		tl = [
+			[1.0, func(_lp: Player, world: Node) -> void:
+				Chat.instance.send("/kit")
+				_pick_target_tree(world)],
+			[2.0, func(_lp: Player, _world: Node) -> void:
+				var toward := (Vector3.ZERO - _target_tree_pos)
+				toward.y = 0.0
+				_tp(_target_tree_pos + toward.normalized() * 1.5)],
+		]
+		tl.append_array(chop_at.call(6.5))
+	else:
+		tl = [
+			[1.0, func(_lp: Player, _world: Node) -> void: Chat.instance.send("/kit")],
+			[2.5, func(_lp: Player, _world: Node) -> void:
+				_far_t0 = (Time.get_ticks_msec() - _t0) / 1000.0
+				_tp(FAR_POS)],
+			[4.5, func(_lp: Player, world: Node) -> void:
+				# only what arrives from now on counts (the clearing snapshots came before the jump)
+				NetWorld.instance.snapshot_keys.clear()
+				_pick_target_tree(world, FAR_POS)
+				var toward := (FAR_POS - _target_tree_pos)
+				toward.y = 0.0
+				_tp(_target_tree_pos + (toward.normalized() if toward.length() > 0.1 else Vector3.RIGHT) * 1.5)],
+		]
+		tl.append_array(chop_at.call(6.5))
+	tl.append([16.0, func(lp: Player, world: Node) -> void: _far_report(lp, world)])
+	tl.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
+	_timeline = tl
+
+
+func _far_report(lp: Player, world: Node) -> void:
+	var w := world as World
+	var nw := NetWorld.instance
+	var my_cx := WorldConst.chunk_of(lp.global_position.x)
+	var my_cz := WorldConst.chunk_of(lp.global_position.z)
+	var others := 0
+	for p in world.get_node("Players").get_children():
+		if p != lp:
+			others += 1
+	_sw["felled"] = bool(nw.delta_of(_target_tree_wid).get("felled", false)) and _stump_near(world, _target_tree_pos)
+	_sw["other_gone"] = others == 0 and _remote_despawned >= 1
+	# every event received concerns an object of a chunk this client streams, and only its own tree was felled
+	var foreign := 0
+	for wid in nw.event_wids:
+		if w.streamer.find_scatter(int(wid)).is_empty() and WorldRegistry.get_object(int(wid)) == null:
+			foreign += 1
+	_sw["own_events"] = foreign == 0 and nw.event_wids.has(_target_tree_wid) and nw.felled.size() == 1
+	var far_keys := 0
+	for k in nw.snapshot_keys:
+		if WorldConst.ring_dist(WorldConst.key_cx(k), WorldConst.key_cz(k), my_cx, my_cz) > WorldConst.INTEREST_RADIUS:
+			far_keys += 1
+	var mine := 0
+	for k in nw.my_interest:
+		if WorldConst.ring_dist(WorldConst.key_cx(k), WorldConst.key_cz(k), my_cx, my_cz) <= WorldConst.INTEREST_RADIUS:
+			mine += 1
+	_sw["own_interest"] = far_keys == 0 and mine == nw.my_interest.size() and mine >= 4
+	var streamed := w.streamer.loaded_chunk_at(lp.global_position.x, lp.global_position.z) != null
+	if client_name == "B":
+		streamed = streamed and not w.streamer.chunks.has(WorldConst.key(24, 24))
+	_sw["streamed"] = streamed
+	_log("far report: pos=%s others=%d despawns=%d felled=%s events=%s foreign=%d felled_set=%d snapshots_after_jump=%s interest=%s loaded=%d streamer=%s" % [
+		lp.global_position.snapped(Vector3(0.1, 0.1, 0.1)), others, _remote_despawned, _sw["felled"], nw.event_wids.keys(), foreign,
+		nw.felled.size(), nw.snapshot_keys.keys(), nw.my_interest.keys(), w.streamer.loaded_keys().size(), w.streamer.stats])
 
 
 func _chop() -> void:
@@ -448,9 +550,12 @@ func _finish(lp: Player) -> void:
 	var corr: int = lp.net.corrections if lp != null else -1
 	var name_ok := lp != null and lp.name == str(Net.local_peer_id())
 	ok = ok and name_ok
-	if scenario == "shared_world":
+	if scenario == "shared_world" or scenario == "far":
 		var expected_keys := {"A": ["kit", "felled", "wood", "cabinet", "torch", "campfire"],
 			"B": ["stump", "no_wood", "label", "en_uso", "campfire"], "C": ["deltas", "felled", "campfire", "cabinet_free"]}
+		if scenario == "far":
+			expected_keys = {"A": ["felled", "other_gone", "own_events", "own_interest", "streamed"],
+				"B": ["felled", "other_gone", "own_events", "own_interest", "streamed"]}
 		var sw_ok := true
 		for k in expected_keys.get(client_name, []):
 			if not bool(_sw.get(k, false)):

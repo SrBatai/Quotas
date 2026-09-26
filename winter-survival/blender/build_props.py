@@ -6,8 +6,8 @@
   The truck keeps the slice `window` material on its glass (same look); the vehicle material `glass`
   (v2 §2.5/§11) comes with the M7 vehicles/pickup.glb.
 * signpost: authored directly in v2 (no rotation): the boards still point to +X, their text face looks
-  toward -Y, TextTop/TextBottom at y = -0.125 with rotation (0, 0, 0) (Label3D +Z = -Y Blender).
-* fence: no front; unchanged orientation (rails on the +Y side of the posts, as in the slice).
+  toward -Y, TextTop/TextBottom at y = -0.125 with rotation (0, 0, 0) (Label3D +Z = -Y Blender). HD v2.1 in M3.
+* fence: no front; unchanged orientation (rails on the +Y side of the posts, as in the slice). HD v2.1 in M3.
 """
 import math
 import os
@@ -206,57 +206,88 @@ def build_pickup_truck():
 
 
 # ------------------------------------------------------------------------------------------------
-def arrow_board(z0, z1, tip_x=0.85, base_x=-0.25, s=-1):
-    """Arrow board (pointed end at +X), |y| 0.06..0.12 on the side s (-1 = -Y), text face toward s*Y:
-    wood_dark back with a 0.02 border around a wood_light face, snow on top."""
-    mb = lp.MeshBuilder()
-    zc = (z0 + z1) / 2
-    h = (z1 - z0) / 2
+def arrow_board(name, zc, h=0.28, tip_x=0.85, base_x=-0.25, seed=0):
+    """HD arrow board (M3) with its pivot on the post axis at (0, 0, zc): pointed end at +X, text face toward -Y at
+    y = -0.12 (TextTop / TextBottom sit 5 mm in front, at y = -0.125). Chamfered dark frame (y -0.06..-0.105) around
+    a lighter inset face (-0.105..-0.12), two nail heads, a rounded snow line along the top edge, a snow lump on the
+    shoulder."""
+    z0, z1 = zc - h / 2, zc + h / 2
     shoulder = tip_x - h * 0.55
 
     def pent(inset, y):
-        y *= s
         return [Vector((base_x + inset, y, z0 + inset)), Vector((shoulder - inset * 0.4, y, z0 + inset)),
                 Vector((tip_x - inset * 1.4, y, zc)), Vector((shoulder - inset * 0.4, y, z1 - inset)),
                 Vector((base_x + inset, y, z1 - inset))]
-    mb.prism(pent(0.0, 0.06), (0, s * 0.06, 0), (0, s * 0.105, 0), "wood_dark", snow=True)
-    mb.prism(pent(0.02, 0.105), (0, s * 0.105, 0), (0, s * 0.12, 0), "wood_light")
-    mb.snow(0.55)
-    # snow strip along the top edge
-    y0, y1 = sorted((s * 0.055, s * 0.125))
-    mb.box((base_x, y0, z1), (shoulder, y1, z1 + 0.035), "snow", skip=('-z',))
-    return mb
+    frame = lp.MeshBuilder()
+    frame.prism(pent(0.0, -0.06), (0, -0.06, 0), (0, -0.105, 0), "wood_dark")
+    fo = H.mk(frame, None, (0, 0, zc))
+    H.bevel(fo, 0.008, 1, angle=30)
+    H.snap_colors(fo)
+    face = lp.MeshBuilder()
+    face.prism(pent(0.022, -0.105), (0, -0.105, 0), (0, -0.118, 0), "wood_light")
+    for x in (base_x + 0.06, shoulder - 0.05):
+        face.box((x - 0.012, -0.1195, zc - 0.012), (x + 0.012, -0.118, zc + 0.012), "iron")
+    parts = [fo, H.flat(H.mk(face, None, (0, 0, zc)))]
+    parts.append(H.snow_ridge((base_x + 0.01, -0.0825, z1), (shoulder - 0.02, -0.0825, z1), 0.075, 0.045,
+                              seed=seed, overhang=0.012, droop=0.012))
+    return H.join(parts, name)
 
 
 def build_signpost():
+    """signpost (slice §4.19; v2 §17; HD v2.1 in M3): nodes Post, BoardTop (pivot 0, 0, 1.84), BoardBottom
+    (0, 0, 1.44), TextTop / TextBottom (children, unrotated, at (0.28, -0.125, z)); authored in -Y. HD: chamfered
+    square post with a pyramid cap and a snow pillow, a nailed cleat under each board, snow mound at the foot."""
     lp.new_scene()
-    post = lp.MeshBuilder()
-    post.box((-0.06, -0.06, 0.0), (0.06, 0.06, 2.2), "wood", skip=('-z',))
-    post.loft([lp.rrect((0, 0, 2.2), 0.075, 0.075, 0.02), [Vector((0, 0, 2.27))]], "snow")   # snow cap
-    # small brace at the foot and a snow mound
-    post.cylinder((0, 0, 0), (0, 0, 0.1), 0.3, 0.16, 8, "snow", cap0=False, phase=22.5)
-    lp.to_object(post, "Post")
-    top = lp.to_object(arrow_board(1.70, 1.98), "BoardTop", (0, 0, 1.84))
-    bottom = lp.to_object(arrow_board(1.30, 1.58), "BoardBottom", (0, 0, 1.44))
+    hard = lp.MeshBuilder()
+    hard.box((-0.06, -0.06, -0.05), (0.06, 0.06, 2.14), "wood")
+    hard.loft([lp.rrect((0, 0, 2.14), 0.07, 0.07, 0.0), [Vector((0, 0, 2.21))]], "wood_dark", cap_start=True)
+    for zc in (1.84, 1.44):                                   # cleats the boards hang on
+        hard.box((-0.075, -0.07, zc - 0.03), (0.075, 0.07, zc + 0.03), "wood_dark")
+    post = H.mk(hard)
+    H.bevel(post, 0.012, 1, angle=30)
+    H.snap_colors(post)
+    parts = [post]
+    parts.append(H.snow_cone_cap((0, 0, 2.14), 0.07, 2.14, 2.21, 0.05, seed=3))
+    parts.append(H.mound((0, 0, 0), 0.34, 0.14, seed=4, sides=10, sink=0.05))
+    H.join(parts, "Post")
+    top = arrow_board("BoardTop", 1.84, seed=5)
+    bottom = arrow_board("BoardBottom", 1.44, seed=6)
     # text anchors, unrotated: local +Z (Godot) = -Y Blender = the board's text face; +X (the arrow tip) is
     # the reader's right, so a Label3D child with identity transform reads left-to-right toward the tip
     lp.add_empty("TextTop", (0.28, -0.125, 1.84), parent=top)
     lp.add_empty("TextBottom", (0.28, -0.125, 1.44), parent=bottom)
-    export.save_and_export("signpost")
+    export.save_and_export("signpost", ao=dict(distance=0.4, samples=64, ground=True))
 
 
 # ------------------------------------------------------------------------------------------------
 def build_fence():
+    """fence (slice §4.20, v2 §17; HD v2.1 in M3): one object `Fence`, 2 m, no front, rails on the +Y side of the
+    posts (unchanged). HD: chamfered square posts with pyramid caps + snow pillows, two slightly uneven rails with
+    rounded snow lines, snow mounds at the post feet."""
     lp.new_scene()
-    mb = lp.MeshBuilder()
+    hard, fine = lp.MeshBuilder(), lp.MeshBuilder()
     for x in (-0.94, 0.94):
-        mb.box((x - 0.06, -0.06, 0.0), (x + 0.06, 0.06, 1.1), "wood", skip=('-z',))
-        mb.box((x - 0.065, -0.065, 1.1), (x + 0.065, 0.065, 1.13), "snow", skip=('-z',))
-    for z0 in (0.40, 0.80):
-        mb.box((-1.0, 0.06, z0), (1.0, 0.12, z0 + 0.12), "wood")
-        mb.box((-1.0, 0.055, z0 + 0.12), (1.0, 0.125, z0 + 0.15), "snow", skip=('-z',))
-    lp.to_object(mb, "Fence")
-    export.save_and_export("fence")
+        hard.box((x - 0.06, -0.06, -0.04), (x + 0.06, 0.06, 1.04), "wood")
+        hard.loft([lp.rrect((x, 0, 1.04), 0.065, 0.065, 0.0), [Vector((x, 0, 1.09))]], "wood_dark", cap_start=True)
+    rails = [(0.40, 0.012), (0.80, -0.010)]
+    for z0, dz in rails:
+        hard.hexa([(-1.0, 0.06, z0 - dz), (1.0, 0.06, z0 + dz), (-1.0, 0.12, z0 - dz), (1.0, 0.12, z0 + dz),
+                   (-1.0, 0.06, z0 + 0.12 - dz), (1.0, 0.06, z0 + 0.12 + dz), (-1.0, 0.12, z0 + 0.12 - dz),
+                   (1.0, 0.12, z0 + 0.12 + dz)], "wood")
+        for x in (-0.94, 0.94):                                  # nail plates (< 5 cm: no chamfer)
+            fine.box((x - 0.03, 0.12, z0 + 0.03), (x + 0.03, 0.128, z0 + 0.09), "iron", skip=('-y',))
+    body = H.mk(hard)
+    H.bevel(body, 0.012, 1, angle=30)
+    H.snap_colors(body)
+    parts = [body, H.flat(H.mk(fine))]
+    for k, x in enumerate((-0.94, 0.94)):
+        parts.append(H.snow_cone_cap((x, 0, 1.04), 0.065, 1.04, 1.09, 0.045, seed=11 + k))
+        parts.append(H.mound((x, 0.03, 0), 0.12, 0.11, seed=13 + k, sides=8, rings=2, sink=0.05, stretch=(1.0, 1.7)))
+    for k, (z0, dz) in enumerate(rails):
+        parts.append(H.snow_ridge((-0.87, 0.09, z0 + 0.12 - dz * 0.87), (0.87, 0.09, z0 + 0.12 + dz * 0.87), 0.075,
+                                  0.045, seed=15 + k, overhang=0.0, droop=0.012))
+    H.join(parts, "Fence")
+    export.save_and_export("fence", ao=dict(distance=0.4, samples=64, ground=True))
 
 
 # ------------------------------------------------------------------------------------------------

@@ -36,6 +36,24 @@
   "radius": 0.848,
   "tris": 545
  },
+ "bush_b": {
+  "choppable": 0,
+  "col": "sphere",
+  "col_center": [
+   0.0,
+   0.38,
+   0.0
+  ],
+  "col_size": [
+   0.45
+  ],
+  "family": "bush",
+  "height": 0.89,
+  "node": "Bush",
+  "path": "res://assets/models/vegetation/bush_b.glb",
+  "radius": 0.666,
+  "tris": 567
+ },
  "dead_tree_b": {
   "choppable": 1,
   "col": "cylinder",
@@ -73,6 +91,46 @@
   "path": "res://assets/models/vegetation/dead_tree_c.glb",
   "radius": 1.348,
   "tris": 2529
+ },
+ "fallen_log_b": {
+  "choppable": 1,
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.22,
+   0.0
+  ],
+  "col_size": [
+   3.4,
+   0.45,
+   0.5
+  ],
+  "family": "log",
+  "height": 0.46,
+  "node": "Log",
+  "path": "res://assets/models/vegetation/fallen_log_b.glb",
+  "radius": 1.913,
+  "tris": 515
+ },
+ "fallen_log_c": {
+  "choppable": 1,
+  "col": "box",
+  "col_center": [
+   0.25,
+   0.45,
+   0.0
+  ],
+  "col_size": [
+   3.1,
+   0.9,
+   1.7
+  ],
+  "family": "log",
+  "height": 1.646,
+  "node": "Log",
+  "path": "res://assets/models/vegetation/fallen_log_c.glb",
+  "radius": 1.957,
+  "tris": 616
  },
  "pine_d": {
   "choppable": 1,
@@ -149,5 +207,129 @@
   "path": "res://assets/models/vegetation/pine_young.glb",
   "radius": 0.838,
   "tris": 621
+ },
+ "rock_d": {
+  "choppable": 0,
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.25,
+   0.0
+  ],
+  "col_size": [
+   2.3,
+   0.5,
+   1.5
+  ],
+  "family": "rock",
+  "height": 0.621,
+  "node": "Rock",
+  "path": "res://assets/models/vegetation/rock_d.glb",
+  "radius": 1.494,
+  "tris": 342
+ },
+ "rock_e": {
+  "choppable": 0,
+  "col": "box",
+  "col_center": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "col_size": [
+   3.0,
+   2.0,
+   2.3
+  ],
+  "family": "rock",
+  "height": 2.395,
+  "node": "Rock",
+  "path": "res://assets/models/vegetation/rock_e.glb",
+  "radius": 1.974,
+  "tris": 652
+ },
+ "rock_f": {
+  "choppable": 0,
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.2,
+   0.0
+  ],
+  "col_size": [
+   1.6,
+   0.4,
+   1.2
+  ],
+  "family": "rock",
+  "height": 0.5,
+  "node": "Rock",
+  "path": "res://assets/models/vegetation/rock_f.glb",
+  "radius": 0.95,
+  "tris": 439
+ },
+ "snow_drift_4": {
+  "choppable": 0,
+  "col": "none",
+  "col_center": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "col_size": [],
+  "family": "snow",
+  "height": 0.462,
+  "node": "Snow",
+  "path": "res://assets/models/vegetation/snow_drift_4.glb",
+  "radius": 2.019,
+  "tris": 476
+ },
+ "snow_pile_a": {
+  "choppable": 0,
+  "col": "none",
+  "col_center": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "col_size": [],
+  "family": "snow",
+  "height": 0.54,
+  "node": "Snow",
+  "path": "res://assets/models/vegetation/snow_pile_a.glb",
+  "radius": 0.98,
+  "tris": 144
+ },
+ "snow_pile_b": {
+  "choppable": 0,
+  "col": "none",
+  "col_center": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "col_size": [],
+  "family": "snow",
+  "height": 0.759,
+  "node": "Snow",
+  "path": "res://assets/models/vegetation/snow_pile_b.glb",
+  "radius": 1.535,
+  "tris": 198
+ },
+ "snow_pile_c": {
+  "choppable": 0,
+  "col": "none",
+  "col_center": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "col_size": [],
+  "family": "snow",
+  "height": 0.29,
+  "node": "Snow",
+  "path": "res://assets/models/vegetation/snow_pile_c.glb",
+  "radius": 0.579,
+  "tris": 84
  }
 }

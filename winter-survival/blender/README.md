@@ -24,13 +24,23 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 | `build_animals.py` | wolf, deer | slice +Y → turned to −Y |
 | `build_trees.py` | pine_a, pine_b, pine_c, dead_tree, stump (HD v2.1) | no front (unchanged) |
 | `build_rocks.py` | rock_a, rock_b, rock_c (HD v2.1), stone | no front (unchanged) |
-| `build_plants.py` | berry_bush | no front (unchanged) |
-| `build_pickups.py` | firewood, fallen_log | no front (unchanged) |
-| `build_fire.py` | campfire, torch, lantern | no front (unchanged) |
+| `build_plants.py` | berry_bush (HD v2.1 in M3, keeps the child `Berries`) | no front (unchanged) |
+| `build_pickups.py` | firewood, fallen_log (HD v2.1 in M3) | no front (unchanged) |
+| `build_fire.py` | campfire, torch, lantern (HD v2.1 in M3) | no front (unchanged) |
 | `build_tools.py` | stone_axe | weapon convention (blade −Y) |
 | `build_cabin.py` | cabin (HD v2.1) | slice +Y → turned to −Y |
 | `build_furniture.py` | bed, desk, chair, shelf, clock, cabinet, wood_stove | slice +Y → turned to −Y |
-| `build_props.py` | a_frame_cabin, pickup_truck (HD v2.1, turned), signpost (authored −Y), fence (unchanged) | |
+| `build_props.py` | a_frame_cabin, pickup_truck (HD v2.1, turned), signpost (authored −Y), fence (HD v2.1 in M3) | |
+| `vegetation/build_trees.py` (M3) | vegetation/pine_d, pine_e, pine_f, pine_young, dead_tree_b, dead_tree_c, birch | MultiMesh, no front |
+| `vegetation/build_bushes.py` (M3) | vegetation/bush_a, bush_b (+ the `shrub()` recipe used by berry_bush) | MultiMesh, no front |
+| `vegetation/build_rocks.py` (M3) | vegetation/rock_d, rock_e, rock_f | MultiMesh, no front |
+| `vegetation/build_snow.py` (M3) | vegetation/snow_pile_a, snow_pile_b, snow_pile_c, snow_drift_4 | MultiMesh, no front |
+| `vegetation/build_logs.py` (M3) | vegetation/fallen_log_b, fallen_log_c | MultiMesh, no front |
+| `props/build_icicles.py` (M3) | props/icicles (hanging strip; `icicle_strip()` reused under eaves) | hanging |
+| `poi/build_cabin_small.py` (M3) | poi/cabin_small (log cabin, v2 cutaway structure) | −Y |
+| `poi/build_lookout_tower.py` (M3) | poi/lookout_tower (fire-watch tower, stairs as ramps, glazed cab) | −Y |
+| `poi/build_campsite_remains.py` (M3) | poi/campsite_remains (one mesh `Remains` + Col + spawns) | — |
+| `kits/build_buildings.py` (M3, kit start) | buildings/<style>/<template> for kits/templates/*.json (M3: house_small_A × wood_blue, brick) | −Y |
 | `build_optional.py` | tent, storage_box | slice +Y → turned to −Y |
 | `chars/build_survivor.py` | chars/survivor_{red,blue,green,mustard} (skeletal, M1; HD v2.1: Body + Outfit_backpack_m) | −Y |
 | `anims/build_loco.py` | anims/humanoid_loco (Loco_Idle/Idle_Cold/Walk/Run, Crouch_Idle/Walk) | −Y |
@@ -62,11 +72,18 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 - `lib/palette.py` — palette (v2 §3), `palette_vcol` + exception materials, `assign`/`paint`, `zombify`.
 - `lib/lowpoly.py` — `MeshBuilder` (boxes, lofts, cylinders, jittered icospheres, snow-by-normal), pivots,
   parenting, collision boxes, `FRONT`.
-- `lib/hd.py` — v2.1 HD helpers (G1): `bevel` (chamfer + hardened normals), `smooth` / `flat`, `subsurf`,
+- `lib/hd.py` — v2.1 HD helpers (G1; M3 adds `snow_ridge`, `snow_cone_cap` and `bake_ao(exclude=...)`): `bevel` (chamfer + hardened normals), `smooth` / `flat`, `subsurf`,
   `freeze_normals` + `join` (flat + smooth + chamfered parts in ONE object / surface), `snap_colors` (one exact
   palette colour per face after a bevel / subdivision), snow recipes `pillow`, `snow_strip`, `mound`, `snow_cap`,
   `tube`, `beam`, and the AO bake (`bake_ao`, `bake_scene_ao`).
-- `lib/export.py` — scene checks, save + export, re-import, `.import` templates.
+- `lib/export.py` — scene checks, save + export, re-import, `.import` templates. M3: `Spawn_*` empties may carry a
+  yaw; `save_and_export(..., blend_name=, import_kind=)`.
+- `lib/veg.py` (M3) — shared vegetation generators (star-tier pines, recursive bare trees, lobes, draped caps, heaps,
+  logs with ring / splintered ends) + `export_scatter()` (one object, node extras with the collision proxy,
+  `<folder>/manifest.json`). build_trees.py (G1) uses it and still produces byte-identical files.
+- `lib/kit.py` (M3) — building kit: 2 m grid, 3 m storeys, modules (walls with window / door + stubs, corners, floor,
+  foundation, gable roof slices + ends, porch, chimney, partitions), styles `wood_blue` / `brick`, template assembly,
+  fusion per cut group, doors / windows / spawns / collision, `bake_cut_ao()`. Templates: `kits/templates/*.json`.
 - `lib/rig.py` — humanoid armature (SkeletonProfileHumanoid names, 22 bones + 5 sockets, T-pose facing −Y),
   rigid per-part skinning. `python3 -m lib.rig --selftest`
 - `lib/anim.py` — `Pose` (FK) + `ActionWriter`, 3D two-bone IK, heel-toe locomotion generator with
@@ -103,3 +120,12 @@ z = 0, v2.1 budgets (HD assets without slack) and the doc 05 "typical clearing v
 zombie / kit-house / terrain reserve). It prints one `OK`/`FAIL` line per asset (with `ao=min/median/p95`) and ends
 with `ALL OK`. `verify_chars.py` also measures every Loco/Crouch cycle between keys (8× per frame, slerp) and on the
 clips imported by Godot 4.7 in a throwaway project (`godot` on PATH; `$VENTISCA_GODOT_SCRATCH` to keep it).
+
+M3 additions: `verify_assets.py` also covers the sub-folder assets (`vegetation/*`, `props/icicles`, `poi/*`) with the
+**MultiMesh rule** (exactly one mesh object, one surface, no children / empties / Col*, origin at the base centre,
+collision-proxy extras consistent with the geometry and with `<folder>/manifest.json`), the **v2 cutaway structure**
+for POIs (`_Stub` outlines, `cut_group` / `floor` / `floor_z`, `Door_n` / `Window_n` / `Spawn_*` props, convex Col*
+incl. ramps, exact boxes from `poi/build_cabin_small.py::COL_BOXES`) and the "typical forest view" budget.
+`verify_kits.py` rebuilds every kit template in memory (`lib/kit.py`) and compares it with
+`assets/models/buildings/<style>/<id>.glb` (nodes, stubs, props, collision boxes ±2 cm, budget 14 k, ≤ 20 visible
+surfaces). Both run from `build_all.py`.

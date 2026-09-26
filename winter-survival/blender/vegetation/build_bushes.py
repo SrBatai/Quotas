@@ -91,9 +91,20 @@ def berries(bvh, rnd, clusters, r=(0.034, 0.044), min_nz=0.05):
             if hit[0] is None or hit[1].z < min_nz:
                 continue
             rr = rnd.uniform(*r)
-            mb.blob(hit[0] + hit[1].normalized() * rr * 0.6, rr, "berry", subdiv=0, jitter=0.0, rnd=rnd)
+            octa(mb, hit[0] + hit[1].normalized() * rr * 0.6, rr, rnd.uniform(0, 1.0))
             placed += 1
     return H.smooth(H.mk(mb))
+
+
+def octa(mb, c, r, spin=0.0, mat="berry"):
+    """Smooth-shaded octahedron berry (8 tris: at 2-3 px a berry only needs to be a round dot)."""
+    import math as _m
+    c = Vector(c)
+    ca, sa = _m.cos(spin), _m.sin(spin)
+    pts = [c + Vector((ca * r, sa * r, 0)), c + Vector((-sa * r, ca * r, 0)), c + Vector((-ca * r, -sa * r, 0)),
+           c + Vector((sa * r, -ca * r, 0)), c + Vector((0, 0, r)), c + Vector((0, 0, -r))]
+    faces = [(0, 1, 4), (1, 2, 4), (2, 3, 4), (3, 0, 4), (1, 0, 5), (2, 1, 5), (3, 2, 5), (0, 3, 5)]
+    mb.solid(pts, faces, mat, inside=c)
 
 
 def build_bush_a():
@@ -101,7 +112,8 @@ def build_bush_a():
     lobes = [((0.05, 0.05, 0.28), (0.52, 0.46, 0.46)), ((-0.40, -0.10, 0.18), (0.40, 0.36, 0.34)),
              ((0.42, -0.18, 0.16), (0.38, 0.34, 0.32)), ((0.12, 0.40, 0.14), (0.36, 0.30, 0.30)),
              ((-0.18, -0.38, 0.10), (0.30, 0.26, 0.24))]
-    parts, _bvh, _rnd = shrub(101, lobes, tufts=9,
+    parts, _bvh, _rnd = shrub(101, lobes, top="moss", side="pine_light", under="pine_mid", tufts=9,
+                              tuft_mat="pine_light",
                               caps=[(0.05, 0.05, 0.36, 0.30, 0.09), (-0.42, -0.10, 0.22, 0.2, 0.06),
                                     (0.42, -0.2, 0.2, 0.18, 0.06)])
     V.export_scatter("bush_a", parts, "Bush", "bush", "sphere", (0, 0, 0.35), (0.5,), ao=BUSH_AO)
@@ -111,8 +123,8 @@ def build_bush_b():
     lp.new_scene()
     lobes = [((0.0, 0.0, 0.36), (0.40, 0.38, 0.46)), ((-0.30, 0.10, 0.22), (0.32, 0.30, 0.32)),
              ((0.30, -0.08, 0.24), (0.32, 0.30, 0.34)), ((0.04, -0.30, 0.16), (0.28, 0.24, 0.26))]
-    parts, bvh, rnd = shrub(111, lobes, top="pine_mid", side="pine_mid", under="pine_dark", tufts=6,
-                            tuft_mat="pine_dark", caps=[(0.0, 0.02, 0.26, 0.24, 0.07), (0.3, -0.08, 0.16, 0.15, 0.05)])
+    parts, bvh, rnd = shrub(111, lobes, top="pine_light", side="pine_mid", under="pine_dark", tufts=6,
+                            tuft_mat="pine_mid", caps=[(0.0, 0.02, 0.26, 0.24, 0.07), (0.3, -0.08, 0.16, 0.15, 0.05)])
     parts.append(berries(bvh, rnd, [(0.25, 0.20, 4, 0.08), (-0.30, 0.25, 4, 0.08), (0.30, -0.28, 3, 0.07),
                                     (-0.28, -0.22, 3, 0.07), (0.05, 0.36, 3, 0.07)]))
     V.export_scatter("bush_b", parts, "Bush", "bush", "sphere", (0, 0, 0.38), (0.45,), ao=BUSH_AO)

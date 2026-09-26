@@ -6,8 +6,9 @@ extends Node
 
 enum Role { NONE, OFFLINE, SERVER, CLIENT }
 
-const GAME_VERSION := "0.4.0-m1"
-const NET_PROTOCOL := 1
+const GAME_VERSION := "0.5.0-m3"
+## 2 (M3): the auth nonce carries the world seed (8 bytes after the 16 random ones).
+const NET_PROTOCOL := 2
 const GAME_SCENE := "res://scenes/main/game.tscn"
 const DEFAULT_PORT := 7777
 const DEFAULT_ADMIN_PORT := 7778
@@ -23,6 +24,8 @@ signal auth_failed(reason: String)
 signal peer_joined(peer_id: int, display_name: String)
 signal peer_left(peer_id: int)
 signal server_ready()
+## Client: the server's world seed arrived with the authentication nonce (before any spawn or RPC).
+signal seed_received(world_seed: int)
 
 var role: Role = Role.NONE
 var cfg := ConfigFile.new()
@@ -34,6 +37,8 @@ var hosted_admin_port: int = DEFAULT_ADMIN_PORT
 var hosted_admin_token: String = ""
 var last_error: String = ""
 var world_is_ready: bool = false
+## Client: world seed announced by the server during authentication (0 = not known yet).
+var server_seed: int = 0
 ## peer_id -> {"name": String, "token_hash": String, "ip": String} (server)
 var peers: Dictionary = {}
 ## Bandwidth / RTT (client and server), refreshed once per second.
@@ -227,8 +232,14 @@ func _on_peer_packet(from: int, packet: PackedByteArray) -> void:
 
 func _on_peer_authenticating(id: int) -> void:
 	if role == Role.SERVER:
-		_nonces[id] = Crypto.new().generate_random_bytes(16)
-		multiplayer.send_auth(id, _nonces[id])
+		# 16 random bytes + the world seed (s64): the client needs the seed to build its chunks (M3)
+		var msg := Crypto.new().generate_random_bytes(16)
+		var seed_bytes := PackedByteArray()
+		seed_bytes.resize(8)
+		seed_bytes.encode_s64(0, int(cfg.get_value("world", "seed", Balance.TERRAIN_SEED)))
+		msg.append_array(seed_bytes)
+		_nonces[id] = msg
+		multiplayer.send_auth(id, msg)
 	elif role == Role.CLIENT:
 		pass  # the client answers the server's nonce in _client_auth
 
@@ -360,6 +371,9 @@ func _client_auth(_id: int, data: PackedByteArray) -> void:
 		print("[NET] auth rejected: %s" % last_error)
 		auth_failed.emit(last_error)
 		return
+	if data.size() >= 24:
+		server_seed = data.decode_s64(16)
+		seed_received.emit(server_seed)
 	var payload := {"version": GAME_VERSION, "proto": NET_PROTOCOL, "name": _client_name,
 		"token": Identity.token_hex(), "hmac": hmac_hex_for(_client_password, data)}
 	multiplayer.send_auth(1, JSON.stringify(payload).to_utf8_buffer())
@@ -407,6 +421,7 @@ func _reset_peer() -> void:
 	peers.clear()
 	_nonces.clear()
 	world_is_ready = false
+	server_seed = 0
 	last_error = ""
 
 

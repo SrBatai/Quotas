@@ -31,10 +31,25 @@ func pending_count() -> int:
 
 
 func _physics_process(dt: float) -> void:
+	if (Net.is_server or body.is_local) and not _ground_ready():
+		return
 	if Net.is_server:
 		_server_step(dt)
 	elif body.is_local:
 		_client_step(dt)
+
+
+## M3: a simulated body never moves over a chunk whose collider is not loaded yet (spawn before the seed
+## arrived, teleport): load it synchronously, else hold still this tick.
+func _ground_ready() -> bool:
+	var w := World.instance
+	if w == null:
+		return true
+	if w.has_collision_at(body.position):
+		return true
+	if w.is_configured:
+		w.ensure_area(body.position, 1)
+	return w.has_collision_at(body.position)
 
 
 # ------------------------------------------------------------------ server
