@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Título de zona (fotograma)</title>
+<link rel="stylesheet" href="hud_v2.css">
+<style>
+  .dark { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,8,16,.45), rgba(4,8,16,.12) 50%, rgba(4,8,16,.35)); }
+  .veil { position: absolute; left: 0; right: 0; top: 190px; height: 330px; pointer-events: none;
+    background: radial-gradient(ellipse 42% 48% at 50% 50%, rgba(3,6,12,.46), rgba(3,6,12,.18) 60%, transparent 85%); }
+  .zt { position: absolute; left: 0; right: 0; top: 268px; text-align: center; }
+  .zt .eb { font: 400 16px/1 Barlow; font-variant-caps: all-small-caps; letter-spacing: .5em; color: var(--ink-70); }
+  .zt .title { font: 200 76px/1 "Barlow Condensed"; letter-spacing: .42em; text-transform: uppercase; color: #F6FAFE; margin-top: 20px;
+    padding-left: .42em; text-shadow: 0 2px 6px rgba(0,0,0,.45), 0 0 34px rgba(150,200,240,.22); white-space: nowrap; }
+  .zt .hl { width: 520px; margin: 26px auto 0; }
+  .zt .facts { margin-top: 18px; font: 300 19px/1 Barlow; letter-spacing: .08em; color: var(--ink-90); }
+  .zt .facts .sep { color: var(--ink-30); margin: 0 12px; }
+  /* cartel de vehículo */
+  .sign { position: absolute; right: 64px; top: 64px; width: 420px; display: none; }
+  .sign .plate { background: rgba(26, 72, 140, .88); border: 1.5px solid rgba(243,248,253,.9); border-radius: 6px; padding: 12px 18px 13px; box-shadow: 0 6px 20px rgba(0,0,0,.35); }
+  .sign .r1 { display: flex; justify-content: space-between; align-items: baseline; font: 500 30px/1 Barlow; color: #fff; }
+  .sign .r2 { display: flex; justify-content: space-between; align-items: baseline; font: 400 20px/1 Barlow; color: rgba(255,255,255,.9); margin-top: 10px; }
+  .sign .ex { font: 500 15px/1 Barlow; color: #1A488C; background: #fff; border-radius: 3px; padding: 3px 6px; margin-right: 10px; letter-spacing: .04em; }
+  .sign .sub { margin-top: 10px; text-align: right; font: 300 17px/1 Barlow; letter-spacing: .08em; color: var(--ink-90); text-shadow: var(--shadow); }
+  .speed { position: absolute; right: 64px; bottom: 52px; text-align: right; display: none; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" id="bg" style="background-image:url('bg2/night.jpg');filter:saturate(.65) brightness(.66) hue-rotate(-8deg)"></div>
+  <div class="cine fx"></div>
+  <div class="dark fx" id="dark"></div>
+  <svg id="snow" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div class="veil fx" id="veil"></div>
+
+  <div class="zt" id="zt">
+    <div class="eb w" id="eb">zona descubierta</div>
+    <div class="title" id="title">Distrito Financiero</div>
+    <div class="hair hl" id="hl"></div>
+    <div class="facts w" id="facts">Albarrán<span class="sep">·</span>sin electricidad<span class="sep">·</span><span class="num">−18 °C</span><span class="sep">·</span>peligro alto</div>
+  </div>
+
+  <div class="sign" id="sign">
+    <div class="plate">
+      <div class="r1"><span>Albarrán</span><span class="num">4 km</span></div>
+      <div class="r2"><span><span class="ex">SALIDA 12</span>Distrito Financiero</span><span>→</span></div>
+    </div>
+    <div class="sub">A‑14 · sin electricidad · <span class="num">−18 °C</span></div>
+  </div>
+  <div class="speed w" id="speed"><span class="num" style="font:200 44px/1 Barlow">86</span><span class="sc t16 dim" style="margin-left:8px">km/h</span></div>
+
+  <div class="strip" id="strip"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<script src="icons_v2.js"></script>
+<script>
+  const q = new URLSearchParams(location.search), f = +(q.get('f') || 2), $ = id => document.getElementById(id);
+  (function () {
+    let s = 0x1357; const R = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    let h = '';
+    for (let i = 0; i < 380; i++) { const x = R() * 1920, y = R() * 1080, L = 4 + R() * 12; h += `<line x1="${x}" y1="${y}" x2="${x + L * .9}" y2="${y + L * .45}" stroke="rgba(230,240,255,${.12 + R() * .35})" stroke-width="${.8 + R() * 1.3}" stroke-linecap="round"/>`; }
+    $('snow').innerHTML = h;
+  })();
+  if (q.get('v') === 'car') {           // variante en vehículo: cartel tipo autovía, sin tarjeta central
+    $('zt').style.display = 'none'; $('veil').style.display = 'none'; $('sign').style.display = 'block'; $('speed').style.display = 'block';
+    $('bg').style.cssText = "background-image:url('bg2/day.jpg');filter:saturate(.9) brightness(.92)"; $('dark').style.display = 'none'; $('snow').style.display = 'none';
+    $('strip').style.display = 'none';
+  } else if (f === 1) {                 // t = 0,5 s: letras abiertas y tenues, el filete nace
+    $('eb').style.opacity = 0; $('facts').style.opacity = 0; $('veil').style.opacity = .6;
+    $('title').style.cssText += ';opacity:.35;letter-spacing:.78em;padding-left:.78em;filter:blur(1.5px)';
+    $('hl').style.width = '90px';
+  } else if (f === 3) {                 // t = 4,6 s: se funde sobre el mundo
+    $('eb').style.opacity = .15; $('facts').style.opacity = .25; $('veil').style.opacity = .35;
+    $('title').style.cssText += ';opacity:.4;letter-spacing:.46em';
+    $('hl').style.width = '220px'; $('hl').style.opacity = .5;
+  }
+</script>
+</body>
+</html>

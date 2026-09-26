@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Acción</title>
+<link rel="stylesheet" href="hud_v2.css">
+<style>
+  .hit { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 80% 75% at 50% 55%, transparent 70%, rgba(140, 16, 28, .26) 100%); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg2/zombies.jpg')"></div>
+  <div class="cine fx"></div>
+  <div class="hit fx"></div>
+
+  <!-- arco de daño direccional + aguante: anclados al personaje, finos -->
+  <svg style="position:absolute;left:0;top:0" width="1920" height="1080">
+    <g transform="translate(958 640)">
+      <path d="M -90 -24 A 94 69 0 0 1 -42 -61" fill="none" stroke="#F07A86" stroke-width="3" stroke-linecap="round" opacity=".95"/>
+      <path d="M -90 -24 A 94 69 0 0 1 -42 -61" fill="none" stroke="#F07A86" stroke-width="9" stroke-linecap="round" opacity=".18"/>
+    </g>
+    <g transform="translate(1012 566)">
+      <circle r="13" fill="none" stroke="rgba(243,248,253,.25)" stroke-width="2"/>
+      <circle r="13" fill="none" stroke="#F3F8FD" stroke-width="2" id="stam" transform="rotate(-90)" stroke-linecap="round"/>
+    </g>
+  </svg>
+
+  <!-- línea de objetivo actualizado (arriba‑izq.), se desvanece a los 5 s -->
+  <div class="scrim" style="left:-120px;top:-40px;width:760px;height:240px"></div>
+  <div style="position:absolute;left:64px;top:56px" class="w">
+    <div class="sc t16 acc" style="display:flex;align-items:center;gap:10px"><span class="dia f" style="color:var(--accent);width:8px;height:8px;box-shadow:none"></span>objetivo actualizado</div>
+    <div class="t22 light" style="margin-top:8px;color:var(--ink)">Consigue 3 componentes de radio <span class="num dim" style="margin-left:10px">0/3</span></div>
+    <div class="hair acc" style="width:300px;margin-top:10px"></div>
+    <div class="t16 light dim" style="margin-top:8px">La voz del repetidor</div>
+  </div>
+
+  <!-- un solo indicador de borde: el objetivo seguido (5 s tras actualizarse) -->
+  <div class="edge w" style="left:40px;top:640px;color:var(--accent)">
+    <svg width="14" height="14" viewBox="-7 -7 14 14" style="overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))"><path d="M-6 0 L2 -6 L2 6Z" fill="currentColor"/></svg>
+    <span class="dia f" style="color:var(--accent)"></span>
+    <span class="t18 num light" style="color:var(--ink)">900 m</span>
+  </div>
+
+  <!-- constantes: solo la que cambia (salud) -->
+  <div class="scrim" style="left:-60px;top:900px;width:340px;height:220px"></div>
+  <div style="position:absolute;left:64px;bottom:52px;display:flex;align-items:center;gap:12px" class="w">
+    <div class="tring" id="r-health"></div>
+    <div>
+      <div class="t22 num reg" style="color:#FFC2C8;line-height:1">42</div>
+      <div class="sc t16" style="color:var(--blood);margin-top:4px;display:flex;align-items:center;gap:6px">sangrando</div>
+    </div>
+  </div>
+
+  <!-- barra rápida desplegada (se usó el bate) -->
+  <div class="scrim" style="left:560px;top:880px;width:800px;height:260px"></div>
+  <div style="position:absolute;left:50%;bottom:120px;transform:translateX(-50%);text-align:center" class="w">
+    <span class="t18 reg" style="color:var(--ink)">Bate con clavos</span><span class="t18 num" style="color:var(--warn);margin-left:12px">12 %</span>
+  </div>
+  <div class="hb w" id="hb"></div>
+</div>
+<script src="icons_v2.js"></script>
+<script>
+  document.getElementById('stam').setAttribute('stroke-dasharray', `${2 * Math.PI * 13 * .36} 999`);
+  document.getElementById('r-health').innerHTML = thinRing(.42, '#F07A86') + li('heart', 's16', 'color:#FFC2C8');
+  const items = [['bat_nailed', '', 1], ['meat_raw', 4], ['can_beans', 1], ['torch'], ['knife'], ['wood', 3], [], [], [], []];
+  document.getElementById('hb').innerHTML = items.map((it, i) => !it.length ? `<div class="it empty"></div>` :
+    `<div class="it${i === 0 ? ' sel' : ''}"><img src="../../../../assets/icons/items/${it[0]}.png">${it[1] ? `<span class="q">${it[1]}</span>` : ''}</div>`).join('');
+</script>
+</body>
+</html>

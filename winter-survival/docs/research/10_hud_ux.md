@@ -1,22 +1,315 @@
-# 10 — HUD, misiones y señalización: auditoría, investigación y guía de estilo «ESCARCHA»
+# 10 — HUD, misiones y señalización: auditoría, investigación y guía de estilo (v2 «SUSURRO», recomendada)
 
 > Proyecto VENTISCA (Godot 4.7.2; cámara alta tipo isométrica: inclinación −48°, guiñada en pasos de 45°, FOV 36°,
 > 24 m por defecto y 16–38 m con zoom, según `scripts/data/balance.gd`; cooperativo 1–4; todo el texto en español).
-> Fecha: 26‑sep‑2026. Autor: dirección de UI/UX (agente de investigación). Estado: **investigación cerrada, dirección
-> elegida, guía de estilo y maquetas en alta fidelidad**. No se ha tocado código del juego.
+> Fecha: 26‑sep‑2026. Autor: dirección de UI/UX (agente de investigación). No se ha tocado código del juego.
 >
-> Pedido del propietario: *«que el HUD, las misiones y los carteles y avisos al entrar o salir de un sitio sean mucho
-> mejores, como en un juego AAA»*, y que se planifique bien antes de implementar. Contexto nuevo que este documento ya
-> asume: el mundo crece a **unos 6 × 6 km**, con una ciudad con rascacielos (**Albarrán**, nombre de trabajo), pueblos,
-> bosque, autovía y un río helado. El postapocalipsis estará habitado: supervivientes NPC, convoyes militares y eventos
-> dinámicos. Habrá peligros de invierno como ventiscas, tormentas de hielo, barrios a oscuras por apagones o hielo fino.
+> **Estado: v2 minimal «SUSURRO» recomendada** (§V). El propietario vio las maquetas v1 y dijo que eran *«muy
+> toscas»* y que había *«demasiado en pantalla»*. La v1 «ESCARCHA» se conserva entera como **apéndice**. Su auditoría,
+> su investigación, las reglas de comportamiento (histéresis de zonas, enrutador de avisos, carril de borde, mapa de
+> papel), la señalización del mundo y el plan de Godot **siguen vigentes**, con los cambios de §V.8.
 >
-> Complementa `docs/v2/GDD_MUNDO_ABIERTO.md` §3, §11.4, §12 y §13, y `docs/PLAN_MAESTRO.md` §4 y §7. Donde esta
-> propuesta cambia algo que ya decide el GDD, se indica en §10 para que lo confirme el propietario.
+> Pedido original: *«que el HUD, las misiones y los carteles y avisos al entrar o salir de un sitio sean mucho mejores,
+> como en un juego AAA»*, y que se planifique bien antes de implementar. Contexto que este documento ya asume: el mundo
+> crece a **unos 6 × 6 km**, con una ciudad con rascacielos (**Albarrán**, nombre de trabajo), pueblos, bosque,
+> autovía y un río helado. El postapocalipsis estará habitado: supervivientes NPC, convoyes militares y eventos
+> dinámicos. Habrá peligros de invierno como ventiscas, tormentas de hielo, barrios a oscuras o hielo fino.
+>
+> Complementa `docs/v2/GDD_MUNDO_ABIERTO.md` §3, §11.4, §12 y §13, y `docs/PLAN_MAESTRO.md` §4 y §7. Las decisiones que
+> cambian el GDD se listan en §10 del apéndice, y las propias de v2 en §V.9.
 
 ---
 
-## 0. Resumen ejecutivo
+## Resumen (v2, recomendada)
+
+| Pregunta | Respuesta |
+|---|---|
+| ¿Qué cambia respecto a v1? | Pasa de **paneles permanentes** a un HUD que **susurra**. En reposo solo queda la barra rápida plegada en 10 trazos de 2 px. Todo lo demás **aparece al cambiar** (3–5 s y se funde) o **al pedirlo** (mantener Tab / D‑pad ↑). Referentes: *The Last of Us Part II*, *Ghost of Tsushima* y *Death Stranding*. |
+| Cobertura medida | En reposo de día, el HUD ocupa **0,05 %** de la pantalla, frente al **16,3 %** de v1 (cajas; en tinta, 0,04 % frente a 14,9 %). Objetivo: < 3 %. Otros momentos en v2: acción 2,2 %, título de zona 1,7 %, ventisca 1,3 %, compañera derribada 3,0 %, misiones abiertas a petición 6,3 %. El método está en §V.5. |
+| Tipografía | **Barlow Light y Regular** de 16 a 22 px, con *tracking* amplio y versalitas reales (`smcp`). **Barlow Condensed ExtraLight solo para el título de zona** (76 px, espaciado .42 em). Nada por encima de peso 400. Mínimo 16 px a 1080p y 18 px para frases. |
+| Superficies | **Sin cajas.** Texto con sombra suave, **velo radial** (≤ 45 %, que se adapta al brillo del fondo), filetes de 1 px e iconos de línea de 1,5 px, usados con moderación. |
+| Color | Blanco escarcha a 4 opacidades. **Un solo acento ámbar para lo único que importa ahora**, por prioridad: compañero derribado > fuente de calor (si te congelas) > objetivo seguido. Los semánticos (frío, sangre, aviso) van atenuados y solo en texto pequeño o en anillos. |
+| Navegación | Rombos de 10 px en el mundo, con la distancia **solo al enfocarlos o con Info**. **Como mucho un indicador de borde**: el que tenga el acento. |
+| Frío | «La interfaz también tiene frío» pasa a ser una **viñeta de escarcha en los bordes de la pantalla** (intensidad 1 − Calor/40), no escarcha en paneles. |
+| Maquetas | 7 imágenes nuevas `v2_*.jpg` (160–240 kB) junto a las de v1, con fondos del juego mejor limpiados (§V.6). |
+| Coste | Algo menor que v1: **unos 6,5 pases**. No hacen falta los shaders de cristal ni los paneles; entran `HudVisibility` y `AccentArbiter` (§V.8). |
+
+![v1 frente a v2](10_hud_ux/v2_comparativa.jpg)
+
+---
+
+## V. v2 minimal «SUSURRO» (recomendada)
+
+Lo que se toma de los tres referentes (fuentes en el apéndice §2 y §11):
+
+- ***The Last of Us Part II***: HUD discreto que **desaparece fuera de combate**. Solo muestra salud y munición cuando
+  importan [4][5]. → Constantes y barra ocultas en reposo.
+- ***Ghost of Tsushima***: «perdidos en la naturaleza, no en los menús». **Sin brújula ni minimapa**; el mundo guía (el
+  viento, los animales) [9][10]. → Sin indicadores de borde en reposo y guía diegética (apéndice §7).
+- ***Death Stranding***: sans **fina y espaciada** para mucha información sin ruido [14]. → Barlow Light con *tracking*
+  y versalitas, y títulos de zona tipográficos.
+
+
+### V.1 Reglas
+
+1. **El mundo es la imagen.** En reposo el HUD ocupa **< 3 %** de la pantalla; medido, **0,05 %**. No hay marcos de
+   compañeros, panel de misiones, bloque de clima, desglose térmico, tarjeta de durabilidad ni indicadores de borde
+   salvo que algo cambie o el jugador lo pida.
+2. **Aparece al cambiar y se va solo.** Cada elemento tiene su disparador y su tiempo (§V.3): 3–5 s de lectura y un
+   fundido lento de 0,6–1,2 s.
+3. **A petición.** Mantener **Info** (Tab / D‑pad ↑) muestra la lista de misiones, la hora, la temperatura y el grupo
+   mientras se mantiene. En Accesibilidad se puede cambiar a pulsar para alternar.
+4. **Un solo acento.** El ámbar `#FFB454` marca lo único que importa ahora. Prioridad: **compañero derribado >
+   fuente de calor más cercana** (con Calor < 30) **> objetivo seguido**. Todo lo demás es blanco escarcha.
+5. **Un solo indicador de borde**, el del punto 4, y solo cuando el objetivo acaba de actualizarse (5 s), cuando hay
+   una prioridad (derribado, calor) o mientras se mantiene Info.
+6. **Sin cajas.** Texto con sombra, velo radial detrás de cada grupo, filetes de 1 px, versalitas e iconos de línea
+   solo donde una palabra no baste. La única «caja» es el cartel de autovía en vehículo, porque imita un cartel real
+   y dura 3 s.
+7. **Legible siempre.** Nunca menos de 16 px a 1080p (en Steam Deck, con escala 115 %, son 12,3 px). Sobre fondos
+   claros (nieve, ventisca) el texto sube de Light a Regular y el velo se oscurece solo (§V.2.3).
+
+### V.2 Tokens
+
+#### V.2.1 Tipografía
+
+| Estilo | Fuente y peso | Tamaño / interlínea | Espaciado | Uso |
+|---|---|---|---|---|
+| Título de zona | Barlow Condensed **ExtraLight 200**, versales | 76 / 1,0 | **.42 em** (entra desde .78 em) | Solo el nombre de la zona |
+| Antetítulo de zona | Barlow Regular 400, versalitas | 16 | .50 em | «zona descubierta» |
+| Datos de zona | Barlow Light 300 | 19 | .08 em | «Albarrán · sin electricidad · −18 °C · peligro alto» |
+| Línea principal | Barlow Light 300 | 22 / 1,25 | 0 | Objetivo actualizado; número de constante (Regular 400) |
+| Lista a petición | Barlow Light 300 | 26 (misión) / 20 (paso) / 18 (detalle) | 0 | Misiones abiertas |
+| Texto | Barlow Light 300 (Regular 400 sobre fondo claro) | 18 / 1,3 | 0 | Peligro, avisos de interacción, compañeros |
+| Versalitas | Barlow Regular 400 + `smcp`/`c2sc` | 16 | .16–.20 em | «objetivo actualizado», «ventisca», «sangrando», «te estás congelando» |
+| Dato mínimo | Barlow Light 300 | 16 | 0 | Distancias y metadatos |
+| Cifras | cualquier estilo + `tnum` | — | — | Hora, temperatura, distancias, temporizadores |
+
+Pesos: 200 solo en el título, 300 por defecto y 400 para versalitas y texto sobre fondos claros. **Nada de 500 o más**
+en el HUD. Barlow Light, Barlow ExtraLight y Barlow Condensed Thin, ExtraLight y Light se añadieron a
+`mockups/fonts/` (OFL, `google/fonts` en GitHub).
+
+#### V.2.2 Color y opacidades
+
+| Token | Valor | Uso |
+|---|---|---|
+| `ink` | `#F3F8FD` al 92 % | Texto principal |
+| `ink-70` | 70 % | Secundario (zona padre, metadatos) |
+| `ink-50` | 52 % | Terciario (pistas de control, pasos hechos) |
+| `ink-30` | 32 % | Tira de la barra, separadores «·» |
+| `hair` | 38 % | Filetes de 1 px, que se desvanecen al 18 % y al 82 % del largo |
+| `accent` | `#FFB454` | **Lo único que importa ahora** (regla 4) |
+| `cold` | `#A6DCF5` | Calor bajo, ventisca activa |
+| `blood` | `#F07A86` | Salud baja, arco de daño, «sangrando» |
+| `warn` | `#F2D58A` | Durabilidad < 20 % |
+| Jugadores | `#7CC8FF`, `#C9A6FF`, `#9DE07F`, `#FF9FC6` | Solo un punto de 7 px y el nombre |
+
+#### V.2.3 Sombra, velo y filetes
+
+- **Sombra de texto**: `0 1px 2px rgba(0,0,0,.62)`, `0 0 10px rgba(0,0,0,.42)` y `0 0 26px rgba(0,0,0,.22)`. En
+  Godot, `LabelSettings` con `shadow_size = 10`, `shadow_color = #000000 al 42 %` y `shadow_offset = (0, 1)`.
+- **Velo** (no es una caja): gradiente radial *closest‑side* de `rgba(4,8,14,α)` a transparente, **α adaptativo**:
+  `α = mix(0.18, 0.45, smoothstep(0.35, 0.80, luma_fondo))`. En la ventisca de la maqueta d llega a 0,55–0,66 junto
+  a la escarcha. Se mide fuera de la cobertura (§V.5).
+- **Filete**: 1 px de `hair`. Solo el de «objetivo actualizado» es ámbar, y crece de 0 a 300 px.
+- **Iconos de línea**: rejilla 24, trazo 1,5 px, extremos redondeados, 16–20 px. Se usan donde una palabra no basta:
+  termómetro, corazón, calavera, copo, camión, radio y check. Están en `mockups/icons_v2.js`.
+- **Formas**: rombo de 10 px (8 px en línea de texto), relleno para el objetivo seguido y hueco para el resto. Anillo
+  fino de 40 px con trazo de 2 px y sin disco de fondo.
+- **Márgenes**: 64 px a los lados y 52 px arriba y abajo.
+
+#### V.2.4 Tiempos y curvas
+
+| Elemento | Entrada | Lectura | Salida |
+|---|---|---|---|
+| Constante que cambia | 240 ms (fundido) | Hasta 4 s después de estabilizarse | 800 ms |
+| Barra rápida | 180 ms (la tira pasa a iconos y sube 6 px) | 3 s desde el último uso | 600 ms (vuelve a la tira) |
+| Línea «objetivo actualizado» | 320 ms, con el filete ámbar en 600 ms | 5 s | 1 000 ms |
+| Recogida («+2 leña») | 200 ms | 2,5 s (+1 s por fusión, máx. 5 s) | 600 ms |
+| Peligro | 300 ms | 5 s con la línea completa; después queda icono y tiempo | 800 ms |
+| Título de zona, 1.ª visita | 1 400 ms (el *tracking* baja de .78 a .42 em) | Hasta t = 4,0 s | 1 600 ms (5,6 s en total) |
+| Título de zona, re‑entrada | 600 ms | 1,4 s | 500 ms (solo el nombre, al 60 %) |
+| Indicador de borde | 240 ms | 5 s tras la actualización, o mientras dure la prioridad o Info | 600 ms |
+| Info (mantener) | 160 ms | Mientras se mantiene | 300 ms |
+
+Curvas: entrada `TRANS_SINE`/`EASE_OUT` y salida `TRANS_SINE`/`EASE_IN_OUT`. **Sin rebotes, escalas ni destellos.**
+Los desplazamientos son de 6 px como máximo. Con movimiento reducido todo pasa a fundidos de 200 ms y el título no
+anima el espaciado.
+
+### V.3 Tabla de estados de visibilidad
+
+| Elemento | En reposo | Aparece cuando | Se va | Con Info |
+|---|---|---|---|---|
+| Barra rápida | **Tira de 10 trazos** (30 %; la activa al 85 %) | Rueda o 1–9, usar, cambiar de arma, recoger algo que va a la barra | 3 s → tira | Iconos |
+| Objeto en mano / durabilidad | Oculto | Al seleccionarlo (nombre 1,5 s); durabilidad < 20 % o rotura (nombre y % en `warn`) | Con la barra | Sí |
+| Salud | Oculta | < 50 %, o cambio ≥ 2 en 2 s | 4 s estable y ≥ 50 % | Número |
+| Calor | Oculto | < 40, bajando ≥ 1/s, o la temperatura sentida cambia ≥ 5 °C | 4 s estable y ≥ 40 | Número y **desglose térmico** en una columna de texto |
+| Hambre | Oculta | < 30, o al comer | 4 s | Número |
+| Aguante | Oculto | < 100 (arco de 26 px junto al personaje) | 1 s después de llenarse | — |
+| Estados (mojado, sangrando, fiebre…) | Ocultos | Al aparecer o empeorar: una palabra en versalitas bajo la constante afectada | 5 s; si es crítico, se queda | Lista con causa y remedio |
+| Línea de misión | Oculta | Objetivo nuevo, actualizado o completado | 5 s | **Lista completa** (§V.4.8) |
+| Marcador de objetivo en el mundo | Rombo de 10 px si está en pantalla y a < 300 m, sin texto | — | — | Nombre y distancia |
+| Indicador de borde | **Ninguno** | Objetivo actualizado (5 s) o una prioridad (derribado, calor) | Al acabar | El seguido en ámbar; los demás destinos como rombos tenues |
+| Compañeros | **Nada** | Lejos en pantalla (> 25 m: punto y nombre), herido (< 25 %), **derribado** (indicador único) o hablando (línea de chat, 6 s) | Al normalizarse | Una línea arriba a la dcha.: «● Ana 84 m · ● Leo 212 m» |
+| Peligro | Nada | Aviso (60 s antes), inicio o cambio | 5 s → icono y tiempo arriba a la dcha. hasta que acaba | Línea completa |
+| Hora y temperatura | Nada | Amanecer o anochecer (4 s), o cambio de sentida ≥ 5 °C | 4 s | Dos líneas arriba a la dcha. |
+| Título de zona | — | 1.ª visita o re‑entrada (histéresis de 12 m y 1,5 s del apéndice §6.1) | 5,6 s / 2,5 s | — |
+| Recogidas | Nada | Recoger: una línea sobre la barra, con fusión | 2,5 s | — |
+| Avisos críticos | Nada | Derribado, congelación, hielo fino: **el indicador del mundo o la constante afectada**, con 3 s de línea como mucho | Con la condición | — |
+| Aviso de interacción | Nada | A < 2,5 m de algo interactuable | Al alejarse | — |
+| Viñeta de escarcha | Nada | Calor < 40, con intensidad 1 − Calor/40 | Al calentarse | — |
+| Viñeta de daño | Nada | Golpe (250 ms); Salud < 25 (latido) | — | — |
+| Chat | Nada | Llega un mensaje | 6 s | Historial |
+
+### V.4 Componentes
+
+1. **Barra rápida** (a, b): en reposo son 10 trazos de 22 × 2 px con 6 px de separación, centrados a 40 px del borde.
+   Al usarla se convierten en iconos renderizados de 40 px **sin ranuras**. La seleccionada lleva un subrayado de 1 px
+   y su nombre encima («Bate con clavos 12 %»). Las ranuras vacías son un punto. Las cantidades van en 16 px con `tnum`.
+2. **Constantes** (b, d): abajo a la izquierda, **solo la que importa**. Anillo fino de 40 px, número de 22 px en
+   Regular y, debajo, una palabra en versalitas del color semántico («sangrando», «te estás congelando»). El desglose
+   térmico de v1 pasa a Info.
+3. **Línea de objetivo actualizado** (b): arriba a la izquierda. Rombo, versalita ámbar «objetivo actualizado»,
+   objetivo en 22 px Light con el recuento en `ink-70`, filete ámbar que crece y la misión en 16 px. Sin tachados ni
+   listas: el paso completado se nota en el mundo (✓ que se funde, apéndice §6.3) y en la lista a petición.
+4. **Título de zona** (c): sin caja y sobre un velo radial al 46 %. Antetítulo en versalitas, nombre en Condensed
+   ExtraLight de 76 px y .42 em, **un** filete de 520 px y **una** línea de datos («Albarrán · sin electricidad ·
+   −18 °C · peligro alto»). Se funde sobre el mundo **sin traspaso visible**: la ubicación se consulta con Info. En la
+   re‑entrada solo aparece el nombre, al 60 % y durante 2,5 s. **En vehículo**: cartel tipo autovía (placa azul de
+   420 px con borde blanco, «Albarrán 4 km / SALIDA 12 Distrito Financiero →») arriba a la derecha durante 3 s, con
+   una línea de datos debajo.
+5. **Marcadores y borde** (b, f): rombo de 10 px en el mundo. El único indicador de borde lleva una flecha de 6 px, el
+   rombo relleno y la distancia en 18 px, sin placa.
+6. **Peligro** (d): **una línea** arriba a la derecha, por ejemplo «❄ VENTISCA · visibilidad 6 m · 2:40», con un
+   filete de 260 px. A los 5 s se queda en «❄ 2:40».
+7. **Compañera derribada** (e): **un solo indicador** en el mundo: anillo en el suelo de 1,5 px, anillo fino de 46 px
+   que se vacía con el desangrado, calavera de línea, «Ana 38 s» y, debajo, «mantén X para reanimar · 6 m». Lleva el
+   acento ámbar y, si está fuera de pantalla, ocupa el único indicador de borde. No hay banner ni marco. El resto va
+   por **audio**: latido y estática de radio (apéndice §5.6).
+8. **Misiones a petición** (f): mientras se mantiene Tab / D‑pad ↑. Es un **velo lateral** (degradado del 74 % a 0 en
+   el 58 % del ancho), no un panel. Grupos «misiones», «encargos» y «en la radio», cada uno con versalitas y filete.
+   La misión seguida lleva el rombo ámbar y sus subobjetivos con distancia. Una cita de radio en cursiva. Pie de
+   controles con glifos de línea. A la vez aparecen la hora y la temperatura, el grupo en una línea (arriba a la dcha.)
+   y los demás destinos como rombos tenues en los bordes, con el seguido en ámbar.
+9. **Frío** (d): viñeta de escarcha en los bordes de la pantalla (`frost_v2.svg`; en Godot, `frost_screen.gdshader`
+   con la banda al 66–100 % del radio y sin refracción en el centro). Sin escarcha en paneles, porque no hay paneles.
+10. **Mapa y diario**: se mantiene la pantalla de papel del apéndice §6.11 y §6.12, porque es una pantalla completa a
+    petición y no forma parte del HUD. Solo cambia la barra de pestañas, que pasa a ser texto en versalitas con
+    subrayado ámbar, sin caja.
+
+### V.5 Cobertura medida
+
+Método (`mockups/render.cjs --measure` + `mockups/measure_coverage.py`): se renderiza **solo la capa de HUD** con alfa,
+sin mundo, sin efectos de pantalla completa (viñetas de frío y daño, niebla), **sin velos de degradado** y sin
+anotaciones. Se cuentan dos cifras sobre 1920 × 1080:
+
+- **Tinta**: píxeles con opacidad ≥ 10 %.
+- **Cajas**: área de la unión de las cajas envolventes de cada elemento, tras un cierre morfológico de 15 × 15 px que
+  agrupa las letras en líneas y bloques. Es la cifra **conservadora**, la que se usa como «cobertura».
+
+| Momento | v1 cajas | v1 tinta | v2 cajas | v2 tinta |
+|---|---|---|---|---|
+| **Explorando de día, en reposo** | **16,31 %** | 14,92 % | **0,05 %** | 0,04 % |
+| Acción (v2) / misión actualizada (v1) | 20,20 % | 17,16 % | 2,20 % | 0,79 % |
+| Noche y ventisca | 22,74 % | 18,38 % | 1,32 % | 0,41 % |
+| Compañera derribada | 24,62 % | 18,59 % | 2,96 % | 0,32 % |
+| Título de zona (v2, fotograma 2) | — | — | 1,73 % | 0,91 % |
+| Misiones abiertas a petición (v2) | — | — | 6,34 % | 2,38 % |
+
+Los velos se dejan fuera porque son degradados de ≤ 45 % sin borde, que se leen como luz y no como objeto. Si se
+incluyeran, el reposo de v2 seguiría en 0,05 %, porque la tira no lleva velo. En la prueba automática de Godot
+(§V.8) el reposo debe quedar **≤ 3 %**.
+
+### V.6 Maquetas v2
+
+| Archivo | Qué muestra |
+|---|---|
+| `10_hud_ux/v2_a_explorando_vacio.jpg` | Día, en reposo: solo la tira de la barra. La anotación amarilla de la esquina no es HUD. |
+| `10_hud_ux/v2_b_accion.jpg` | Combate: barra desplegada (bate al 12 %), salud 42 «sangrando», arco de daño y de aguante junto al personaje, línea «objetivo actualizado» y un único indicador de borde (900 m) |
+| `10_hud_ux/v2_c_titulo_zona.jpg` | Título «DISTRITO FINANCIERO» a pantalla completa más 3 fotogramas (0,5 s, 1,8 s y 4,6 s) y la variante en vehículo (cartel de autovía, ampliado ×2,4) |
+| `10_hud_ux/v2_d_noche_ventisca.jpg` | Noche en ventisca: viñeta de escarcha en los bordes, una línea de peligro, Calor 14 «te estás congelando», el acento pasa al refugio más cercano (4 m) y Ana a 18 m |
+| `10_hud_ux/v2_e_coop_derribado.jpg` | Compañera derribada con un único indicador (anillo de desangrado, «Ana 38 s», «mantén X para reanimar · 6 m») |
+| `10_hud_ux/v2_f_mision_abierta.jpg` | Lista de misiones a petición sobre un velo lateral, con hora, temperatura y grupo arriba a la dcha. y destinos en los bordes |
+| `10_hud_ux/v2_comparativa.jpg` | v1 frente a v2 en el mismo momento, con la cobertura medida y las máscaras de la capa de HUD |
+
+![v2 · explorando, en reposo](10_hud_ux/v2_a_explorando_vacio.jpg)
+![v2 · acción](10_hud_ux/v2_b_accion.jpg)
+![v2 · título de zona](10_hud_ux/v2_c_titulo_zona.jpg)
+![v2 · noche y ventisca](10_hud_ux/v2_d_noche_ventisca.jpg)
+![v2 · compañera derribada](10_hud_ux/v2_e_coop_derribado.jpg)
+![v2 · misiones a petición](10_hud_ux/v2_f_mision_abierta.jpg)
+
+Fuentes HTML: `mockups/v2_*.html`, `hud_v2.css`, `icons_v2.js` y `frost_v2.svg`. Los fondos son las mismas capturas
+que en v1, pero en `mockups/bg2/`. El bloque que tapaba los pinos arriba a la derecha se rellena por *shift‑map*
+(copia de parches) en lugar de FSR (`prep_backgrounds.py --v2`), porque con un HUD casi vacío los restos se veían más.
+Siguen quedando zonas algo borrosas donde estaba el HUD antiguo, sobre todo junto a la camioneta y a la izquierda.
+No son diseño.
+
+Para regenerarlas (desde la raíz del repo):
+
+```bash
+python3 -m http.server 18731 --bind 127.0.0.1 &
+taskset -c 2,3 node docs/research/10_hud_ux/mockups/render.cjs v2_b_accion v2_c_titulo_zona v2_d_noche_ventisca v2_e_coop_derribado v2_f_mision_abierta
+taskset -c 2,3 node docs/research/10_hud_ux/mockups/render.cjs --measure    # capa de HUD sola → mockups/cov/
+python3 docs/research/10_hud_ux/mockups/measure_coverage.py                 # → coverage.json + máscaras (numpy + opencv)
+taskset -c 2,3 node docs/research/10_hud_ux/mockups/render.cjs v2_a_explorando_vacio v2_comparativa   # leen coverage.json
+```
+
+### V.7 Accesibilidad en v2
+
+- **Preajustes de HUD**: *Mínimo* (por defecto; esta sección), *Estándar* (constantes y barra siempre visibles con
+  la estética v2) y *Completo* (lo mismo más el rastreador de una línea y el bloque de entorno fijos). Además, cada
+  elemento se puede poner en *dinámico*, *siempre* u *oculto*, como en Horizon.
+- **Grosor del texto**: *Normal* (Light) o *Reforzado* (Light → Regular, Regular → Medium). Es importante con baja
+  visión, porque los pesos finos pierden legibilidad antes que el tamaño.
+- **Fondo del texto**: *Automático* (velo adaptativo) u *Opaco* (velo al 70 % con bordes suaves; sigue sin ser una
+  caja).
+- **Pedir en lugar de mantener**: Info como alternancia.
+- Se mantienen las opciones del apéndice §5.8: escala, daltonismo, movimiento reducido, subtítulos y rótulos de
+  sonido con dirección, y TTS. **Con un HUD que se oculta, los rótulos de sonido y el TTS de los avisos P0 pasan a ser
+  imprescindibles**, no opcionales.
+- Tamaños: 16 px es el mínimo absoluto y el Deck usa escala 115 % (12,3 px). El título de zona en Condensed ExtraLight
+  solo se usa por encima de 60 px. Por debajo pasa a Light.
+
+### V.8 Cambios en el plan de implementación (sobre el apéndice §8)
+
+| Hito | Cambio en v2 |
+|---|---|
+| UI‑0 Cimientos | Igual, más las fuentes Barlow Light y ExtraLight y Barlow Condensed ExtraLight y Thin. `UiTokens` v2 (§V.2) y `Theme` v2 **sin StyleBox de panel**, con `LabelSettings` compartidos (sombra) y variaciones `LabelWhisper`, `LabelSmallCaps` (`opentype_features = {"smcp":1,"c2sc":1}`), `LabelZoneTitle` y `LabelNum`. |
+| UI‑1 Disposición | **Más pequeño (S–M).** Sin `frost_panel.gdshader` ni `BackBufferCopy`. El velo es un `TextureRect` con `GradientTexture2D` radial, cuya α se ajusta con la luminancia media del fondo (mip bajo de la textura de pantalla en `frost_screen`, leída cada 0,25 s). Añade **`HudVisibility`** (Node): una máquina de estados por elemento (oculto → visible → fundiéndose) con los tiempos de §V.3 y la acción de entrada `hud_info` (Tab / D‑pad ↑). Cada componente llama a `HudVisibility.poke(&"vitals.warmth")` cuando recibe su señal de `Events`. Añade **`AccentArbiter`**, que decide quién lleva el ámbar y el único indicador de borde. |
+| UI‑2 Zonas | Igual en comportamiento (histéresis, jerarquía, descubrimiento). Sin traspaso al bloque de entorno, porque ya no existe. Título con `FontVariation.spacing_glyph` animado. |
+| UI‑3 Avisos | `NotifyRouter` se queda, pero **los P0 se muestran en el mundo o en la constante afectada** y no en un banner. P1 y P2 son una línea de 3 s. P3 es la línea de recogida sobre la barra. |
+| UI‑4 Misiones | Rastreador sustituido por la **línea de actualización** y la **lista a petición**. El carril de borde conserva su algoritmo, pero con un solo marcador fuera de Info. |
+| UI‑5 Mapa y diario | Igual (papel). Barra de pestañas v2. |
+| UI‑6 Accesibilidad | Más los preajustes de HUD, el grosor de texto y el fondo de texto (§V.7). |
+
+Total: **unos 6,5 pases**, frente a 7 en v1. Prueba nueva: **`tests/ui_idle_coverage.gd`** arranca el HUD en reposo
+(30 s sin cambios, sin amenazas), suma el área de los `Control` visibles con `modulate.a ≥ 0.1` en el `CanvasLayer` del
+HUD y **falla si supera el 3 %** de la pantalla.
+
+### V.9 Decisiones propias de v2 para el propietario
+
+1. **Preajuste por defecto *Mínimo***, con *Estándar* a un clic para quien echa de menos ver sus constantes.
+2. **El acento ámbar se mueve** según la prioridad (derribado > calor > objetivo), en lugar de estar fijo en la misión.
+3. **Sin banner central**: los avisos críticos se muestran en el mundo o en la constante. Depende de que el audio de
+   UI (apéndice §5.6) esté hecho con cuidado.
+4. **Sin rastreador fijo**: la misión se consulta manteniendo Tab / D‑pad ↑. Los jugadores que lo prefieran fijo
+   tienen el preajuste *Completo*.
+
+---
+
+# Apéndice — v1 «ESCARCHA» (primera propuesta, conservada)
+
+> Esta es la propuesta v1, sin cambios. Sus maquetas son `10_hud_ux/a_*.jpg` a `g_*.jpg`. La **auditoría (§1)**, la
+> **investigación (§2)**, las **reglas de comportamiento de §6** (histéresis y jerarquía de zonas, enrutador y colas
+> de avisos, carril de borde, *pings*, peligros por estado, mapa de papel con niebla y diario), la **señalización del
+> mundo (§7)**, el **plan de Godot (§8)** y las **decisiones para el propietario (§10)** siguen vigentes para v2, salvo
+> lo que sustituye §V. Lo que v2 deja atrás es la **estética** de §3 y §5 (paneles de cristal biselados, pesos 600–700,
+> tamaños de 18–30 px en todo) y la **persistencia** de los bloques. Las referencias «§N» de este apéndice apuntan
+> dentro del propio apéndice.
+
+
+## 0. Resumen ejecutivo (v1)
 
 | Pregunta | Respuesta |
 |---|---|

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Compañera derribada</title>
+<link rel="stylesheet" href="hud_v2.css">
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg2/zombies.jpg')"></div>
+  <div class="cine fx"></div>
+
+  <!-- UN solo indicador: sobre la compañera. Anillo fino que se vacía (desangrado), calavera de línea, nombre y segundos.
+       El ámbar deja el objetivo y pasa aquí. Al estar a < 2,2 m, la segunda línea cambia a «mantén X: reanimar». -->
+  <div class="scrim" style="left:1020px;top:770px;width:310px;height:170px;--sa:.46"></div>
+  <svg style="position:absolute;left:0;top:0" width="1920" height="1080">
+    <ellipse cx="1172" cy="730" rx="84" ry="62" fill="none" stroke="rgba(255,180,84,.85)" stroke-width="1.5"/>
+  </svg>
+  <div class="mk w" style="left:1172px;top:852px">
+    <div class="tring" id="bleed" style="width:46px;height:46px"></div>
+    <div class="t20 reg" style="color:#FFE2BD;margin-top:2px">Ana <span class="num" style="color:var(--ink)">38 s</span></div>
+    <div class="t18 light" style="color:var(--ink);display:flex;align-items:center;gap:8px">mantén <span class="gp" style="width:24px;height:24px;font-size:15px">X</span> para reanimar <span class="num" style="color:var(--ink-70)">· 6 m</span></div>
+  </div>
+
+  <div class="strip"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<script src="icons_v2.js"></script>
+<script>
+  document.getElementById('bleed').innerHTML = thinRing(.63, '#FFB454', 46, 2) + li('skull', '', 'color:#FFE2BD;width:22px;height:22px');
+</script>
+</body>
+</html>

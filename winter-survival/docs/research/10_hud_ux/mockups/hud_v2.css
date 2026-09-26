@@ -1,0 +1,89 @@
+/* VENTISCA · v2 «SUSURRO» (minimal, recomendada). Maqueta HTML/CSS; no es código del juego.
+   Unidades en px a 1920×1080, escala de UI 100 %. Tokens = docs/research/10_hud_ux.md §V.3. */
+
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-ExtraLight.ttf"); font-weight: 200; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Light.ttf"); font-weight: 300; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Medium.ttf"); font-weight: 500; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Thin.ttf"); font-weight: 100; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-ExtraLight.ttf"); font-weight: 200; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Light.ttf"); font-weight: 300; }
+
+:root {
+  --ink: #F3F8FD;                       /* texto: blanco escarcha */
+  --ink-90: rgba(243, 248, 253, .92);
+  --ink-70: rgba(243, 248, 253, .70);
+  --ink-50: rgba(243, 248, 253, .52);
+  --ink-30: rgba(243, 248, 253, .32);
+  --hair: rgba(243, 248, 253, .38);     /* filetes de 1 px */
+  --accent: #FFB454;                    /* ámbar: SOLO «lo que importa ahora» */
+  --cold: #A6DCF5;                      /* calor bajo, ventisca */
+  --blood: #F07A86;                     /* salud baja (suave, no rojo puro) */
+  --warn: #F2D58A;                      /* durabilidad baja */
+  --shadow: 0 1px 2px rgba(0, 0, 0, .62), 0 0 10px rgba(0, 0, 0, .42), 0 0 26px rgba(0, 0, 0, .22);
+  --safe-x: 64px; --safe-y: 52px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #070B11; }
+body { font-family: "Barlow", sans-serif; font-weight: 300; color: var(--ink-90); -webkit-font-smoothing: antialiased; position: relative; }
+.stage { position: absolute; inset: 0; overflow: hidden; }
+.bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+
+/* tipografía */
+.w { text-shadow: var(--shadow); }                              /* «susurro»: texto sobre el mundo */
+.sc { font-variant-caps: all-small-caps; font-feature-settings: "smcp" 1, "c2sc" 1; letter-spacing: .16em; font-weight: 400; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+.t16 { font-size: 16px; line-height: 1.3; } .t18 { font-size: 18px; line-height: 1.3; } .t20 { font-size: 20px; line-height: 1.3; }
+.t22 { font-size: 22px; line-height: 1.25; }
+.light { font-weight: 300; } .xlight { font-weight: 200; } .reg { font-weight: 400; }
+.acc { color: var(--accent); } .dim { color: var(--ink-70); } .dim2 { color: var(--ink-50); } .cold { color: var(--cold); }
+
+/* filete de 1 px que se desvanece en los extremos */
+.hair { height: 1px; background: linear-gradient(90deg, transparent, var(--hair) 18%, var(--hair) 82%, transparent); }
+.hair.l { background: linear-gradient(90deg, var(--hair), var(--hair) 60%, transparent); }
+.hair.r { background: linear-gradient(270deg, var(--hair), var(--hair) 60%, transparent); }
+.hair.acc { background: linear-gradient(90deg, var(--accent), rgba(255, 180, 84, .6) 55%, transparent); }
+
+/* velo suave detrás de un grupo de texto (no es una caja) */
+.scrim { position: absolute; pointer-events: none; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(4, 8, 14, var(--sa, .40)), rgba(4, 8, 14, calc(var(--sa, .40) * .5)) 55%, transparent); }
+
+/* iconos de línea */
+.li { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+  flex: none; display: inline-block; vertical-align: middle; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.6)); }
+.li.s16 { width: 16px; height: 16px; } .li.s24 { width: 24px; height: 24px; } .li.s14 { width: 14px; height: 14px; }
+
+/* glifos de entrada en línea */
+.kc { display: inline-grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border: 1.2px solid var(--ink-70);
+  border-radius: 5px; font: 400 16px/1 Barlow; color: var(--ink); text-shadow: none; box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.gp { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 1.2px solid var(--ink-70); border-radius: 50%;
+  font: 400 16px/1 Barlow; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+
+/* anillo fino */
+.tring { position: relative; width: 40px; height: 40px; display: grid; place-items: center; }
+.tring svg.r { position: absolute; inset: 0; transform: rotate(-90deg); overflow: visible; }
+
+/* barra rápida */
+.hb { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; gap: 14px; align-items: flex-end; }
+.hb .it { position: relative; width: 44px; height: 44px; display: grid; place-items: center; }
+.hb .it img { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); opacity: .9; }
+.hb .it .q { position: absolute; right: -4px; bottom: -2px; font: 400 16px/1 Barlow; font-variant-numeric: tabular-nums; text-shadow: var(--shadow); }
+.hb .it.sel img { opacity: 1; }
+.hb .it.sel::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: -8px; height: 1px; background: var(--ink); box-shadow: 0 0 6px rgba(255,255,255,.6); }
+.hb .it.empty::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--ink-30); }
+.strip { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; gap: 6px; }
+.strip i { width: 22px; height: 2px; background: rgba(243, 248, 253, .28); box-shadow: 0 0 3px rgba(0,0,0,.4); }
+.strip i.on { background: rgba(243, 248, 253, .85); }
+
+/* marcadores */
+.mk { position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.dia { width: 10px; height: 10px; transform: rotate(45deg); border: 1.5px solid currentColor; box-shadow: 0 0 6px rgba(0,0,0,.5); }
+.dia.f { background: currentColor; }
+.edge { position: absolute; display: flex; align-items: center; gap: 10px; transform: translate(0, -50%); }
+
+/* anotaciones de diseño (no son HUD; se excluyen de la medición) */
+.note { position: absolute; font: 400 15px/1.35 Barlow; color: #FFE38A; letter-spacing: .02em; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+.tag { padding: 8px 12px 9px; background: rgba(5, 8, 13, .72); border-left: 2px solid #FFE38A; }
+/* viñeta cinematográfica suave (parte del render del mundo, no del HUD) */
+.cine { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 78% 74% at 50% 52%, transparent 62%, rgba(6, 10, 18, .30) 100%); }
+.note b { font-weight: 500; color: #FFF3C4; }
