@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · Tarjeta de zona</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  .dark { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,8,16,.55), rgba(4,8,16,.25) 45%, rgba(4,8,16,.5)); }
+  .veil { position: absolute; left: 0; right: 0; top: 150px; height: 400px; pointer-events: none;
+    background: radial-gradient(ellipse 46% 50% at 50% 50%, rgba(4,8,15,.72), rgba(4,8,15,.35) 55%, transparent 80%); }
+  .card { position: absolute; left: 50%; top: 208px; width: 1200px; transform: translateX(-50%); text-align: center; }
+  .card .eyebrow { display: inline-flex; align-items: center; gap: 10px; font: 600 18px/1 "Barlow Condensed"; letter-spacing: .32em; text-transform: uppercase; color: var(--ember); }
+  .rule { position: relative; height: 18px; margin: 16px auto 14px; }
+  .rule .ln { position: absolute; top: 8px; height: 1px; background: linear-gradient(90deg, transparent, rgba(220,235,250,.75) 30%, rgba(255,208,138,.95) 50%, rgba(220,235,250,.75) 70%, transparent); left: 50%; transform: translateX(-50%); }
+  .rule .dm { position: absolute; left: 50%; top: 0; width: 18px; height: 18px; transform: translateX(-50%); color: var(--ember); filter: drop-shadow(0 0 8px rgba(255,180,84,.8)); }
+  .ttl { font: 700 92px/0.9 "Barlow Condensed"; text-transform: uppercase; color: var(--snow-50); white-space: nowrap;
+    text-shadow: 0 2px 4px rgba(0,0,0,.6), 0 0 30px rgba(160,210,255,.25); }
+  .ttl.glint { background: linear-gradient(104deg, #D3E1F0 0%, #D3E1F0 30%, #FFFFFF 40%, #FFFFFF 44%, #D3E1F0 56%, #D3E1F0 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.6)) drop-shadow(0 0 14px rgba(200,230,255,.28)); }
+  .subt { font: 500 28px/1 "Barlow"; color: var(--mist-200); margin-top: 16px; letter-spacing: .02em; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  .chips { display: flex; justify-content: center; gap: 12px; margin-top: 24px; }
+  .chips .chip { height: 40px; font-size: 19px; padding: 0 16px 0 12px; }
+  .chips .chip .i { width: 22px; height: 22px; }
+  .frame-tag { position: absolute; left: 56px; top: 44px; padding: 8px 12px; background: rgba(0,0,0,.55); border-left: 3px solid #FFE38A;
+    font: 500 16px/1.25 "Barlow"; color: #FFE38A; }
+  .frame-tag b { font-weight: 700; color: #FFF3C4; }
+  .flash { box-shadow: 0 0 0 1px rgba(255,180,84,.8), 0 0 24px rgba(255,180,84,.35); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg/night.jpg');filter:saturate(.6) brightness(.62) hue-rotate(-8deg)"></div>
+  <div class="dark"></div>
+  <svg id="snow" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <div class="veil" id="veil"></div>
+
+  <div class="card" id="card">
+    <div class="eyebrow" id="eyebrow"><svg class="i s18"><use href="#i-star"/></svg>Nueva zona descubierta</div>
+    <div class="rule"><div class="ln" id="ln"></div><svg class="i dm"><use href="#i-diamond"/></svg></div>
+    <div class="ttl" id="ttl">Distrito Financiero</div>
+    <div class="subt" id="subt">Ciudad de Albarrán</div>
+    <div class="chips" id="chips">
+      <div class="chip glass strong"><svg class="i" style="color:var(--caution)"><use href="#i-boltoff"/></svg>Sin electricidad</div>
+      <div class="chip glass strong"><svg class="i cold"><use href="#i-thermo"/></svg><span class="num">−18 °C</span></div>
+      <div class="chip glass strong" style="color:#FF7A5C"><span class="pips"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span style="color:var(--text-1)">Peligro alto</span></div>
+    </div>
+  </div>
+
+  <!-- HUD mínimo durante la tarjeta -->
+  <div class="env" id="env">
+    <div class="env-main glass" style="padding-bottom:26px">
+      <div id="rose" style="width:44px;display:grid;place-items:center;margin:8px 16px 0 2px"></div>
+      <div class="env-time">
+        <div class="row"><span class="day">Día 12</span><span class="clock">19:05</span><svg class="i s20" style="color:#FFD479;margin-left:auto"><use href="#i-sun"/></svg></div>
+        <div class="daystrip"><div class="now" style="left:54.4%"></div><div class="tick" style="left:58.3%">anochece 20:00</div></div>
+      </div>
+      <div class="env-temp"><div class="air">−18 °C</div><div class="felt">sentida −9 °C</div></div>
+    </div>
+    <div class="env-loc glass" id="loc" style="display:none">
+      <svg class="i s18" style="color:var(--text-2)"><use href="#i-tower"/></svg>
+      <span class="t-eyebrow" style="color:var(--text-1);letter-spacing:.12em">Distrito Financiero</span>
+      <span class="t-eyebrow" style="color:var(--text-3)">· Albarrán</span>
+    </div>
+    <div class="hazard soon glass strong" id="haz" style="display:none">
+      <div class="ico" style="color:var(--caution)"><svg class="i s28"><use href="#i-boltoff"/></svg></div>
+      <div class="txt"><div class="name">Zona sin electricidad</div><div class="sub">Calles a oscuras · ascensores parados</div></div>
+      <div class="stripe"></div>
+    </div>
+  </div>
+
+  <div class="feed" id="feed" style="display:none">
+    <div class="frow glass"><svg class="i s28" style="margin:0 3px;color:var(--frost-100)"><use href="#i-map"/></svg><span class="fn">Mapa actualizado</span><span class="ft">Albarrán</span></div>
+    <div class="frow glass"><svg class="i s28" style="margin:0 3px;color:var(--frost-100)"><use href="#i-book"/></svg><span class="fn">Diario: nueva entrada</span></div>
+  </div>
+
+  <div class="vitals" style="padding-bottom:28px">
+    <div class="ring dim" id="r-warm"></div>
+    <div class="ring dim" id="r-health"></div>
+    <div class="ring dim" id="r-hunger"></div>
+  </div>
+  <div class="hotbar glass" id="hotbar" style="opacity:.6"></div>
+
+  <div class="frame-tag" id="tag"></div>
+</div>
+<script src="icons.js"></script>
+<script>
+  (function () {
+    let s = 0x1357; const R = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    let h = '';
+    for (let i = 0; i < 420; i++) { const x = R() * 1920, y = R() * 1080, L = 4 + R() * 12; h += `<line x1="${x}" y1="${y}" x2="${x + L * .9}" y2="${y + L * .45}" stroke="rgba(230,240,255,${.15 + R() * .4})" stroke-width="${.8 + R() * 1.4}" stroke-linecap="round"/>`; }
+    document.getElementById('snow').innerHTML = h;
+  })();
+  document.getElementById('rose').innerHTML = northRose(-45);
+  document.getElementById('r-warm').innerHTML = ringSvg(.74, '#FF8A3D', 68, 6) + ic('thermo');
+  document.getElementById('r-health').innerHTML = ringSvg(.9, '#F0566A', 68, 6) + ic('heart');
+  document.getElementById('r-hunger').innerHTML = ringSvg(.6, '#E3C98A', 68, 6) + ic('meat');
+  const items = [['crowbar', '', 1, 'MANO', .8], ['wood', 4], ['can_soup', 2], ['torch', '', 0, '', .9], ['knife', '', 0, '', .7], [], [], [], [], []];
+  let hb = '';
+  items.forEach((it, i) => {
+    const n = i === 9 ? 0 : i + 1;
+    if (!it.length) { hb += `<div class="slot empty"><span class="n">${n}</span></div>`; return; }
+    hb += `<div class="slot${i === 0 ? ' sel' : ''}"><img src="../../../../assets/icons/items/${it[0]}.png"><span class="n">${it[3] || n}</span>` +
+      (it[1] ? `<span class="q">${it[1]}</span>` : '') + (it[4] ? `<span class="dur"><i style="width:${it[4] * 100}%"></i></span>` : '') + `</div>`;
+    if (i === 0) hb += '<div class="gap"></div>';
+  });
+  document.getElementById('hotbar').innerHTML = hb;
+
+  const f = +(new URLSearchParams(location.search).get('f') || 2);
+  const $ = (id) => document.getElementById(id);
+  const chips = [...document.querySelectorAll('#chips .chip')];
+  if (f === 1) {   // t = 0,30 s: línea dibujándose, título entrando con tracking abierto
+    $('tag').innerHTML = '<b>Fotograma 1/3</b> · t = 0,30 s · entrada';
+    $('veil').style.opacity = .55;
+    $('eyebrow').style.opacity = 0;
+    $('ln').style.width = '340px';
+    $('ttl').style.cssText += ';opacity:.38;letter-spacing:.34em;filter:blur(2.5px)';
+    $('subt').style.opacity = 0; chips.forEach(c => c.style.opacity = 0);
+  } else if (f === 2) {   // t = 1,40 s: asentado, destello, último chip entrando
+    $('tag').innerHTML = '<b>Fotograma 2/3</b> · t = 1,40 s · lectura (se mantiene hasta 3,8 s)';
+    $('ln').style.width = '760px';
+    $('ttl').classList.add('glint'); $('ttl').style.letterSpacing = '.07em';
+    
+  } else {   // t = 4,10 s: salida hacia arriba; la información pasa al bloque de entorno
+    $('tag').innerHTML = '<b>Fotograma 3/3</b> · t = 4,10 s · salida y traspaso al HUD';
+    $('veil').style.opacity = .3;
+    $('card').style.cssText += ';opacity:.42;transform:translate(-50%,-10px)';
+    $('ln').style.width = '420px';
+    $('ttl').style.letterSpacing = '.07em';
+    chips.forEach(c => c.style.opacity = 0); $('subt').style.opacity = .5; $('eyebrow').style.opacity = .3;
+    $('loc').style.display = 'flex'; $('loc').classList.add('flash');
+    $('haz').style.display = 'flex'; $('feed').style.display = 'flex';
+  }
+</script>
+</body>
+</html>

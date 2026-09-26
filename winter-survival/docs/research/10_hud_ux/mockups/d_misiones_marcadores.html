@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · Misiones y marcadores</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  .scrim { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 40% 60% at 100% 40%, rgba(8,13,22,.42), transparent 72%),
+                radial-gradient(ellipse 30% 26% at 0% 100%, rgba(8,13,22,.30), transparent 70%),
+                radial-gradient(ellipse 60% 18% at 50% 100%, rgba(8,13,22,.26), transparent 70%); }
+  .upd { display: flex; align-items: center; gap: 10px; margin: -2px 0 10px; }
+  .upd .t-eyebrow { color: var(--ember); letter-spacing: .24em; }
+  .upd .sweep { flex: 1; height: 2px; background: linear-gradient(90deg, var(--ember), rgba(255,180,84,0)); }
+  .obj.leaving { opacity: .55; }
+  .obj.leaving .otext { color: var(--text-2); text-decoration: line-through; text-decoration-color: var(--ember); text-decoration-thickness: 2px; }
+  .obj.new { position: relative; margin: 4px -16px 2px; padding: 8px 16px; background: linear-gradient(90deg, rgba(255,180,84,.20), rgba(255,180,84,.02) 80%); }
+  .obj.new::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--ember); box-shadow: 0 0 10px rgba(255,180,84,.8); }
+  .sub3 { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 6px 0 0 32px; font: 400 17px/1.25 Barlow; color: var(--text-2); }
+  .sub3 .d { font-variant-numeric: tabular-nums; text-align: right; color: var(--text-2); }
+  .sub3 .near { color: var(--text-1); }
+  .hint { display: flex; gap: 16px; align-items: center; margin-top: 12px; font: 500 16px/1 Barlow; color: var(--text-3); }
+  .hint span { display: inline-flex; align-items: center; gap: 6px; }
+  .burst { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg/blizzard.jpg');filter:contrast(1.06)"></div>
+  <div class="scrim"></div>
+
+  <!-- marcador en mundo: paso completado (radio de la cabaña) — se disuelve en 0,6 s -->
+  <div class="burst" style="left:1240px;top:560px;width:150px;height:110px;border:2px solid rgba(255,180,84,.55);box-shadow:0 0 22px rgba(255,180,84,.45)"></div>
+  <div class="burst" style="left:1240px;top:560px;width:96px;height:70px;border:2px solid rgba(255,208,138,.9)"></div>
+  <div class="wm" style="left:1240px;top:520px;color:var(--ember)">
+    <div style="width:44px;height:44px;display:grid;place-items:center;border-radius:50%;background:var(--ember);color:#1a1206;box-shadow:0 0 18px rgba(255,180,84,.9)"><svg class="i s28"><use href="#i-check"/></svg></div>
+    <div class="lbl" style="margin-top:6px">Radio escuchada</div>
+    <div class="stem" style="height:30px"></div>
+  </div>
+
+  <!-- secundaria en pantalla (camioneta) -->
+  <div class="ground" style="left:800px;top:140px;width:190px;height:120px;border:1.5px dashed rgba(220,235,250,.75)"></div>
+  <div class="wm" style="left:800px;top:84px;color:var(--frost-100)">
+    <div style="display:flex;align-items:center;gap:8px" class="glass strong"><div style="display:flex;align-items:center;gap:8px;padding:6px 10px 7px 8px">
+      <svg class="i s20"><use href="#i-diamond-o"/></svg><span class="lbl">Combustible</span><span class="sub num" style="margin:0">26 m</span></div></div>
+    <div class="stem" style="height:24px"></div>
+  </div>
+
+  <!-- ping de compañera: peligro (8 s) -->
+  <div class="ground" style="left:458px;top:392px;width:120px;height:84px;border:2px solid rgba(255,79,69,.85);box-shadow:0 0 14px rgba(255,79,69,.5)"></div>
+  <div class="wm" style="left:458px;top:330px;color:var(--danger)">
+    <div style="position:relative;width:48px;height:48px;display:grid;place-items:center">
+      <svg width="48" height="48" style="position:absolute;inset:0;transform:rotate(-90deg)"><circle cx="24" cy="24" r="21" fill="rgba(10,16,25,.78)" stroke="rgba(255,79,69,.25)" stroke-width="3"/><circle cx="24" cy="24" r="21" fill="none" stroke="#FF4F45" stroke-width="3" stroke-dasharray="${0}" id="pingarc"/></svg>
+      <svg class="i s24" style="position:relative"><use href="#i-alert"/></svg>
+    </div>
+    <div class="glass strong" style="margin-top:6px"><div style="padding:4px 9px 5px"><span class="lbl" style="color:var(--p-ana)">Ana</span><span class="lbl">: ¡peligro!</span> <span class="sub num" style="display:inline">14 m</span></div></div>
+    <div class="stem" style="height:18px"></div>
+  </div>
+
+  <!-- marcadores de borde -->
+  <div class="edge" id="e-presa" style="left:104px;top:600px"></div>
+  <div class="edge" id="e-valde" style="left:1250px;top:86px"></div>
+  <div class="edge" id="e-convoy" style="left:1820px;top:780px;flex-direction:row-reverse"></div>
+  <div class="edge" id="e-leo" style="left:420px;top:1004px"></div>
+
+  <!-- entorno (con ventisca activa, compacto) -->
+  <div class="env">
+    <div class="env-main glass" style="padding-bottom:26px">
+      <div id="rose" style="width:44px;display:grid;place-items:center;margin:8px 16px 0 2px"></div>
+      <div class="env-time">
+        <div class="row"><span class="day">Día 9</span><span class="clock">15:20</span><svg class="i s20" style="color:#FFD479;margin-left:auto"><use href="#i-sun"/></svg></div>
+        <div class="daystrip"><div class="now" style="left:38.9%"></div><div class="tick" style="left:58.3%">anochece 20:00</div></div>
+      </div>
+      <div class="env-temp"><div class="air">−19 °C</div><div class="felt">sentida −12 °C</div></div>
+    </div>
+    <div class="hazard active glass strong" style="padding:7px 14px 8px 12px">
+      <div class="ico" style="width:32px;height:32px"><svg class="i s20"><use href="#i-storm"/></svg></div>
+      <div class="txt"><div class="name" style="font-size:18px">Ventisca</div></div>
+      <div class="timer cold num" style="font-size:20px">1:05</div>
+      <div class="stripe"></div>
+    </div>
+  </div>
+
+  <!-- rastreador expandido durante la actualización (t ≈ 0,6 s) -->
+  <div class="tracker" style="top:262px;width:430px">
+    <div class="trk glass strong" style="padding-top:12px">
+      <div class="upd"><svg class="i s18 ember"><use href="#i-star"/></svg><span class="t-eyebrow">Objetivo actualizado</span><div class="sweep"></div></div>
+      <div class="kind"><svg class="i s16 ember"><use href="#i-diamond"/></svg><span class="t-eyebrow ember">Principal · Acto I</span><span class="t-eyebrow c3" style="margin-left:auto;letter-spacing:.12em">2 / 5</span></div>
+      <div class="mtitle">La voz del repetidor</div>
+      <div class="obj leaving"><div class="mark"><svg class="i s18 ember"><use href="#i-check"/></svg></div><div><div class="otext">Escucha la radio de la cabaña</div></div><div></div></div>
+      <div class="obj new"><div class="mark"><svg class="i s18 ember"><use href="#i-diamond-o"/></svg></div>
+        <div><div class="otext">Consigue 3 componentes de radio</div></div><div class="ocount" style="color:var(--ember)">0/3</div></div>
+      <div class="sub3">
+        <span class="near">◦ Presa · sala de turbinas</span><span class="d near">900 m</span>
+        <span>◦ Hospital San Rafael · Valdenieve</span><span class="d">1,4 km</span>
+        <span>◦ Comisaría · Valdenieve</span><span class="d">1,5 km</span>
+      </div>
+      <div class="trk-sep" style="margin-top:14px"></div>
+      <div class="side"><svg class="i s18" style="color:var(--frost-100)"><use href="#i-diamond-o"/></svg><div class="stext">Combustible para el generador</div><div class="smeta">1/2</div></div>
+      <div class="side"><svg class="i s18 radio"><use href="#i-hex"/></svg><div class="stext">Convoy militar detenido en la N‑140</div><div class="smeta radio">6:40</div></div>
+      <div class="hint"><span><span class="pad sm y" style="font-size:12px">Y</span>seguir otra</span><span><span class="key" style="height:24px;min-width:24px;font-size:13px">J</span>diario</span><span style="margin-left:auto">se contrae en 6 s</span></div>
+    </div>
+  </div>
+
+  <!-- constantes (estables → atenuadas) -->
+  <div class="vitals" style="padding-bottom:28px">
+    <div class="ring dim" id="r-warm"></div>
+    <div class="ring dim" id="r-health"></div>
+    <div class="ring dim" id="r-hunger"></div>
+  </div>
+  <div class="hotbar glass" id="hotbar"></div>
+  <div class="equip glass">
+    <img src="../../../../assets/icons/items/crowbar.png">
+    <div style="flex:1">
+      <div class="ename">Palanca</div>
+      <div class="bar" style="margin-top:9px;height:5px"><i style="width:64%;background:var(--ok)"></i></div>
+      <div style="font:400 16px/1 Barlow;color:var(--text-3);margin-top:7px" class="num">Durabilidad 64 %</div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+  const pin = (color, icon, rot, extra) => `<div class="pin" style="color:${color}">
+      <svg class="bgp" viewBox="-30 -30 60 60"><g transform="rotate(${rot})"><path d="M0 -29 L8 -19 L-8 -19Z" fill="currentColor"/></g>
+      <circle r="19" fill="rgba(10,16,25,.78)" stroke="currentColor" stroke-width="2" ${extra || ''}/></svg>
+      <svg class="i s20" style="position:relative"><use href="#i-${icon}"/></svg></div>`;
+  document.getElementById('e-presa').innerHTML = pin('var(--ember)', 'diamond', -100) + `<div class="plate"><div class="elbl">Presa</div><div class="esub num">900 m</div></div>`;
+  document.getElementById('e-valde').innerHTML = pin('var(--ember)', 'diamond-o', 25, 'stroke-dasharray="5 3"') + `<div class="plate"><div class="elbl">Valdenieve <span class="num" style="color:var(--ember)">×2</span></div><div class="esub num">1,4 km</div></div>`;
+  document.getElementById('e-convoy').innerHTML = pin('var(--radio)', 'truck', 80) + `<div class="plate" style="text-align:right"><div class="elbl radio">Convoy · <span class="num">6:40</span></div><div class="esub num">1,9 km</div></div>`;
+  document.getElementById('e-leo').innerHTML = pin('var(--p-leo)', 'people', 200) + `<div class="plate"><div class="elbl" style="color:var(--p-leo)">Leo</div><div class="esub num">48 m</div></div>`;
+  document.getElementById('rose').innerHTML = northRose(-45);
+  document.getElementById('pingarc').setAttribute('stroke-dasharray', `${2 * Math.PI * 21 * .62} 999`);
+  document.getElementById('r-warm').innerHTML = ringSvg(.81, '#FF8A3D', 68, 6) + ic('thermo');
+  document.getElementById('r-health').innerHTML = ringSvg(.93, '#F0566A', 68, 6) + ic('heart');
+  document.getElementById('r-hunger').innerHTML = ringSvg(.66, '#E3C98A', 68, 6) + ic('meat');
+  const items = [['crowbar', '', 1, 'MANO', .64], ['wood', 5], ['can_soup', 2], ['torch', '', 0, '', .9], ['bat_nailed', '', 0, '', .4], ['knife', '', 0, '', .8], [], [], [], []];
+  let h = '';
+  items.forEach((it, i) => {
+    const n = i === 9 ? 0 : i + 1;
+    if (!it.length) { h += `<div class="slot empty"><span class="n">${n}</span></div>`; return; }
+    h += `<div class="slot${i === 0 ? ' sel' : ''}"><img src="../../../../assets/icons/items/${it[0]}.png"><span class="n">${it[3] || n}</span>` +
+      (it[1] ? `<span class="q">${it[1]}</span>` : '') + (it[4] ? `<span class="dur"><i style="width:${it[4] * 100}%;${it[4] < .5 ? 'background:var(--caution)' : ''}"></i></span>` : '') + `</div>`;
+    if (i === 0) h += '<div class="gap"></div>';
+  });
+  document.getElementById('hotbar').innerHTML = h;
+</script>
+</body>
+</html>
