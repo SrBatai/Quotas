@@ -5,6 +5,8 @@
 > Los documentos del slice (`docs/GDD.md`, `ARCHITECTURE.md`, `ASSET_SPEC.md`) siguen describiendo el código que existe hoy; quedan como referencia de "estado inicial" y se retiran cuando el hito M2 los deje obsoletos.
 >
 > Fecha: 24‑sep‑2026. Motor **Godot 4.7.2** (GDScript tipado). Arte **Blender 5.0.1 (bpy)**. Equipo: planificación y código = agentes **Fable**; modelado, rigs, animación y kits = agentes **Opus**.
+>
+> **Actualización v3 (26‑sep‑2026).** Tras M4 manda la **Parte II — Roadmap v3** (al final de este documento): gráficos G2, ciudad de **Altavega** en un mundo de 6 × 6 km, mundo vivo, peligros invernales y HUD «Susurro». El texto de esta Parte I (§0–§11) se conserva como historial; donde algo queda sustituido o enmendado lo indica una **Nota v3**. Resumen en lenguaje llano para el propietario: `docs/PLAN_V3_RESUMEN.md`.
 
 ---
 
@@ -15,6 +17,8 @@
 - **Decisiones fijadas por el usuario (vinculantes)**: cámara A (alta, seguimiento, corte de interiores); co‑op PvE 1–4 con PvP/fuego amigo por configuración; servidores dedicados propios; Godot 4.7.2; Blender 5.0.1; Fable = código, Opus = arte.
 - **Las cuatro decisiones técnicas que ordenan todo lo demás** (detalle en §3): (1) servidor dedicado autoritativo siempre, incluso en solitario; (2) mundo determinista por semilla en chunks de 64 m + solo *deltas* persistidos en SQLite; (3) IA de zombis por niveles (LOD) en el servidor con replicación propia comprimida; (4) arte con esqueleto humanoide único + color de vértice + kit modular fusionado por grupos de corte.
 - **Camino**: 13 pases (M0…M10, con M6 y M9 partidos), cada uno entregable por **1 agente Fable + 1 agente Opus** y cada uno **jugable y probado automáticamente**. Lo arriesgado va primero: red (M1–M2) y mundo por chunks (M3) antes que contenido.
+
+> **Nota v3:** el mundo pasa a 6 × 6 km con la ciudad de Altavega (C25–C26), el post‑apocalipsis es habitado (C32), el invierno trae 13 peligros (C33) y el HUD sigue la dirección «Susurro» (C34). El camino tras M4 es el de la Parte II §v3.7: M5–M10 intercalados con los hitos W, C, V, E, G2 y H, en carriles paralelos.
 
 ---
 
@@ -82,6 +86,8 @@ La columna **Fuente** apunta a la sección de investigación (`docs/research/0N_
 | C23 | **Animación** | **Esqueleto humanoide único** (22 huesos con nombres exactos de `SkeletonProfileHumanoid` + 5 sockets), **skin rígido por pieza**, animaciones **generadas por script** (locomoción por generador cíclico con IK analítica; acciones por poses clave), exportadas como `AnimationLibrary`, **in‑place sin root motion**, `AnimationTree` con capa de torso filtrada. Lobo y ciervo siguen con piezas rígidas (`quadruped_animator.gd`) hasta M9b. Librerías externas CC0 (Quaternius UAL) **solo si se pueden descargar**; no son un requisito de ningún hito. | Verificado en el PoC (pies sin deslizamiento, retarget, ragdoll). Mixamo/Synty prohibidos por licencia. | 04 §0–§7; PoC |
 | C24 | **Wolves/fauna** | Se mantienen (lobos de noche, ciervos, caza con arco en M5) y pasan por el mismo `DamageResolver`, `SoundEvent` y LOD que los zombis. | Ya existen y encajan con el frío como enemigo. | GDD slice §12; 02 §2.4 |
 
+> **Nota v3:** C6 queda **sustituida** por C25 (6 144 m, 96 × 96 chunks, el valle intacto en el cuadrante noroeste). Quedan **enmendadas**: C2 por C29 (dos materiales compartidos, `window_city`, atlas `signage` y de calcomanías), C8 por C26 (las torres apilan grupos de plantas ya fusionados), C9 y C21 por C32 (humanos, estatuas congeladas, población por planta, densidades urbanas) y C23 por C30 (fauna CC0). Decisiones nuevas C25–C37 en la Parte II §v3.2.
+
 ### 3.2 Resto de decisiones (sin conflicto, fijadas para no reabrir)
 
 | Tema | Decisión | Fuente |
@@ -104,9 +110,13 @@ La columna **Fuente** apunta a la sección de investigación (`docs/research/0N_
 | Tests | `SceneTree` headless propios (sin framework externo): humo, red con N clientes headless, determinismo, rendimiento con presupuestos en `tests/perf_budgets.json`, capturas xvfb, `verify_*.py` de arte. Cada hito añade sus tests y son **puertas de aceptación**. | 01 §7.4; 03 §9 |
 | Addons de terceros | Solo `godot-sqlite`. Ningún otro en v2.0 (netfox, Terrain3D, road‑generator, GodotSteam, TwoVoIP: no). | 01 §10.1; 03 §0 |
 
+> **Nota v3:** la fila «Cámara» tiene las cifras previas a G1; las vigentes son las del código (`balance.gd`): −48°, FOV 36°, 24 m, zoom 16–38 m, más el perfil de cámara urbano de C28. En «Corte de interiores», la mejora «Stencil (4.5+) como mejora opcional en M10» queda **sustituida** por el corte urbano (C27). La regla de addons no cambia: `winterize` es una herramienta de Blender y no entra en el proyecto de Godot (C30).
+
 ---
 
 ## 4. El mundo
+
+> **Nota v3:** este valle (mapa de §4.2 y regiones de §4.3) se conserva **sin cambios** como cuadrante noroeste del mundo de 6 × 6 km (C25). El mapa de 48 × 48 caracteres y las regiones nuevas están en `docs/research/09_ciudad_mundo_vivo.md` §4.2–4.3; resumen por áreas e hitos en la Parte II §v3.5.
 
 ### 4.1 Concepto
 
@@ -198,6 +208,8 @@ Regla de densidad: ≈ 1 POI con nombre por 0.25 km² en la zona central (≈ 24
 - **Ramas y commits**: se trabaja en la rama de desarrollo asignada (hoy `claude/winter-survival-game-txs1nx`), con al menos un commit por hito (`M<N>: …`); nunca se hace *merge* a `main` sin que el usuario lo pida.
 - **Idioma**: documentos y textos del juego en español; identificadores de código y nombres de assets en inglés ASCII.
 
+> **Nota v3:** desde el 26‑sep‑2026 se trabaja en **carriles paralelos** (U código UI, R código mundo/render, J código juego, A‑ciudad y A‑juego arte) con propiedad de ficheros (C37, Parte II §v3.6). La unidad sigue siendo «1 Fable + 1 Opus por hito» con esta misma definición de hecho.
+
 ---
 
 ## 7. Roadmap por hitos
@@ -205,6 +217,8 @@ Regla de densidad: ≈ 1 POI con nombre por 0.25 km² en la zona central (≈ 24
 Tamaños: **S** ≈ medio pase, **M** ≈ un pase holgado, **L** ≈ un pase completo con alcance ajustado (si un L se desborda se recorta alcance, nunca tests). Cada hito termina **jugable** y con **tests automáticos como criterio de aceptación**.
 
 Orden y razón: **M0** paga la deuda de convenciones (barato ahora, carísimo después). **M1–M2** hacen el refactor más arriesgado (autoloads de un jugador → servidor autoritativo con estado por jugador) mientras el juego sigue siendo el slice. **M3** abre el mundo (streaming, determinismo). **M4–M5** convierten el slice en juego zombi (IA a escala, combate, armas, botín, persistencia real, servidor operable). **M6–M7** añaden aldeas, carreteras y coches. **M8** profundiza el frío, la base y la progresión. **M9** trae el pueblo y el director completo. **M10** cierra la meta y el lanzamiento.
+
+> **Nota v3:** M0–M4 están hechos. El **orden** de esta sección queda sustituido por el roadmap v3 (Parte II §v3.7). El **contenido** de M5–M10 sigue vigente con los cambios de la Parte II §v3.8.4; en particular, el tablón, los *pings* y el mapa de papel de M10 pasan a H3–H5, y el stencil de corte de M10 desaparece (C27).
 
 ### M0 — Cimientos técnicos y contrato de arte v2 · **S (código) + M (arte)**
 
@@ -426,6 +440,8 @@ Deuda del slice que se paga en el camino: textos de UI acoplados (sin cambio), `
 | R12 | Deriva entre contrato de arte y código entre pases | Media | Medio | `inspect_models.gd` y `verify_*.py` discrepan | Los verificadores son el contrato; cada hito actualiza ASSET v2 antes de producir | todos |
 | R13 | Bandwidth en hordas (200 zombis en interés) supera 30 kB/s | Baja | Medio | HUD de red > 30 kB/s | Bandas de frecuencia, presupuesto por paquete (recorte a 12 kB/s), keyframes cada 1 s | M4 |
 
+> **Nota v3:** riesgos nuevos R14–R30 (ciudad, CC0, precisión lejos del origen, tamaño del repo, carriles paralelos, HUD mínimo) en la Parte II §v3.11.
+
 ---
 
 ## 10. No objetivos (v2.0)
@@ -441,6 +457,8 @@ Deuda del slice que se paga en el camino: textos de UI acoplados (sin cambio), `
 9. **Voz, lista de servidores pública, relé/UPnP, Steam, plataformas móviles/Web, doble precisión, Terrain3D, netfox.**
 10. **Texturas/UVs.** La paleta vive en el color de vértice.
 
+> **Nota v3:** el no objetivo 2 queda **enmendado** (supervivientes humanos limitados: ≤ 12 activos, sin diálogos, trueque por menú) y el 10 admite excepciones cerradas (atlas `signage`, calcomanías, LUT, humo). La Parte II §v3.12 añade no objetivos nuevos (tráfico civil vivo, *skyline* en la cámara de juego, *occlusion culling* en ciudad…).
+
 ---
 
 ## 11. Índice de documentos
@@ -450,4 +468,686 @@ Deuda del slice que se paga en el camino: textos de UI acoplados (sin cambio), `
 - `docs/v2/ARQUITECTURA_V2.md` — arquitectura técnica v2 (red, mundo, IA, persistencia, servidor, tests, migración fichero a fichero).
 - `docs/v2/ASSET_SPEC_V2.md` — contrato de arte v2 (convenciones, esqueleto, animaciones, kits, vehículos, armas, presupuestos, verificación, migración de los 33 assets).
 - `docs/research/01..04` — investigación (fuentes de las cifras).
+- `docs/research/05..10` — investigación de G1/G2 y v3: arte y render (05, 06, 08), librerías CC0 y `winterize` (07), ciudad, mundo vivo y peligros (09), HUD «Susurro» (10).
+- `docs/PLAN_V3_RESUMEN.md` — resumen del roadmap v3 (Parte II) para el propietario.
 - `prototypes/netpoc`, `prototypes/animpoc` — pruebas de concepto superadas (base de M1 y del rig).
+
+---
+
+# Parte II — Roadmap v3 (tras M4): gráficos G2, ciudad de Altavega, mundo vivo, riesgos invernales y HUD «Susurro»
+
+> Fecha: 26‑sep‑2026. Punto de partida: M0–M4 hechos (Parte I §7) y G1 integrado (`docs/research/06_graficos_render.md` §9).
+> Fuentes de esta parte: `docs/research/07_assets_cc0.md` (librerías CC0, pase `winterize`, manifiesto de licencias,
+> dominios), `08_graficos_g2.md` (prioridades y presupuestos de render G2), `09_ciudad_mundo_vivo.md` (cámara, corte
+> urbano, mapa de 6 km, distritos de Altavega, mundo vivo, 13 peligros, hitos W/C/V/E) y `10_hud_ux.md` §V (HUD v2
+> «Susurro»). Esta parte **no copia** esos documentos: fija decisiones, orden, tamaños, carriles y puertas de
+> aceptación. Si una cifra discrepa, manda esta parte y se corrige la fuente. Resumen en lenguaje llano para el
+> propietario: `docs/PLAN_V3_RESUMEN.md`.
+
+## v3.0 Resumen en una página (para el propietario)
+
+- **Qué pediste.** Mejores gráficos usando librerías de assets; una ciudad con rascacielos en un mundo más grande y
+  «vivido» (coches, animales, supervivientes, convoyes) que siga nevado y con problemas del invierno; y un HUD, unas
+  misiones y unos avisos de entrada y salida de zona de nivel AAA.
+- **Lo ya decidido contigo (vinculante).** Post‑apocalipsis **habitado**; mapa de **≈ 6 × 6 km con una ciudad**;
+  librerías **CC0 reestilizadas al invierno**; HUD **v2 «Susurro»** (la v1 era demasiado pesada).
+- **La ciudad se llama Altavega y su río, Albo.** Está al noreste del valle actual, que no cambia ni un metro. El mundo
+  crece hacia el este y el sur hasta 6 144 m de lado (cuatro veces la superficie actual). La ciudad queda a medio día a
+  pie del claro: el coche pasa a ser imprescindible.
+- **El hallazgo que manda.** Con nuestra cámara alta, nada más alto que la cámara (≈ 18 m) entra jamás en pantalla. Un
+  rascacielos se ve como su base y su sombra de 200 m, tapa al jugador y a menudo «se traga» la cámara. La respuesta
+  (§v3.4): **corte urbano** (se recorta con un tramado lo que tapa, y el edificio cortado se lee como un plano de
+  arquitecto), un **perfil de cámara urbano** algo más tendido y alejado en los distritos altos (más fachada, hasta
+  ≈ 17 m por encima del jugador), **miradores** en azoteas donde la cámara se levanta y se ve el *skyline*, y el
+  *skyline* en el **mapa de papel y el menú principal**.
+- **Cómo se verá (G2).** Una sola nieve, luz y niebla para todo. La ciudad y el tráfico salen de librerías CC0 pasadas por
+  nuestro filtro invernal (`winterize`); la gente, la nieve y la luz siguen siendo nuestras. De noche, ventanas
+  encendidas por celdas y barrios apagados.
+- **Mundo vivo.** Rastros por todas partes (atascos, grafitis, humo, campamentos), animales que delatan (los cuervos
+  levantan el vuelo si algo pasa) y pocos actores humanos con consecuencias (convoyes, helicópteros, comerciantes; los
+  saqueadores armados en v2.1). Como mucho 12 humanos activos y sin diálogos.
+- **El invierno como sistema.** 13 peligros sobre un `HazardSystem` común (ventisca blanca, tormenta de hielo, ola de
+  frío, aludes, hielo fino, red eléctrica, incendios…); 8 entran en v2.0.
+- **HUD «Susurro».** En reposo solo una tira de 10 trazos (0,05 % de la pantalla en maqueta; puerta automática ≤ 3 %).
+  Todo lo demás aparece al cambiar o al mantener Info. Títulos de zona tipográficos al entrar; un único acento ámbar.
+- **Cómo trabajamos.** Por carriles en paralelo (§v3.6). **En curso**: H1 (HUD), W0+G2a (corte urbano y render de
+  ciudad) y A1 (pipeline CC0 y primer set urbano). **Siguiente**: W1 (mundo de 6 km). En el tramo 2 se abren el carril de
+  juego (M5…) y un segundo carril de arte.
+- **Coste.** El trabajo que queda se duplica (doc 09 lo mide en ×2,1 sin contar HUD ni G2). Con 3 carriles de código y 2
+  de arte, v2.0 cabe en **≈ 10–11 tramos** (un tramo ≈ un pase de agente); con solo los 3 carriles de hoy, ≈ 19.
+- **Qué necesitamos de ti** (§v3.13): (1) abrir unos dominios de red para descargar las librerías oficiales; (2) sí o no
+  a dar experiencia por descubrir zonas; (3) confirmar que quieres ver una primera manzana de Altavega pronto (C0);
+  (4) confirmar la línea de corte v2.0 / v2.1; (5) aprobar los valores por defecto de «Susurro».
+
+## v3.1 Qué sustituye esta parte
+
+| Parte I / GDD / investigación | Estado en v3 | Dónde |
+|---|---|---|
+| C6 (3 072 m, 48 × 48 chunks) | **Sustituida** | C25 |
+| C2 (un material compartido) | Enmendada: dos materiales compartidos, `window_city`, atlas `signage` y de calcomanías | C29 |
+| C8 (una `.glb` por variante, sin ensamblar en vivo) | Enmendada: las torres apilan grupos de plantas ya fusionados | C26 |
+| C9 (LOD de IA) y C21 (densidades) | Enmendadas: humanos, estatuas congeladas, población por planta, densidades urbanas | C32 |
+| C23 (animación propia; CC0 solo si se puede descargar) | Enmendada: fauna CC0 permitida vía `winterize` | C30 |
+| §3.2 «Cámara» (−52°, FOV 35°, 22 m, 14–30 m) | **Sustituida** por las cifras del código (G1) y el perfil urbano | C28, §v3.4 |
+| §3.2 «Corte de interiores»: stencil opcional en M10 | **Sustituida** por el corte urbano | C27 |
+| §4 El mundo | Se conserva entero como **cuadrante noroeste** | C25, §v3.5 |
+| §7 orden de hitos | **Sustituido** (el contenido de M5–M10 sigue vigente con cambios) | §v3.7, §v3.8.4 |
+| §7 M10: tablón, *pings*, mapa de papel, stencil | Tablón → H4; *pings* → H3/H4; mapa → H5; stencil eliminado | §v3.8 |
+| §9 riesgos | Ampliado con R14–R30 | §v3.11 |
+| §10 no objetivos 2 y 10 | Enmendados; se añaden no objetivos v3 | §v3.12 |
+| GDD §1, §3.1, §4.5, §6.4, §6.6, §11.3, §11.4, §12.4, §13, §17, §18 | Enmendados | GDD «Addendum v3» |
+| Doc 05 (CC0 descartado como base) | Revisado por el doc 07 | C30 |
+| Doc 08 P0 «fundido de edificios altos» | Absorbido como capa B del corte urbano (W0 = G2a en lo que se solapan) | C27 |
+| Doc 09 «*pitch* urbano −55°» (descartado) | Se mantiene descartado; el perfil urbano va en sentido contrario (más tendido) | C28 |
+| Doc 10: «Albarrán», «Río Albar», Info en Tab | Sustituidos | C36, C34 |
+
+## v3.2 Decisiones nuevas (C25–C37)
+
+Continúan la tabla maestra de §3.1 y son igual de vinculantes.
+
+| # | Tema | Decisión | Por qué | Fuente |
+|---|---|---|---|---|
+| C25 | **Mundo v3** (sustituye C6) | **6 144 × 6 144 m = 96 × 96 chunks de 64 m** (C7 sin cambios). El valle de la Parte I queda en el **cuadrante noroeste con sus coordenadas, índices de chunk (`CENTER_CHUNK = 24`) y `wid` intactos**; el mundo crece hacia +x (este) y +z (sur): extensión −1 568 … +4 576 m, muro jugable x, z ∈ [−1 450, +4 420] (`WALL_MIN`/`WALL_MAX` por eje), niebla del borde por distancia al muro más cercano. Macro **768² a 8 m/px** con biomas 6–15 nuevos + *splines* (A‑14, rondas, Gran Vía, N‑140 sur, Carretera del Puerto, ferrocarril). Precisión simple; **el servidor trabaja siempre en coordenadas absolutas**; desplazamiento de origen solo en el cliente y solo como plan B de R23. SQLite (M5) nace con claves de 96², `world_version = 2` y `city_version` en `world_meta`. | No cambia ni un hash del valle (determinismo, *perf walk* y deltas siguen valiendo). El trabajo por frame depende de los anillos, no del tamaño del mundo. Hacerlo antes de M5 evita migrar partidas. Chunks de 128 m descartados (generación y navmesh ×4, hibernación gruesa). | 09 §4.1, §4.4, §8.1 |
+| C26 | **Ciudad de Altavega** (enmienda C8) | **Híbrido**: trazado **horneado offline** (`tools/gen_city.gd` → `data/world/city/altavega_*.json`: distritos, calles, manzanas, parcelas, arquetipos, alturas, grafo de calles y siluetas de distrito, en cm enteros, con `city_version` congelada por hito); **≈ 14 bloques héroe** a mano como escenas; **familias por gramática** (zócalo + planta tipo + coronación, bpy) para lo enterable; **torres CC0 winterizadas «listas para corte»** para las no enterables; vestido (coches, daños, cadáveres, botín) por semilla `hash64(seed, GEN_CITY, lot_id, …)`. Enmienda a C8: el generador sigue sin ensamblar módulos en vivo, pero **apila grupos de plantas ya fusionados**: `Podium` + N × `FloorGroup` (4 plantas) + `Crown` + `ShadowProxy` (`SHADOWS_ONLY`). Enterables: casco viejo 25 %, ensanche 12 %, Las Torres vestíbulo + 2 plantas en el 30 % y **2 torres héroe** completas, barriada 10 %, polígono y puerto 50 %. | La ciudad es la misma en todos los servidores (se aprende: «nos vemos en la catedral») y el determinismo es trivial (se leen datos). Los héroes dan hitos. Las familias cumplen el contrato de corte que ningún paquete CC0 trae. Hacer a mano 1 500–2 500 edificios es inviable (R5, R15). | 09 §4.5; 07 §3.5 |
+| C27 | **Oclusión en ciudad: corte urbano** (sustituye el stencil de §3.2 y el P0 «fundido de torres» del doc 08) | Capas, todas en los materiales compartidos: **(A)** corte por forjado de lo que está en el lado de la cámara y dentro del pasillo cámara → jugador o tapa el suelo a menos de R del jugador (o del punto de mira); **(B)** cápsula tramada cámara → pecho para árboles, farolas, pasos elevados y grúas; **(C)** **tapas de sección** (caras traseras en `cap_color`: el edificio cortado se lee como una planta de arquitecto); **(D)** **siluetas** con `depth_test_inverted` para los jugadores siempre y para zombis/NPC **percibidos**; **(E)** edificio propio con `CutawayManager` (tejado y plantas altas en `SHADOWS_ONLY`, nunca `visible = false`); **(F)** `CityCut.is_cut`, idéntica en GDScript, para el rayo del cursor. Nunca se corta en `IN_SHADOW_PASS`. **Sin stencil y sin *occlusion culling* en la ciudad.** Valores iniciales: muñón 0.4 m, pasillo W 10 m, zona R 16 m (20 m con zoom ≥ 32 m), cápsula Rc 3.5 m (4.5 m), tramado Bayer 4 × 4, transición de planta 0.25 s; el perfil urbano los escala (§v3.4). | Es la única combinación que resiste la **cámara dentro de una torre**: en el prototipo, **100 %** de jugador y zombis legibles a 16/24/38 m, frente a 0–15 % sin corte y 28–59 % solo con la cápsula. Funciona igual en Forward+ y Compatibility. El *occlusion culling* haría desaparecer lo que el corte deja ver. | 09 §3; 08 §3.1 |
+| C28 | **Cámara v3, perfil urbano y *skyline*** (sustituye la fila «Cámara» de §3.2) | Cifras vigentes = código (`balance.gd`, G1): *pitch* **−48°**, FOV **36°**, **24 m** (zoom 16–38 m), `far` 70 m, pivote 3 m por delante. **Perfil de cámara por distrito** (§v3.4): *Urbano bajo* −46° y zoom 16–42 m; *Torres* −44° y zoom 18–46 m; transición de 1.5 s al confirmar la zona (misma histéresis que los títulos de zona), **nunca en combate**, conserva el zoom relativo del jugador, desactivable en Opciones; `far` dinámico (≥ 85 m en *Torres*; más la altura del jugador en azoteas). El *skyline* **no** se busca en la cámara de juego: **miradores** (mantener V 1 s: −20°, `far` 1 500 m, siluetas de distrito; 6 en v2.0), **mapa de papel y menú principal** con el *skyline*, **cinemática** corta de llegada al Puente de Hierro. La cámara sigue sin colisionar ni girar sola (guiñada en pasos de 45°); las cuadrículas urbanas van alineadas con los ejes del mundo. | El borde superior del encuadre baja 30° bajo el horizonte: sobre el jugador solo caben 10.3 m a 24 m (15.3 m a 38 m). El perfil gana fachada (17.3 m) y perspectiva vertical sin romper la lectura; el *pitch* más vertical (−55°) del doc 09 mueve la cámara sin enseñar más ciudad. | 08 §1.1; 09 §1, §3.7 |
+| C29 | **Materiales v3** (enmienda C2) | **Dos materiales compartidos**: `world_vcol` (props, mobiliario, vegetación: `cull_back`, solo cápsula, `cut_class = 2`) y `world_vcol_struct` (estructura: `cull_disabled`, corte + tapas, `cut_class = 1`); lo variable va por `instance uniform`, sin duplicar materiales. Excepciones con nombre: `window` (con `window_city`: ventanas por celdas, ocupación 20–35 % por *hash*, `city_power` por distrito, `power`/`occupied` por instancia), `glass`, `ember`, `ice_clear`, `emissive_*`, `lamp_red`. **Primeras texturas del proyecto**, cerradas y con verificador: atlas **`signage`** (2048², paleta cerrada, carteles y rótulos; V1) y atlas de **calcomanías** (G2c). Assets de terceros: RGB **graduado en OKLab dentro de gama** (no paleta exacta), AO en `COLOR_0.a`. **Nieve v2 única** (`snow_include`: borde roto, abrigo por AO, barlovento, edad por instancia, deshielo junto a fuentes de calor, escarcha en cristal). | El corte necesita caras traseras solo en la estructura; un material por familia mantiene el orden por material; los carteles pequeños no se leen con color de vértice. | 09 §3.3, §5.2; 08 §3.2, §3.4; 07 §4 |
+| C30 | **Assets de terceros CC0** (revisa doc 05; enmienda C23) | Solo **CC0** (MIT/BSD con su aviso copiado); nunca CC‑BY‑NC/ND, EULAs de tienda ni «uso personal». Todo pasa por **`winterize`** (`blender/third_party/`) y por el **manifiesto** `assets/third_party/manifest.json` (repo, commit, ruta, SHA‑256, `License.txt` literal, modificaciones); `verify_third_party.py` falla sin licencia o con otro hash. **Las fuentes no se versionan** (`fetch.py` a una caché fuera del proyecto): solo el `.glb` resultante. Créditos voluntarios a Kenney, Quaternius y Kay Lousberg (`CREDITS.md` generado). Uso: torres Kenney *City Kit Commercial* (+ `low_*`); coches Quaternius (*Cars*, *Zombie Apocalypse Kit*) en primer plano; mobiliario urbano Quaternius/Kenney; industria y puerto Kenney; fauna Quaternius *Ultimate Animated Animals* (M9b). **Siguen siendo propios**: personajes, zombis, vegetación, casas enterables y vehículos conducibles. **No**: KayKit, coches Kenney en primer plano, *Public Transport* del espejo. | Lo eligió el propietario. La prueba convirtió 30 modelos en 48 s con 0 errores de import; con color de vértice ocupan 10 MB frente a 66 MB texturizados. «La ciudad y el tráfico pueden salir de librerías; la gente, la nieve y la luz son nuestras». | 07 §0, §3.5, §4, §5 |
+| C31 | **Render G2** | **P0 (G2a)**: corte urbano, nieve v2, ciudad de noche (ventanas por celdas, ≤ 12–16 farolas reales a < 40 m, charcos de luz falsos, balizas), torres por grupos de plantas + proxy de sombra + `visibility_range`, `cast_shadow = OFF` en props < 1 m. **P1 (G2b)**: niebla en capas (exponencial + altura; `FogVolume` y volumétrica solo Forward+), viento y serpientes de nieve, LUT 3D por clima y hora mezclada en CPU, humo, fuego, balizas y bandadas, deshielo visible. **P2 (G2c)**: rodadas persistentes por chunk, calcomanías (mallas en `compat`), SSR por región, SMAA en `alto`, FSR2 opcional, AO de cielo de las torres. **No**: TAA por defecto, DoF, `AreaLight3D`, SDFGI/VoxelGI, HLOD o impostores en la cámara de juego (solo miradores y menú), *occlusion culling* en ciudad. **Presupuestos**: `alto` ≤ 12 ms de día / ≤ 14 ms de noche en ciudad o en ventisca (GPU media, medido en la máquina del propietario), `medio` ≤ 10 ms, `compat` ≤ 16.6 ms; ciudad **≤ 1 000 draw calls típicos / ≤ 1 500 máx.** (`compat` ≤ 700); ≤ 1.5 M tris; ≤ 64 luces visibles (≤ 6 con sombra). El preset `web` del doc 08 queda como presupuesto de referencia, no como plataforma (no objetivo 9). | Medido en 4.7.2: en la escena de ciudad las sombras son el 54 % del frame, no los draw calls (152); la noche con luces reales solo cerca cuesta +10 %. | 08 §0, §3, §5; 09 §4.6, §7.1 |
+| C32 | **Población urbana y mundo vivo** (enmienda C9 y C21) | Tres capas: **estática por semilla** (atascos, controles, campamentos, grafitis, ventanas con generador, humo: 0 B/s), **ambiental en cliente** (cuervos que delatan movimiento, ratas, restos al viento, neón) y **dinámica en servidor** (convoyes, helicópteros, quitanieves, radio, lanzamientos, director del mundo, comerciantes; saqueadores en v2.1). **Sin tráfico civil vivo.** C9 sin cambios (≤ 150 L0 por servidor, ≤ 60 por zona); **≤ 12 humanos L0 por servidor**, y con humanos el tope de zombis L0 baja a 130. La ciudad parece llena sin CPU: **estatuas congeladas** en MultiMesh (≤ 300 visibles, 6–12 DC, 0 B/s, no cuentan como esqueletos), **atrapados en coches**, **población por planta** (L3 por planta, se materializa al hornear su tesela), hordas L2 por el grafo de calles. Filtro de interés **vertical** en torres (\|Δy\| ≤ 9 m). Densidades urbanas por chunk: doc 09 §4.3. Red ≤ 15 kB/s típico (C11 sin cambios). | La historia se cuenta con rastros baratos; lo caro (IA humana) se limita y va detrás del director completo (M9b). | 09 §4.4, §5 |
+| C33 | **Peligros invernales** (`HazardSystem`) | Un **`HazardSystem`** de servidor con tres escalas: global (`WorldState`: clima, viento, `ice_glaze`, inversión), regional (sectores eléctricos, hielo por masa de agua, carga de laderas, nieve por tramo de carretera) y local (`ChunkDelta`: tuberías, gas, fuego, carga de tejado, vertidos, depósitos de alud). Lo que depende del tiempo se evalúa **perezosamente** al despertar un chunk (nunca con un *tick* global); ≤ 0.5 ms por *tick*. Reglas: todo peligro **se anuncia o se telegrafía** (≥ 3 s, por radio o sonido), **se lee desde arriba**, tiene **contrajuego** e **interactúa con los zombis**. 13 sistemas: 8 en v2.0 (E1: *whiteout*, tormenta de hielo, ola de frío, aludes, hielo fino, congelación por partes; E2a: red eléctrica, incendios) y 5 en v2.1 (E2b). Opciones de servidor nuevas: `fire_spread = off \| buildings \| full` (defecto `buildings` desde E2a) y `military_attitude = neutral \| hostile` (V2a). | Cada sistema da juego legible desde arriba y conecta frío, zombis, vehículos y co‑op. | 09 §6 |
+| C34 | **HUD «Susurro»** (sustituye la estética de GDD §13 y la v1 «Escarcha») | En reposo **< 3 % de la pantalla** (puerta automática `ui_idle_coverage`; maqueta: 0,05 %): solo la tira de la barra (10 trazos de 2 px). Todo aparece **al cambiar** (3–5 s y se funde) o **a petición** (mantener Info). **Sin cajas**: texto con sombra, velo radial adaptativo, filetes de 1 px, iconos de línea. Barlow Light/Regular de 16–26 px con versalitas reales; Barlow Condensed ExtraLight **solo** en títulos de zona (76 px); ningún peso por encima de 400. **Un solo acento ámbar** `#FFB454` (prioridad: compañero derribado > fuente de calor con Calor < 30 > objetivo seguido) y **un solo indicador de borde**. Sin minimapa ni brújula: mapa de papel. Base 1920 × 1080; mínimo 16 px (≥ 12 px en Steam Deck). Preajustes *Mínimo* (defecto), *Estándar* y *Completo*. **Info**: el doc 10 lo pone en Tab, que hoy es Fabricación (GDD §3.2); propuesta, que H1 fija: **Alt mantenido** en teclado y **D‑pad ↑ mantenido** en mando (el toque corto sigue siendo zoom), remapeable. Todo lo funcional de GDD §13 (termómetro sentido con desglose, estados con causa, compañeros, *pings*, chat, vehículo, derribado, muerte) se conserva con estas reglas de visibilidad. | El propietario vio la v1 y dijo «muy toscas» y «demasiado en pantalla». Referentes: *The Last of Us Part II*, *Ghost of Tsushima*, *Death Stranding*. | 10 §V |
+| C35 | **Zonas (entrar y salir) y misiones** | **Entrar**: `ZoneTracker` por posición del jugador con **histéresis de 12 m y 1.5 s**; jerarquía ciudad → distrito → PDI (se muestra la más profunda); enfriamiento de 90 s por zona y 20 s entre títulos; se aplaza en combate y con un P0. Primera visita: título de 5.6 s (antetítulo «zona descubierta», nombre y una línea de datos: ciudad · electricidad · temperatura · peligro). Re‑entrada: solo el nombre, al 60 %, 2.5 s. En vehículo a más de 40 km/h y en carreteras: **cartel de autovía** 3 s. **Salir**: sin título; una línea P3 solo si la situación mejora («Has salido de la zona militar»). Las zonas especiales (apagón, militar, hielo fino) son **peligros**, no títulos. **Misiones**: tres tipos (principal ◆, secundaria ◇, dinámica ⬡ con caducidad), una sola seguida; línea «objetivo actualizado» de 5 s + lista a petición; rombo de 10 px en el mundo. El **tablón de GDD §11.4 queda absorbido** y se adelanta de M10 a H4. Descubrimiento de zonas y niebla del mapa **compartidos por el grupo** por defecto (`shared_discovery`, `shared_map`); mapa con posición exacta (opción de servidor: aproximada). XP por descubrir: pendiente (D2). | Es lo que el propietario pidió («como en un juego AAA») con la disciplina de «Susurro». | 10 §V.3–V.4; apéndice §6.1–6.4, §6.11 |
+| C36 | **Nombres** | Ciudad **Altavega** y río **Albo** (y sus derivados: Torre Albo, Polígono del Albo, Químicas del Albo, Ferrocarril del Albo…). Sustituyen a los nombres de trabajo **«Albarrán»**, **«Río Albar»/«Albar»** del doc 10 y de sus maquetas, que se conservan como historial pero **no** son texto de referencia. Regiones y banners: doc 09 §4.3 (reconciliación en §v3.3). | El doc 09 fija el mapa y todos los nombres; el doc 10 se escribió en paralelo con un nombre de trabajo. | 09 §4.2–4.3; 10 §10.6 |
+| C37 | **Carriles paralelos y propiedad de ficheros** | El trabajo se reparte en **carriles** (§v3.6): U (código UI), R (código mundo/render), J (código juego), A‑ciudad y A‑juego (arte). Cada hito sigue siendo «1 Fable + 1 Opus» con contrato escrito y tests como puerta (§6). Cada carril **posee** sus directorios; los ficheros compartidos (`project.godot`, `scripts/autoload/events.gd`, `scripts/data/balance.gd`, `assets/shaders/world_vcol.gdshader` y sus *includes*, `tests/run_all.sh`, `tests/perf_budgets.json`, `docs/`) se tocan con cambios pequeños, anunciados en el informe del hito y con `tests/run_all.sh` en verde antes de fusionar. La UI de los hitos de juego (retícula, vehículo, ropa, base, trueque, menús) la hace el carril U contra señales de `Events` («enganches de UI»). | H1, W0+G2a y A1 ya corren a la vez; sin propietarios, los ficheros compartidos se pisan (R28). | — |
+
+## v3.3 Reconciliación de nombres
+
+| Doc 10 y sus maquetas (nombre de trabajo) | Definitivo | Dónde se aplica |
+|---|---|---|
+| Albarrán · «Ciudad de Albarrán» | **Altavega** · «Ciudad de Altavega» | Títulos de zona (H2), `LocationInfo`, mapa (H5), carteles (V1), radio (V2a) |
+| Río Albar · «Albar» | **Río Albo** | Región `RÍO ALBO` (W1), hielo (E1), mapa |
+| «DISTRITO FINANCIERO · Ciudad de Albarrán» | «**LAS TORRES** · Distrito financiero · Altavega» (banner `ALTAVEGA — LAS TORRES`) | H2, C1 |
+| Cartel «Albarrán 4 km / SALIDA 12 Distrito Financiero →» | «**Altavega** 4 km / SALIDA 12 **Las Torres** →» | Cartel de autovía (H2), señalización diegética (V1) |
+| `map_albarran.svg` (mapa ilustrativo) | Mapa de papel generado del macro real de W1 y de `altavega_lots.json` | H5 |
+
+Regla: las maquetas del doc 10 **no se editan** (son historial); todo texto de juego, dato, captura y maqueta nueva usa
+los nombres definitivos. H2 añade un test que falla si aparece «Albarr» o «Albar» como palabra en `data/`, `scripts/` o
+`scenes/`. Si el propietario prefiere otros nombres, cambiarlos cuesta una búsqueda y reemplazo mientras no se haya
+cerrado H2.
+
+## v3.4 La cámara y el *skyline*: hallazgo y respuesta
+
+**Hallazgo** (docs 08 §1.1 y 09 §1). Con la cámara del código (*pitch* −48°, FOV 36°, 24 m) la cámara está a 17.8 m de
+altura y 13.1 m por detrás del jugador, y el borde superior del encuadre baja 30° bajo el horizonte. Consecuencias:
+
+1. Nada más alto que la cámara entra en pantalla salvo muy cerca de ella: sobre el jugador se ven **10.3 m** (≈ 3
+   plantas) a 24 m de zoom y 15.3 m a 38 m. **El *skyline* no existe en juego.**
+2. Un edificio de 2 plantas en el lado de la cámara tapa al jugador a menos de 3 m; uno de 4–5 plantas, a 10 m. En una
+   calle de 12 m eso pasa siempre.
+3. Cualquier edificio de 6 o más plantas cuya planta cubra el punto de la cámara **contiene la cámara**: imagen negra o
+   una jaula de forjados.
+4. Las torres se leen por su base, su azotea baja y su **sombra de más de 200 m** con el sol de invierno.
+
+**Respuesta elegida** (C27 + C28), en cinco piezas:
+
+1. **Corte urbano** como base de la legibilidad (W0+G2a, en curso): capas A–F de C27. Es lo que hace jugable la ciudad.
+2. **Perfil de cámara urbano por distrito** (W0+G2a, en curso), para que las torres se lean como torres a pie de calle:
+
+   | Perfil | Distritos | *Pitch* | Zoom (mín.–máx., defecto) | `far` | Altura visible sobre el jugador (zoom máx.) | Suelo visible por delante (zoom máx.) | Corte W / R / Rc |
+   |---|---|---|---|---|---|---|---|
+   | Valle (hoy) | valle, bosque, aldeas, carreteras | −48° | 16–38 m (24) | 70 m | 15.3 m (10.3 m a 24 m) | 26.5 m | 10 / 16–20 / 3.5–4.5 m |
+   | Urbano bajo | casco viejo, ensanche, barriada, puerto, polígono | −46° | 16–42 m (26) | 80 m | 16.3 m | 30.6 m | 10 / 20 / 4.5 m |
+   | Torres | Las Torres, Torre Albo, hospital provincial | −44° | 18–46 m (28) | 85 m | **17.3 m** (12.4 m en una fachada 10 m más allá) | 35.4 m | 12 / 22 / 5 m |
+
+   Reglas: se aplica con una transición de 1.5 s cuando el `ZoneTracker` confirma el distrito (histéresis de C35; en
+   W0 un disparador por región de prueba); **nunca durante un combate** (pico del director o persecución en los últimos
+   5 s: se aplaza); conserva la posición relativa del zoom del jugador dentro del rango; la guiñada no se toca; la
+   cámara sigue sin colisionar; opción «Perfil de cámara urbano: sí/no» (H6). Lo que gana es honesto y medido: más
+   fachada (hasta 17.3 m, ≈ 4–5 plantas), aristas verticales en perspectiva y más calle por delante; **no** enseña el
+   *skyline* (con −44° el borde superior sigue 26° por debajo del horizonte). W0 valida los valores con
+   `citycut_probe` y `perf_probe` a zoom máximo; si el zoom de 46 m pasa de 1 000 DC típicos, el máximo baja a 42 m.
+3. **Miradores** (C1–C2; el primero, provisional, en C0): mantener V 1 s en un punto marcado inclina la cámara a −20°,
+   sube `far` a 1 500 m y dibuja las **siluetas de distrito** (una malla por distrito, 1 DC cada una, con ventanas según
+   la red eléctrica). Revelan ≈ 600 m del mapa, columnas de humo y barrios con luz. 3–6 s sin control; cualquier tecla
+   cancela. En v2.0: Puente de Hierro y Torre Albo (C1), Torre de Telecomunicaciones y Presa del Cierzo (C2), y en el
+   valle la torre de vigilancia (ya tiene `ViewAnchor`) y el Repetidor del Pico (C1). En v2.1: telesilla de Peña Blanca y
+   torre de control de la base aérea (C3).
+4. **Mapa y menú**: el menú principal usa como fondo el *skyline* de Altavega de noche visto desde un mirador (C0); el
+   mapa de papel lleva la ciudad impresa y una cartela con el perfil del *skyline* (H5).
+5. **Cinemática** de 6–8 s, saltable, la primera vez que se cruza el Puente de Hierro (C1); nunca en combate.
+
+Y el detalle de las torres se invierte donde la cámara lo ve: **base** (vestíbulo, marquesinas, ventisqueros),
+**azoteas bajas** (el tejado es el lienzo: nieve fundida donde hay calor, carámbanos, vapor), **tapas de sección** y
+**sombras**.
+
+## v3.5 El mundo de 6 × 6 km: áreas y hitos
+
+Mapa de 48 × 48 caracteres y tabla completa de regiones en `docs/research/09_ciudad_mundo_vivo.md` §4.2–4.3 (y apéndice
+A, en formato `PoiRegistry.ASCII`). Distancias desde el claro: Control del Puerto 1.6 km (12 min a pie), catedral 2.2 km,
+Las Torres y el puerto 2.7 km (≈ 21 min, medio día de juego), Gran Atasco 4.3 km, base aérea 4.8 km.
+
+| Área | Qué hay | Hitos | Versión |
+|---|---|---|---|
+| Valle de Valdenieve (cuadrante NO) | Todo lo de la Parte I §4, sin cambios | M5–M10 | v2.0 |
+| Sierra del Cierzo y Carretera del Puerto | Divisoria valle/ciudad; puerto de montaña de 1.1 km; Control del Puerto a la entrada | W1, C1 | v2.0 |
+| Altavega: casco viejo, ensanche, barriada de San Lázaro, Las Torres | Ciudad procedural + 2 torres héroe (Torre Albo, 45 plantas) | C0 (una manzana), C1 | v2.0 |
+| Hitos de Altavega | Catedral, Torre de Telecomunicaciones, Universidad, Presa del Cierzo, Hospital Provincial, Jefatura de Policía, Centro Comercial, Estación Central, Estadio (campo de refugiados) | C2 | v2.0 |
+| Río Albo y Puente de Hierro | Río helado de 5.5 km (plano y seguro en W1, hielo fino en E1), puente con control militar | W1, C1, E1 | v2.0 |
+| Puerto fluvial y Polígono del Albo | Dársena, grúas, gabarras, naves, central térmica, parque de combustibles, químicas | C2 | v2.0 |
+| A‑14 y el Gran Atasco | Autovía N–S de 6 km; 2.2 km de éxodo bloqueado (1 500–2 500 coches) | W1 (trazado), C2 | v2.0 |
+| Desfiladero de Peña Roya e ibón | N‑140 sur entre laderas de aludes; lago de montaña con hielo fino | W1 (terreno), E1 | v2.0 |
+| Periferia sur y Sierra de Peña Blanca | Base aérea y avión estrellado, Vega Baja, Los Álamos, urbanizaciones del norte y del este, estación de mercancías, área de servicio, estación de esquí, Santa María del Puerto, túnel de Peña Roya (galería a pie), ferrocarril | W1 (terreno y carreteras), C3 | **v2.1** (en v2.0 existen el terreno, las carreteras, el bosque y los campos) |
+
+## v3.6 Carriles de trabajo
+
+| Carril | Agente | Qué lleva | Posee (directorios) | Estado |
+|---|---|---|---|---|
+| **U** — código UI | Fable | H1–H6 y los enganches de UI de cada hito de juego | `scripts/ui/`, `scenes/ui/`, `assets/fonts/`, `assets/icons/`, `assets/themes/` | **en curso: H1** |
+| **R** — código mundo/render | Fable | W0+G2a, W1, C0, G2b, C1, V1, G2c, E1, C2, E2a (v2.1: C3, E2b) y la parte Godot de A1 | `scripts/world/`, `assets/shaders/`, `assets/materials/`, `data/world/`, `tools/`, `prototypes/citycut/` | **en curso: W0+G2a**; **siguiente: W1** |
+| **J** — código juego | Fable (el carril original de M0–M4) | M5–M10 y V2a (v2.1: V2b) | `scripts/{ai,combat,net,persistence,player,components,actors}/`, `server/` | se abre en T2 con M5 |
+| **A‑ciudad** — arte | Opus | A1, arte de W0/W1/C0, kit de M6a, props de M6b, C1, V1, plantillas de M9a, C2, E2a (v2.1: C3) | `blender/third_party/`, `blender/kits/`, `blender/props/`, `blender/poi/`, `assets/models/city/`, `assets/third_party/` | **en curso: A1** |
+| **A‑juego** — arte | Opus | Armas y botín (M5), vehículos (M7), ropa (M8), especiales y cuadrúpedos (M9b), E1 (hielo, alud, animaciones), NPC y vehículos militares (V2a), M10 | `blender/{chars,anims,weapons,zombies}/`, `assets/models/{chars,anims}/` | se abre en T2 con M5 |
+
+Reglas: la de C37 (ficheros compartidos); el arte va **un tramo por delante** del código cuando puede; **el código nunca
+depende de un `.glb`** (§6) y el arte nunca lee código. Si no se abren J y A‑juego, J se ejecuta dentro de R y A‑juego
+dentro de A‑ciudad, en el orden global de §v3.7 (≈ 19 tramos en vez de ≈ 11).
+
+## v3.7 Roadmap v3: orden global, calendario y dependencias
+
+Tamaños como en §7: **S** ≈ medio pase, **M** ≈ un pase holgado, **L** ≈ un pase completo con alcance ajustado (si un L
+se desborda se recorta alcance, nunca tests). Un **tramo** ≈ un pase en todos los carriles a la vez.
+
+### v3.7.1 Orden global
+
+| # | Hito | Carril | Código | Arte | Depende de | Versión | Estado |
+|---|---|---|---|---|---|---|---|
+| 1 | **H1** Cimientos del HUD «Susurro» | U | M | — | — | v2.0 | **en curso** |
+| 2 | **W0+G2a** Corte urbano y ciudad jugable en render | R | M–L | S | — | v2.0 | **en curso** |
+| 3 | **A1** Pipeline CC0 y primer set urbano | A‑ciudad (+ R) | S | L | — | v2.0 | **en curso** |
+| 4 | **W1** Mundo de 6 × 6 km | R | M | S | M4, W0+G2a (suave) | v2.0 | **siguiente** |
+| 5 | **H2** Zonas: entrar y salir | U | M | — | H1, W1 | v2.0 | pendiente |
+| 6 | **M5** Armas, ruido, botín, SQLite, operación | J | L | M | M4, W1 (solo el esquema SQLite) | v2.0 | pendiente |
+| 7 | **C0** Escaparate de Altavega | R | S | S | W0+G2a, W1, A1 | v2.0 (D3) | pendiente |
+| 8 | **H3** Avisos, peligros y grupo | U | M | — | H2 | v2.0 | pendiente |
+| 9 | **M6a** Kit listo para corte, carreteras, calle | J | M | L | M5, W0+G2a | v2.0 | pendiente |
+| 10 | **G2b** Atmósfera | R | M | S | W0+G2a | v2.0 | pendiente |
+| 11 | **H4** Misiones y marcadores | U | L | S | H3, M5 (suave) | v2.0 | pendiente |
+| 12 | **M6b** La Herrería y POIs | J | L | M | M6a | v2.0 | pendiente |
+| 13 | **C1** Altavega: núcleo urbano | R | L | L | W0+G2a, W1, C0, M6a; M7 (suave) | v2.0 | pendiente |
+| 14 | **H5** Mapa de papel y diario | U | L | S | H4, W1, M5; C1 (miradores, suave) | v2.0 | pendiente |
+| 15 | **M7** Vehículos | J | M | M | M5, M6b | v2.0 | pendiente |
+| 16 | **V1** Rastros y vida ambiental | R | M | M | C1, G2b | v2.0 | pendiente |
+| 17 | **H6** Accesibilidad y pulido | U | S–M | — | H5 | v2.0 | pendiente |
+| 18 | **M8** Frío v2, ropa, base, progresión | J | L | M | M5, M6b | v2.0 | pendiente |
+| 19 | **G2c** Detalle | R | M | S | M7, C1 | v2.0 (recortable) | pendiente |
+| 20 | **M9a** Valdenieve, aldeas, granjas, POIs | J | L | L | M6b, M8 | v2.0 | pendiente |
+| 21 | **E1** Clima extremo | R | L | M | M8, W1 | v2.0 | pendiente |
+| 22 | **M9b** Director, especiales, hordas | J | L | M | M9a; C1 (grafo de calles, suave) | v2.0 | pendiente |
+| 23 | **C2** Hitos de Altavega, puerto, industria, Gran Atasco | R | L | L | C1, M9a | v2.0 | pendiente |
+| 24 | **V2a** Supervivientes, convoyes y radio | J | L | M | M9b, M7, C1; C2 (suave) | v2.0 | pendiente |
+| 25 | **E2a** Red eléctrica e incendios | R | M–L | M | C2, E1 | v2.0 | pendiente |
+| 26 | **M10** Meta, co‑op pulido, lanzamiento | J | L | M | M9b, V2a, H6; E2a (suave) | v2.0 | pendiente |
+| 27 | **C3** Periferia sur | R | M | L | C2, E1 | **v2.1** | — |
+| 28 | **E2b** Peligros urbanos (resto) | R | M | S | E2a | **v2.1** | — |
+| 29 | **V2b** Saqueadores y perros | J | M–L | S | V2a, M9b | **v2.1** | — |
+
+### v3.7.2 Calendario por tramos (indicativo)
+
+| Tramo | U · código UI | R · mundo/render | J · juego | A‑ciudad | A‑juego | Qué verá el propietario al cerrar el tramo |
+|---|---|---|---|---|---|---|
+| **T1** | **H1** (en curso) | **W0+G2a** (en curso) | — | **A1** (en curso) | — | HUD «Susurro» en el valle, casi vacío en reposo; escena de prueba de ciudad con torres CC0 nevadas, corte urbano, siluetas y ventanas de noche; nieve v2 en todo el valle |
+| T2 | H2 | **W1** (siguiente) | M5 (armas y botín primero; SQLite al cerrar W1) | props de W1 · kit de M6a | M5 | Mundo de 6 km caminable (sierras, río Albo helado, A‑14, carretera del puerto), aún sin ciudad; títulos de zona al entrar; armas de fuego y guardado real |
+| T3 | H3 | C0 · G2b | M6a | kit de M6a · manzana de C0 | M7 | Primera manzana de Altavega en su sitio y *skyline* en el menú; calle con casas enterables cortadas por plantas; avisos y peligros sin banners |
+| T4 | H4 | G2b · C1 (herramienta de ciudad) | M6b | props de M6b · kit urbano de C1 | M8 | Niebla por capas y color por hora y clima; La Herrería; misiones con «objetivo actualizado» y marcadores |
+| T5 | H5 | C1 | M7 | familias e interiores de C1 | M8 · E1 | **Altavega jugable** (casco viejo, ensanche, barriada, Las Torres con 2 torres héroe y miradores); coches; mapa de papel con el *skyline* |
+| T6 | H6 · enganches de M8 | V1 | M8 | V1 | M9b | Ciudad con rastros de vida (atascos, humo, grafitis, cuervos); frío v2, ropa, base y habilidades; opciones de accesibilidad |
+| T7 | enganches | G2c | M9a | plantillas de M9a | M9b · E1 | Rodadas que se quedan y detalle a pie de calle; Valdenieve completo |
+| T8 | enganches | E1 | M9b | POI héroe de C2 | V2a | Tormenta de hielo, ola de frío, aludes y hielo fino en el río; director completo y especiales |
+| T9 | enganches (trueque) | C2 | V2a | POI héroe de C2 · E2a | M10 | Catedral, hospital, estación, estadio, puerto, polígono y el Gran Atasco; convoyes, helicópteros, radio y comerciantes |
+| T10 | pulido | E2a | M10 | — | M10 | Barrios que recuperan la luz (y sus alarmas) e incendios; la partida completa de principio a fin |
+| T11 | estabilización | estabilización | lanzamiento v2.0 | — | — | **v2.0**: builds de cliente y servidor, *soak* de 30 min |
+
+A‑ciudad es el carril más cargado (≈ 10 pases): si se retrasa, se recorta por la línea de corte (§v3.10), nunca se
+para el código.
+
+### v3.7.3 Dependencias
+
+```
+U   H1 ──► H2 ──► H3 ──► H4 ──► H5 ──► H6 ──► enganches de UI (M8, V2a, M10)
+           ▲ W1                 ▲ C1 (miradores)
+R   W0+G2a ──► W1 ──► C0 ──► G2b ──► C1 ──► V1 ──► G2c ──► E1 ──► C2 ──► E2a     ··· v2.1: C3, E2b
+               │                     ▲ M6a         ▲ M7    ▲ M8   ▲ M9a
+J              └──► M5 ──► M6a ──► M6b ──► M7 ──► M8 ──► M9a ──► M9b ──► V2a ──► M10   ··· v2.1: V2b
+A‑ciudad  A1 ──► W1 · kit M6a ──► C0 · M6b ──► C1 ──► V1 ──► M9a ──► C2 ──► E2a     ··· v2.1: C3
+A‑juego         M5 ──► M7 ──► M8 ──► E1 · M9b ──► V2a ──► M10
+```
+
+## v3.8 Fichas de hitos
+
+Formato de §7: objetivo, alcance de código (Fable) y de arte (Opus), aceptación (tests como puerta) y dependencias. Todos
+los hitos mantienen en verde `tests/run_all.sh` y las puertas anteriores.
+
+### v3.8.1 Carril U — interfaz («Susurro»)
+
+#### H1 — Cimientos del HUD «Susurro» · **M (código) + — (arte)** · **en curso**
+
+- **Objetivo**: el HUD actual pasa a v2 mínimo sin perder nada del slice: en reposo solo la tira de la barra; lo demás
+  aparece al cambiar o con Info.
+- **Código**: fuentes Barlow (Light, Regular) y Barlow Condensed (ExtraLight, Thin) con licencia OFL en `assets/fonts/`;
+  `UiTokens` v2 (doc 10 §V.2); `Theme` v2 **sin StyleBox de panel**, `LabelSettings` compartidos (sombra) y variaciones
+  `LabelWhisper`, `LabelSmallCaps` (`smcp`/`c2sc`), `LabelZoneTitle`, `LabelNum` (`tnum`); base 1920 × 1080
+  (`canvas_items`, `expand`), `SafeArea` y escala de UI; **`HudVisibility`** (máquina de estados por elemento con los
+  tiempos de §V.2.4 y §V.3; acción `hud_info`); **`AccentArbiter`** (quién lleva el ámbar y el único indicador de
+  borde); barra rápida en tira ↔ iconos; constante única dinámica (anillo de 40 px + número + versalita de estado); arco
+  de aguante junto al personaje; viñeta de escarcha de pantalla (`frost_screen`, intensidad 1 − Calor/40) y de daño;
+  línea de recogidas; chat que se funde; derribado con indicador único; arreglos del doc 10 §1.3 (selección de la barra
+  con mando, números con Info, aviso de ventisca a 60 s, legibilidad del `signpost`); decisión de la tecla Info (C34).
+- **Aceptación**: `tests/ui_idle_coverage.gd` (30 s en reposo: área de `Control` visibles con `modulate.a ≥ 0.1`
+  **≤ 3 %**); `tests/ui_legibility.gd` (1280 × 800 con la escala de Steam Deck: todo texto ≥ 12 px);
+  `tests/unit/hud_visibility_test.gd` (aparece al cambiar, se funde en 3–5 s, Info muestra y oculta) y
+  `tests/unit/accent_arbiter_test.gd` (derribado > calor < 30 > objetivo; nunca dos indicadores de borde); capturas
+  `hud_day`, `hud_action` y `hud_blizzard_night` comparables a las maquetas v2 a/b/d; CPU del HUD
+  ≤ 0.5 ms/frame y ≤ 60 draw calls; `run_smoke.sh` y escenario `zombies` en verde; ningún `StyleBox` de panel en el
+  `Theme`.
+- **Dependencias**: ninguna (se engancha a `Events`).
+
+#### H2 — Zonas: entrar y salir · **M + —**
+
+- **Objetivo**: avisos de entrada y salida de zona de nivel AAA (C35) con los nombres definitivos (C36).
+- **Código**: `LocationInfo` (tipo, zona padre, polígono o radio, peligro, temperatura, electricidad) migrado desde
+  `PoiRegistry.REGIONS` y ampliado con las regiones de W1 (incluidas las reservadas de doc 09 §4.3); `ZoneTracker`
+  (histéresis 12 m / 1.5 s por posición del jugador, jerarquía, enfriamientos, cola de 1, aplazado en combate y con P0);
+  `ZoneTitle` (primera visita 5.6 s con espaciado animado por `FontVariation.spacing_glyph`; re‑entrada 2.5 s; línea de
+  datos); cartel de autovía (vehículo a > 40 km/h y carreteras); línea P3 al salir solo si mejora; descubrimiento
+  persistente y compartido (`shared_discovery`) con *feed* «Ana descubrió: …»; sonido `ui_zone_discover`; retirada del
+  banner permanente del slice; señal `zone_entered` que usa también el perfil de cámara (C28).
+- **Aceptación**: `tests/unit/zone_tracker_test.gd` (zigzag sobre un borde: 0 cambios; ≥ 12 m durante 1.5 s: 1 cambio;
+  distrito sobre ciudad; enfriamientos; el combate aplaza); capturas `zone_card` (como la maqueta v2 c) y
+  `zone_sign_vehicle`; escenario de red `discovery` (A descubre, B llega después y ve el título compacto y el *feed*; el
+  descubrimiento sobrevive a reiniciar el servidor); títulos correctos en los 20 puntos de prueba de W1; `run_smoke.sh`
+  entra en 2 zonas sin `SCRIPT ERROR`; test de nombres (C36).
+- **Dependencias**: H1; W1 (regiones de 6 km).
+
+#### H3 — Avisos, peligros y grupo · **M + —**
+
+- **Objetivo**: que nada crítico se pierda con un HUD que se oculta.
+- **Código**: `NotifyRouter` (P0–P3, prelación, cola, fusión, enfriamiento); P0 en el mundo o en la constante afectada
+  (sin banner central), P1–P2 una línea de 3 s, P3 línea de recogida; línea de peligro arriba a la derecha que a los 5 s
+  queda en icono + tiempo; `HazardStack` con estados previsto → inminente → activo para ventisca y Gran Ventisca, y API
+  para E1/E2 (hielo fino, tormenta de hielo, ola de frío, alud, apagón, incendio); arco de daño direccional
+  (`player_hit_from`); compañeros (punto y nombre a > 25 m, herido, derribado = indicador único, línea de grupo con
+  Info); *pings* básicos (lugar, peligro) replicados; audio de UI (latido, estática de radio, `ui_objective_update`) y
+  rótulos de sonido con dirección para los P0 (imprescindibles con un HUD mínimo); enganches de M5 (retícula de
+  dispersión rojo/ámbar/verde, munición en la línea de la barra).
+- **Aceptación**: `tests/unit/notify_router_test.gd`; captura `downed_coop` (maqueta v2 e) con cobertura ≤ 3 %;
+  escenario `zombies` con 2 clientes: el derribo de B llega a A (indicador + audio) en ≤ 0.2 s; ventisca forzada:
+  aviso 60 s antes, línea y cuenta atrás; un *ping* de peligro visible en los 4 clientes; `run_smoke.sh` con un P0
+  simulado.
+- **Dependencias**: H2 (M5 para la retícula, suave).
+
+#### H4 — Misiones y marcadores · **L + S**
+
+- **Objetivo**: misiones que se leen como en un AAA sin panel fijo; adelanta el tablón de M10.
+- **Código**: `MissionComponent` (principal, secundaria y dinámica con caducidad; varios lugares; una seguida);
+  adaptador del `quest_state` del slice y del onboarding de los días 1–3 (GDD §16); tablón v0 (secundarias generadas por
+  el mundo: alarma, Gran Ventisca, rastro de horda; GDD §11.4); línea «objetivo actualizado» (5 s, filete ámbar) y ✓ en
+  el mundo; lista a petición (velo lateral: misiones, encargos, en la radio); `WorldMarkers` (pool de 24 rombos,
+  distancia solo con foco o Info, 30 Hz); `EdgeRail` (un solo indicador fuera de Info; agrupación); «calor cercano»
+  (Calor < 30: el ámbar pasa al refugio o la fogata conocida más cercana); rueda de *pings*; «Orientarse» (estela de
+  20 m durante 4 s).
+- **Arte**: iconos renderizados de los objetos nuevos que falten; glifos de teclado y mando (SVG, Fable).
+- **Aceptación**: `tests/unit/edge_rail_test.gd` (360 direcciones: siempre en el carril, fuera de las exclusiones,
+  agrupación); `tests/unit/mission_adapter_test.gd` (el slice produce la misma lista de pasos); onboarding del día 1
+  completo en `run_smoke.sh`; escenario `missions` (un paso completado por C aparece en A y B con su avatar); captura
+  `missions_open` (maqueta v2 f) con cobertura ≤ 7 %; `ui_idle_coverage` sigue ≤ 3 %; CPU del HUD ≤ 0.5 ms con 24
+  marcadores.
+- **Dependencias**: H3; M5 (eventos del mundo para el tablón, suave).
+
+#### H5 — Mapa de papel y diario · **L + S**
+
+- **Objetivo**: navegar 6 km sin minimapa; el *skyline* de Altavega en el mapa.
+- **Código**: pantalla de papel (`SubViewport` 2D por capas) generada del `macro_map` 768² y de `altavega_lots.json`
+  (manzanas impresas, siluetas de distrito, cartela del *skyline*); niebla por grupo persistente (`shared_map`);
+  posición exacta (opción de servidor: aproximada); marcas, *pings* y notas a lápiz; cursor con magnetismo; 3 niveles
+  de zoom; capas desbloqueables (pronóstico de ventisca, sectores con luz de E2a, rastro de horda de M9b); miradores y
+  «Otear» revelan ≈ 600 m; diario con pestañas (misiones, lugares, notas, radio); barra de pestañas v2 sin caja.
+- **Arte**: sello del *skyline* renderizado desde un mirador (A‑ciudad, S); el resto del mapa es SVG de Fable.
+- **Aceptación**: captura `map` (niebla, ciudad, marcas); escenario `map_fog` (A descubre y B ve la niebla levantada;
+  persiste tras reiniciar el servidor); un mirador de C0/C1 revela ≥ 600 m; abrir y cerrar el mapa en `run_smoke.sh`;
+  abrir el mapa ≤ 2 ms de CPU (no por frame).
+- **Dependencias**: H4, W1, M5 (persistencia); C1 (miradores, suave).
+
+#### H6 — Accesibilidad y pulido · **S–M + —**
+
+- **Código**: preajustes *Mínimo*/*Estándar*/*Completo* y ajuste por elemento (dinámico, siempre, oculto); grosor de
+  texto; fondo de texto automático u opaco; Info como alternancia; daltonismo en los acentos; movimiento reducido; TTS
+  de P0; rótulos de sonido con dirección; escala «Sofá/TV» (150 %); preajuste de Deck; remapeo; todas las cadenas con
+  `tr()`; opciones del perfil de cámara urbano y del radio del corte.
+- **Aceptación**: recorrido completo solo con mando (`run_smoke.sh --gamepad`); `ui_legibility` ≥ 12 px en Deck con
+  todos los preajustes; ninguna animación de UI por encima de 2 Hz (test sobre las curvas de `UiMotion`);
+  `ui_idle_coverage` ≤ 3 % en *Mínimo*; capturas por preajuste.
+- **Dependencias**: H5; antes de M10.
+
+### v3.8.2 Carril R — mundo y render
+
+#### W0+G2a — Corte urbano y ciudad jugable en render · **M–L (código) + S (arte)** · **en curso**
+
+- **Objetivo**: decidir con medidas la oclusión, congelar el contrato del kit urbano antes de producirlo y dejar listo
+  el render P0 de la ciudad (doc 09 W0 + doc 08 G2a, que se solapan).
+- **Código**: `shaders/include/city_cut.gdshaderinc` (capas A, B, C y F de C27); material compartido
+  `world_vcol_struct`; `CutManager` (*globals* por frame, uniformes por instancia, transición de planta,
+  `SHADOWS_ONLY`); siluetas como `next_pass` (capa D); `CityCut.is_cut` y el rayo del cursor; **nieve v2** en
+  `snow_include`; **ventanas por celdas** (`window_city`, `city_power`); farolas reales cerca + `light_pool` (charco y
+  halo); **LOD de torres**: grupos de plantas + `ShadowProxy` + `visibility_range` + `cast_shadow = OFF` en props
+  < 1 m; **perfil de cámara urbano** (`CameraProfile` por región, transición, bloqueo en combate, `far` dinámico, opción);
+  `prototypes/citycut/` (calle‑cañón, cruce en diagonal, azotea); `tests/citycut_probe.gd`; escena «ciudad» de
+  `perf_probe` con los assets de A1.
+- **Arte**: los dos edificios de prueba listos para corte (torre de 20 plantas: zócalo + 4 grupos + coronación + proxy;
+  ensanche de 6 plantas) y `cap_color` en la paleta (los entrega A1); propuesta de ASSET_SPEC_V2 para el kit urbano.
+- **Aceptación**: `citycut_probe` en Compatibility y Forward+: jugador ≥ 99 % y zombis ≥ 95 % legibles en las 3 vistas
+  a 16/24/38 m y con el perfil *Torres* a 46 m; la sombra de la torre cortada sigue en la calle (píxeles en sombra ±5 %
+  frente a sin corte); el cursor selecciona un contenedor a través de un edificio cortado; `perf_probe` «ciudad»: corte
+  ≤ 10 % del frame (lavapipe, informativo), ≤ 1 000 DC típicos, primitivas de sombra ≥ 25 % menos que con torres
+  completas; de noche, 20–35 % de ventanas encendidas y con `city_power = 0` solo las de generador; capturas del claro
+  (día, noche, ventisca, interior) sin regresión con la nieve v2; el perfil urbano entra en 1.5 s al cruzar la región de
+  prueba y no cambia durante un combate forzado; `run_smoke.sh` sin cambios; en la GPU del propietario `alto` ≤ 12 ms
+  de día (se informa, no bloquea).
+- **Dependencias**: ninguna (usa los assets de A1 cuando llegan; placeholders mientras tanto).
+
+#### W1 — Mundo de 6 × 6 km · **M + S** · **siguiente**
+
+- **Objetivo**: caminar (y teletransportarse) por 6 km con el valle idéntico; carreteras, río y sierras nuevas como
+  terreno; nada urbano aún.
+- **Código**: C25 completo: `WorldConst` 96², muros por eje, macro 768² con biomas nuevos, `gen_macro_map` 48 × 48 con
+  las *splines* de A‑14, rondas, Gran Vía, N‑140 sur, Carretera del Puerto y ferrocarril como sellos de terreno; río Albo
+  y dársena como hielo plano seguro hasta E1; `PoiRegistry` 48 × 48 con regiones, nombres definitivos y *pads*
+  reservados; `Bounds` y niebla por lado; `/tp` con los muros nuevos; tablas de población de 96² en el servidor;
+  `perf_walk` con una ruta de 6.5 km por los cuatro cuadrantes; datos de región listos para `LocationInfo` (H2).
+- **Arte**: props de cresta y montaña, jalones de carretera, bocas de túnel (abierta y derrumbada), guardarraíles.
+- **Aceptación**: **«el valle no cambia»**: hashes de altura, superficie y *scatter* de los chunks con \|x\|, \|z\| <
+  1 152 m idénticos a los previos a W1, salvo los de la Carretera del Puerto (lista cerrada en el test);
+  `determinism.gd` en 60 chunks de los cuatro cuadrantes; `perf_walk --cpu` de 6.5 km a 25 m/s: p99 ≤ 2 ms y 0 tirones;
+  memoria del cliente ≤ 2.5 GB; `run_net_test.sh --scenario far` con 4 clientes en 4 cuadrantes (hasta 5 km entre sí):
+  cada uno recibe solo su anillo y el RSS del servidor ≤ 400 MB; banner/región correctos en 20 puntos de prueba.
+- **Dependencias**: M4 (hecho); W0+G2a (suave: comparten `world_vcol` y el terreno). **Va antes del esquema SQLite de
+  M5.**
+
+#### C0 — Escaparate de Altavega · **S + S** (sujeto a D3)
+
+- **Objetivo**: ver la ciudad pronto y medir sus riesgos (R14, R18, R23) en su sitio real antes de producir el contenido
+  de C1.
+- **Código**: `data/world/city/altavega_lots.json` v0 (a mano, `city_version = 0`) con una supermanzana de Las Torres
+  (4–6 torres CC0 listas para corte y zócalos no enterables) y un tramo de Gran Vía con atasco estático (coches de A1),
+  farolas y barreras; ensamblador mínimo de torres (`Podium` + grupos + `Crown` + proxy) leído por el `ChunkJob`; un
+  mirador provisional en una azotea de zócalo; siluetas de distrito v0; fondo del menú principal con el *skyline* de
+  noche; medida de PCSS a 2.7 km del origen.
+- **Arte**: montaje con piezas de A1; Puente de Hierro provisional (bloque); malla de silueta de distrito.
+- **Aceptación**: `perf_walk --cpu` Carretera del Puerto → Las Torres a 25 m/s: streaming p99 ≤ 2 ms y 0 tirones;
+  `perf_probe` «altavega_c0» de día y de noche ≤ 1 000 DC típicos (Forward+) y ≤ 700 (`compat`); `citycut_probe` en 5
+  puntos fijos de la manzana ≥ 95 % (jugador ≥ 99 %); PCSS: la misma torre en el origen y a 2.7 km, diferencia media
+  ≤ 3 % en la penumbra (si no, se aplica la mitigación de R23 aquí); hash del fichero de lotes igual en cliente y
+  servidor; captura `menu_skyline`; `run_smoke.sh` sin cambios.
+- **Dependencias**: W0+G2a, W1, A1.
+
+#### G2b — Atmósfera · **M + S**
+
+- **Objetivo**: *The Long Dark* en cada hora: profundidad entre torres, viento que se ve, vida que humea.
+- **Código**: niebla en capas (exponencial + altura; `FogVolume` locales y volumétrica solo en `alto` y en ventisca o
+  noche); serpientes de nieve a ras de suelo y arrastre en el terreno; viento por vértice (pinos, cables, lonas);
+  `tools/make_luts.py` y 6–8 LUT 32³ (`dia_claro`, `nublado`, `ventisca`, `atardecer`, `noche`, `noche_ciudad`,
+  `apagon`, `calor`) con mezcla en CPU; humo (partículas + sprites CC0), fuego, balizas y rotativos, bandadas (render);
+  deshielo visible (oscurecer y mojar junto a fuentes de calor).
+- **Arte**: sprites de humo (Kenney *Particle Pack*, CC0, por el manifiesto); ajustes de LUT.
+- **Aceptación**: hoja de contacto de 8 horas × 3 climas (`run_screenshots.sh … g2b_sheet`); ventisca en la escena
+  «ciudad» ≤ +25 % sobre el día en lavapipe (proporción) y ≤ 14 ms en la GPU del propietario (se informa); mezcla de LUT
+  ≤ 0.1 ms de CPU por actualización y 0 en reposo; `compat` sin volumétrica conserva la profundidad (captura);
+  `perf_walk` sin regresión.
+- **Dependencias**: W0+G2a.
+
+#### C1 — Altavega: núcleo urbano · **L + L**
+
+- **Objetivo**: entrar por el Control del Puerto, cruzar el Puente de Hierro y recorrer casco viejo, ensanche, barriada y
+  un bloque de Las Torres (hasta 40 plantas; 2 torres héroe con escalera y azotea) a 60 FPS con 4 jugadores.
+- **Código**: `tools/gen_city.gd` y `data/world/city/*` (distritos, lotes, grafo de calles, siluetas); `BuildingAssembler`
+  de familias; `NavFloorTile` y enlaces de escalera; filtro vertical de interés; población urbana (estatuas en
+  MultiMesh, atrapados en coches, población por planta); miradores (Puente de Hierro, Torre Albo, torre de vigilancia,
+  Repetidor del Pico); perfiles de cámara por distrito definitivos; cinemática de llegada; `far` dinámico;
+  `perf_horde_city`.
+- **Arte**: kit urbano (≈ 120 piezas), 4 familias × 5 variantes, 20 sets de interior, set de azotea, props de calle, poses
+  congeladas horneadas, Control del Puerto y Puente de Hierro.
+- **Aceptación**: hash de ciudad (fichero + vestido de 50 parcelas) igual en cliente y servidor; `citycut_probe` en 10
+  puntos aleatorios ≥ 95 %; `perf_walk` urbano (Carretera del Puerto → Gran Vía → ensanche) a 15 m/s: ≤ 1 000 DC
+  típicos, p99 ≤ 16 ms, 0 tirones > 33 ms (y `perf_drive` en coche en cuanto M7 esté); `perf_horde_city` (150 L0 + 300
+  estatuas + 4 bots en Las Torres): *tick* p50 ≤ 8 ms; escenario de red `tower` (4 clientes en 3 plantas de una torre
+  héroe: puertas y contenedores coherentes; el filtro vertical reduce la bajada ≥ 30 %); los miradores revelan el mapa;
+  títulos de zona de los 4 distritos; captura desde una azotea con la calle visible.
+- **Dependencias**: W0+G2a, W1, C0, M6a; M7 (suave). **Riesgos**: R15, R17, R18.
+
+#### V1 — Rastros y vida ambiental · **M + M**
+
+- **Código**: atascos (rondas y primer tramo de la A‑14), 40 escenas de rastro, grafitis y carteles (letras de malla +
+  atlas `signage`), generadores sueltos con ventanas encendidas, humo, tendederos; bandadas (registro en el servidor +
+  *boids* en el cliente) que despegan y delatan; ratas; restos al viento; neón y semáforos con generador; paisaje sonoro
+  urbano.
+- **Arte**: ≈ 12 restos de vehículo, props de campamento y rastro, letras, atlas `signage` (2048², paleta cerrada),
+  cuervos, palomas y ratas.
+- **Aceptación**: `perf_probe` en un cruce con todo activo: ≤ +0.5 ms de CPU del cliente y ≤ +60 DC; test `flocks` (20
+  pasadas de un zombi a 10 m de una bandada: despega 20/20; dos clientes ven el despegue con ≤ 0.2 s de diferencia); el
+  escenario `zombies` no sube la bajada más de un 5 %; capturas de día, noche y ventisca en 3 distritos;
+  `verify_third_party.py`/verificador de `signage` en verde.
+- **Dependencias**: C1, G2b.
+
+#### G2c — Detalle · **M + S** (recortable)
+
+- **Código**: mapa de rodadas persistente por chunk (vehículos, arado, rastro de horda) en `Texture2DArray`; carreteras
+  que se cubren en ventisca y se reabren al pasar coches; calcomanías (Forward+) y mallas‑calcomanía (`compat`); SSR solo
+  en regiones con hielo o cristal; SMAA en `alto` y FSR2 en el menú de calidad; AO de cielo de las torres en el terreno.
+- **Arte**: atlas de calcomanías (aceite, sangre, hollín, escarcha).
+- **Aceptación**: `tests/unit/trail_map_test.gd` (sellar, salir y volver a un chunk: mismo hash); carretera cubierta y
+  reabierta (capturas); SSR solo activo donde `RegionTracker` lo pide; capturas de calcomanías en Forward+ y `compat`;
+  `perf_walk` y `perf_probe` sin regresión > 5 %.
+- **Dependencias**: M7, C1.
+
+#### E1 — Clima extremo · **L + M**
+
+- **Código**: `HazardSystem` (global y regional); *whiteout*; tormenta de hielo (`ice_glaze`, resbalones, líneas
+  cortadas); ola de frío (gasóleo, baterías, congelación en 60 s → ciudad de estatuas); aludes (cargas, disparadores,
+  depósitos, sepultados, excavar); mapa de hielo por masa de agua (río, dársena, ibón y el lago de M8); congelación por
+  partes; parte meteorológico de la radio de emergencia; líneas de peligro de H3 para cada uno.
+- **Arte**: carámbanos, grietas y agujeros de hielo de río, 3 depósitos de alud, pala; animaciones `Act_Dig`,
+  `Buried_Struggle`, `Slip_Fall`, `Act_Pull_From_Ice`.
+- **Aceptación**: `tests/unit/hazards_test.gd` (carga y disparo de aludes, grosor de hielo, gelificación, resbalones:
+  valores del doc 09 §6); escenario `avalanche` (A dispara un alud con una bomba de tubo en el desfiladero, B queda
+  sepultado y A lo desentierra en ≤ 5 s; el depósito corta la N‑140 y persiste tras reiniciar); `run_smoke.sh`:
+  `/weather ice_storm` → μ del asfalto 0.15 y un zombi que resbala; cruzar el río a pie sobre hielo medio y romperlo con
+  un coche; cada peligro se anuncia ≥ 3 s antes en el HUD.
+- **Dependencias**: M8 (modelo térmico), W1 (río y laderas).
+
+#### C2 — Hitos de Altavega, puerto, industria y Gran Atasco · **L + L**
+
+- **Código**: los POI héroe de la ciudad como escenas; ascensores (enlaces con corriente; provisionales hasta E2a);
+  generador del Gran Atasco (2.2 km, 1 500–2 500 coches en MultiMesh con índice espacial; zombis atrapados); poblaciones
+  por POI; `perf_drive` por la A‑14; miradores de la Torre de Telecomunicaciones y la presa.
+- **Arte**: 10 POI héroe (Catedral, Torre de Telecomunicaciones, Universidad, Presa del Cierzo, Hospital Provincial,
+  Jefatura de Policía, Centro Comercial, Estación Central, Estadio, Torre Albo completa), sets portuario e industrial.
+- **Aceptación**: `perf_drive` por la A‑14 a 30 m/s por el carril libre: 0 tirones; tramo más denso del atasco ≤ 1 000 DC
+  típicos; escenario `hospital_provincial` (40–60 zombis, 4 jugadores): 0 desincronizaciones de puertas y contenedores;
+  PCSS en el Gran Atasco (4.3 km) con diferencia de penumbra ≤ 3 % frente al origen (R23); capturas de los POI de día y
+  de noche.
+- **Dependencias**: C1, M9a (plantillas de servicios).
+
+#### E2a — Red eléctrica e incendios · **M–L + M** (v2.0)
+
+- **Código**: `PowerGrid` (≈ 10 sectores; presa y central térmica como fuentes; subestaciones; el grupo elige qué
+  sectores reciben corriente; generadores por edificio; ascensores; alarmas; calefacción eléctrica); `FireSystem` (por
+  edificio y planta, adosados, ruina; `fire_spread = buildings`); meta «Devolver la luz a Altavega» (para M10).
+- **Arte**: variantes quemadas de las familias; chispas y cables caídos; extintor.
+- **Aceptación**: `tests/unit/urban_hazards_test.gd` (propagación del fuego, reparto de capacidad de la red); escenario
+  `power` (2 jugadores reparan la presa y activan 3 sectores: las ventanas se encienden en ambos clientes, suena al menos
+  una alarma y los congelados de un interior calentado despiertan); escenario `fire` (un molotov en el ensanche pasa al
+  edificio adosado en 3–5 min y despierta congelados a ≤ 30 m); todo persiste tras reiniciar; `perf_probe` de noche con 4
+  sectores encendidos ≤ 16 ms en la GPU del propietario (se informa).
+- **Dependencias**: C2, E1.
+
+#### v2.1 — C3 (periferia sur, **M + L**), E2b (resto de peligros urbanos, **M + S**)
+
+- **C3**: base aérea (con Coloso) y avión estrellado; suburbios (Vega Baja, Los Álamos, urbanizaciones del norte y del
+  este, con las plantillas de M6b); estación de esquí y Santa María del Puerto; túnel de Peña Roya (galería a pie) y
+  desfiladero; ferrocarril con tren nevado; estación de mercancías; área de servicio. Aceptación del doc 09 §8.2 (hashes
+  de suburbios, `perf_drive` N‑140 sur → A‑14 → base aérea, escenario `airbase`, túnel a pie en `run_smoke.sh`).
+  Dependencias: C2, E1.
+- **E2b**: tuberías → inundación → placas de hielo, fugas de gas y explosiones, vertidos, inversión térmica y *smog*,
+  carga de nieve y colapso de tejados. Aceptación: `urban_hazards_test` ampliado (ignición de gas, `T(y)` de la
+  inversión, carga de tejado); un hangar o nave colapsa tras forzar Gran Ventisca + deshielo; tuberías que revientan al
+  calentar un edificio; todo persiste. Dependencias: E2a.
+
+### v3.8.3 Carril A — arte de base
+
+#### A1 — Pipeline CC0 en el repo y primer set urbano · **S (código) + L (arte)** · **en curso**
+
+- **Objetivo**: meter las librerías CC0 en el repo de forma reproducible y con licencias trazables (C30), y entregar el
+  primer set de ciudad ya invernal y listo para corte.
+- **Arte (Opus)**: `blender/third_party/winterize.py` (import, ajuste por altura de planta, color por esquina,
+  clasificación, gradación OKLab, intemperie, nieve con losas y ventisqueros, AO, export) + etapa **«listo para corte»**
+  (volumen cerrado, una losa por planta, grupos de 4 plantas, `ShadowProxy`, `Col*`); `packs/<pack>.json`; `fetch.py`
+  (URL + SHA‑256, caché fuera del repo); `verify_third_party.py`; `assets/third_party/manifest.json`, un `License.txt`
+  por pack y `CREDITS.md` generado. Primer set: 5 torres Kenney × 2–3 variantes (63–104 m) con `low_*`,
+  `Tower_Base/Shaft/Top`, `Light_Beacon` y `Smoke_*`; 10 coches de atasco (Quaternius *Cars* y *Zombie Apocalypse Kit*)
+  con `Body`/`Glass`/`Snow` separados y anclas `Loot`, `FuelCap`, `Headlight_L/R`; ≈ 30 props urbanos (farolas,
+  barreras, pórtico, contenedores, depósito de agua, chimenea); los 2 edificios de prueba de W0 y `cap_color`.
+- **Código (carril R)**: plantillas `.import` para `assets/models/city/`; `inspect_models.gd` ampliado a la familia de
+  terceros (frente, superficies, `COLOR_0`, anclas).
+- **Aceptación**: `verify_third_party.py` → `ALL OK` (formato, gama OKLab, presupuesto de tris por familia, AO, licencia
+  y SHA‑256 en el manifiesto); `fetch.py` reproduce las fuentes desde los espejos con los hashes fijados; import en
+  Godot 4.7.2 con 0 errores e `inspect_models.gd` en verde; `verify_assets.py` sigue en `ALL OK`; `assets/` crece
+  ≤ 25 MB; `CREDITS.md` generado.
+- **Dependencias**: ninguna. Alimenta W0+G2a (escena «ciudad»), C0 y M7 (restos de coche).
+
+### v3.8.4 Carril J — juego: cambios v3 en M5–M10 y vida dinámica
+
+El objetivo, el alcance y la aceptación de M5–M10 son los de §7; aquí solo cambia lo que se indica.
+
+| Hito | Tamaño | Tramo | Cambios v3 (código / arte) | Aceptación añadida | Dependencias v3 |
+|---|---|---|---|---|---|
+| **M5** | L + M | T2 | Esquema SQLite sobre claves de 96², `world_meta.world_version = 2` y `city_version`; armas, ruido y botín pueden empezar antes de W1 (solo el esquema espera). La retícula y la munición las pinta U (H3). Arte en A‑juego. | Escenario `restart` con un jugador en el cuadrante SE (x, z > 3 000): todo persiste; `world_meta` con `world_version = 2`. | M4, W1 (esquema) |
+| **M6a** | M + L | T3 | Kit **listo para corte** (contrato de W0: volúmenes cerrados, una losa por planta, tabiques con grosor, `cap_color`); `CutawayManager` con `inside` y tejado/plantas en `SHADOWS_ONLY` (sustituye a `PoiCutaway`); carteles diegéticos legibles a 24 m (doc 10 §7.4). | `citycut_probe` en la calle de prueba ≥ 95 %; el interior de una casa cortada sigue en sombra (±5 %). | M5, W0+G2a |
+| **M6b** | L + M | T4 | Plantillas reutilizables como suburbio en C3; señalización de carretera y de Protección Civil (doc 10 §7); farolas con charcos de luz de G2a; títulos de zona (H2) de La Herrería y sus POIs. | Títulos correctos al entrar en la aldea y en los 3 POIs. | M6a |
+| **M7** | M + M | T5 | `perf_drive` por la A‑14 a 30 m/s (tramo de W1 con atasco provisional de coches de A1); los restos de coche son CC0 winterizados; el HUD de vehículo y el cartel de autovía los pinta U. | `perf_drive` A‑14 a 30 m/s: 0 tirones. | M5, M6b |
+| **M8** | L + M | T6 | Congelación diseñada ya con las fases del doc 09 §6.13 (E1 la completa); hielo fino del lago con el mapa de grosor que E1 extiende al río; paneles de ropa, habilidades y base y el desglose térmico (en Info) los pinta U; el tablón ya no está aquí (H4). | `thermal_test` cubre las fases de congelación. | M5, M6b |
+| **M9a** | L + L | T7 | Plantillas de servicios (hospital, comisaría, iglesia, escuela) con variantes urbanas para C2; topes de C32. | — | M6b, M8 |
+| **M9b** | L + M | T8 | Densidades urbanas y hordas L2 por el grafo de calles de Altavega; esqueleto cuadrúpedo y fauna CC0 (lobo, ciervo, zorro, husky) que habilita los perros de V2b; acechador con *whiteout* (E1). | `perf_horde` con horda migratoria por una calle de Altavega. | M9a; C1 (suave) |
+| **V2a** | L + M | T9 | **Nuevo**: director del mundo, `RadioSchedule`, lanzamientos de suministros, helicópteros, convoyes militares cinemáticos (`military_attitude`), quitanieves de los supervivientes, 3–4 campamentos con comerciante y guardias **estáticos**, trueque y frases cortas (sin diálogo), NPC visibles en ventanas y azoteas. Arte: atuendos de NPC sobre el superviviente, 3 vehículos militares, helicóptero, paracaídas y cajas, animaciones `Trade_Idle` y de guardia. | `tests/unit/world_director_test.gd` (nunca en Gran Ventisca, ≤ 1 evento grande por zona y hora, enfriamientos); escenario `convoy` (2 km de A‑14, se para en el atasco, abre un carril y el carril persiste); escenario `trade` (2 clientes con el mismo comerciante sin duplicar objetos); `perf_horde` con 12 humanos L0 + 130 zombis L0: *tick* p50 ≤ 8 ms; bajada típica ≤ 15 kB/s. | M9b, M7, C1; C2 (suave) |
+| **M10** | L + M | T10 | Tablón, *pings* y mapa salen de M10 (H3–H5); el stencil de corte desaparece (C27); meta nueva «Devolver la luz a Altavega» (con E2a); evacuación por el puente norte (base aérea como alternativa en v2.1); el convoy de evacuación es el sistema de V2a; menú con *skyline* (C0) y navegador; onboarding de 3 días con títulos de zona y misiones de H4; `compat` afinado para ciudad (≤ 700 DC). | Escenario `campaign` incluye devolver la luz a 2 sectores; capturas de todas las regiones de v2.0 de día, de noche y en ventisca. | M9b, V2a, H6; E2a (suave) |
+| **V2b** (v2.1) | M–L + S | — | Saqueadores (IA de combate humano con coberturas precalculadas, emboscadas, asaltos a bases, retirada al 50 %), perros callejeros, caravanas entre campamentos. | Escenario `raid` del doc 09 §8.2; `perf_horde` con saqueadores activos ≤ 8 ms. | V2a, M9b |
+
+## v3.9 Resumen
+
+| Hito | Nombre | Carril | Fable | Opus | Puertas de aceptación | Versión |
+|---|---|---|---|---|---|---|
+| H1 | HUD «Susurro»: cimientos | U | M | — | `ui_idle_coverage` ≤ 3 %, `ui_legibility` Deck, `hud_visibility`/`accent_arbiter`, capturas v2 | v2.0 · en curso |
+| W0+G2a | Corte urbano y render de ciudad | R | M–L | S | `citycut_probe` ≥ 99/95 %, sombra ±5 %, `perf_probe` ciudad, capturas del claro | v2.0 · en curso |
+| A1 | Pipeline CC0 y primer set | A‑ciudad | S | L | `verify_third_party`, manifiesto, import 0 errores, `inspect_models` | v2.0 · en curso |
+| W1 | Mundo de 6 km | R | M | S | «el valle no cambia», determinismo 60 chunks, `perf_walk` 6.5 km, `far` 4 clientes | v2.0 · siguiente |
+| H2 | Zonas: entrar y salir | U | M | — | `zone_tracker_test`, net `discovery`, test de nombres | v2.0 |
+| M5 | Armas, botín, SQLite, operación | J | L | M | §7 + `restart` en el cuadrante SE | v2.0 |
+| C0 | Escaparate de Altavega | R | S | S | `perf_walk` al distrito, `perf_probe` ≤ 1 000 DC, PCSS a 2.7 km, `menu_skyline` | v2.0 (D3) |
+| H3 | Avisos, peligros y grupo | U | M | — | `notify_router_test`, derribo en ≤ 0.2 s, aviso de ventisca 60 s | v2.0 |
+| M6a | Kit listo para corte, calle | J | M | L | §7 + `citycut_probe` en la calle | v2.0 |
+| G2b | Atmósfera | R | M | S | hoja 8 h × 3 climas, ventisca ≤ +25 %, LUT ≤ 0.1 ms | v2.0 |
+| H4 | Misiones y marcadores | U | L | S | `edge_rail_test`, `mission_adapter_test`, net `missions` | v2.0 |
+| M6b | La Herrería y POIs | J | L | M | §7 + títulos de zona | v2.0 |
+| C1 | Altavega núcleo | R | L | L | hash de ciudad, `citycut_probe` 10 puntos, `perf_horde_city`, net `tower` | v2.0 |
+| H5 | Mapa de papel y diario | U | L | S | net `map_fog`, persistencia, mirador revela 600 m | v2.0 |
+| M7 | Vehículos | J | M | M | §7 + `perf_drive` A‑14 30 m/s | v2.0 |
+| V1 | Rastros y vida ambiental | R | M | M | `flocks`, ≤ +0.5 ms / +60 DC, bajada +≤ 5 % | v2.0 |
+| H6 | Accesibilidad y pulido | U | S–M | — | recorrido con mando, Deck ≥ 12 px, ≤ 2 Hz | v2.0 |
+| M8 | Frío v2, base, progresión | J | L | M | §7 + fases de congelación | v2.0 |
+| G2c | Detalle | R | M | S | `trail_map_test`, SSR por región, sin regresión | v2.0 (recortable) |
+| M9a | Valdenieve y regiones | J | L | L | §7 | v2.0 |
+| E1 | Clima extremo | R | L | M | `hazards_test`, net `avalanche`, `ice_storm` | v2.0 |
+| M9b | Director, especiales, hordas | J | L | M | §7 + horda por Altavega | v2.0 |
+| C2 | Hitos, puerto, industria, Gran Atasco | R | L | L | `perf_drive` A‑14, net `hospital_provincial` | v2.0 |
+| V2a | Supervivientes, convoyes, radio | J | L | M | `world_director_test`, net `convoy`/`trade`, 12 humanos + 130 zombis ≤ 8 ms | v2.0 |
+| E2a | Red eléctrica e incendios | R | M–L | M | `urban_hazards_test`, net `power`/`fire` | v2.0 |
+| M10 | Meta, co‑op, lanzamiento | J | L | M | §7 + `campaign` con la luz | v2.0 |
+| C3 | Periferia sur | R | M | L | net `airbase`, túnel a pie | v2.1 |
+| E2b | Tuberías, gas, vertidos, *smog*, colapsos | R | M | S | `urban_hazards_test` ampliado | v2.1 |
+| V2b | Saqueadores y perros | J | M–L | S | net `raid` | v2.1 |
+
+## v3.10 Línea de corte v2.0 / v2.1
+
+- **v2.0 (lanzamiento)**: H1–H6; W0+G2a, W1, C0, G2b, G2c, C1, V1, E1, C2, E2a; A1; M5–M10 y V2a. Es decir: el valle
+  completo, **Altavega** (núcleo + hitos + puerto + polígono + Gran Atasco), el mundo de 6 km con la periferia sur como
+  terreno, **8 de los 13 peligros**, vida estática y ambiental, convoyes, helicópteros, radio y **comerciantes
+  estáticos** (≤ 12 humanos, sin combate humano) y el HUD «Susurro» completo.
+- **v2.1**: C3 (periferia sur: base aérea, avión, esquí, Santa María, suburbios del sur, túnel a pie, tren), V2b
+  (saqueadores armados, perros, caravanas), E2b (tuberías, gas, vertidos, *smog*, colapsos), evacuación alternativa por
+  la base aérea, set «héroe» texturizado de *Downtown* (si se aprueba) y lo que ya estaba en «Después de v2.0» (§7).
+- **Orden de recorte dentro de v2.0 si hay retraso** (de lo primero a lo último): (1) SSR, calcomanías y FSR2 de G2c;
+  (2) C2 reducido a 6 POI héroe (hospital, jefatura, estación, estadio, dársena, central térmica) + Gran Atasco;
+  (3) incendios de E2a (se queda la red eléctrica); (4) comerciantes de V2a (se quedan radio, convoyes, helicópteros y
+  lanzamientos); (5) C0 se funde en C1. **No se recortan nunca**: tests y puertas, corte urbano, H1–H5, W1, C1, M5–M10.
+- **Puntos de decisión**: al cerrar **C1** (T5), con el ritmo real de familias e interiores (R15, R27), y al cerrar
+  **E1** (T8), con el presupuesto de servidor medido.
+
+## v3.11 Riesgos nuevos
+
+Continúan §9 (R1–R13). R14–R22 vienen del doc 09 §8.5; R23 se precisa; R24–R30 son nuevos.
+
+| # | Riesgo | Prob. | Impacto | Señal de alarma | Mitigación / plan B | Hito |
+|---|---|---|---|---|---|---|
+| R14 | Legibilidad insuficiente en la ciudad pese al corte | Media | Alto | `citycut_probe` < 95 % o *playtest* confuso | Prototipo al 100 % en calle‑cañón; siluetas más fuertes, R mayor, perfil *Torres* desactivable; plan B: *pitch* urbano más vertical como opción | W0, C0, C1 |
+| R15 | Volumen de contenido urbano (kit, familias, interiores, 14 héroes) | Alta | Alto | C1 entrega < 70 % de familias o interiores | Bajar el % enterable; familias parametrizadas (JSON); héroes priorizados; línea de corte §v3.10 | C1–C3 |
+| R16 | CPU de la IA humana | Media | Alto | `perf_horde` con humanos > 8 ms | V2a solo con humanos estáticos; ≤ 12 L0; coberturas precalculadas; tope de zombis 130; combates lejanos resueltos en abstracto (L2); combate humano en v2.1 | V2a, V2b |
+| R17 | Navmesh multiplanta | Media | Medio | Cola de horneado > 2 s | Teselas por planta perezosas, escaleras como enlaces, ≤ 12 teselas/s | C1 |
+| R18 | Tirones de *streaming* en ciudad | Media | Alto | `perf_walk`/`perf_drive` urbano con frames > 33 ms | `PackedScene` por variante, grupos de plantas, precarga, velocidad limitada por el tráfico muerto; se mide ya en C0 | C0, C1 |
+| R19 | El generador de ciudad cambia después de publicar | Media | Medio | Hash de ciudad distinto entre versiones | `city_version` + migración explícita; datos congelados por hito | C1+ |
+| R20 | Las texturas `signage` y de calcomanías rompen el estilo | Baja | Bajo | Capturas | Paleta cerrada, solo carteles y rótulos, verificador | V1, G2c |
+| R21 | El alcance nuevo desborda el plan (×2 de trabajo) | Alta | Alto | Retrasos acumulados tras C1 | Carriles paralelos; orden de recorte y puntos de decisión de §v3.10 | todos |
+| R22 | Coste de `discard` + `cull_disabled` en iGPU (`compat`) | Media | Medio | `perf_probe` `compat` fuera de presupuesto | `cut_class = 0` por CPU lejos de la zona; tapas solo cerca; tramado más simple | W0, C1 |
+| R23 | **Precisión y PCSS lejos del origen**: el desenfoque PCSS depende de la distancia al origen (#86536) y Altavega está a 2–4.6 km; *jitter* de sombras o de vértices en zoom máximo | Media | Medio | Sombras borrosas o que tiemblan en Altavega; diferencia de penumbra > 3 % entre el origen y 2.7 km (C0) | PCSS solo en `alto` con ángulo ≤ 1.2°; se mide en C0 (2.7 km) y se repite en C2 (Gran Atasco, 4.3 km); plan B: desplazamiento de origen **solo en el cliente** (el servidor, los chunks y los `wid` siguen en absoluto) | W1, C0, C1 |
+| R24 | **Disponibilidad y procedencia de los espejos CC0**: `series-ai/jam-ready-assets` o `chibifire-stages/quaternius-stage` desaparecen, cambian o contienen algo no CC0; USD con colores perdidos; *Downtown* incompleto | Media | Medio | `fetch.py` falla por hash o 404; `verify_third_party.py` en rojo | Manifiesto con repo, commit, ruta y SHA‑256; los `.glb` resultantes están en el repo (el juego no depende de la fuente); abrir los dominios oficiales (D1) y reverificar contra el pack oficial; plan B: bpy propio para lo que falte | A1, C1 |
+| R25 | **Tamaño del repositorio**: 200–400 `.glb` de ciudad (media 330 kB, torres 0.5–1.5 MB) y sus regeneraciones inflan el historial de git (hoy `.git` 78 MB, `assets/` 15 MB) | Alta | Medio | `assets/models/` > 150 MB o un commit > 50 MB | Fuentes nunca en el repo; exportación determinista y no volver a subir `.glb` sin cambios (comparar hash); presupuesto por familia en `verify_third_party.py` y total en un test; maquetas y capturas en JPG ≤ 400 kB; plan B: Git LFS para `assets/models/city/` (se pedirá al propietario si salta la señal) | A1 y todos |
+| R26 | Coherencia de estilo entre CC0 y lo propio | Media | Medio | Capturas que parecen «dos juegos» | Gradación OKLab única, nieve v2 y AO para todo; personajes, zombis, vegetación y casas enterables propios; revisión de capturas por hito | A1, C1 |
+| R27 | **El arte es el cuello de botella** (≈ 17–18 pases de Opus frente a ≈ 10 del carril de código más cargado) | Alta | Alto | Hitos que cierran con *placeholders* | Dos carriles de arte; CC0 para relleno; el código no depende de `.glb`; orden de recorte | C1–C2 |
+| R28 | **Conflictos entre carriles paralelos** en ficheros compartidos | Media | Medio | Fusiones rotas; tests en rojo tras fusionar | Propiedad de ficheros (C37); cambios pequeños y anunciados; `run_all.sh` antes de cada fusión; integración frecuente | todos |
+| R29 | HUD mínimo: los avisos críticos dependen del audio de UI y de los rótulos de sonido | Media | Medio | *Playtest*: «no me enteré de que Ana estaba derribada» | Audio de UI y rótulos en la aceptación de H3; preajuste *Estándar* a un clic; TTS en H6; plan B: banner P0 mínimo opcional | H3, H6 |
+| R30 | Perfil de cámara urbano: desorientación, más draw calls a 46 m, más veces la cámara dentro de una torre | Media | Bajo | `perf_probe` a zoom máximo > 1 000 DC; quejas en *playtest* | Transición solo al confirmar el distrito y nunca en combate; desactivable; zoom máximo recortable a 42 m; corte escalado con el zoom | W0, C1 |
+
+## v3.12 No objetivos: enmiendas y nuevos
+
+- **No objetivo 2 (enmendado)**: «**NPC con moral, diálogos o compañeros reclutables.**» Desde V2a hay supervivientes
+  humanos **limitados: como mucho 12 activos (L0) por servidor**, **sin diálogos** (ni árboles ni conversaciones; solo
+  frases cortas ambientales) y con **trueque por menú**. La historia se sigue contando con notas, radio, rastros y
+  escenografía. El combate contra humanos (saqueadores) es de v2.1.
+- **No objetivo 10 (enmendado)**: «Texturas/UVs» sigue siendo la regla; excepciones cerradas y con verificador: atlas
+  `signage` (V1), atlas de calcomanías (G2c), LUT 3D (G2b) y sprites de humo (G2b). El set «héroe» texturizado de
+  *Downtown* queda aplazado (v2.1, si se aprueba).
+- **No objetivo 9 (precisión)**: sigue sin doble precisión; el desplazamiento de origen en el cliente solo como plan B
+  de R23.
+- **Nuevos (v3)**: tráfico civil vivo; *skyline* en la cámara de juego (solo miradores, mapa, menú y cinemáticas);
+  *occlusion culling* en la ciudad; HLOD o impostores en la cámara de juego; interiores en todas las torres (solo
+  vestíbulos del 30 % y 2 torres héroe); minimapa y brújula; banner central de avisos por defecto.
+
+## v3.13 Decisiones pendientes del propietario
+
+Cinco, con recomendación. Todo lo demás lo decide el plan.
+
+| # | Decisión | Opciones | Recomendación | Si no se decide |
+|---|---|---|---|---|
+| D1 | **Dominios de red** para descargar las librerías oficiales (doc 07 §6). Se cambia en la configuración del entorno de nube: menú del entorno en la barra de título de la sesión → Editar → acceso a red → añadir dominios permitidos. | (a) Ninguno; (b) prioridad 1 y 2; (c) 1, 2 y 3 | **(b) ya**: `kenney.nl`; `quaternius.com`, `drive.google.com`, `drive.usercontent.google.com`, `www.googleapis.com`. **Grupo 3** (`itch.io`, `api.itch.io` y el CDN de descargas, más una API key gratuita de itch) **en T4**, cuando empiece el kit urbano de C1 (*Downtown City MegaKit* completo). Poly Haven y ambientCG no hacen falta. | Seguimos con los espejos de GitHub (funciona hoy; riesgo R24) |
+| D2 | **XP por descubrir zonas** | (a) +10 de Supervivencia al descubrir distritos y pueblos; (b) sin XP: solo revela el mapa y añade una entrada al diario | **(b)**: fiel al GDD §11.1 (XP solo por acciones significativas); el mapa y los miradores ya premian explorar | (b) |
+| D3 | **¿Ver Altavega pronto?** (orden M5 frente a ciudad) | (a) **C0** (una manzana de Las Torres en su sitio + *skyline* en el menú) en T3, en paralelo con M6a; ciudad jugable (C1) en T5; (b) sin C0: la ciudad se ve por primera vez en T5; (c) ciudad jugable antes de M5 | **(a)**: cuesta medio pase, adelanta dos tramos lo que el propietario ve y mide los riesgos de C1 (R14, R18, R23). **(c) no**: sin kit, coches ni guardado la ciudad sería una maqueta a medio día a pie y habría que rehacerla. Si solo quedara un carril de código para mundo y juego, C0 iría justo antes de M5. | (a) |
+| D4 | **Línea de corte v2.0 / v2.1** | La de §v3.10 u otra | **Confirmar §v3.10**, con revisión al cerrar C1 (T5) | Se aplica §v3.10 |
+| D5 | **Valores por defecto de «Susurro»** (doc 10 §V.9 y §10) | Sí / cambiar alguno | **Sí a los seis**: preajuste *Mínimo*; acento ámbar que se mueve por prioridad; sin banner central; sin rastreador fijo (misiones con Info); descubrimiento y niebla del mapa compartidos por el grupo; mapa con posición exacta (opción de servidor: aproximada) | Se aplican los seis |
+
+## v3.14 Documentos
+
+- `docs/PLAN_V3_RESUMEN.md` — resumen de esta parte en lenguaje llano para el propietario.
+- `docs/v2/GDD_MUNDO_ABIERTO.md` — «Addendum v3»: mundo y regiones, pilares del mundo vivo, peligros y HUD.
+- `docs/v2/ARQUITECTURA_V2.md` y `docs/v2/ASSET_SPEC_V2.md` — cada carril actualiza las secciones que su hito toca
+  (lista en doc 09 §8.6: `WorldConst`, generador de ciudad, corte urbano, `NavFloorTile`, `HazardSystem`, interés
+  vertical; kit urbano listo para corte, familias, grupos de plantas, poses congeladas, `signage`, familia de terceros).
+- `docs/research/07`–`10` — fuentes de esta parte. El doc 10 conserva los nombres de trabajo (C36) y el doc 08 su P0 de
+  fundido como historial (C27).

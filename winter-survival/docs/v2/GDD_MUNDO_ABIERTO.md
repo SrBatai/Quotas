@@ -2,6 +2,8 @@
 
 > Diseño completo de la versión "mundo abierto". Sustituye a `docs/GDD.md` (slice) a partir del hito M2; hasta entonces el slice sigue siendo la referencia de lo que existe. Coherente con `docs/PLAN_MAESTRO.md` (decisiones §3, mundo §4, hitos §7), `ARQUITECTURA_V2.md` y `ASSET_SPEC_V2.md`.
 >
+> **Addendum v3 (26‑sep‑2026)**, al final de este documento: mundo de 6 × 6 km con la ciudad de Altavega, mundo vivo, peligros invernales y HUD «Susurro». Prevalece sobre las secciones que cita (§1, §3.1, §4.5, §6.4, §6.6, §11.3, §11.4, §12.4, §13, §17, §18), cuyo texto se conserva.
+>
 > Convención de cifras: cada número es el **valor inicial** que implementa el código (constantes en `scripts/data/balance.gd` y tablas en `data/`). Donde se indica un rango entre paréntesis, es el margen que el *playtest* puede mover sin cambiar el diseño. Todo texto de juego entre comillas o en `código` es literal (español).
 
 ---
@@ -643,3 +645,138 @@ Las 8 misiones del día 1 del slice se conservan (leña → estufa → hacha →
 ## 18. Lo que NO haremos en v2.0
 
 NPC con moral; zombis que excavan; hordas de 500 individuales; infección mortal por defecto; construcción por vóxeles; botín instanciado por defecto; olfato "de mentira"; cientos de armas; tercera persona; voz; Steam; móvil/web.
+
+---
+
+## Addendum v3 (26‑sep‑2026): mundo de 6 × 6 km, Altavega, mundo vivo, peligros invernales y HUD «Susurro»
+
+> Diseño del roadmap v3 (`docs/PLAN_MAESTRO.md`, Parte II; decisiones C25–C37). Este addendum **prevalece** sobre las
+> secciones que cita. El detalle vive en la investigación enlazada y no se copia aquí:
+> `docs/research/07_assets_cc0.md`, `08_graficos_g2.md`, `09_ciudad_mundo_vivo.md` y `10_hud_ux.md` §V. Resumen para el
+> propietario: `docs/PLAN_V3_RESUMEN.md`.
+
+### A.1 Qué cambia en este documento
+
+| Sección | Cambio | Decisión (PLAN) |
+|---|---|---|
+| §1 Ficha, «Mundo» | 6 × 6 km (96 × 96 chunks): el valle de §17 más la ciudad de **Altavega**, el río **Albo**, la A‑14, un puerto fluvial, un polígono, una sierra con estación de esquí y la periferia sur | C25, C26 |
+| §3.1 Cámara | Cifras vigentes (código, G1): −48°, FOV 36°, 24 m, zoom 16–38 m. En ciudad: **corte urbano**, **perfil de cámara urbano** por distrito y **miradores** (A.5) | C27, C28 |
+| §4.5 Formas del frío | Más *whiteout*, tormenta de hielo, ola de frío, aludes, hielo fino en río e ibón y congelación por partes (A.4) | C33 |
+| §6.4 Población | Densidades urbanas por chunk (doc 09 §4.3); estatuas congeladas; zombis atrapados en coches; población por planta en las torres | C32 |
+| §6.6 Director | Se le suma un **director del mundo** (eventos por región, clima y día; nunca en Gran Ventisca) | C32 |
+| §11.3 Meta | Tercera línea de progreso: «**Devolver la luz a Altavega**»; evacuación alternativa por la base aérea en v2.1 | C33 |
+| §11.4 Tablón | Absorbido por el sistema de misiones de «Susurro» (A.6) | C35 |
+| §12.4 Opciones de servidor | Nuevas: `shared_discovery` (on), `shared_map` (on), `map_position` = exacta / aproximada (exacta), `fire_spread` = off / buildings / full (defecto `buildings` desde E2a), `military_attitude` = neutral / hostile (neutral) | C33, C35 |
+| §13 Interfaz | Se sustituye la **estética** (paneles azul pizarra) por «Susurro» (A.6); la **funcionalidad** se conserva | C34 |
+| §17 Mundo | Ampliado por A.2 | C25 |
+| §18 | «NPC con moral» pasa a «NPC con moral, diálogos o compañeros reclutables»: sí hay supervivientes, limitados (A.3) | C32 |
+
+### A.2 El mundo de 6 × 6 km y sus regiones
+
+- **Forma**: 6 144 m de lado. El valle de §17 queda **idéntico** en el cuadrante noroeste; el mundo crece hacia el este
+  y el sur. El anillo de montaña sigue siendo el borde.
+- **Ritmo**: la ciudad está a **medio día a pie** del claro (2.2–2.7 km; 17–21 min reales) y la periferia a un día. El
+  coche, las casas seguras intermedias y el quitanieves pasan a ser necesarios, y separarse «duele» (pilar 4).
+- **Progresión espacial**: el valle es el principio seguro; Altavega es el juego tardío, detrás de un puerto de montaña
+  con un control militar caído; la periferia sur (v2.1) es el final alternativo.
+
+| Zona | Qué es y a qué se va | Versión |
+|---|---|---|
+| Valle de Valdenieve | Todo lo de §17: Valdenieve, aldeas, granjas, N‑140, lago, control militar, evacuación | v2.0 |
+| Sierra del Cierzo, Carretera del Puerto y Control del Puerto | La divisoria; 1.1 km de curvas con coches despeñados; la entrada a la ciudad | v2.0 |
+| **Altavega**: casco viejo, ensanche, barriada de San Lázaro y **Las Torres** | Calles estrechas y plaza mayor; manzanas de 5–8 plantas con bajos comerciales; bloques de 8–14 plantas; torres de 12–45 plantas con la **Torre Albo** (azotea con helipuerto) | v2.0 |
+| Hitos de Altavega | Catedral (refugio de horda), Torre de Telecomunicaciones (mirador y radio de emergencia), Universidad, Presa del Cierzo (electricidad), Hospital Provincial (sesión de 4), Jefatura de Policía (armería), Centro Comercial (techo que cede), Estación Central (tren de evacuación atascado), Estadio (campo de refugiados caído y comerciantes) | v2.0 |
+| **Río Albo** y Puente de Hierro | Río helado de 5.5 km: atajo arriesgado sobre hielo fino; puente con control militar | v2.0 |
+| Puerto fluvial y Polígono del Albo | Dársena helada con gabarras atrapadas y grúas; naves grandes, central térmica (electricidad y *smog*), parque de combustibles, químicas | v2.0 |
+| A‑14 y **el Gran Atasco** | 2.2 km de éxodo bloqueado: 1 500–2 500 coches, autobuses, ambulancias, cisternas y zombis atrapados | v2.0 |
+| Desfiladero de Peña Roya e ibón | N‑140 sur entre laderas de aludes; lago de montaña con hielo fino | v2.0 |
+| Periferia sur y Sierra de Peña Blanca | Base aérea (Coloso, evacuación alternativa), avión estrellado, suburbios, estación de esquí, Santa María del Puerto, túnel de Peña Roya, ferrocarril | v2.1 (el terreno existe en v2.0) |
+
+Mapa ASCII de 48 × 48, coordenadas, extensiones y zombis por región: `docs/research/09_ciudad_mundo_vivo.md` §4.2–4.3.
+Calles, alturas y porcentaje de enterables por distrito: §4.5. Nombres definitivos: **Altavega** y **Albo**; sustituyen
+a los nombres de trabajo «Albarrán» y «Albar» de las maquetas del doc 10.
+
+### A.3 Mundo vivo: pilares
+
+1. **Rastros antes que actores.** El 90 % de la «vida» es escenografía por semilla que cuenta lo que pasó: el éxodo
+   (atascos, maletas, puertas abiertas), la cuarentena (controles, carteles, fosas) y los que resistieron (barricadas,
+   campamentos, «SOS» en azoteas, ventanas encendidas por un generador).
+2. **La vida ambiental delata.** Cuervos, palomas, ratas y perros reaccionan a jugadores y zombis y avisan de lo que la
+   cámara no ve («se han levantado los cuervos en esa calle»). Una bandada que despega hace ruido: el préstamo, en
+   pequeño.
+3. **La vida dinámica es escasa, ruidosa y persistente.** Pocos actores humanos, en el servidor y con consecuencias: un
+   convoy arrastra una horda, un lanzamiento de suministros atrae a todos, un campamento saqueado queda saqueado.
+4. **Sin tráfico civil vivo.** Todo lo que se mueve con motor es de alguien: jugadores, militares, el quitanieves de los
+   supervivientes (y saqueadores en v2.1).
+5. **Humanos limitados y sin diálogos.** Como mucho **12 humanos activos** por servidor; trueque por menú y frases
+   cortas; ni árboles de diálogo ni compañeros reclutables. En v2.0, comerciantes y guardias **estáticos**; saqueadores
+   armados en v2.1.
+6. **El calor se lee en el tejado** (idea de *Frostpunk*): nieve fundida, carámbanos y vapor significan que alguien vive
+   o calienta ahí.
+
+Capas, presupuestos y red: doc 09 §5 (≤ 3 kB/s por cliente para toda la vida dinámica; la bajada típica sigue
+≤ 15 kB/s).
+
+### A.4 Peligros invernales
+
+Reglas comunes (C33): todo peligro **se anuncia o se telegrafía** (≥ 3 s, por radio o sonido), **se lee desde arriba**,
+tiene **contrajuego** e **interactúa con los zombis**. En el HUD es una **línea de peligro**, no un título de zona.
+
+| # | Peligro | En una línea | Hito | Versión |
+|---|---|---|---|---|
+| 1 | Ventisca blanca (*whiteout*) | Visibilidad de 3 m en terreno abierto; solo se leen luces, siluetas y jalones; en la ciudad el viento se canaliza por las calles | E1 | v2.0 |
+| 2 | Tormenta de hielo | Todo glaseado (μ 0.15), puertas heladas, ramas y cables que caen, apagones | E1 | v2.0 |
+| 3 | Ola de frío | −12 °C durante 1–2 días: gasóleo que gelifica, baterías, tuberías; los zombis se congelan en 60 s (ciudad de estatuas); el río se vuelve atajo | E1 | v2.0 |
+| 4 | Aludes | Laderas que se cargan; se disparan con explosiones, disparos o motores; cortan carreteras y entierran (también zombis) | E1 | v2.0 |
+| 5 | Hielo fino | Río Albo, dársena e ibón con grosor según el clima; atajos arriesgados; las hordas lo rompen | E1 | v2.0 |
+| 6 | Congelación por partes | Manos, pies y cara: entumecido → superficial → profunda | E1 (base en M8) | v2.0 |
+| 7 | Red eléctrica por sectores | Devolver la luz tiene precio: alarmas, tuberías, congelados que despiertan, cortocircuitos; a cambio, ascensores y calefacción | E2a | v2.0 |
+| 8 | Incendios | Suben por plantas y pasan a los edificios adosados; calor que salva y luz que atrae; despiertan congelados a 30 m | E2a | v2.0 |
+| 9 | Tuberías → inundación → hielo | Chorros, cascadas heladas en escaleras, sótanos a 0 °C | E2b | v2.1 |
+| 10 | Fugas de gas | Siseo y nieve fundida con burbujas; trampas explosivas | E2b | v2.1 |
+| 11 | Vertidos | Combustible (inflamable, μ 0.1 sobre hielo) y químicos (nube tóxica en sótanos y pasos inferiores) | E2b | v2.1 |
+| 12 | Inversión térmica y *smog* | Capa ocre sobre el valle del Albo: subir a una azotea es ver y abrigarse | E2b | v2.1 |
+| 13 | Carga de nieve y colapso | Techos planos de gran luz que ceden tras la Gran Ventisca o el deshielo | E2b | v2.1 |
+
+Mecánicas, cifras y referencias reales: doc 09 §6.
+
+### A.5 Cámara, ciudad y aspecto (G2)
+
+- **La cámara no enseña el *skyline***: el borde superior del encuadre baja 30° bajo el horizonte. En la ciudad las
+  torres se leen por su base, sus azoteas bajas, las **tapas de sección** del corte urbano y sus sombras de 200 m. Lo
+  que tapa al jugador se recorta con un tramado y el jugador siempre se ve (silueta del color de su chaqueta).
+- **Perfil de cámara urbano**: en los distritos altos la cámara se tiende un poco y se puede alejar más (hasta 46 m en
+  Las Torres). Nunca cambia en combate y se puede desactivar.
+- **Miradores**: en azoteas y torres, mantener V levanta la cámara y enseña la ciudad entera; además revelan el mapa. El
+  *skyline* también está en el **mapa de papel** y en el **menú principal**.
+- **Aspecto**: una sola nieve (se acumula por normal, se funde junto al calor y se pega a barlovento), niebla por capas,
+  una gradación de color por hora y clima, ventanas encendidas por celdas y barrios a oscuras. La ciudad y el tráfico
+  salen de librerías CC0 reestilizadas; personajes, zombis, vegetación y casas enterables son propios. Detalle: docs 07
+  y 08.
+
+### A.6 HUD «Susurro» (sustituye la estética de §13)
+
+1. **El mundo es la imagen.** En reposo el HUD ocupa menos del 3 % de la pantalla: solo la barra rápida plegada en 10
+   trazos.
+2. **Aparece al cambiar y se va solo** (3–5 s de lectura y un fundido lento): la constante que importa, la barra al
+   usarla, las recogidas, el peligro, la hora y la temperatura al amanecer o si cambian mucho.
+3. **A petición**: mantener **Info** muestra misiones, hora, temperatura, desglose térmico y grupo (en Accesibilidad,
+   Info puede alternar).
+4. **Un solo acento ámbar** para lo único que importa ahora (compañero derribado > fuente de calor si te congelas >
+   objetivo seguido) y **un solo indicador de borde**.
+5. **Sin cajas, sin minimapa y sin brújula**: texto fino (Barlow Light) con sombra y velo, filetes de 1 px, iconos de
+   línea; mapa de papel a pantalla completa.
+6. **Entrar en una zona**: título tipográfico grande la primera vez (5.6 s: «zona descubierta», nombre y «Altavega ·
+   sin electricidad · −18 °C · peligro alto»), solo el nombre al volver y cartel de autovía en coche; histéresis de 12 m
+   y 1.5 s, nunca en combate. **Salir**: nada, salvo una línea si la situación mejora («Has salido de la zona
+   militar»).
+7. **Misiones**: principal, secundaria (supervivientes, radio, notas, tablón) y dinámica (director, convoyes, llamadas
+   de socorro, con caducidad); línea «objetivo actualizado» y lista a petición; un rombo en el mundo.
+8. **Críticos sin banner**: el derribo de un compañero es un indicador en el mundo con su tiempo, más audio. Por eso el
+   audio de UI, los rótulos de sonido y el TTS son obligatorios.
+9. **Legible siempre**: nunca menos de 16 px a 1080p (≥ 12 px en Steam Deck); preajustes *Mínimo* (defecto),
+   *Estándar* y *Completo*.
+
+Tabla de estados de visibilidad, tokens, tiempos y maquetas: `docs/research/10_hud_ux.md` §V (maquetas
+`10_hud_ux/v2_*.jpg`; sus nombres de lugar son de trabajo). Comportamiento de zonas, avisos, carril de borde, mapa y
+diario: apéndice del mismo documento, §6. Hitos H1–H6: PLAN, Parte II §v3.8.1.
