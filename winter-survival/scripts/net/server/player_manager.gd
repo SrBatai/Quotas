@@ -148,7 +148,7 @@ func _physics_process(_delta: float) -> void:
 	var peers := multiplayer.get_peers()
 	var nw := NetWorld.instance
 	for p in all:
-		if p.disconnected or not peers.has(p.peer_id):
+		if p.disconnected or not peers.has(p.peer_id) or not Net.peer_ready(p.peer_id):
 			continue
 		# M3 interest: only the players in the recipient's 3 × 3 chunks (+ itself for the ack)
 		var entries := []

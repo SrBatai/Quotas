@@ -100,15 +100,28 @@ func sender() -> int:
 func rpc_to(node: Node, method: StringName, peer: int, args: Array = []) -> void:
 	if peer == local_peer_id() or multiplayer.multiplayer_peer == null:
 		node.callv(method, args)
-	elif multiplayer.get_peers().has(peer):
+	elif multiplayer.get_peers().has(peer) and peer_ready(peer):
 		node.callv("rpc_id", [peer, method] + args)
 
 
 ## Server -> every remote peer (the caller handles its own local copy).
 func rpc_all(node: Node, method: StringName, args: Array = []) -> void:
-	if multiplayer.multiplayer_peer == null or multiplayer.get_peers().is_empty():
+	if multiplayer.multiplayer_peer == null:
 		return
-	node.callv("rpc", [method] + args)
+	# Unicast per ready peer instead of one broadcast: when several clients drop at once, ENet can close a peer
+	# (0 channels) before SceneMultiplayer emits peer_disconnected, and a broadcast would still target it.
+	for peer in multiplayer.get_peers():
+		if peer_ready(peer):
+			node.callv("rpc_id", [peer, method] + args)
+
+
+## True while the transport can still deliver to `peer` (ENet state CONNECTED). Other peers (offline, tests) → true.
+func peer_ready(peer: int) -> bool:
+	var mp := multiplayer.multiplayer_peer
+	if mp is ENetMultiplayerPeer:
+		var pp := (mp as ENetMultiplayerPeer).get_peer(peer)
+		return pp != null and pp.get_state() == ENetPacketPeer.STATE_CONNECTED
+	return true
 
 
 ## Client -> server. In offline mode the handler runs directly (sender() == 1).
