@@ -1,12 +1,13 @@
 extends SceneTree
-## Streaming perf walk (PLAN M3 acceptance, ARQ v2 §18): the local player is moved along a fixed 1.6 km route at
-## 25 m/s (car speed, R4) through forest, the N‑140 and back while the world streams around it. Measures every
+## Streaming perf walk (PLAN M3 acceptance, ARQ v2 §18): the local player is moved along a fixed route at
+## 25 m/s (car speed, R4; 2.26 km) through forest, the N‑140 and back while the world streams around it. Measures every
 ## frame: frame time, the streamer's main-thread cost (budget 2 ms/frame), frames over 33 ms and whether streaming
 ## caused them, missing ground under the player, generation time in the workers, loaded chunks, memory (RSS).
 ## Two modes (tests/run_perf_walk.sh):
 ##   render: xvfb + a real renderer (Compatibility on llvmpipe by default): frame times, GPU-side upload cost, memory.
 ##   --cpu:  headless (dummy renderer) with the client's visual streaming path forced on: the streaming CPU cost per
 ##           frame without a software GPU preempting the main thread — the gate for the 2 ms/frame budget.
+##   --nothreads: generation on the main thread, one chunk per refresh (the web nothreads build; informative).
 ## Exit 0 = within tests/perf_budgets.json "perf_walk" (render) / "perf_walk_cpu" (--cpu).
 
 var _body: RefCounted
@@ -23,6 +24,8 @@ func _initialize() -> void:
 			opts["check"] = false
 		elif a == "--cpu":
 			opts["cpu"] = true
+		elif a == "--nothreads":
+			opts["nothreads"] = true
 	Engine.max_fps = 0
 	var script: GDScript = load("res://tests/perf_walk_steps.gd")
 	if script == null or not script.can_instantiate():

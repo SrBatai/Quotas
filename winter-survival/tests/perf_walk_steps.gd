@@ -20,6 +20,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		WorldStreamer.force_visual = true
 	elif not Quality.is_compat_renderer():
 		Quality.set_preset(&"alto", false)
+	# --nothreads: the web (nothreads template) path, chunks generated on the main thread (informative, not gated)
+	WorldStreamer.force_no_threads = bool(opts.get("nothreads", false))
 	var ready := [false]
 	Events.world_ready.connect(func() -> void:
 		ready[0] = true
@@ -88,8 +90,9 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 				worst.pop_back()
 		if fms > HITCH_MS:
 			hitches += 1
-			# attributable to streaming when the streamer took a real share of that frame
-			if sms > 2.0 or sms > fms * 0.25:
+			# attributable to streaming when the frame would not have been a hitch without it, or the streamer took a
+			# real share of it (under a software GPU every frame is > 33 ms: only the second test can fire there)
+			if fms - sms <= HITCH_MS or sms > fms * 0.25:
 				hitches_streaming += 1
 		# advance along the route (game time = real time: a slow software-rendered frame moves the player further)
 		var step := speed * minf(dt, 0.1)

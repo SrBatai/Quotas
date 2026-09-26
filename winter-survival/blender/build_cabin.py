@@ -347,7 +347,7 @@ def build_roof(rnd):
             dn = -0.11 * H.smoothstep(over + 0.10, 0.0, v)        # cornice droops over the eave
             dv = 0.0
             if v >= size_v - 1e-6:                                 # wavy upper edge
-                dv = 0.35 * H.fbm(u * 0.7, seed * 1.3, 2, seed)
+                dv = max(-0.09, 0.35 * H.fbm(u * 0.7, seed * 1.3, 2, seed))   # never fold over the rim row
             return (0.0, dv, dn)
         o = H.pillow(origin, Vector((1, 0, 0)), V, N, x1 - x0, size_v, 0.22, nu=7, nv=4, rim=0.16, seed=seed,
                      lip=lip, bumps=0.04)
@@ -425,10 +425,11 @@ def build_chimney():
     H.tube(flatp, [(-3.35, 0.60, 5.2), (-3.35, 0.60, 5.52)], [0.11, 0.10], 8, "iron", cap_end=True)
     flatp.cylinder((-3.35, 0.60, 5.50), (-3.35, 0.60, 5.55), 0.14, 0.14, 8, "iron")
     # snow cap: a rounded pillow ring made of two lumps around the flue
+    # (closed underneath: they overhang the slab by 1 cm and the open bottom showed at the corners)
     snow.append(H.pillow((x0 - 0.08, y0 - 0.08, 5.24), (1, 0, 0), (0, 1, 0), (0, 0, 1), 0.86, 0.30, 0.12, nu=5,
-                         nv=3, rim=0.08, seed=71))
+                         nv=3, rim=0.08, seed=71, drop_bottom=False))
     snow.append(H.pillow((x0 - 0.08, 0.70, 5.24), (1, 0, 0), (0, 1, 0), (0, 0, 1), 0.86, 0.33, 0.10, nu=5, nv=3,
-                         rim=0.08, seed=72))
+                         rim=0.08, seed=72, drop_bottom=False))
     return hard, flatp, snow
 
 

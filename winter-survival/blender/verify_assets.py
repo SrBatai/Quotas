@@ -153,7 +153,7 @@ ASSETS = {
                extra={"forward": ["DoorAnchor", "LanternSocket"], "window": ["WindowsFront", "WindowsLeft"],
                       "front_mesh": {"WallFront": "<", "WallBack": ">", "WallLeft": "x>", "WallRight": "x<",
                                      "Chimney": "x>", "Porch": "<"}},
-               r180=True, max_surfaces=12, hd=True),
+               r180=True, max_surfaces=12, hd=True, bf=True),
     "wood_stove": a(0, 250, {"Body": ZERO, "Door": ZERO, "Pipe": ZERO, "StoveAnchor": (0, 0.35, 0.45),
                              "PipeTop": (0, -0.15, 2.70)},
                     dims={"x": 0.66, "y": 0.66, "z": 2.70}, extra={"forward": ["StoveAnchor"], "ember": ["Door"]},
@@ -177,7 +177,7 @@ ASSETS = {
                       dims={"x": 2.0, "y": 5.0, "z": 1.95},
                       col={"ColChassis": ((-1.0, -2.5, 0.3), (1.0, 2.5, 1.3)),
                            "ColCab": ((-0.95, -0.2, 1.3), (0.95, 1.0, 2.0))},
-                      extra={"back": ["BedAnchor"], "window": ["Body"]}, r180=True, hd=True),
+                      extra={"back": ["BedAnchor"], "window": ["Body"]}, r180=True, hd=True, bf=True),
     # authored directly in v2: boards point to +X, text faces -Y, text empties unrotated
     "signpost": a(1, 700, {"Post": ZERO, "BoardTop": (0, 0, 1.84), "BoardBottom": (0, 0, 1.44),
                            "TextTop": (0.28, -0.125, 1.84), "TextBottom": (0.28, -0.125, 1.44)},
@@ -632,15 +632,23 @@ def _cut_hidden(objs, to_cam):
     hidden = set()
     for o in objs:
         n = o.name
-        if n == "Roof":
+        if n in ("Roof", "Chimney"):
             hidden.add(n)
         elif re.match(r"^Walls\d+_[NSEW]$", n) and facing(n):
             hidden.add(n)
         elif re.match(r"^Walls\d+_[NSEW]_Stub$", n) and not facing(n):
             hidden.add(n)
+        elif n in ("WallFront", "WallBack", "WallLeft", "WallRight"):
+            # G1 slice cabin (scripts/world/cutaway.gd): the wall's outward normal is the dominant horizontal
+            # axis of its AABB centre; hidden when it faces the camera (> 0.15), windows (children) with it
+            mn, mx = world_bounds([o])
+            c = (mn + mx) * 0.5
+            nrm = Vector((0, math.copysign(1, c.y), 0)) if abs(c.y) >= abs(c.x) else Vector((math.copysign(1, c.x), 0, 0))
+            if nrm.dot(to_cam) > 0.15:
+                hidden.add(n)
     for o in objs:
         cg = o.get("cut_group") if o.name.startswith(("Door_", "Window_")) else None
-        if cg and cg in hidden:
+        if (cg and cg in hidden) or (o.parent is not None and o.parent.name in hidden):
             hidden.add(o.name)
     return hidden
 
@@ -693,11 +701,12 @@ def backface_problems(objs, ground=True, cutaway=False):
     culls back faces). Orthographic rays over the asset from pitch 48 (8 yaws, the game camera) and 25 deg (8 yaws);
     hits below z = 0 are hidden by the terrain (ground=False for hanging assets); the `_Stub` walls are hidden. With
     cutaway=True (POIs / kit buildings) also the 8 cutaway states of §9.3 (Roof + camera-facing facades hidden, their
-    stubs shown), seen from their own yaw."""
+    stubs shown), seen from their own yaw; for the G1 slice cabin the cutaway.gd states (Roof, Chimney and the
+    camera-facing Wall* hidden with their windows)."""
     meshes = [o for o in objs if o.type == 'MESH' and not is_col(o)]
     views = [_view_dir(48.0, 45 * k) for k in range(8)] + [_view_dir(25.0, 45 * k + 22.5) for k in range(8)]
     total, bad = _bf_hits([o for o in meshes if not o.name.endswith("_Stub")], views, ground)
-    if cutaway and any(o.name.startswith("Walls") for o in meshes):
+    if cutaway and any(o.name.startswith(("Walls", "WallFront")) for o in meshes):
         for k in range(8):
             d = _view_dir(48.0, 45 * k)
             hidden = _cut_hidden(meshes, -d)
@@ -997,7 +1006,8 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems += mm_problems(name, spec, objs, g)
     if spec["bf"]:
         problems += backface_problems(objs, ground=spec["minz"] is not None and spec["minz"] >= -0.01
-                                      and "maxz" not in spec["extra"], cutaway=spec["poi"])
+                                      and "maxz" not in spec["extra"],
+                                      cutaway=spec["poi"] or any(o.name == "WallFront" for o in objs))
     if spec["poi"]:
         problems += cut_problems(by, objs)
 

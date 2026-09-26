@@ -909,5 +909,10 @@ código en `data/loot/loot_tables.gd` (M5).
    la cornisa superior ondulada ya no se pliega, carámbanos con la base cerrada, láminas de tejas/tablillas cerradas en
    los hastiales, escalón superior de la torre fusionado con el rellano. Estos arreglos también tocan (sin cambiar
    contrato, nodos ni tamaños ±1 %) `cabin` (22 418 → 22 406 tris), `a_frame_cabin` (9 614 → 9 616), `dead_tree`,
-   `pickup_truck` y `chars/survivor_*` (mismos tris, anillos reindexados). **Pendiente (G1, fuera de M3)**: `cabin` y
-   `pickup_truck` aún muestran caras traseras en ángulos bajos (tejado, ruedas/carrocería); no están bajo la regla.
+   `pickup_truck` y `chars/survivor_*` (mismos tris, anillos reindexados). **G1 `cabin` y `pickup_truck` ya bajo la
+   regla** (mismo contrato: nodos, anclas, partes de corte, `Col*`): en `cabin` la cornisa ondulada del faldón
+   delantero ya no se pliega y las dos almohadas del sombrerete de la chimenea van cerradas por debajo (22 536 tris);
+   en `pickup_truck` el prisma de la carrocería orienta cada cara por su arista (`MeshBuilder.prism(concave=True)`:
+   los pasos de rueda salían volteados), las ruedas son anillos cerrados con disco interior y buje de 18 lados (antes
+   dejaba rendijas), y los cristales llevan junta hasta la chapa (5 644 tris). En `cabin` el verificador también
+   recorre los estados de `scripts/world/cutaway.gd` (Roof, Chimney y los `Wall*` que miran a la cámara ocultos).

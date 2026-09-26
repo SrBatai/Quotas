@@ -319,14 +319,34 @@ class MeshBuilder:
         return self.solid(pts, faces, mat, snow, xf, inside=c if clamp_z is None or c.z > clamp_z
                           else Vector((c.x, c.y, clamp_z + 0.01)))
 
-    def prism(self, profile, axis_from, axis_to, mat, snow=False, mats_caps=None, xf=None):
+    def prism(self, profile, axis_from, axis_to, mat, snow=False, mats_caps=None, xf=None, concave=False):
         """Extrude a planar polygon `profile` (list of 3D points on the start plane) by the vector
-        axis_to - axis_from. Good for pentagon boards, triangular gables and wedges."""
+        axis_to - axis_from. Good for pentagon boards, triangular gables and wedges.
+        concave=True orients every side face by its own profile edge (edge x profile normal) instead of
+        away from the centroid, which is required for non-convex profiles (e.g. a body side with wheel
+        arches). Same vertices and face order as the default path; only the winding can differ."""
         d = vec(axis_to) - vec(axis_from)
         r0 = [vec(p) for p in profile]
         r1 = [p + d for p in r0]
-        return self.loft([r0, r1], mat, True, True, snow, xf,
-                         cap_mats=mats_caps if mats_caps else (None, None))
+        if not concave:
+            return self.loft([r0, r1], mat, True, True, snow, xf,
+                             cap_mats=mats_caps if mats_caps else (None, None))
+        if xf is not None:
+            r0 = [xf @ p for p in r0]
+            r1 = [xf @ p for p in r1]
+            d = xf.to_3x3() @ d
+        n = newell(r0)                       # winding normal: edge x n points out of the profile
+        i0 = [self._v(p) for p in r0]
+        i1 = [self._v(p) for p in r1]
+        m = len(r0)
+        out = []
+        for j in range(m):
+            k = (j + 1) % m
+            out.append(self.add_face((i0[j], i0[k], i1[k], i1[j]), mat, snow, facing=(r0[k] - r0[j]).cross(n)))
+        caps = mats_caps if mats_caps else (None, None)
+        out.append(self.add_face(i0, caps[0] or mat, snow, facing=-d))
+        out.append(self.add_face(i1, caps[1] or mat, snow, facing=d))
+        return out
 
     # -- recolouring ---------------------------------------------------------------------------
     def recolor(self, pred, mat, faces=None, snowable_only=False):

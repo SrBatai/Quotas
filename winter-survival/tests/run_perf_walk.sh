@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Streaming perf walk (PLAN M3): 1.6 km at 25 m/s under xvfb + Compatibility (llvmpipe); RENDER=forward runs it on
+# Streaming perf walk (PLAN M3): 2.26 km at 25 m/s under xvfb + Compatibility (llvmpipe); RENDER=forward runs it on
 # Forward+ over software Vulkan (lavapipe). Writes tests/perf/walk.json, checks tests/perf_budgets.json "perf_walk".
 # Usage: [RENDER=forward] tests/run_perf_walk.sh [--out=path] [--speed=25] [--nocheck]
 #        tests/run_perf_walk.sh --cpu     # headless: streaming CPU cost only (the 2 ms/frame gate, no xvfb needed)

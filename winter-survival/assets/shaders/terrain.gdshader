@@ -41,7 +41,9 @@ uniform bool trail_enabled = false;
 uniform vec4 road_tint : source_color = vec4(0.74, 0.79, 0.88, 1.0);
 uniform vec4 track_tint : source_color = vec4(0.85, 0.89, 0.95, 1.0);
 uniform float rut_darken : hint_range(0.0, 1.0) = 0.22;
-uniform vec4 ice_color : source_color = vec4(0.62, 0.76, 0.88, 1.0);
+uniform vec4 ice_color : source_color = vec4(0.50, 0.66, 0.82, 1.0);
+// wind-swept snow drifts over the lake ice (share of the surface, 0 = bare ice everywhere)
+uniform float ice_drift : hint_range(0.0, 1.0) = 0.75;
 uniform float ice_roughness : hint_range(0.0, 1.0) = 0.32;
 uniform float ice_specular : hint_range(0.0, 1.0) = 0.45;
 
@@ -132,6 +134,7 @@ void fragment() {
 	float road = v_surface.r;
 	float track = v_surface.b;
 	float ice = v_surface.g;
+	float ice_vis = 0.0;
 	if (road + track + ice > 0.001) {
 		float grime = vnoise(v_world_pos.xz * 0.9) * 0.5 + vnoise(v_world_pos.xz * 0.23) * 0.5;
 		albedo *= mix(vec3(1.0), road_tint.rgb * (0.94 + 0.12 * grime), road);
@@ -145,8 +148,10 @@ void fragment() {
 			albedo *= 1.0 - rut_darken * ruts;
 		}
 		float streak = vnoise(vec2(v_world_pos.x * 0.08 + v_world_pos.z * 0.05, v_world_pos.z * 0.9));
-		vec3 ice_c = ice_color.rgb * (0.9 + 0.2 * streak);
-		albedo = mix(albedo, ice_c, ice * 0.85);
+		float drift = smoothstep(0.42, 0.66, vnoise(v_world_pos.xz * 0.018) * 0.7 + vnoise(v_world_pos.xz * 0.061) * 0.3);
+		ice_vis = ice * (1.0 - ice_drift * drift);
+		vec3 ice_c = ice_color.rgb * (0.86 + 0.28 * streak);
+		albedo = mix(albedo, ice_c, ice_vis * 0.9);
 	}
 	// baked contact AO: darker and bluer under objects
 	float ao = mix(1.0, v_ao, ao_strength);
@@ -156,8 +161,8 @@ void fragment() {
 	float fres = pow(1.0 - clamp(dot(nv, VIEW), 0.0, 1.0), rim_power);
 	albedo = mix(albedo, rim_color.rgb, fres * rim_strength);
 	ALBEDO = albedo;
-	ROUGHNESS = mix(roughness_value, ice_roughness, v_surface.g);
-	SPECULAR = mix(specular_value, ice_specular, v_surface.g);
+	ROUGHNESS = mix(roughness_value, ice_roughness, ice_vis);
+	SPECULAR = mix(specular_value, ice_specular, ice_vis);
 	METALLIC = 0.0;
 	AO = ao;
 	AO_LIGHT_AFFECT = 0.35;

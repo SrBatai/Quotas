@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Runs every gate (PLAN §6 "definición de hecho"): import, parse check, unit tests (persistence), smoke test (Jolt,
 # headless, skeletal player + feet metric), art contract (inspect_models), perf probe (xvfb + Compatibility, budgets),
-# the net scenarios `basic` (4 clients) and `shared_world` (3 clients, M2) and, with --shots, the screenshots.
+# the net scenarios `basic` (4 clients), `shared_world` (3 clients, M2) and `far` (2 clients 1 km apart, M3 interest),
+# the M3 world gates (determinism client vs server, streaming perf walk: --cpu headless budget + render mode under
+# xvfb/llvmpipe for ground and memory) and, with --shots, the screenshots. --no-walk-render skips the (slow) render walk.
 # Exit code != 0 if anything fails.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 SHOTS=0
-for a in "$@"; do [ "$a" = "--shots" ] && SHOTS=1; done
+WALK_RENDER=1
+for a in "$@"; do
+  [ "$a" = "--shots" ] && SHOTS=1
+  [ "$a" = "--no-walk-render" ] && WALK_RENDER=0
+done
 status=0
 step() { echo; echo "#### $1"; }
 
@@ -49,6 +55,40 @@ if NET_TEST_OUT=/tmp/ventisca_net_sw tests/net/run_net_test.sh --clients 3 --dur
   grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_sw_all.log
 else
   grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_sw_all.log | head -n 30; status=1
+fi
+
+step "net test far (M3: A and B 1 km apart only receive their own ring: poses, actors, deltas, snapshots)"
+if NET_TEST_OUT=/tmp/ventisca_net_far tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797 > /tmp/ventisca_net_far_all.log 2>&1; then
+  grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_far_all.log
+else
+  grep -E "RESULT|admin|!!|FAIL|SCRIPT ERROR|ERROR: |NET TEST" /tmp/ventisca_net_far_all.log | head -n 30; status=1
+fi
+
+step "determinism (M3: 50 chunks, server path vs client path, two processes)"
+if tests/run_determinism.sh > /tmp/ventisca_det_all.log 2>&1; then
+  grep -E "determinism|DETERMINISM" /tmp/ventisca_det_all.log | tail -n 3
+else
+  grep -E "determinism|ERROR|SCRIPT|DETERMINISM|^[<>]" /tmp/ventisca_det_all.log | head -n 20; status=1
+fi
+
+step "perf walk --cpu (M3: streaming main-thread cost at 25 m/s, headless)"
+if tests/run_perf_walk.sh --cpu > /tmp/ventisca_walk_cpu_all.log 2>&1; then
+  grep -E "streaming ms|frames over|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_cpu_all.log
+else
+  grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_cpu_all.log | head -n 20; status=1
+fi
+
+if [ "$WALK_RENDER" -eq 1 ]; then
+  step "perf walk render (M3: xvfb + Compatibility on llvmpipe: ground always under the player, RSS)"
+  if command -v xvfb-run > /dev/null; then
+    if tests/run_perf_walk.sh > /tmp/ventisca_walk_all.log 2>&1; then
+      grep -E "frame ms|streaming ms|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_all.log
+    else
+      grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_all.log | head -n 20; status=1
+    fi
+  else
+    echo "xvfb-run not found: render perf walk skipped"
+  fi
 fi
 
 if [ "$SHOTS" -eq 1 ]; then

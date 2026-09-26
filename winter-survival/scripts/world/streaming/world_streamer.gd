@@ -35,6 +35,8 @@ var max_tasks: int = 2
 ## Tools (perf_walk --cpu): build the client's visual data (meshes, MultiMeshes) even on the headless dummy
 ## renderer, to measure the streaming CPU cost without a (software) GPU competing for the cores.
 static var force_visual: bool = false
+## Tools: behave as the web nothreads build (chunk generation on the main thread, one per refresh).
+static var force_no_threads: bool = false
 
 var chunks: Dictionary = {}        # key -> WorldChunk (building or loaded)
 var _jobs: Dictionary = {}         # key -> ChunkJob in flight
@@ -219,6 +221,14 @@ func _launch_jobs() -> void:
 		if _jobs.size() >= max_tasks:
 			break
 		_start_job(int(m[1]), true)
+		if not threads_ok():
+			break   # no worker threads (web nothreads build, 1 core): one chunk generated per refresh on this thread
+
+
+## Worker threads available (the web export uses the nothreads template, where WorkerThreadPool would run the task
+## synchronously inside add_task anyway).
+static func threads_ok() -> bool:
+	return OS.get_processor_count() > 1 and OS.has_feature("threads") and not force_no_threads
 
 
 func _is_ready_job(k: int) -> bool:
@@ -257,12 +267,12 @@ func _static_occ_for(cx: int, cz: int) -> Array:
 
 func _start_job(k: int, threaded: bool) -> ChunkJob:
 	var j := _make_job(k)
-	if threaded and OS.get_processor_count() > 1:
+	if threaded and threads_ok():
 		j.task_id = WorkerThreadPool.add_task(j.run, false, "chunk %d,%d" % [j.cx, j.cz])
 		_jobs[k] = j
 	else:
 		j.run()
-		_ready_jobs.append(j)
+		_finish_job(j)
 	return j
 
 
@@ -391,7 +401,7 @@ func ensure_loaded(pos: Vector3, radius: int = 1) -> int:
 			_jobs.erase(k)
 		else:
 			var j := _make_job(k)
-			if OS.get_processor_count() > 1:
+			if threads_ok():
 				j.task_id = WorkerThreadPool.add_task(j.run, true, "chunk sync")
 			else:
 				j.run()

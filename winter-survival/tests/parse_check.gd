@@ -1,11 +1,11 @@
 extends SceneTree
-## Loads every .gd under res://scripts and res://tests and reports scripts that fail to compile.
+## Loads every .gd under res://scripts, res://data, res://tools and res://tests and reports scripts that fail to compile.
 
 
 func _initialize() -> void:
 	var failed := 0
 	var total := 0
-	for path in _collect("res://scripts") + _collect("res://tests"):
+	for path in _collect("res://scripts") + _collect("res://data") + _collect("res://tools") + _collect("res://tests"):
 		total += 1
 		var s := load(path)
 		if s == null or not (s as Script).can_instantiate() and not (s as Script).is_tool():

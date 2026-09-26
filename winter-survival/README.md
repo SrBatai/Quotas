@@ -44,10 +44,13 @@ sustituto de primitivas con los mismos nombres de nodo (`scripts/data/placeholde
 ## Pruebas
 
 ```bash
-tests/run_all.sh                 # parse, unit (persistencia), smoke (jugador esquelético + métrica de pies), inspect_models, perf, red
+tests/run_all.sh                 # parse, unit (persistencia), smoke, inspect_models, perf, red (basic/shared_world/far), determinismo, perf walk
 tests/run_smoke.sh               # solo el smoke test (servidor local en el mismo proceso)
 tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90                              # escenario basic (M1)
 tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world      # mundo compartido (M2)
+tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797   # 2 jugadores a 1 km (M3)
+tests/run_determinism.sh         # 50 chunks generados por cliente y servidor en dos procesos: hashes iguales (M3)
+tests/run_perf_walk.sh --cpu     # 2.26 km a 25 m/s: coste de streaming ≤ 2 ms/frame (headless); sin --cpu: xvfb + llvmpipe
 RENDER=forward tests/run_screenshots.sh /tmp/shots   # capturas (Compatibility por defecto; Forward+ con lavapipe)
 tests/run_multi_shot.sh /tmp/shots/multi.png         # captura con 2 jugadores remotos (chaquetas distintas)
 ```
@@ -91,6 +94,27 @@ distinta por jugador, `AnimationTree` con el ciclo escalado a la velocidad real,
 en la mano). Con `debug_commands=true` en `server.cfg` (o sin red) el chat acepta `/kit`, `/give <item> <n>` y
 `/tp <x> <z>`.
 
+## Mundo abierto por chunks (M3)
+
+El mundo mide **3 × 3 km**: 48 × 48 chunks de 64 m alrededor del claro, que queda en el centro exactamente como era.
+Alrededor hay un bosque determinista generado con la semilla del servidor, que el cliente recibe al conectarse y con
+la que genera el mismo mundo. Tiene:
+
+- el relieve del plano macro (`data/world/macro_map.png`, generado por `tools/gen_macro_map.gd` a partir del mapa
+  de PLAN §4.2);
+- el Lago de las Ánimas, de hielo plano y transitable, al suroeste;
+- lechos de carretera con roderas;
+- 4 cabañas aisladas y una torre de vigilancia (con corte al entrar), y restos de acampada;
+- un muro con niebla en el borde (±1450 m).
+
+Los chunks se generan en hilos de fondo (`WorkerThreadPool`). En el hilo principal solo se montan, en pasos de
+≤ 2 ms por frame: el anillo 1 completo y el anillo 2 precargado, con prioridad hacia donde vas. Los árboles son
+MultiMesh; uno se convierte en árbol real solo cuando lo golpeas, y el talado persiste por chunk.
+
+En red, cada jugador recibe solo lo que pasa en los 3 × 3 chunks a su alrededor: poses, animales, eventos e
+instantáneas. El servidor hiberna los chunks vacíos al cabo de 60 s. Con `debug_commands`, `/tp <x> <z>` lleva
+a cualquier punto (por ejemplo, `/tp -780 340` al lago).
+
 ### Probar el cooperativo con amigos (hasta 4)
 
 1. **Descarga la versión de escritorio.** En GitHub, pestaña *Actions* → última ejecución de **VENTISCA** del PR →
@@ -112,7 +136,7 @@ La demo del navegador es solo para un jugador: el navegador no puede abrir conex
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots]         # todas las puertas M0+M1: import, parse, humo (servidor local), contrato de arte, perf, red [, capturas]
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M3: import, parse, persistencia, humo, contrato de arte, perf, red (basic, shared_world, far), determinismo, perf walk [, capturas]
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak
 ./tests/run_screenshots.sh [carpeta] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (preset `multi` = cliente unido a un servidor)

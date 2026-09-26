@@ -237,6 +237,17 @@ Orden y razón: **M0** paga la deuda de convenciones (barato ahora, carísimo de
 - **Opus**: vegetación y rocas para MultiMesh (pinos ×3 nuevos, árboles secos ×2, abeto joven, arbustos ×2, rocas ×3, montones de nieve ×3, troncos ×2, carámbanos), cabaña aislada (`cabin_small`, a mano, con la estructura de corte v2), torre de vigilancia, restos de acampada; **empieza el kit de edificios (M6)**.
 - **Aceptación**: `determinism.gd` OK (hashes iguales cliente/servidor para 50 chunks); `perf_walk` dentro de presupuesto; net: 2 clientes a 1 km entre sí solo reciben su anillo; memoria cliente ≤ 2.5 GB; `run_smoke.sh` y capturas OK.
 - **Dependencias**: M2 (deltas por chunk). **Riesgo**: R3 (determinismo), R4 (tirones).
+- **Estado M3 (código)**: hecho; detalles en ARQ v2 §8.9. Desviaciones:
+  - la rejilla conserva la convención de M2 (el chunk 24 centrado en el origen, el claro = chunks 23–25);
+  - las huellas siguen en el mapa de rastro de G1 (`Footprints`, espacio mundo) en vez de un `SubViewport` nuevo;
+  - el lago grande es de hielo plano y seguro (el hielo fino llega en M8);
+  - `cabin_small` y `lookout_tower` usan un corte v2 provisional (`PoiCutaway`) hasta el `CutawayManager` de M6a;
+  - no se integra el kit de casas.
+
+  Puertas nuevas en `tests/run_all.sh`:
+  - `run_determinism.sh`;
+  - `run_perf_walk.sh --cpu` (2 ms/frame) y `run_perf_walk.sh` (xvfb/llvmpipe: suelo y memoria);
+  - `run_net_test.sh --scenario far` (2 clientes a ~1 km).
 
 ### M4 — Zombis, navegación y combate cuerpo a cuerpo · **L (código) + M (arte)**
 

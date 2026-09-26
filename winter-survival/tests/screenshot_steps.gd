@@ -1,8 +1,9 @@
 extends RefCounted
 ## Screenshot preset body (loaded at runtime by tests/screenshot.gd). Presets day/dusk/night/blizzard/interior/menu run
 ## the offline local server; `multi` joins a running dedicated server (--host=ip --port=n) to prove remote players render.
-## M3 `overview`: a camera 230 m up over the Lago de las Ánimas north shore (several streamed chunks, the flat ice,
-## the lake-north track and the Embarcadero road bed), streaming focused there with ring 4 (9 × 9 chunks).
+## M3 `overview`: a camera 250 m up east of the Lago de las Ánimas looking west (≈ 49° down): the Embarcadero road
+## bed in the foreground, forest chunks, the flat lake ice beyond; streaming focused there with ring 7 (15 × 15
+## chunks) so the edge of the loaded area stays out of frame.
 
 var tree: SceneTree
 var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run, quality=alto|medio|compat
@@ -133,16 +134,16 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			"overview":
 				WorldState.instance.set_time(1, 11.0)
 				world.get_node("WolfSpawner").enabled = false
-				var target := Vector3(-520.0, -2.0, 250.0)
-				var cam_pos := Vector3(-190.0, 175.0, 40.0)
+				var target := Vector3(-360.0, -3.0, 400.0)
+				var cam_pos := Vector3(-150.0, 250.0, 330.0)
 				world.env_override = true
 				Chat.instance.send("/tp -300 200")
 				await tree.process_frame
 				var ui := game.get_node_or_null("UI") as CanvasLayer
 				if ui != null:
 					ui.visible = false
-				world.streamer.focus_override = target
-				world.streamer.ring_prefetch = 5
+				world.streamer.focus_override = Vector3(-440.0, 0.0, 420.0)
+				world.streamer.ring_prefetch = 7
 				world.streamer.flush_all()
 				var dn: DayNight = world.get_node("DayNight")
 				dn.fog_density_scale = 0.12

@@ -36,6 +36,18 @@ def quad_on(corners, u0, u1, v0, v1, off, normal):
     return [at(u0, v0), at(u1, v0), at(u1, v1), at(u0, v1)]
 
 
+def pane_on(mb, corners, u0, u1, v0, v1, off, normal, mat="window", seal="iron"):
+    """Window pane standing `off` proud of a quad, with a thin seal band down to the quad on each edge, so the
+    gap under the pane is closed (no back face of the pane shows at grazing angles)."""
+    top = quad_on(corners, u0, u1, v0, v1, off, normal)
+    bot = quad_on(corners, u0, u1, v0, v1, 0.0, normal)
+    mb.poly(top, mat, facing=normal)
+    c = sum(top, Vector()) / 4
+    for j in range(4):
+        k = (j + 1) % 4
+        mb.poly([top[j], top[k], bot[k], bot[j]], seal, facing=(top[j] + top[k]) / 2 - c)
+
+
 # ------------------------------------------------------------------------------------------------
 WHEEL_Y, WHEEL_Z, WHEEL_R, WHEEL_X = 1.6, 0.42, 0.42, 0.93
 ARCH_R = 0.50
@@ -60,7 +72,7 @@ def truck_body():
     # lower body: side profile (y, z) with two arches, extruded along X
     prof = [(2.42, 0.40)] + _arch(WHEEL_Y) + _arch(-WHEEL_Y) + [(-2.42, 0.40), (-2.42, BELT), (2.42, BELT)]
     hard.prism([Vector((-0.96, y, z)) for y, z in prof], (-0.96, 0, 0), (0.96, 0, 0), paint,
-               mats_caps=(paint, paint))
+               mats_caps=(paint, paint), concave=True)       # arch faces point down at the wheels
     # hood: from the cab (y 0.95) to the nose, sloping 1.30 -> 1.20
     hard.hexa([(-0.94, 0.95, BELT), (0.94, 0.95, BELT), (-0.94, 2.42, BELT), (0.94, 2.42, BELT),
                (-0.94, 0.95, 1.30), (0.94, 0.95, 1.30), (-0.92, 2.42, 1.21), (0.92, 2.42, 1.21)], paint)
@@ -71,14 +83,14 @@ def truck_body():
     hard.hexa(gh, paint)
     g = [Vector(c) for c in gh]
     ws = [g[2], g[3], g[7], g[6]]
-    panes.poly(quad_on(ws, 0.06, 0.94, 0.10, 0.90, 0.012, (0, 0.85, 0.53)), "window", facing=(0, 0.85, 0.53))
+    pane_on(panes, ws, 0.06, 0.94, 0.10, 0.90, 0.012, (0, 0.85, 0.53))
     rw = [g[1], g[0], g[4], g[5]]
-    panes.poly(quad_on(rw, 0.14, 0.86, 0.18, 0.84, 0.012, (0, -1, 0)), "window", facing=(0, -1, 0))
+    pane_on(panes, rw, 0.14, 0.86, 0.18, 0.84, 0.012, (0, -1, 0))
     for sx in (-1, 1):
         sd = [g[1], g[3], g[7], g[5]] if sx > 0 else [g[0], g[2], g[6], g[4]]
         nrm = (sx, 0, 0.14)
-        panes.poly(quad_on(sd, 0.07, 0.46, 0.12, 0.86, 0.012, nrm), "window", facing=nrm)
-        panes.poly(quad_on(sd, 0.52, 0.84, 0.12, 0.86, 0.012, nrm), "window", facing=nrm)
+        pane_on(panes, sd, 0.07, 0.46, 0.12, 0.86, 0.012, nrm)
+        pane_on(panes, sd, 0.52, 0.84, 0.12, 0.86, 0.012, nrm)
         # B-pillar strip between the two side windows
         fine.poly(quad_on(sd, 0.46, 0.52, 0.10, 0.88, 0.010, nrm), dark, facing=nrm)
     # bed walls (0.08 thick) up to 1.32, front wall, tailgate
@@ -139,17 +151,29 @@ def truck_wheels():
             sec = [(-hw, 0.30), (-hw, 0.37), (-hw * 0.82, 0.41), (-hw * 0.45, WHEEL_R),
                    (hw * 0.45, WHEEL_R), (hw * 0.82, 0.41), (hw, 0.37), (hw, 0.30)]
             rings = [lp.ring(c + Vector((dx, 0, 0)), (1, 0, 0), r, 18, 10) for dx, r in sec]
+            base = len(mb.verts)
             mb.loft(rings, "tire", cap_start=False, cap_end=False, inside=c)
+            # close the section: inner band at r 0.30 (facing the axle), so the tyre is a closed ring
+            last = base + (len(rings) - 1) * 18
+            for j in range(18):
+                k = (j + 1) % 18
+                q = (last + j, last + k, base + k, base + j)
+                fc = sum((mb.verts[i] for i in q), Vector()) / 4
+                mb.add_face(q, "tire", facing=Vector((0, fc.y - c.y, fc.z - c.z)) * -1)
             tyre = H.smooth(H.mk(mb), angle=50)
             rim = lp.MeshBuilder()
             o = sx * (hw - 0.01)
             rim.loft([lp.ring(c + Vector((o, 0, 0)), (1, 0, 0), 0.30, 18, 10),
                       lp.ring(c + Vector((o - sx * 0.035, 0, 0)), (1, 0, 0), 0.24, 18, 10)], "stone_dark",
                      cap_start=False, cap_end=False, seg_facing=[(sx, 0, 0)])
-            rim.loft([lp.ring(c + Vector((o - sx * 0.035, 0, 0)), (1, 0, 0), 0.24, 9, 10),
-                      lp.ring(c + Vector((o - sx * 0.02, 0, 0)), (1, 0, 0), 0.11, 9, 10),
+            # hub rings match the rim's 18 sides (a 9-sided ring left slivers open onto the wheel's inside)
+            rim.loft([lp.ring(c + Vector((o - sx * 0.035, 0, 0)), (1, 0, 0), 0.24, 18, 10),
+                      lp.ring(c + Vector((o - sx * 0.02, 0, 0)), (1, 0, 0), 0.11, 18, 10),
                       [c + Vector((o + sx * 0.005, 0, 0))]], "metal_sheet", cap_start=False, cap_end=False,
                      seg_facing=[(sx, 0, 0), (sx, 0, 0)])
+            # inboard backing disc: the wheel is closed when seen from under the truck
+            rim.loft([lp.ring(c - Vector((o, 0, 0)), (1, 0, 0), 0.30, 18, 10), [c - Vector((o, 0, 0))]],
+                     "stone_dark", cap_start=False, cap_end=False, seg_facing=[(-sx, 0, 0)])
             parts += [tyre, H.flat(H.mk(rim))]
     return H.join(parts, "Wheels")
 
