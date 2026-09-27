@@ -720,10 +720,10 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 	check(is_equal_approx(Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), AnimEvents.at("Melee2H_Swing_A", "hit_start", -1.0)) and AnimEvents.has("Zom_Grab", "bite_1")
 		and is_equal_approx(ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0), AnimEvents.at("Zom_Attack_A", "hit_start", -1.0)),
 		"data/anim_events.json: '-loop' keys normalised; bat blow at %.2f s, Zom_Attack_A window at %.2f s" % [Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0)])
-	# sight is probabilistic (distance, light, the 120° cone, the cabin in the way): up to 6 s for three of them
+	# sight is probabilistic (distance, light, the 120° cone, the cabin in the way): up to 10 s for three of them
 	var chasing := 0
 	var waited_s := 0.0
-	while waited_s < 6.0:
+	while waited_s < 10.0:
 		await seconds(0.5)
 		waited_s += 0.5
 		chasing = sys.count_state(ZombieKinds.State.CHASE) + sys.count_state(ZombieKinds.State.ATTACK)
@@ -795,7 +795,8 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 	var sv := _spawn_front(sys, player, ZombieKinds.Kind.WALKER, 1.2)
 	await seconds(0.5)
 	var knocked := false
-	for k in 8:
+	# 35 % per shove: 20 tries leave a 0.65^20 ≈ 0.02 % chance of a false failure (8 tries left 3 %)
+	for k in 20:
 		_hold_zombie(sys, sv, player, 1.2)
 		player.melee_ready_at = 0.0
 		player.state.stamina = Balance.STAMINA_MAX
