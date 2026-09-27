@@ -49,6 +49,7 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 | `anims/build_combat.py` (M4) | anims/humanoid_combat (18 melee / act / hit / down / death clips, `COMBAT_TABLE`) + data/anim_events.json | −Y |
 | `weapons/build_weapons.py` (M4) | weapons/{knife, machete, crowbar, bat, bat_nailed} (`Weapon`, `Grip`, `Tip`, `SupportGrip`) | weapon convention (§12) |
 | `props/build_gore.py` (M4) | gore/{corpse_covered, blood_splat_a/b/c, blood_trail, limb_arm, limb_leg, head_fragments} | — |
+| `third_party/build_city.py` (A1) | city/{towers, buildings, vehicles, props, highway}/* — winterized CC0 sources (Kenney, Quaternius) + procedural street props; see "A1" below | −Y |
 | `icons/build_icons.py` | 256 px RGBA item icons → `../assets/icons/items/*.png` (Cycles; reuses the torch / campfire / stone_axe / tent / storage_box sources; skips icons whose hash is unchanged; `--sheet out.png` contact sheet) | — |
 
 ## Conventions (v2, milestone M0)
@@ -147,3 +148,31 @@ libraries with a clip KIND each (gait / crawl / stand / additive / move / ground
 rest and in animated poses, and imports survivor + zombies × libraries in a throwaway Godot project
 (`$VENTISCA_GODOT_SCRATCH`). `verify_assets.py` covers `weapons/*` (§12 grip / handle / business end) and `gore/*`.
 The contract for the code is the "M4" section of `../docs/v2/ASSET_SPEC_V2.md`.
+
+## A1 (CC0 city set of Altavega)
+
+`python3 build_all.py --only city` (≈ 2.5 min) fetches the pinned third-party sources, rebuilds
+`../assets/models/city/**` (108 `.glb` + `.import`, 18.1 MB) with `manifest.json`, regenerates
+`../assets/third_party/{manifest.json, LICENSES/, README.md}` and runs `verify_assets.py` (whose city part is
+`third_party/verify_city.py`; `python3 verify_assets.py --city` runs only that part). The contract for the code is the
+"A1" section of `../docs/v2/ASSET_SPEC_V2.md`.
+
+| File | What |
+|---|---|
+| `third_party/sources.json` | the lock: 2 GitHub mirrors pinned to a commit, 10 packs (9 used + the Quaternius mirror licence), 71 files with SHA-256 / size / LFS flag |
+| `third_party/fetch.py` | pinned HTTPS download into `~/.cache/ventisca/third_party` (or `$VENTISCA_TP_CACHE`; never inside the repo); `--verify` (offline), `--lock` (new entries), `--list`; Git LFS content checked against the pointer oid **and** the lock |
+| `third_party/winterize.py` | import (glTF / FBX / OBJ / USDA) → conform (pivot, front −Y, scale incl. `dims:w,l,h`) → vertex colours with a face class `cls` → OKLab grade + snap to the v2.1 palette → grime / frost / rust → snow → AO (`lib/hd.bake_ao`) into `COLOR_0.a` → back-face patching → GLB (+ `.import` with the city post-import script) |
+| `third_party/cutready.py` | corte urbano: storeys from the source's window rows, a slab per floor, closed volumes, cut-view test, tower split (`Base` / `Shaft_<n>` / `Roof`) and the `ShadowProxy` |
+| `third_party/vehicles.py` | wheels rebuilt (16 sides), variants clean / snowed / crashed / doors / burnt, anchors |
+| `third_party/procprops.py` | props with no CC0 source: bus stop, sandbag wall, hedgehog, military barricade and tent, guardrail, info / street / direction signs |
+| `third_party/build_city.py` | the tables (TOWERS, BUILDINGS, VEHICLES, PROPS, HIGHWAY, PROCEDURAL) and builders; writes both manifests, the licences and the credits |
+| `third_party/verify_city.py` | the checks (glTF, palette gamut, budgets, W0 node contract, closed storeys + slabs + cut view, back faces, provenance, ≤ 40 MB) |
+
+Rules: no third-party source file and no `.blend` is committed (the cache is outside the repo and every output is
+regenerated from the lock); vertex colours only (the sources' atlas textures are sampled into `Col`, then graded);
+only CC0 (or MIT/BSD with the notice copied). Re-fetch from scratch: delete the cache and run
+`python3 third_party/fetch.py` (exit 0 = every SHA-256 matches). Adding a pack: add it to `sources.json` with
+`"sha256": null`, `python3 third_party/fetch.py --lock`, read its licence, map its files in `build_city.py`, then
+`python3 build_all.py --only city`. Every mesh gets a canonical face order before the AO bake and before export, and set-ordered
+bmesh inputs are sorted, so a rebuild is byte-identical (107 of 108 files; `bldg_n` still differs in a few vertex
+attributes between runs) and leaves unchanged `.glb` files untouched.

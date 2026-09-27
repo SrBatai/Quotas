@@ -11,6 +11,8 @@ verify_chars.py (characters + animation libraries).
 M4: zombies/build_zombie.py, anims/build_zombie_anims.py, anims/build_combat.py (+ data/anim_events.json),
 weapons/build_weapons.py, props/build_gore.py; verify_chars.py covers zombies + the new libraries, verify_assets.py the
 weapons / gore.
+A1: python3 build_all.py --only city   rebuilds the winterized CC0 city set (third_party/build_city.py: fetches the
+pinned sources first, ~2.5 min) and runs verify_assets.py, whose city part is third_party/verify_city.py.
 """
 import importlib
 import os
@@ -36,18 +38,24 @@ SCRIPTS = [
     "zombies.build_zombie", "anims.build_zombie_anims", "anims.build_combat", "weapons.build_weapons",
     "props.build_gore",
     "icons.build_icons",
+    # A1: winterized CC0 city set of Altavega (pinned third-party sources -> assets/models/city/**, manifests, licences)
+    "third_party.build_city",
 ]
 M4_SCRIPTS = ("zombies.build_zombie", "anims.build_zombie_anims", "anims.build_combat", "weapons.build_weapons",
               "props.build_gore", "icons.build_icons")
 VERIFIERS = ["verify_assets", "verify_kits", "verify_chars"]
+CITY_SCRIPTS = ("third_party.build_city",)
 
 
 def main(argv=()):
     argv = list(argv)
     only = None
+    verifiers = VERIFIERS
     if "--only" in argv:
         words = argv[argv.index("--only") + 1].split(",")
         only = [n for n in SCRIPTS if any(w in n or (w == "m4" and n in M4_SCRIPTS) for w in words)]
+        if only and all(n in CITY_SCRIPTS for n in only):
+            verifiers = ["verify_assets"]      # the city set: verify_assets (it runs third_party/verify_city.py)
     run_verifiers = "--no-verify" not in argv
     t0 = time.time()
     failed = []
@@ -67,7 +75,7 @@ def main(argv=()):
             traceback.print_exc()
             lib_failed.append(mod)
     bad = []
-    for v in (VERIFIERS if run_verifiers else []):
+    for v in (verifiers if run_verifiers else []):
         print("== %s" % v)
         try:
             if importlib.import_module(v).main():

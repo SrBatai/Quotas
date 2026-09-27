@@ -1,0 +1,9626 @@
+{
+ "schema": 1,
+ "milestone": "A1",
+ "winterize": "a1.0",
+ "contract": "docs/v2/ASSET_SPEC_V2.md section A1",
+ "tower_nodes": {
+  "base": "Base",
+  "shaft": "Shaft_%d",
+  "top": "Roof",
+  "shadow": "ShadowProxy"
+ },
+ "budgets": {
+  "tower": 16000,
+  "building": 12000,
+  "vehicle": [
+   2500,
+   8000
+  ],
+  "prop": 1500,
+  "highway": 4000
+ },
+ "counts": {
+  "buildings": 11,
+  "highway": 6,
+  "props": 36,
+  "towers": 5,
+  "vehicles": 50
+ },
+ "total_bytes": 18069388,
+ "assets": {
+  "bldg_a": {
+   "id": "bldg_a",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_a.glb",
+   "tris": 4138,
+   "bytes": 188652,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 48,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3305,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 785,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-a.glb",
+     "sha256": "5cf220f90ee3f21e7abe38055ca409a48aa8ef1d5ffab6e2deb99e5a5e1ed5e0"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 3,
+    "roof_z": 12.2,
+    "height": 12.283,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), cut-ready (3 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.15,
+    "scale": 9.5,
+    "floor_period": 1.425,
+    "size_m": [
+     8.39,
+     8.93,
+     12.28
+    ],
+    "tris_src": 1242,
+    "windows_fixed": 0,
+    "backfaces_patched": 4
+   }
+  },
+  "bldg_c": {
+   "id": "bldg_c",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_c.glb",
+   "tris": 3865,
+   "bytes": 176296,
+   "nodes": {
+    "Base": {
+     "tris": 3169,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 696,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-c.glb",
+     "sha256": "f6887608a95a165503561730252c30506938803731c6546efca12bd47b1666bd"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-a.png",
+     "sha256": "22be5afbdf78f8158ebd568667779e73ebc16f887481d3add35df59bf820b118"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 2,
+    "roof_z": 8.4,
+    "height": 8.484,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-a atlas, cut-ready (2 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.15,
+    "scale": 9.5,
+    "floor_period": 1.425,
+    "size_m": [
+     8.39,
+     10.36,
+     8.48
+    ],
+    "tris_src": 1187,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_d": {
+   "id": "bldg_d",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_d.glb",
+   "tris": 3637,
+   "bytes": 162636,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3303,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 322,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-d.glb",
+     "sha256": "40605608e9aca0c98e294acff4af0f74afa417a51d589be490ca98f33ce4c2f5"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 3,
+    "roof_z": 12.2,
+    "height": 12.283,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), cut-ready (3 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.1,
+    "scale": 9.5,
+    "floor_period": 0.95,
+    "size_m": [
+     7.98,
+     8.55,
+     12.28
+    ],
+    "tris_src": 1086,
+    "windows_fixed": 0,
+    "backfaces_patched": 4
+   }
+  },
+  "bldg_e": {
+   "id": "bldg_e",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_e.glb",
+   "tris": 5215,
+   "bytes": 236940,
+   "nodes": {
+    "Base": {
+     "tris": 4519,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 696,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-e.glb",
+     "sha256": "edbe5b49858a3c83e72d3cf496129c06082ef3a3d6005769f8883138e275b456"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-b.png",
+     "sha256": "d7fa3fb6243fdb8cbcbbe8b61c4ff10ceb29aed23be806171f58cef13a8690e6"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 2,
+    "roof_z": 8.4,
+    "height": 8.484,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-b atlas, cut-ready (2 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.15,
+    "scale": 9.5,
+    "floor_period": 1.425,
+    "size_m": [
+     15.58,
+     9.57,
+     8.48
+    ],
+    "tris_src": 1497,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_f": {
+   "id": "bldg_f",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_f.glb",
+   "tris": 4855,
+   "bytes": 235060,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 28,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 4255,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 572,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-f.glb",
+     "sha256": "633a25f7fb3ccf98e304a885a36ed900aecee5bde7ecd554729dec753cceea78"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 4,
+    "roof_z": 16.0,
+    "height": 16.083,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), cut-ready (4 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.4,
+    "scale": 9.5,
+    "floor_period": 3.8,
+    "size_m": [
+     7.98,
+     9.79,
+     16.08
+    ],
+    "tris_src": 1772,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_g": {
+   "id": "bldg_g",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_g.glb",
+   "tris": 6219,
+   "bytes": 285832,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 28,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 5665,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 526,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-g.glb",
+     "sha256": "9a28fa2fdfac07492ee95589882213cfd6eb32d6752cb3b2f5404604c676d27a"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-a.png",
+     "sha256": "22be5afbdf78f8158ebd568667779e73ebc16f887481d3add35df59bf820b118"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 4,
+    "roof_z": 16.0,
+    "height": 16.083,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-a atlas, cut-ready (4 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.15,
+    "scale": 9.5,
+    "floor_period": 1.425,
+    "size_m": [
+     9.22,
+     8.76,
+     16.08
+    ],
+    "tris_src": 1984,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_i": {
+   "id": "bldg_i",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_i.glb",
+   "tris": 6937,
+   "bytes": 329788,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 28,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 6225,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 684,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-i.glb",
+     "sha256": "3e572277d3eead30e24668a653ec6a11a488228a219d4902f08638cbca7c3dfe"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 4,
+    "roof_z": 16.0,
+    "height": 15.96,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), cut-ready (4 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.4,
+    "scale": 9.5,
+    "floor_period": 3.8,
+    "size_m": [
+     11.78,
+     12.37,
+     15.96
+    ],
+    "tris_src": 2544,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_k": {
+   "id": "bldg_k",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_k.glb",
+   "tris": 8020,
+   "bytes": 384848,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 24,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 7070,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 926,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-k.glb",
+     "sha256": "afd36f573b9d6a6a890675aa0fbe762b29efb6258f322990752d79d9f0da42c6"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-b.png",
+     "sha256": "d7fa3fb6243fdb8cbcbbe8b61c4ff10ceb29aed23be806171f58cef13a8690e6"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 3,
+    "roof_z": 12.2,
+    "height": 13.965,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-b atlas, cut-ready (3 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.12,
+    "scale": 9.5,
+    "floor_period": 1.14,
+    "size_m": [
+     19.79,
+     8.95,
+     13.97
+    ],
+    "tris_src": 2946,
+    "windows_fixed": 4,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_l": {
+   "id": "bldg_l",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_l.glb",
+   "tris": 9333,
+   "bytes": 445724,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 28,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 8260,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 1045,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-l.glb",
+     "sha256": "0c3d1b346c142198b7f504d12b40cb1630bb14c3ff38a013922b700d09f9dcff"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 5,
+    "roof_z": 19.8,
+    "height": 21.565,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4,
+     15.2
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), cut-ready (5 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.249,
+    "scale": 9.5,
+    "floor_period": 2.3655,
+    "size_m": [
+     13.02,
+     13.32,
+     21.57
+    ],
+    "tris_src": 3512,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bldg_m": {
+   "id": "bldg_m",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_m.glb",
+   "tris": 8115,
+   "bytes": 430268,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 16,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 7663,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 436,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-m.glb",
+     "sha256": "1cdc717ac86a0479043ff0d0146142f5dfc2622c0e3aaac484fad5807f94d580"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-b.png",
+     "sha256": "d7fa3fb6243fdb8cbcbbe8b61c4ff10ceb29aed23be806171f58cef13a8690e6"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 7,
+    "roof_z": 25.2,
+    "height": 29.925,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4,
+     15.2,
+     19.0,
+     22.8
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-b atlas, cut-ready (7 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.4,
+    "scale": 9.5,
+    "floor_period": 3.8,
+    "size_m": [
+     11.78,
+     11.8,
+     29.93
+    ],
+    "tris_src": 3740,
+    "windows_fixed": 0,
+    "backfaces_patched": 1
+   }
+  },
+  "bldg_n": {
+   "id": "bldg_n",
+   "family": "buildings",
+   "path": "res://assets/models/city/buildings/bldg_n.glb",
+   "tris": 11279,
+   "bytes": 532700,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 16,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 9955,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 1308,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-n.glb",
+     "sha256": "35dc225d48516ead483a49e90dd164f1bc62b1ad75d3095488bd404cad1848b0"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/Textures/variation-a.png",
+     "sha256": "22be5afbdf78f8158ebd568667779e73ebc16f887481d3add35df59bf820b118"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 3.8,
+    "floors": 5,
+    "roof_z": 19.8,
+    "height": 23.56,
+    "stub": 0.4,
+    "kind": "building",
+    "foundation": 0.0,
+    "generator": false,
+    "enterable": false,
+    "window_cell": [
+     2.4,
+     3.8
+    ],
+    "source": "kenney-city-kit-commercial",
+    "levels": [
+     3.8,
+     7.6,
+     11.4,
+     15.2
+    ]
+   },
+   "problems": [],
+   "modifications": "rescaled x9.50 (window rows -> 3.8 m storeys), Kenney variation-a atlas, cut-ready (5 slabs), graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.4,
+    "scale": 9.5,
+    "floor_period": 3.8,
+    "size_m": [
+     22.04,
+     17.29,
+     23.56
+    ],
+    "tris_src": 4350,
+    "windows_fixed": 0,
+    "backfaces_patched": 0
+   }
+  },
+  "bridge_pillar": {
+   "id": "bridge_pillar",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/bridge_pillar.glb",
+   "tris": 108,
+   "bytes": 6484,
+   "nodes": {
+    "Prop": {
+     "tris": 108,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/bridge-pillar-wide.glb",
+     "sha256": "93b0b96006cdca5287679311cfd4102195468affc0f5b247608b5bba2384e733"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale height:6.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     3.0,
+     -0.0
+    ],
+    "col_size": [
+     1.68,
+     6.0,
+     1.68
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 40,
+    "floor_period_src": null,
+    "scale": 12.0,
+    "floor_period": null,
+    "size_m": [
+     1.68,
+     1.68,
+     6.0
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "gantry_sign": {
+   "id": "gantry_sign",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/gantry_sign.glb",
+   "tris": 362,
+   "bytes": 19124,
+   "nodes": {
+    "Prop": {
+     "tris": 318,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel_0": {
+     "tris": 22,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel_1": {
+     "tris": 22,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel_0": {
+     "anchor": [
+      -3.5,
+      6.312,
+      -0.003
+     ]
+    },
+    "TextPanel_1": {
+     "anchor": [
+      3.5,
+      6.312,
+      -0.003
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/sign-highway.glb",
+     "sha256": "1fdae5481b07084926dd6bced13577aed0f568044cacf524e29f312de3d3d56a"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:16.0,1.2,7.6, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel_0": [
+     -3.5,
+     6.312,
+     -0.003
+    ],
+    "TextPanel_1": [
+     3.5,
+     6.312,
+     -0.003
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     3.8,
+     -0.0
+    ],
+    "col_size": [
+     16.0,
+     7.6,
+     1.2
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 180,
+    "floor_period_src": null,
+    "scale": [
+     16.0,
+     9.0652,
+     10.7439
+    ],
+    "floor_period": null,
+    "size_m": [
+     16.0,
+     1.2,
+     7.6
+    ],
+    "panels": {
+     "Panel_0": [
+      6.2,
+      0.34,
+      2.576
+     ],
+     "Panel_1": [
+      6.2,
+      0.34,
+      2.576
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "gantry_sign_detailed": {
+   "id": "gantry_sign_detailed",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/gantry_sign_detailed.glb",
+   "tris": 438,
+   "bytes": 23620,
+   "nodes": {
+    "Prop": {
+     "tris": 350,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel_0": {
+     "tris": 44,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel_1": {
+     "tris": 44,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel_0": {
+     "anchor": [
+      -3.5,
+      6.432,
+      -0.003
+     ]
+    },
+    "TextPanel_1": {
+     "anchor": [
+      3.5,
+      6.307,
+      -0.003
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/sign-highway-detailed.glb",
+     "sha256": "7b56dbca534da55786d6978b12dd8fd3e9c3746b4a89c5f99d4274e3e12ec498"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:16.0,1.2,8.2, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel_0": [
+     -3.5,
+     6.432,
+     -0.003
+    ],
+    "TextPanel_1": [
+     3.5,
+     6.307,
+     -0.003
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     4.1,
+     -0.0
+    ],
+    "col_size": [
+     16.0,
+     8.2,
+     1.2
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 256,
+    "floor_period_src": null,
+    "scale": [
+     16.0,
+     9.0652,
+     9.9742
+    ],
+    "floor_period": null,
+    "size_m": [
+     16.0,
+     1.2,
+     8.2
+    ],
+    "panels": {
+     "Panel_0": [
+      6.2,
+      0.34,
+      3.536
+     ],
+     "Panel_1": [
+      6.2,
+      0.34,
+      3.286
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "gantry_sign_wide": {
+   "id": "gantry_sign_wide",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/gantry_sign_wide.glb",
+   "tris": 326,
+   "bytes": 16384,
+   "nodes": {
+    "Prop": {
+     "tris": 304,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 22,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      -0.0,
+      6.312,
+      -0.003
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/sign-highway-wide.glb",
+     "sha256": "7f67dd91a639e821fcc0df0229833c4d8f3c3ee774dc56f9e31272e9d8d597b4"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:16.0,1.2,7.6, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel": [
+     -0.0,
+     6.312,
+     -0.003
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     3.8,
+     -0.0
+    ],
+    "col_size": [
+     16.0,
+     7.6,
+     1.2
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 144,
+    "floor_period_src": null,
+    "scale": [
+     16.0,
+     9.0652,
+     10.7439
+    ],
+    "floor_period": null,
+    "size_m": [
+     16.0,
+     1.2,
+     7.6
+    ],
+    "panels": {
+     "Panel": [
+      13.2,
+      0.34,
+      2.576
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "highway_barrier": {
+   "id": "highway_barrier",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/highway_barrier.glb",
+   "tris": 160,
+   "bytes": 6600,
+   "nodes": {
+    "Prop": {
+     "tris": 160,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/road-straight-barrier.glb",
+     "sha256": "d706b09bfdd25abc801785cce5404ef3298709fba941168d30022ebff50539c9"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:12.0,12.0,0.9, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.45,
+     -0.0
+    ],
+    "col_size": [
+     12.0,
+     0.9,
+     12.0
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 24,
+    "floor_period_src": null,
+    "scale": [
+     12.0,
+     12.0,
+     11.25
+    ],
+    "floor_period": null,
+    "size_m": [
+     12.0,
+     12.0,
+     0.9
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "overpass": {
+   "id": "overpass",
+   "family": "highway",
+   "path": "res://assets/models/city/highway/overpass.glb",
+   "tris": 1228,
+   "bytes": 46876,
+   "nodes": {
+    "Prop": {
+     "tris": 1228,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/road-bridge.glb",
+     "sha256": "def3492f02f1fbae2149d94aabb46ac4df792e03a625ebac02010a16169cff72"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:12.0,12.0,6.4, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     3.2,
+     -0.0
+    ],
+    "col_size": [
+     12.0,
+     6.4,
+     12.0
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 248,
+    "floor_period_src": null,
+    "scale": [
+     12.0,
+     12.0,
+     12.3077
+    ],
+    "floor_period": null,
+    "size_m": [
+     12.0,
+     12.0,
+     6.4
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "barrel": {
+   "id": "barrel",
+   "family": "props",
+   "path": "res://assets/models/city/props/barrel.glb",
+   "tris": 882,
+   "bytes": 45000,
+   "nodes": {
+    "Prop": {
+     "tris": 882,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_Barrel.usda",
+     "sha256": "d491dd011efddef8306ab1de6e609391243b07c186ff4c0fdca724ddb445890d"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale height:0.9, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.45,
+     -0.0
+    ],
+    "col_size": [
+     0.553,
+     0.9,
+     0.553
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 882,
+    "floor_period_src": null,
+    "scale": 0.7861,
+    "floor_period": null,
+    "size_m": [
+     0.55,
+     0.55,
+     0.9
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "barrier_plastic": {
+   "id": "barrier_plastic",
+   "family": "props",
+   "path": "res://assets/models/city/props/barrier_plastic.glb",
+   "tris": 852,
+   "bytes": 54240,
+   "nodes": {
+    "Prop": {
+     "tris": 852,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_PlasticBarrier.usda",
+     "sha256": "ef26ad277403acca26078515c8572f49ae12835e54aedc86810d5272a1758959"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale height:0.8, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.4,
+     -0.0
+    ],
+    "col_size": [
+     1.381,
+     0.8,
+     0.446
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 852,
+    "floor_period_src": null,
+    "scale": 1.3343,
+    "floor_period": null,
+    "size_m": [
+     1.38,
+     0.45,
+     0.8
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "barrier_sawhorse": {
+   "id": "barrier_sawhorse",
+   "family": "props",
+   "path": "res://assets/models/city/props/barrier_sawhorse.glb",
+   "tris": 364,
+   "bytes": 27484,
+   "nodes": {
+    "Prop": {
+     "tris": 364,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrafficBarrier_2.usda",
+     "sha256": "ab0b372e73cd95ef1cf9d70f2be47e44291aa3e69697a8c5db37657001396a9f"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.401,
+     -0.0
+    ],
+    "col_size": [
+     1.555,
+     0.802,
+     0.78
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 364,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     1.56,
+     0.78,
+     0.8
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "barrier_striped": {
+   "id": "barrier_striped",
+   "family": "props",
+   "path": "res://assets/models/city/props/barrier_striped.glb",
+   "tris": 732,
+   "bytes": 47684,
+   "nodes": {
+    "Prop": {
+     "tris": 732,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrafficBarrier_1.usda",
+     "sha256": "8973885682e7b7a6616a7f0eafb081af31a965d07d60c8a910606615775fe289"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.556,
+     -0.0
+    ],
+    "col_size": [
+     1.555,
+     1.112,
+     0.881
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 732,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     1.56,
+     0.88,
+     1.11
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "bench": {
+   "id": "bench",
+   "family": "props",
+   "path": "res://assets/models/city/props/bench.glb",
+   "tris": 160,
+   "bytes": 14892,
+   "nodes": {
+    "Prop": {
+     "tris": 160,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-holiday-kit",
+     "file": "Models/GLB format/bench.glb",
+     "sha256": "e37ffcbb074679098d16db68aa50ce34a3ca2f1900a20110da9509d312039554"
+    },
+    {
+     "pack": "kenney-holiday-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "015fcc1664be7576f468a98bc4f5f329ef8b3c9caef0d85b2a4dc0ca69516863"
+    }
+   ],
+   "modifications": "scale dims:1.8,0.62,0.85, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.425,
+     -0.0
+    ],
+    "col_size": [
+     1.8,
+     0.85,
+     0.62
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 160,
+    "floor_period_src": null,
+    "scale": [
+     1.6056,
+     0.9808,
+     1.1635
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.8,
+     0.62,
+     0.85
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "bin_wheelie": {
+   "id": "bin_wheelie",
+   "family": "props",
+   "path": "res://assets/models/city/props/bin_wheelie.glb",
+   "tris": 739,
+   "bytes": 62924,
+   "nodes": {
+    "Prop": {
+     "tris": 739,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-survival",
+     "file": "S_Trashcan.usda",
+     "sha256": "39524b777c9105cefa7bc622fffe9dd68d3a4a7d9264b285b34ef0706134c75c"
+    }
+   ],
+   "modifications": "scale height:1.05, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.525,
+     -0.0
+    ],
+    "col_size": [
+     0.578,
+     1.05,
+     0.756
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 739,
+    "floor_period_src": null,
+    "scale": 0.1555,
+    "floor_period": null,
+    "size_m": [
+     0.58,
+     0.76,
+     1.05
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "bus_stop": {
+   "id": "bus_stop",
+   "family": "props",
+   "path": "res://assets/models/city/props/bus_stop.glb",
+   "tris": 290,
+   "bytes": 21968,
+   "nodes": {
+    "Prop": {
+     "tris": 278,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Panel": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "LightAnchor": {
+     "anchor": [
+      1.72,
+      1.3,
+      -0.1
+     ]
+    },
+    "LightPool": {
+     "anchor": [
+      1.12,
+      0.02,
+      0.3
+     ]
+    },
+    "Seat": {
+     "anchor": [
+      -0.1,
+      0.47,
+      -0.35
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      -2.3,
+      2.5,
+      1.13
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::bus_stop",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {
+    "LightAnchor": [
+     1.72,
+     1.3,
+     -0.1
+    ],
+    "LightPool": [
+     1.12,
+     0.02,
+     0.3
+    ],
+    "Seat": [
+     -0.1,
+     0.47,
+     -0.35
+    ],
+    "TextPanel": [
+     -2.3,
+     2.5,
+     1.13
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     1.285,
+     0.1
+    ],
+    "col_size": [
+     3.8,
+     2.57,
+     1.7
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -1.9,
+      -0.95,
+      0
+     ],
+     [
+      1.9,
+      0.75,
+      2.57
+     ]
+    ],
+    "panels": {
+     "Panel": [
+      0.6,
+      0.6
+     ]
+    },
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "container_green": {
+   "id": "container_green",
+   "family": "props",
+   "path": "res://assets/models/city/props/container_green.glb",
+   "tris": 1404,
+   "bytes": 100368,
+   "nodes": {
+    "Prop": {
+     "tris": 1404,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      2.454,
+      1.0,
+      -0.0
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_ContainerGreen.usda",
+     "sha256": "de3c714154a54f4b299154cf0d4ec11cc815d60cba6155b5cc0c58a9535e0f36"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {
+    "Loot": [
+     2.454,
+     1.0,
+     -0.0
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     1.302,
+     -0.0
+    ],
+    "col_size": [
+     5.709,
+     2.603,
+     2.561
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1336,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     5.71,
+     2.56,
+     2.6
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "container_red": {
+   "id": "container_red",
+   "family": "props",
+   "path": "res://assets/models/city/props/container_red.glb",
+   "tris": 1100,
+   "bytes": 85680,
+   "nodes": {
+    "Prop": {
+     "tris": 1100,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      2.454,
+      1.0,
+      -0.0
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_ContainerRed.usda",
+     "sha256": "23fee34277ed9b2a41f3f096aed222c746e619a7824a9425a4d277ccacdf8ef5"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {
+    "Loot": [
+     2.454,
+     1.0,
+     -0.0
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     1.302,
+     -0.0
+    ],
+    "col_size": [
+     5.708,
+     2.603,
+     2.559
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1032,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     5.71,
+     2.56,
+     2.6
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "guardrail": {
+   "id": "guardrail",
+   "family": "props",
+   "path": "res://assets/models/city/props/guardrail.glb",
+   "tris": 60,
+   "bytes": 6196,
+   "nodes": {
+    "Prop": {
+     "tris": 60,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::guardrail",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.39,
+     -0.02
+    ],
+    "col_size": [
+     4.0,
+     0.78,
+     0.28
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -2.0,
+      -0.12,
+      0
+     ],
+     [
+      2.0,
+      0.16,
+      0.78
+     ]
+    ],
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "hedgehog": {
+   "id": "hedgehog",
+   "family": "props",
+   "path": "res://assets/models/city/props/hedgehog.glb",
+   "tris": 36,
+   "bytes": 4272,
+   "nodes": {
+    "Prop": {
+     "tris": 36,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::hedgehog",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.65,
+     -0.0
+    ],
+    "col_size": [
+     1.6,
+     1.3,
+     1.6
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -0.8,
+      -0.8,
+      0
+     ],
+     [
+      0.8,
+      0.8,
+      1.3
+     ]
+    ],
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "hydrant": {
+   "id": "hydrant",
+   "family": "props",
+   "path": "res://assets/models/city/props/hydrant.glb",
+   "tris": 976,
+   "bytes": 59804,
+   "nodes": {
+    "Prop": {
+     "tris": 976,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_FireHydrant.usda",
+     "sha256": "ee35beb805bee9159a2f2cd060cc41cdc40bd5b7160680f0462aa1e60f582d2d"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.386,
+     -0.0
+    ],
+    "col_size": [
+     0.515,
+     0.772,
+     0.399
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 976,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     0.52,
+     0.4,
+     0.77
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "jersey_barrier": {
+   "id": "jersey_barrier",
+   "family": "props",
+   "path": "res://assets/models/city/props/jersey_barrier.glb",
+   "tris": 130,
+   "bytes": 7608,
+   "nodes": {
+    "Prop": {
+     "tris": 130,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/construction-barrier.glb",
+     "sha256": "c2dc9e69b306093a66f9380d793d9f9d81c9331febf18d3188a6312f145bbe75"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:3.0,0.62,0.82, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.41,
+     -0.0
+    ],
+    "col_size": [
+     3.0,
+     0.82,
+     0.62
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 60,
+    "floor_period_src": null,
+    "scale": [
+     28.5714,
+     2.7556,
+     6.9053
+    ],
+    "floor_period": null,
+    "size_m": [
+     3.0,
+     0.62,
+     0.82
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "lamp_highway": {
+   "id": "lamp_highway",
+   "family": "props",
+   "path": "res://assets/models/city/props/lamp_highway.glb",
+   "tris": 163,
+   "bytes": 9424,
+   "nodes": {
+    "Prop": {
+     "tris": 163,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "LightAnchor": {
+     "anchor": [
+      0.009,
+      8.654,
+      1.6
+     ]
+    },
+    "LightPool": {
+     "anchor": [
+      0.009,
+      0.02,
+      1.6
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/light-curved.glb",
+     "sha256": "e9ff06ead9d9b14eddd7bf40fa20e31b898fde2d59ade940eebe60685d335f6d"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:0.42,2.4,9.0, graded, weathered, snow, AO",
+   "anchors": {
+    "LightAnchor": [
+     0.009,
+     8.654,
+     1.6
+    ],
+    "LightPool": [
+     0.009,
+     0.02,
+     1.6
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     4.5,
+     -0.0
+    ],
+    "col_size": [
+     0.339,
+     9.0
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 92,
+    "floor_period_src": null,
+    "scale": [
+     8.4,
+     10.6667,
+     13.3333
+    ],
+    "floor_period": null,
+    "size_m": [
+     0.42,
+     2.4,
+     9.0
+    ],
+    "pole_shift": [
+     0.0,
+     -0.933
+    ],
+    "yaw_fix": -180.0,
+    "panels": null,
+    "backfaces_patched": 1
+   }
+  },
+  "lamp_highway_double": {
+   "id": "lamp_highway_double",
+   "family": "props",
+   "path": "res://assets/models/city/props/lamp_highway_double.glb",
+   "tris": 292,
+   "bytes": 15040,
+   "nodes": {
+    "Prop": {
+     "tris": 292,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "LightAnchor_0": {
+     "anchor": [
+      -1.725,
+      8.654,
+      0.009
+     ]
+    },
+    "LightAnchor_1": {
+     "anchor": [
+      1.725,
+      8.654,
+      0.009
+     ]
+    },
+    "LightPool_0": {
+     "anchor": [
+      -1.725,
+      0.02,
+      0.009
+     ]
+    },
+    "LightPool_1": {
+     "anchor": [
+      1.725,
+      0.02,
+      0.009
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/light-curved-double.glb",
+     "sha256": "ff76555bf6eff977dddaa9028db4f44e88e7f158f2c47d596051a20fa03ddb07"
+    },
+    {
+     "pack": "kenney-city-kit-roads",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "ebbdaadf298f684ee534d0e63e2bdb223f7501da9fc13eb7bcdc94489162aca5"
+    }
+   ],
+   "modifications": "scale dims:4.6,0.42,9.0, graded, weathered, snow, AO",
+   "anchors": {
+    "LightAnchor_0": [
+     -1.725,
+     8.654,
+     0.009
+    ],
+    "LightAnchor_1": [
+     1.725,
+     8.654,
+     0.009
+    ],
+    "LightPool_0": [
+     -1.725,
+     0.02,
+     0.009
+    ],
+    "LightPool_1": [
+     1.725,
+     0.02,
+     0.009
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     4.5,
+     -0.0
+    ],
+    "col_size": [
+     0.356,
+     9.0
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 152,
+    "floor_period_src": null,
+    "scale": [
+     11.5,
+     8.4,
+     13.3333
+    ],
+    "floor_period": null,
+    "size_m": [
+     4.6,
+     0.42,
+     9.0
+    ],
+    "pole_shift": [
+     0.0,
+     0.0
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "lamp_ornate": {
+   "id": "lamp_ornate",
+   "family": "props",
+   "path": "res://assets/models/city/props/lamp_ornate.glb",
+   "tris": 1028,
+   "bytes": 90860,
+   "nodes": {
+    "Prop": {
+     "tris": 1028,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "LightAnchor": {
+     "anchor": [
+      0.0,
+      3.981,
+      0.0
+     ]
+    },
+    "LightPool": {
+     "anchor": [
+      0.0,
+      0.02,
+      0.0
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-modular-streets",
+     "file": "S_StreetlightSingle.usda",
+     "sha256": "43d7cf7ceefcdbb03b3660ec99c5f6ce1a7e1ef36fb7e7175dca805f4042176e"
+    }
+   ],
+   "modifications": "scale height:4.4, graded, weathered, snow, AO",
+   "anchors": {
+    "LightAnchor": [
+     0.0,
+     3.981,
+     0.0
+    ],
+    "LightPool": [
+     0.0,
+     0.02,
+     0.0
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     2.2,
+     -0.0
+    ],
+    "col_size": [
+     0.266,
+     4.4
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1028,
+    "floor_period_src": null,
+    "scale": 4.0353,
+    "floor_period": null,
+    "size_m": [
+     0.53,
+     0.53,
+     4.4
+    ],
+    "pole_shift": [
+     0.0,
+     0.0
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "lamp_street": {
+   "id": "lamp_street",
+   "family": "props",
+   "path": "res://assets/models/city/props/lamp_street.glb",
+   "tris": 426,
+   "bytes": 20808,
+   "nodes": {
+    "Prop": {
+     "tris": 426,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "LightAnchor": {
+     "anchor": [
+      0.0,
+      6.315,
+      2.387
+     ]
+    },
+    "LightPool": {
+     "anchor": [
+      0.0,
+      0.02,
+      2.387
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_StreetLights.usda",
+     "sha256": "3c0cc59b68825499340f75460da8ca90b3cb6b4cd88a54c64c680113c670df85"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {
+    "LightAnchor": [
+     0.0,
+     6.315,
+     2.387
+    ],
+    "LightPool": [
+     0.0,
+     0.02,
+     2.387
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     3.321,
+     -0.0
+    ],
+    "col_size": [
+     0.241,
+     6.643
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 426,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     0.36,
+     2.93,
+     6.64
+    ],
+    "pole_shift": [
+     -0.0,
+     1.293
+    ],
+    "yaw_fix": -0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "mil_barricade": {
+   "id": "mil_barricade",
+   "family": "props",
+   "path": "res://assets/models/city/props/mil_barricade.glb",
+   "tris": 932,
+   "bytes": 89376,
+   "nodes": {
+    "Prop": {
+     "tris": 932,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::mil_barricade",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.625,
+     -0.0
+    ],
+    "col_size": [
+     4.4,
+     1.25,
+     1.6
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -2.2,
+      -0.8,
+      0
+     ],
+     [
+      2.2,
+      0.8,
+      1.25
+     ]
+    ],
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "mil_tent": {
+   "id": "mil_tent",
+   "family": "props",
+   "path": "res://assets/models/city/props/mil_tent.glb",
+   "tris": 175,
+   "bytes": 9172,
+   "nodes": {
+    "Prop": {
+     "tris": 175,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Entrance": {
+     "anchor": [
+      0.0,
+      0.0,
+      3.2
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::mil_tent",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {
+    "Entrance": [
+     0.0,
+     0.0,
+     3.2
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     1.35,
+     -0.0
+    ],
+    "col_size": [
+     4.2,
+     2.7,
+     5.2
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -2.1,
+      -2.6,
+      0
+     ],
+     [
+      2.1,
+      2.6,
+      2.7
+     ]
+    ],
+    "procedural": true,
+    "backfaces_patched": 7
+   }
+  },
+  "pallet": {
+   "id": "pallet",
+   "family": "props",
+   "path": "res://assets/models/city/props/pallet.glb",
+   "tris": 240,
+   "bytes": 21712,
+   "nodes": {
+    "Prop": {
+     "tris": 240,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_Pallet.usda",
+     "sha256": "c3480ea0405f8bf2ded3486adcb551c4edf4e67ffcd97f8a818d832d3fc8df6e"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.07,
+     -0.0
+    ],
+    "col_size": [
+     1.217,
+     0.14,
+     0.893
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 240,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     0.89,
+     1.22,
+     0.14
+    ],
+    "yaw_fix": 90.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "sandbag_wall": {
+   "id": "sandbag_wall",
+   "family": "props",
+   "path": "res://assets/models/city/props/sandbag_wall.glb",
+   "tris": 836,
+   "bytes": 79616,
+   "nodes": {
+    "Prop": {
+     "tris": 836,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::sandbag_wall",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.229,
+     -0.0
+    ],
+    "col_size": [
+     2.4,
+     0.459,
+     0.4
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -1.2,
+      -0.2,
+      0
+     ],
+     [
+      1.2,
+      0.2,
+      0.4586
+     ]
+    ],
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_direction": {
+   "id": "sign_direction",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_direction.glb",
+   "tris": 80,
+   "bytes": 8424,
+   "nodes": {
+    "Prop": {
+     "tris": 68,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      0.0,
+      2.3,
+      0.09
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::sign_direction",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {
+    "TextPanel": [
+     0.0,
+     2.3,
+     0.09
+    ]
+   },
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     1.475,
+     -0.0
+    ],
+    "col_size": [
+     2.6,
+     2.95,
+     0.2
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "box",
+    "col_box": [
+     [
+      -1.3,
+      -0.1,
+      0
+     ],
+     [
+      1.3,
+      0.1,
+      2.95
+     ]
+    ],
+    "pole_r": 0.05,
+    "panels": {
+     "Panel": [
+      2.6,
+      1.3
+     ]
+    },
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_info": {
+   "id": "sign_info",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_info.glb",
+   "tris": 52,
+   "bytes": 6176,
+   "nodes": {
+    "Prop": {
+     "tris": 40,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      0.0,
+      2.1,
+      0.09
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::sign_info",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {
+    "TextPanel": [
+     0.0,
+     2.1,
+     0.09
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.275,
+     -0.0
+    ],
+    "col_size": [
+     0.05,
+     2.55
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "cylinder",
+    "col_box": [
+     [
+      -0.6,
+      -0.1,
+      0
+     ],
+     [
+      0.6,
+      0.1,
+      2.55
+     ]
+    ],
+    "pole_r": 0.05,
+    "panels": {
+     "Panel": [
+      1.2,
+      0.9
+     ]
+    },
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_no_parking": {
+   "id": "sign_no_parking",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_no_parking.glb",
+   "tris": 244,
+   "bytes": 16936,
+   "nodes": {
+    "Prop": {
+     "tris": 244,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-modular-streets",
+     "file": "S_SignNoParking.usda",
+     "sha256": "b29a1acfeabce1644caf8c7d275bd3b9cc0bf39d81fcf1896cb86b6dbd42c9e9"
+    }
+   ],
+   "modifications": "scale height:2.6, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.3,
+     -0.0
+    ],
+    "col_size": [
+     0.04,
+     2.6
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 244,
+    "floor_period_src": null,
+    "scale": 4.8252,
+    "floor_period": null,
+    "size_m": [
+     0.13,
+     0.67,
+     2.6
+    ],
+    "pole_shift": [
+     -0.032,
+     -0.001
+    ],
+    "yaw_fix": 0.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_panel_a": {
+   "id": "sign_panel_a",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_panel_a.glb",
+   "tris": 104,
+   "bytes": 10512,
+   "nodes": {
+    "Prop": {
+     "tris": 82,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 22,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      0.0,
+      2.455,
+      0.172
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_TrafficSign1.usda",
+     "sha256": "3be7ed9ee15699ff23fe2d08ea41c4745a09a5900cf59ef66ffb558f098b1945"
+    }
+   ],
+   "modifications": "scale height:2.9, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel": [
+     0.0,
+     2.455,
+     0.172
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.45,
+     -0.0
+    ],
+    "col_size": [
+     0.064,
+     2.9
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 104,
+    "floor_period_src": null,
+    "scale": 1.9138,
+    "floor_period": null,
+    "size_m": [
+     0.2,
+     0.89,
+     2.9
+    ],
+    "pole_shift": [
+     0.041,
+     0.0
+    ],
+    "yaw_fix": 90.0,
+    "panels": {
+     "Panel": [
+      0.757,
+      0.033,
+      0.757
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "sign_panel_b": {
+   "id": "sign_panel_b",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_panel_b.glb",
+   "tris": 76,
+   "bytes": 8572,
+   "nodes": {
+    "Prop": {
+     "tris": 69,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 7,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      -0.002,
+      2.499,
+      0.212
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_TrafficSign2.usda",
+     "sha256": "b1c94f0deada9d975af98b934a6c196d33f2e982843f90176c1f142e9c24e2f1"
+    }
+   ],
+   "modifications": "scale height:2.9, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel": [
+     -0.002,
+     2.499,
+     0.212
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.45,
+     -0.0
+    ],
+    "col_size": [
+     0.065,
+     2.9
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 76,
+    "floor_period_src": null,
+    "scale": 1.9522,
+    "floor_period": null,
+    "size_m": [
+     0.9,
+     0.24,
+     2.9
+    ],
+    "pole_shift": [
+     0.002,
+     0.06
+    ],
+    "yaw_fix": 0.0,
+    "panels": {
+     "Panel": [
+      0.692,
+      0.028,
+      0.6
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "sign_panel_c": {
+   "id": "sign_panel_c",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_panel_c.glb",
+   "tris": 90,
+   "bytes": 9432,
+   "nodes": {
+    "Prop": {
+     "tris": 47,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 43,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      0.002,
+      2.455,
+      0.001
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_TrafficSign3.usda",
+     "sha256": "f2190e4948a4d04715da1e927aadc20d2dacd9158a69714aec9f19e6d1a329fb"
+    }
+   ],
+   "modifications": "scale height:2.9, graded, weathered, snow, AO, text panels split",
+   "anchors": {
+    "TextPanel": [
+     0.002,
+     2.455,
+     0.001
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.399,
+     -0.0
+    ],
+    "col_size": [
+     0.068,
+     2.798
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 90,
+    "floor_period_src": null,
+    "scale": 2.039,
+    "floor_period": null,
+    "size_m": [
+     0.89,
+     0.23,
+     2.9
+    ],
+    "pole_shift": [
+     0.002,
+     0.048
+    ],
+    "yaw_fix": -180.0,
+    "panels": {
+     "Panel": [
+      0.891,
+      0.099,
+      0.891
+     ]
+    },
+    "backfaces_patched": 0
+   }
+  },
+  "sign_stop": {
+   "id": "sign_stop",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_stop.glb",
+   "tris": 300,
+   "bytes": 21752,
+   "nodes": {
+    "Prop": {
+     "tris": 300,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-modular-streets",
+     "file": "S_SignStop.usda",
+     "sha256": "6157d33a3145f08d9906d88701d2e8e5673d84c58b0b1908098acf7947d82bfa"
+    }
+   ],
+   "modifications": "scale height:2.6, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.3,
+     -0.0
+    ],
+    "col_size": [
+     0.04,
+     2.6
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 300,
+    "floor_period_src": null,
+    "scale": 4.8353,
+    "floor_period": null,
+    "size_m": [
+     0.11,
+     0.67,
+     2.6
+    ],
+    "pole_shift": [
+     -0.023,
+     0.0
+    ],
+    "yaw_fix": -90.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_street": {
+   "id": "sign_street",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_street.glb",
+   "tris": 52,
+   "bytes": 6076,
+   "nodes": {
+    "Prop": {
+     "tris": 40,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Panel": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "TextPanel": {
+     "anchor": [
+      0.0,
+      2.62,
+      0.09
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "procedural",
+     "file": "blender/third_party/procprops.py::sign_street",
+     "sha256": null
+    }
+   ],
+   "modifications": "procedural (VENTISCA, no third-party source), weathered, snow, AO",
+   "anchors": {
+    "TextPanel": [
+     0.0,
+     2.62,
+     0.09
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.385,
+     -0.0
+    ],
+    "col_size": [
+     0.05,
+     2.77
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "col": "cylinder",
+    "col_box": [
+     [
+      -0.55,
+      -0.1,
+      0
+     ],
+     [
+      0.55,
+      0.1,
+      2.77
+     ]
+    ],
+    "pole_r": 0.05,
+    "panels": {
+     "Panel": [
+      1.1,
+      0.3
+     ]
+    },
+    "procedural": true,
+    "backfaces_patched": 0
+   }
+  },
+  "sign_yield": {
+   "id": "sign_yield",
+   "family": "props",
+   "path": "res://assets/models/city/props/sign_yield.glb",
+   "tris": 60,
+   "bytes": 5588,
+   "nodes": {
+    "Prop": {
+     "tris": 60,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-modular-streets",
+     "file": "S_SignTriangle.usda",
+     "sha256": "c588a65f973f61ec54eb57c0c5a8d922da8738050be7f316eb9e0d5513309e4a"
+    }
+   ],
+   "modifications": "scale height:2.6, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     1.3,
+     -0.0
+    ],
+    "col_size": [
+     0.04,
+     2.6
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 60,
+    "floor_period_src": null,
+    "scale": 4.865,
+    "floor_period": null,
+    "size_m": [
+     0.17,
+     0.75,
+     2.6
+    ],
+    "pole_shift": [
+     -0.051,
+     -0.0
+    ],
+    "yaw_fix": -90.0,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "tent_canvas": {
+   "id": "tent_canvas",
+   "family": "props",
+   "path": "res://assets/models/city/props/tent_canvas.glb",
+   "tris": 972,
+   "bytes": 72916,
+   "nodes": {
+    "Prop": {
+     "tris": 972,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-survival",
+     "file": "S_Tent.usda",
+     "sha256": "76694fe07c306838fbf76919c55be0f755fb854fab5099ec54f3d9f3558f7d45"
+    }
+   ],
+   "modifications": "scale height:1.5, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.75,
+     -0.0
+    ],
+    "col_size": [
+     2.118,
+     1.5,
+     3.613
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 788,
+    "floor_period_src": null,
+    "scale": 0.1453,
+    "floor_period": null,
+    "size_m": [
+     2.12,
+     3.61,
+     1.5
+    ],
+    "panels": null,
+    "backfaces_patched": 2
+   }
+  },
+  "traffic_cone": {
+   "id": "traffic_cone",
+   "family": "props",
+   "path": "res://assets/models/city/props/traffic_cone.glb",
+   "tris": 134,
+   "bytes": 8080,
+   "nodes": {
+    "Prop": {
+     "tris": 134,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrafficCone_1.usda",
+     "sha256": "b9edb20c6b70647547e17e73306afab9f7c3c2e4d12b83364af89b93e863fcb1"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale height:0.7, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.35,
+     -0.0
+    ],
+    "col_size": [
+     0.542,
+     0.7,
+     0.542
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 134,
+    "floor_period_src": null,
+    "scale": 1.0397,
+    "floor_period": null,
+    "size_m": [
+     0.54,
+     0.54,
+     0.7
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "traffic_light": {
+   "id": "traffic_light",
+   "family": "props",
+   "path": "res://assets/models/city/props/traffic_light.glb",
+   "tris": 849,
+   "bytes": 50876,
+   "nodes": {
+    "Prop": {
+     "tris": 849,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Signal_0": {
+     "anchor": [
+      0.007,
+      4.146,
+      0.287
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrafficLight_1.usda",
+     "sha256": "56bace2b50b52be5c70e2d10f35de332e9f810f303560af02601bffff0bd51c8"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {
+    "Signal_0": [
+     0.007,
+     4.146,
+     0.287
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     2.332,
+     -0.0
+    ],
+    "col_size": [
+     0.241,
+     4.664
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 849,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     1.51,
+     1.51,
+     4.66
+    ],
+    "pole_shift": [
+     -0.585,
+     0.586
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "traffic_light_arm": {
+   "id": "traffic_light_arm",
+   "family": "props",
+   "path": "res://assets/models/city/props/traffic_light_arm.glb",
+   "tris": 1369,
+   "bytes": 83120,
+   "nodes": {
+    "Prop": {
+     "tris": 1369,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Signal_0": {
+     "anchor": [
+      -0.013,
+      4.087,
+      1.706
+     ]
+    },
+    "Signal_1": {
+     "anchor": [
+      -0.001,
+      4.265,
+      0.138
+     ]
+    },
+    "Signal_2": {
+     "anchor": [
+      0.006,
+      3.97,
+      3.702
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrafficLight_2.usda",
+     "sha256": "08be5afed88af44be65c2eb07feaa26c8bf643f96fb20914b51bcfb0dd0697ad"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {
+    "Signal_0": [
+     -0.013,
+     4.087,
+     1.706
+    ],
+    "Signal_1": [
+     -0.001,
+     4.265,
+     0.138
+    ],
+    "Signal_2": [
+     0.006,
+     3.97,
+     3.702
+    ]
+   },
+   "col": {
+    "col": "cylinder",
+    "col_center": [
+     0.0,
+     2.332,
+     -0.0
+    ],
+    "col_size": [
+     0.241,
+     4.664
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1369,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     5.34,
+     1.92,
+     4.66
+    ],
+    "pole_shift": [
+     1.328,
+     0.38
+    ],
+    "yaw_fix": 89.6,
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "trash_bags": {
+   "id": "trash_bags",
+   "family": "props",
+   "path": "res://assets/models/city/props/trash_bags.glb",
+   "tris": 1044,
+   "bytes": 56888,
+   "nodes": {
+    "Prop": {
+     "tris": 1044,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_TrashBag_1.usda",
+     "sha256": "48b08dfc0e476b910c0b6216a32275820ed6db3da0bcd0c1a874a70d2c030668"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     0.282,
+     -0.0
+    ],
+    "col_size": [
+     0.497,
+     0.564,
+     0.503
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1044,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     0.5,
+     0.5,
+     0.56
+    ],
+    "panels": null,
+    "backfaces_patched": 0
+   }
+  },
+  "water_tower": {
+   "id": "water_tower",
+   "family": "props",
+   "path": "res://assets/models/city/props/water_tower.glb",
+   "tris": 1159,
+   "bytes": 68960,
+   "nodes": {
+    "Prop": {
+     "tris": 1159,
+     "materials": [
+      "palette_vcol"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_WaterTower.usda",
+     "sha256": "fe73dc825482b158dadd3f1ca264250d5fd7150fd31d985b90b87e9b091f6371"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "modifications": "scale 1.0, graded, weathered, snow, AO",
+   "anchors": {},
+   "col": {
+    "col": "box",
+    "col_center": [
+     0.0,
+     4.69,
+     -0.0
+    ],
+    "col_size": [
+     2.646,
+     9.38,
+     2.708
+    ]
+   },
+   "winterize": "a1.0",
+   "build": {
+    "tris_src": 1158,
+    "floor_period_src": null,
+    "scale": 1.0,
+    "floor_period": null,
+    "size_m": [
+     2.65,
+     2.71,
+     9.38
+    ],
+    "panels": null,
+    "backfaces_patched": 1
+   }
+  },
+  "tower_a": {
+   "id": "tower_a",
+   "family": "towers",
+   "path": "res://assets/models/city/towers/tower_a.glb",
+   "tris": 13230,
+   "bytes": 673300,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 40,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3824,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_0": {
+     "tris": 2340,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_1": {
+     "tris": 2336,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_2": {
+     "tris": 2096,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_3": {
+     "tris": 524,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 2070,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-skyscraper-a.glb",
+     "sha256": "d8339bbb75944ff91d1ec9a70ec6dead71bd98b94a42d3dd0fc1f3b107ddbe85"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 5.6896,
+    "floors": 18,
+    "roof_z": 68.8,
+    "height": 69.63,
+    "stub": 0.4,
+    "levels": [
+     5.6896,
+     9.4896,
+     13.2896,
+     17.0896,
+     20.8896,
+     24.6896,
+     28.4896,
+     32.2896,
+     36.0896,
+     39.8896,
+     43.6896,
+     47.4896,
+     51.2896,
+     55.0896,
+     58.8896,
+     62.6896,
+     66.4896
+    ]
+   },
+   "groups": {
+    "Base": {
+     "cut_group": "Base",
+     "floor_from": 0,
+     "floor_to": 3,
+     "z_from": 0.0,
+     "z_to": 16.84,
+     "window_cell": [
+      2.4,
+      3.8
+     ],
+     "floor_h": 3.8,
+     "ground_h": 5.6896,
+     "floors": 18,
+     "roof_z": 68.8,
+     "height": 69.63,
+     "stub": 0.4,
+     "kind": "tower",
+     "foundation": 0.0,
+     "generator": false,
+     "enterable": false,
+     "source": "kenney-city-kit-commercial"
+    },
+    "Shaft_0": {
+     "cut_group": "Shaft_0",
+     "floor_from": 4,
+     "floor_to": 7,
+     "z_from": 16.84,
+     "z_to": 32.04,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_1": {
+     "cut_group": "Shaft_1",
+     "floor_from": 8,
+     "floor_to": 11,
+     "z_from": 32.04,
+     "z_to": 47.24,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_2": {
+     "cut_group": "Shaft_2",
+     "floor_from": 12,
+     "floor_to": 15,
+     "z_from": 47.24,
+     "z_to": 62.44,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_3": {
+     "cut_group": "Shaft_3",
+     "floor_from": 16,
+     "floor_to": 16,
+     "z_from": 62.44,
+     "z_to": 66.24,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Roof": {
+     "cut_group": "Roof",
+     "floor_from": 17,
+     "floor_to": 17,
+     "z_from": 66.24,
+     "z_to": 69.63,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    }
+   },
+   "problems": [],
+   "modifications": "rescaled x10.9827 (floor 3.8 m), +10 floors, cut-ready (slabs 18), 6 groups + shadow proxy, graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.346,
+    "band_start_src": 1.4198,
+    "extended_src": 3.46,
+    "scale": 10.9827,
+    "floor_period": 3.8,
+    "size_m": [
+     14.94,
+     14.94,
+     69.63
+    ],
+    "tris_src": 1292,
+    "windows_fixed": 168
+   }
+  },
+  "tower_b": {
+   "id": "tower_b",
+   "family": "towers",
+   "path": "res://assets/models/city/towers/tower_b.glb",
+   "tris": 15942,
+   "bytes": 826020,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 36,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3548,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_0": {
+     "tris": 2096,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_1": {
+     "tris": 2336,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_2": {
+     "tris": 2336,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_3": {
+     "tris": 2096,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_4": {
+     "tris": 1092,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 2402,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-skyscraper-b.glb",
+     "sha256": "3a383e8a0a8819023d30b2aee1c6f40fa6bc28990227a306a86e531f36c6b8d5"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 5.6706,
+    "floors": 24,
+    "roof_z": 93.8,
+    "height": 94.661,
+    "stub": 0.4,
+    "levels": [
+     5.6706,
+     9.4706,
+     13.2706,
+     17.0706,
+     20.8706,
+     24.6706,
+     28.4706,
+     32.2706,
+     36.0706,
+     39.8706,
+     43.6706,
+     47.4706,
+     51.2706,
+     55.0706,
+     58.8706,
+     62.6706,
+     66.4706,
+     70.2706,
+     74.0706,
+     77.8706,
+     81.6706,
+     85.4706,
+     89.2706
+    ]
+   },
+   "groups": {
+    "Base": {
+     "cut_group": "Base",
+     "floor_from": 0,
+     "floor_to": 3,
+     "z_from": 0.0,
+     "z_to": 16.821,
+     "window_cell": [
+      2.4,
+      3.8
+     ],
+     "floor_h": 3.8,
+     "ground_h": 5.6706,
+     "floors": 24,
+     "roof_z": 93.8,
+     "height": 94.661,
+     "stub": 0.4,
+     "kind": "tower",
+     "foundation": 0.0,
+     "generator": false,
+     "enterable": false,
+     "source": "kenney-city-kit-commercial"
+    },
+    "Shaft_0": {
+     "cut_group": "Shaft_0",
+     "floor_from": 4,
+     "floor_to": 7,
+     "z_from": 16.821,
+     "z_to": 32.021,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_1": {
+     "cut_group": "Shaft_1",
+     "floor_from": 8,
+     "floor_to": 11,
+     "z_from": 32.021,
+     "z_to": 47.221,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_2": {
+     "cut_group": "Shaft_2",
+     "floor_from": 12,
+     "floor_to": 15,
+     "z_from": 47.221,
+     "z_to": 62.421,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_3": {
+     "cut_group": "Shaft_3",
+     "floor_from": 16,
+     "floor_to": 19,
+     "z_from": 62.421,
+     "z_to": 77.621,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_4": {
+     "cut_group": "Shaft_4",
+     "floor_from": 20,
+     "floor_to": 22,
+     "z_from": 77.621,
+     "z_to": 89.021,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Roof": {
+     "cut_group": "Roof",
+     "floor_from": 23,
+     "floor_to": 23,
+     "z_from": 89.021,
+     "z_to": 94.661,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    }
+   },
+   "problems": [],
+   "modifications": "rescaled x10.951 (floor 3.8 m), +12 floors, cut-ready (slabs 24), 7 groups + shadow proxy, graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.347,
+    "band_start_src": 2.114,
+    "extended_src": 4.164,
+    "scale": 10.951,
+    "floor_period": 3.8,
+    "size_m": [
+     14.89,
+     14.89,
+     94.66
+    ],
+    "tris_src": 1592,
+    "windows_fixed": 200
+   }
+  },
+  "tower_c": {
+   "id": "tower_c",
+   "family": "towers",
+   "path": "res://assets/models/city/towers/tower_c.glb",
+   "tris": 12356,
+   "bytes": 628752,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 24,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3411,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_0": {
+     "tris": 2156,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_1": {
+     "tris": 2160,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_2": {
+     "tris": 1708,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_3": {
+     "tris": 476,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 2421,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-skyscraper-c.glb",
+     "sha256": "e73c357554f7561fedb8c1cbecf9d7163ba09ada264d661c59a0f0a180e0185f"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 4.27,
+    "floors": 18,
+    "roof_z": 68.8,
+    "height": 73.951,
+    "stub": 0.4,
+    "levels": [
+     4.27,
+     8.07,
+     11.87,
+     15.67,
+     19.47,
+     23.27,
+     27.07,
+     30.87,
+     34.67,
+     38.47,
+     42.27,
+     46.07,
+     49.87,
+     53.67,
+     57.47,
+     61.27,
+     65.07
+    ]
+   },
+   "groups": {
+    "Base": {
+     "cut_group": "Base",
+     "floor_from": 0,
+     "floor_to": 3,
+     "z_from": 0.0,
+     "z_to": 15.42,
+     "window_cell": [
+      2.4,
+      3.8
+     ],
+     "floor_h": 3.8,
+     "ground_h": 4.27,
+     "floors": 18,
+     "roof_z": 68.8,
+     "height": 73.951,
+     "stub": 0.4,
+     "kind": "tower",
+     "foundation": 0.0,
+     "generator": false,
+     "enterable": false,
+     "source": "kenney-city-kit-commercial"
+    },
+    "Shaft_0": {
+     "cut_group": "Shaft_0",
+     "floor_from": 4,
+     "floor_to": 7,
+     "z_from": 15.42,
+     "z_to": 30.62,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_1": {
+     "cut_group": "Shaft_1",
+     "floor_from": 8,
+     "floor_to": 11,
+     "z_from": 30.62,
+     "z_to": 45.82,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_2": {
+     "cut_group": "Shaft_2",
+     "floor_from": 12,
+     "floor_to": 15,
+     "z_from": 45.82,
+     "z_to": 61.02,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_3": {
+     "cut_group": "Shaft_3",
+     "floor_from": 16,
+     "floor_to": 16,
+     "z_from": 61.02,
+     "z_to": 64.82,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Roof": {
+     "cut_group": "Roof",
+     "floor_from": 17,
+     "floor_to": 17,
+     "z_from": 64.82,
+     "z_to": 73.951,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    }
+   },
+   "problems": [],
+   "modifications": "rescaled x10.6742 (floor 3.8 m), +8 floors, cut-ready (slabs 18), 6 groups + shadow proxy, graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.356,
+    "band_start_src": 1.7294,
+    "extended_src": 2.848,
+    "scale": 10.6742,
+    "floor_period": 3.8,
+    "size_m": [
+     13.66,
+     14.81,
+     73.95
+    ],
+    "tris_src": 1704,
+    "ground_from_podium": 4.27,
+    "windows_fixed": 284
+   }
+  },
+  "tower_d": {
+   "id": "tower_d",
+   "family": "towers",
+   "path": "res://assets/models/city/towers/tower_d.glb",
+   "tris": 15041,
+   "bytes": 795188,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 24,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 3397,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_0": {
+     "tris": 1716,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_1": {
+     "tris": 2160,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_2": {
+     "tris": 2160,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_3": {
+     "tris": 1936,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_4": {
+     "tris": 1280,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_5": {
+     "tris": 512,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 1856,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-skyscraper-d.glb",
+     "sha256": "5c524ec13be53fff85ace8b328bc2587cba4e93962230e4a0ba98998e53d30b5"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 4.28,
+    "floors": 26,
+    "roof_z": 97.4,
+    "height": 100.27,
+    "stub": 0.4,
+    "levels": [
+     4.28,
+     8.08,
+     11.88,
+     15.68,
+     19.48,
+     23.28,
+     27.08,
+     30.88,
+     34.68,
+     38.48,
+     42.28,
+     46.08,
+     49.88,
+     53.68,
+     57.48,
+     61.28,
+     65.08,
+     68.88,
+     72.68,
+     76.48,
+     80.28,
+     84.08,
+     87.88,
+     91.68,
+     95.48
+    ]
+   },
+   "groups": {
+    "Base": {
+     "cut_group": "Base",
+     "floor_from": 0,
+     "floor_to": 3,
+     "z_from": 0.0,
+     "z_to": 15.43,
+     "window_cell": [
+      2.4,
+      3.8
+     ],
+     "floor_h": 3.8,
+     "ground_h": 4.28,
+     "floors": 26,
+     "roof_z": 97.4,
+     "height": 100.27,
+     "stub": 0.4,
+     "kind": "tower",
+     "foundation": 0.0,
+     "generator": false,
+     "enterable": false,
+     "source": "kenney-city-kit-commercial"
+    },
+    "Shaft_0": {
+     "cut_group": "Shaft_0",
+     "floor_from": 4,
+     "floor_to": 7,
+     "z_from": 15.43,
+     "z_to": 30.63,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_1": {
+     "cut_group": "Shaft_1",
+     "floor_from": 8,
+     "floor_to": 11,
+     "z_from": 30.63,
+     "z_to": 45.83,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_2": {
+     "cut_group": "Shaft_2",
+     "floor_from": 12,
+     "floor_to": 15,
+     "z_from": 45.83,
+     "z_to": 61.03,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_3": {
+     "cut_group": "Shaft_3",
+     "floor_from": 16,
+     "floor_to": 19,
+     "z_from": 61.03,
+     "z_to": 76.23,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_4": {
+     "cut_group": "Shaft_4",
+     "floor_from": 20,
+     "floor_to": 23,
+     "z_from": 76.23,
+     "z_to": 91.43,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_5": {
+     "cut_group": "Shaft_5",
+     "floor_from": 24,
+     "floor_to": 24,
+     "z_from": 91.43,
+     "z_to": 95.23,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Roof": {
+     "cut_group": "Roof",
+     "floor_from": 25,
+     "floor_to": 25,
+     "z_from": 95.23,
+     "z_to": 100.27,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    }
+   },
+   "problems": [],
+   "modifications": "rescaled x10.6892 (floor 3.8 m), +11 floors, cut-ready (slabs 26), 8 groups + shadow proxy, graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.3555,
+    "band_start_src": 2.4404,
+    "extended_src": 3.9105,
+    "scale": 10.6892,
+    "floor_period": 3.8,
+    "size_m": [
+     13.68,
+     14.84,
+     100.27
+    ],
+    "tris_src": 1892,
+    "ground_from_podium": 4.28,
+    "windows_fixed": 288
+   }
+  },
+  "tower_e": {
+   "id": "tower_e",
+   "family": "towers",
+   "path": "res://assets/models/city/towers/tower_e.glb",
+   "tris": 9632,
+   "bytes": 493796,
+   "nodes": {
+    "ShadowProxy": {
+     "tris": 12,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Base": {
+     "tris": 2474,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_0": {
+     "tris": 2160,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_1": {
+     "tris": 2172,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Shaft_2": {
+     "tris": 916,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    },
+    "Roof": {
+     "tris": 1898,
+     "materials": [
+      "palette_vcol",
+      "window"
+     ]
+    }
+   },
+   "sources": [
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/building-skyscraper-e.glb",
+     "sha256": "21b58a2f2b18d6a7cf8915e8b947bdb6a6a0706da6cffb5a01677c29f03b5935"
+    },
+    {
+     "pack": "kenney-city-kit-commercial",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d"
+    }
+   ],
+   "storeys": {
+    "floor_h": 3.8,
+    "ground_h": 6.5,
+    "floors": 16,
+    "roof_z": 62.5,
+    "height": 63.28,
+    "stub": 0.4,
+    "levels": [
+     6.5,
+     10.3,
+     14.1,
+     17.9,
+     21.7,
+     25.5,
+     29.3,
+     33.1,
+     36.9,
+     40.7,
+     44.5,
+     48.3,
+     52.1,
+     55.9,
+     59.7
+    ]
+   },
+   "groups": {
+    "Base": {
+     "cut_group": "Base",
+     "floor_from": 0,
+     "floor_to": 3,
+     "z_from": 0.0,
+     "z_to": 17.65,
+     "window_cell": [
+      2.4,
+      3.8
+     ],
+     "floor_h": 3.8,
+     "ground_h": 6.5,
+     "floors": 16,
+     "roof_z": 62.5,
+     "height": 63.28,
+     "stub": 0.4,
+     "kind": "tower",
+     "foundation": 0.0,
+     "generator": false,
+     "enterable": false,
+     "source": "kenney-city-kit-commercial"
+    },
+    "Shaft_0": {
+     "cut_group": "Shaft_0",
+     "floor_from": 4,
+     "floor_to": 7,
+     "z_from": 17.65,
+     "z_to": 32.85,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_1": {
+     "cut_group": "Shaft_1",
+     "floor_from": 8,
+     "floor_to": 11,
+     "z_from": 32.85,
+     "z_to": 48.05,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Shaft_2": {
+     "cut_group": "Shaft_2",
+     "floor_from": 12,
+     "floor_to": 14,
+     "z_from": 48.05,
+     "z_to": 59.45,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    },
+    "Roof": {
+     "cut_group": "Roof",
+     "floor_from": 15,
+     "floor_to": 15,
+     "z_from": 59.45,
+     "z_to": 63.28,
+     "window_cell": [
+      2.4,
+      3.8
+     ]
+    }
+   },
+   "problems": [],
+   "modifications": "rescaled x9.9217 (floor 3.8 m), +6 floors, cut-ready (slabs 16), 5 groups + shadow proxy, graded, weathered, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": 0.383,
+    "band_start_src": 1.9254,
+    "extended_src": 2.298,
+    "scale": 9.9217,
+    "floor_period": 3.8,
+    "size_m": [
+     12.85,
+     12.32,
+     63.28
+    ],
+    "tris_src": 1156,
+    "windows_fixed": 238
+   }
+  },
+  "ambulance_burnt": {
+   "id": "ambulance_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/ambulance_burnt.glb",
+   "tris": 1766,
+   "bytes": 109444,
+   "nodes": {
+    "Body": {
+     "tris": 1766,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      0.0,
+      2.437,
+      -0.096
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.13,
+      1.273,
+      -1.386
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.669,
+      0.588,
+      3.099
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.669,
+      0.588,
+      3.099
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.401,
+      -1.764
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.783,
+      1.764
+     ]
+    }
+   },
+   "model": "ambulance",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Ambulance.usda",
+     "sha256": "f24e1541f263a45bc412372f5d1cfc975d6b9f27849f78e03b24e8c9df198706"
+    }
+   ],
+   "dims": [
+    5.28,
+    9.98,
+    2.77
+   ],
+   "modifications": "real proportions (dims:2.3,6.3,2.8), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8104,
+     1.102,
+     0.9609
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.3,
+     6.3,
+     2.8
+    ],
+    "tris_src": 1634,
+    "wheels": 4
+   }
+  },
+  "ambulance_clean": {
+   "id": "ambulance_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/ambulance_clean.glb",
+   "tris": 1698,
+   "bytes": 125852,
+   "nodes": {
+    "Body": {
+     "tris": 1650,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 48,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      0.0,
+      2.545,
+      -0.096
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.13,
+      1.273,
+      -1.386
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.669,
+      0.697,
+      3.099
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.669,
+      0.697,
+      3.099
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.401,
+      -1.764
+     ]
+    }
+   },
+   "model": "ambulance",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Ambulance.usda",
+     "sha256": "f24e1541f263a45bc412372f5d1cfc975d6b9f27849f78e03b24e8c9df198706"
+    }
+   ],
+   "dims": [
+    2.3,
+    6.3,
+    2.92
+   ],
+   "modifications": "real proportions (dims:2.3,6.3,2.8), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8104,
+     1.102,
+     0.9609
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.3,
+     6.3,
+     2.8
+    ],
+    "tris_src": 1634,
+    "wheels": 4
+   }
+  },
+  "ambulance_crashed": {
+   "id": "ambulance_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/ambulance_crashed.glb",
+   "tris": 1914,
+   "bytes": 134544,
+   "nodes": {
+    "Body": {
+     "tris": 1870,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 44,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      0.0,
+      2.545,
+      -0.096
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.13,
+      1.273,
+      -1.386
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.625,
+      0.697,
+      2.761
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.625,
+      0.697,
+      2.916
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.401,
+      -1.764
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.834,
+      1.89
+     ]
+    }
+   },
+   "model": "ambulance",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Ambulance.usda",
+     "sha256": "f24e1541f263a45bc412372f5d1cfc975d6b9f27849f78e03b24e8c9df198706"
+    }
+   ],
+   "dims": [
+    2.97,
+    8.27,
+    3.15
+   ],
+   "modifications": "real proportions (dims:2.3,6.3,2.8), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8104,
+     1.102,
+     0.9609
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.3,
+     6.3,
+     2.8
+    ],
+    "tris_src": 1634,
+    "wheels": 4
+   }
+  },
+  "ambulance_doors": {
+   "id": "ambulance_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/ambulance_doors.glb",
+   "tris": 2366,
+   "bytes": 159540,
+   "nodes": {
+    "Body": {
+     "tris": 2304,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 62,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      0.0,
+      2.545,
+      -0.096
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.993,
+      1.416,
+      1.925
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.13,
+      1.273,
+      -1.386
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.669,
+      0.661,
+      3.1
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.669,
+      0.661,
+      3.1
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.401,
+      -1.764
+     ]
+    }
+   },
+   "model": "ambulance",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Ambulance.usda",
+     "sha256": "f24e1541f263a45bc412372f5d1cfc975d6b9f27849f78e03b24e8c9df198706"
+    }
+   ],
+   "dims": [
+    3.03,
+    7.49,
+    2.98
+   ],
+   "modifications": "real proportions (dims:2.3,6.3,2.8), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8104,
+     1.102,
+     0.9609
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.3,
+     6.3,
+     2.8
+    ],
+    "tris_src": 1634,
+    "wheels": 4
+   }
+  },
+  "ambulance_snowed": {
+   "id": "ambulance_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/ambulance_snowed.glb",
+   "tris": 2130,
+   "bytes": 132928,
+   "nodes": {
+    "Body": {
+     "tris": 2130,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      0.0,
+      2.545,
+      -0.096
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.13,
+      1.273,
+      -1.386
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.669,
+      0.697,
+      3.099
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.669,
+      0.697,
+      3.099
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.401,
+      -1.764
+     ]
+    }
+   },
+   "model": "ambulance",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Ambulance.usda",
+     "sha256": "f24e1541f263a45bc412372f5d1cfc975d6b9f27849f78e03b24e8c9df198706"
+    }
+   ],
+   "dims": [
+    3.94,
+    8.92,
+    3.3
+   ],
+   "modifications": "real proportions (dims:2.3,6.3,2.8), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8104,
+     1.102,
+     0.9609
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.3,
+     6.3,
+     2.8
+    ],
+    "tris_src": 1634,
+    "wheels": 4
+   }
+  },
+  "box_truck_burnt": {
+   "id": "box_truck_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/box_truck_burnt.glb",
+   "tris": 4351,
+   "bytes": 260544,
+   "nodes": {
+    "Body": {
+     "tris": 4351,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      0.853,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      0.853,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.232,
+      2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      0.836,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      0.836,
+      -3.585
+     ]
+    }
+   },
+   "model": "box_truck",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    5.33,
+    10.18,
+    3.19
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "box_truck_clean": {
+   "id": "box_truck_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/box_truck_clean.glb",
+   "tris": 4481,
+   "bytes": 290392,
+   "nodes": {
+    "Body": {
+     "tris": 4428,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 53,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "box_truck",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    2.5,
+    7.2,
+    3.4
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "box_truck_crashed": {
+   "id": "box_truck_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/box_truck_crashed.glb",
+   "tris": 5564,
+   "bytes": 327544,
+   "nodes": {
+    "Body": {
+     "tris": 5532,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 32,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.893,
+      1.06,
+      3.045
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.893,
+      1.06,
+      3.18
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.296,
+      2.16
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "box_truck",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.13,
+    9.12,
+    3.6
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "box_truck_doors": {
+   "id": "box_truck_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/box_truck_doors.glb",
+   "tris": 5767,
+   "bytes": 362028,
+   "nodes": {
+    "Body": {
+     "tris": 5694,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 73,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      1.076,
+      1.6,
+      2.408
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "box_truck",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.6,
+    8.53,
+    3.43
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "box_truck_snowed": {
+   "id": "box_truck_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/box_truck_snowed.glb",
+   "tris": 5243,
+   "bytes": 318616,
+   "nodes": {
+    "Body": {
+     "tris": 5243,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "box_truck",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    4.09,
+    9.26,
+    3.67
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "bus_burnt": {
+   "id": "bus_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/bus_burnt.glb",
+   "tris": 1360,
+   "bytes": 94092,
+   "nodes": {
+    "Body": {
+     "tris": 1360,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.255,
+      1.438,
+      -2.64
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.994,
+      0.576,
+      5.827
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.994,
+      0.576,
+      5.827
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.582,
+      -3.36
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.014,
+      3.36
+     ]
+    }
+   },
+   "model": "bus",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Bus.usda",
+     "sha256": "160ad5f799a767bdfd49d2ac330af8032cb3e7f9c78b3c7f30447404076d8b9c"
+    }
+   ],
+   "dims": [
+    5.18,
+    15.23,
+    3.05
+   ],
+   "modifications": "real proportions (dims:2.55,12.0,3.1), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.4616,
+     2.9366,
+     1.8497
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.55,
+     12.0,
+     3.1
+    ],
+    "tris_src": 1530,
+    "wheels": 4
+   }
+  },
+  "bus_clean": {
+   "id": "bus_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/bus_clean.glb",
+   "tris": 1491,
+   "bytes": 114668,
+   "nodes": {
+    "Body": {
+     "tris": 1431,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 60,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.255,
+      1.438,
+      -2.64
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.994,
+      0.698,
+      5.827
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.994,
+      0.698,
+      5.827
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.582,
+      -3.36
+     ]
+    }
+   },
+   "model": "bus",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Bus.usda",
+     "sha256": "160ad5f799a767bdfd49d2ac330af8032cb3e7f9c78b3c7f30447404076d8b9c"
+    }
+   ],
+   "dims": [
+    2.55,
+    12.0,
+    3.23
+   ],
+   "modifications": "real proportions (dims:2.55,12.0,3.1), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.4616,
+     2.9366,
+     1.8497
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.55,
+     12.0,
+     3.1
+    ],
+    "tris_src": 1530,
+    "wheels": 4
+   }
+  },
+  "bus_crashed": {
+   "id": "bus_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/bus_crashed.glb",
+   "tris": 1652,
+   "bytes": 120660,
+   "nodes": {
+    "Body": {
+     "tris": 1596,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 56,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.255,
+      1.438,
+      -2.64
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.935,
+      0.698,
+      5.444
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.935,
+      0.698,
+      5.563
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.582,
+      -3.36
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.071,
+      3.6
+     ]
+    }
+   },
+   "model": "bus",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Bus.usda",
+     "sha256": "160ad5f799a767bdfd49d2ac330af8032cb3e7f9c78b3c7f30447404076d8b9c"
+    }
+   ],
+   "dims": [
+    3.22,
+    14.15,
+    3.56
+   ],
+   "modifications": "real proportions (dims:2.55,12.0,3.1), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.4616,
+     2.9366,
+     1.8497
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.55,
+     12.0,
+     3.1
+    ],
+    "tris_src": 1530,
+    "wheels": 4
+   }
+  },
+  "bus_doors": {
+   "id": "bus_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/bus_doors.glb",
+   "tris": 2104,
+   "bytes": 143876,
+   "nodes": {
+    "Body": {
+     "tris": 2012,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 92,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      -1.222,
+      1.829,
+      5.598
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.255,
+      1.438,
+      -2.64
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.994,
+      0.702,
+      5.829
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.994,
+      0.702,
+      5.829
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.582,
+      -3.36
+     ]
+    }
+   },
+   "model": "bus",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Bus.usda",
+     "sha256": "160ad5f799a767bdfd49d2ac330af8032cb3e7f9c78b3c7f30447404076d8b9c"
+    }
+   ],
+   "dims": [
+    3.3,
+    13.22,
+    3.3
+   ],
+   "modifications": "real proportions (dims:2.55,12.0,3.1), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.4616,
+     2.9366,
+     1.8497
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.55,
+     12.0,
+     3.1
+    ],
+    "tris_src": 1530,
+    "wheels": 4
+   }
+  },
+  "bus_snowed": {
+   "id": "bus_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/bus_snowed.glb",
+   "tris": 1888,
+   "bytes": 122464,
+   "nodes": {
+    "Body": {
+     "tris": 1888,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.255,
+      1.438,
+      -2.64
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.994,
+      0.698,
+      5.827
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.994,
+      0.698,
+      5.827
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.582,
+      -3.36
+     ]
+    }
+   },
+   "model": "bus",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-public-transport",
+     "file": "S_Bus.usda",
+     "sha256": "160ad5f799a767bdfd49d2ac330af8032cb3e7f9c78b3c7f30447404076d8b9c"
+    }
+   ],
+   "dims": [
+    4.13,
+    15.53,
+    3.55
+   ],
+   "modifications": "real proportions (dims:2.55,12.0,3.1), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.4616,
+     2.9366,
+     1.8497
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.55,
+     12.0,
+     3.1
+    ],
+    "tris_src": 1530,
+    "wheels": 4
+   }
+  },
+  "military_truck_burnt": {
+   "id": "military_truck_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/military_truck_burnt.glb",
+   "tris": 4351,
+   "bytes": 259624,
+   "nodes": {
+    "Body": {
+     "tris": 4351,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      0.853,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      0.853,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.232,
+      2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      0.836,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      0.836,
+      -3.585
+     ]
+    }
+   },
+   "model": "military_truck",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    4.88,
+    9.96,
+    3.19
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "military_truck_clean": {
+   "id": "military_truck_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/military_truck_clean.glb",
+   "tris": 4481,
+   "bytes": 294108,
+   "nodes": {
+    "Body": {
+     "tris": 4428,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 53,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "military_truck",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    2.5,
+    7.2,
+    3.4
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "military_truck_crashed": {
+   "id": "military_truck_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/military_truck_crashed.glb",
+   "tris": 5564,
+   "bytes": 329468,
+   "nodes": {
+    "Body": {
+     "tris": 5532,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 32,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.893,
+      1.06,
+      3.038
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.893,
+      1.06,
+      3.175
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      2.296,
+      2.16
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "military_truck",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.38,
+    9.49,
+    3.59
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "military_truck_doors": {
+   "id": "military_truck_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/military_truck_doors.glb",
+   "tris": 5767,
+   "bytes": 362128,
+   "nodes": {
+    "Body": {
+     "tris": 5694,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 73,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      1.076,
+      1.6,
+      2.408
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "military_truck",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.65,
+    8.65,
+    3.43
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "military_truck_snowed": {
+   "id": "military_truck_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/military_truck_snowed.glb",
+   "tris": 5243,
+   "bytes": 317116,
+   "nodes": {
+    "Body": {
+     "tris": 5243,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.23,
+      1.595,
+      -1.584
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.943,
+      1.06,
+      3.372
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.754,
+      -2.016
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.994,
+      1.043,
+      -3.585
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.994,
+      1.043,
+      -3.585
+     ]
+    }
+   },
+   "model": "military_truck",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehicleTruck.usda",
+     "sha256": "ac613291f10baf4d28ccc92a6ee3b22cfe6679d50fc70298c0dd639dc60ae5ca"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    4.16,
+    9.34,
+    3.65
+   ],
+   "modifications": "real proportions (dims:2.5,7.2,3.4), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9228,
+     1.37,
+     1.1789
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.5,
+     7.2,
+     3.4
+    ],
+    "tris_src": 7476,
+    "wheels": 4
+   }
+  },
+  "pickup_burnt": {
+   "id": "pickup_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/pickup_burnt.glb",
+   "tris": 3579,
+   "bytes": 184076,
+   "nodes": {
+    "Body": {
+     "tris": 3579,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.005,
+      0.699,
+      -1.232
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.796,
+      0.832,
+      2.656
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.796,
+      0.832,
+      2.656
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.769,
+      -1.568
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      0.978,
+      1.568
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.821,
+      0.844,
+      -2.744
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.821,
+      0.844,
+      -2.744
+     ]
+    }
+   },
+   "model": "pickup",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehiclePickup.usda",
+     "sha256": "ab7e675da7f99edd0b70a32e7340ece3d1f79858a80837cd4297e51eb088c913"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    4.6,
+    8.44,
+    1.75
+   ],
+   "modifications": "real proportions (dims:2.05,5.6,1.95), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8866,
+     1.081,
+     1.0549
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.05,
+     5.6,
+     1.95
+    ],
+    "tris_src": 6432,
+    "wheels": 4
+   }
+  },
+  "pickup_clean": {
+   "id": "pickup_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/pickup_clean.glb",
+   "tris": 3712,
+   "bytes": 209104,
+   "nodes": {
+    "Body": {
+     "tris": 3672,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 40,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.005,
+      0.699,
+      -1.232
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.796,
+      1.017,
+      2.656
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.796,
+      1.017,
+      2.656
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.769,
+      -1.568
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.821,
+      1.029,
+      -2.744
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.821,
+      1.029,
+      -2.744
+     ]
+    }
+   },
+   "model": "pickup",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehiclePickup.usda",
+     "sha256": "ab7e675da7f99edd0b70a32e7340ece3d1f79858a80837cd4297e51eb088c913"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    2.05,
+    5.6,
+    1.95
+   ],
+   "modifications": "real proportions (dims:2.05,5.6,1.95), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8866,
+     1.081,
+     1.0549
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.05,
+     5.6,
+     1.95
+    ],
+    "tris_src": 6432,
+    "wheels": 4
+   }
+  },
+  "pickup_crashed": {
+   "id": "pickup_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/pickup_crashed.glb",
+   "tris": 4169,
+   "bytes": 231016,
+   "nodes": {
+    "Body": {
+     "tris": 4153,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 16,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.005,
+      0.699,
+      -1.232
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.752,
+      1.081,
+      2.377
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.752,
+      1.112,
+      2.512
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.769,
+      -1.568
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.006,
+      1.68
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.821,
+      1.029,
+      -2.744
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.821,
+      1.029,
+      -2.744
+     ]
+    }
+   },
+   "model": "pickup",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehiclePickup.usda",
+     "sha256": "ab7e675da7f99edd0b70a32e7340ece3d1f79858a80837cd4297e51eb088c913"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    2.63,
+    7.61,
+    2.22
+   ],
+   "modifications": "real proportions (dims:2.05,5.6,1.95), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8866,
+     1.081,
+     1.0549
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.05,
+     5.6,
+     1.95
+    ],
+    "tris_src": 6432,
+    "wheels": 4
+   }
+  },
+  "pickup_doors": {
+   "id": "pickup_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/pickup_doors.glb",
+   "tris": 4715,
+   "bytes": 260240,
+   "nodes": {
+    "Body": {
+     "tris": 4659,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 56,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.963,
+      1.384,
+      1.119
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.005,
+      0.699,
+      -1.232
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.795,
+      1.009,
+      2.654
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.795,
+      1.009,
+      2.654
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.769,
+      -1.568
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.821,
+      1.029,
+      -2.744
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.821,
+      1.029,
+      -2.744
+     ]
+    }
+   },
+   "model": "pickup",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehiclePickup.usda",
+     "sha256": "ab7e675da7f99edd0b70a32e7340ece3d1f79858a80837cd4297e51eb088c913"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.53,
+    6.39,
+    2.09
+   ],
+   "modifications": "real proportions (dims:2.05,5.6,1.95), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8866,
+     1.081,
+     1.0549
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.05,
+     5.6,
+     1.95
+    ],
+    "tris_src": 6432,
+    "wheels": 4
+   }
+  },
+  "pickup_snowed": {
+   "id": "pickup_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/pickup_snowed.glb",
+   "tris": 4828,
+   "bytes": 245572,
+   "nodes": {
+    "Body": {
+     "tris": 4828,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      1.005,
+      0.699,
+      -1.232
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.796,
+      1.017,
+      2.656
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.796,
+      1.017,
+      2.656
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.769,
+      -1.568
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.821,
+      1.029,
+      -2.744
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.821,
+      1.029,
+      -2.744
+     ]
+    }
+   },
+   "model": "pickup",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "S_VehiclePickup.usda",
+     "sha256": "ab7e675da7f99edd0b70a32e7340ece3d1f79858a80837cd4297e51eb088c913"
+    },
+    {
+     "pack": "quaternius-zombie-apocalypse-kit",
+     "file": "textures/T_ZombieAtlas_D.png",
+     "sha256": "8803e5543d5e6b6f66aa41a5ef93e6c2ffb77b5476d0202296d2f4c8f4eb9e8d"
+    }
+   ],
+   "dims": [
+    3.69,
+    7.54,
+    2.24
+   ],
+   "modifications": "real proportions (dims:2.05,5.6,1.95), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.8866,
+     1.081,
+     1.0549
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.05,
+     5.6,
+     1.95
+    ],
+    "tris_src": 6432,
+    "wheels": 4
+   }
+  },
+  "police_burnt": {
+   "id": "police_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/police_burnt.glb",
+   "tris": 2052,
+   "bytes": 158356,
+   "nodes": {
+    "Body": {
+     "tris": 2052,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      -0.18,
+      1.425,
+      -0.529
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.92,
+      0.731,
+      -1.078
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.596,
+      0.438,
+      2.172
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.596,
+      0.438,
+      2.172
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.804,
+      -1.372
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.024,
+      1.372
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.325,
+      1.338,
+      -0.73
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.589,
+      0.743,
+      -2.141
+     ]
+    }
+   },
+   "model": "police",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Cop.usda",
+     "sha256": "ac4f817393f98c18edc683437d8ad18ba34ece05a8f15cc690f1f60d279e985a"
+    }
+   ],
+   "dims": [
+    4.22,
+    7.97,
+    1.46
+   ],
+   "modifications": "real proportions (dims:1.88,4.9,1.6), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.0576,
+     1.3135,
+     1.2916
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.88,
+     4.9,
+     1.6
+    ],
+    "tris_src": 3232,
+    "wheels": 4
+   }
+  },
+  "police_clean": {
+   "id": "police_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/police_clean.glb",
+   "tris": 2182,
+   "bytes": 176620,
+   "nodes": {
+    "Body": {
+     "tris": 2120,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 62,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      -0.18,
+      1.567,
+      -0.529
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.92,
+      0.731,
+      -1.078
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.804,
+      -1.372
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.325,
+      1.48,
+      -0.73
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.589,
+      0.885,
+      -2.141
+     ]
+    }
+   },
+   "model": "police",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Cop.usda",
+     "sha256": "ac4f817393f98c18edc683437d8ad18ba34ece05a8f15cc690f1f60d279e985a"
+    }
+   ],
+   "dims": [
+    1.88,
+    4.9,
+    1.6
+   ],
+   "modifications": "real proportions (dims:1.88,4.9,1.6), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.0576,
+     1.3135,
+     1.2916
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.88,
+     4.9,
+     1.6
+    ],
+    "tris_src": 3232,
+    "wheels": 4
+   }
+  },
+  "police_crashed": {
+   "id": "police_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/police_crashed.glb",
+   "tris": 2728,
+   "bytes": 194524,
+   "nodes": {
+    "Body": {
+     "tris": 2682,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 46,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      -0.18,
+      1.567,
+      -0.529
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.92,
+      0.731,
+      -1.078
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.571,
+      0.63,
+      1.979
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.571,
+      0.628,
+      2.066
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.804,
+      -1.372
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.053,
+      1.47
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.325,
+      1.48,
+      -0.73
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.589,
+      0.885,
+      -2.141
+     ]
+    }
+   },
+   "model": "police",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Cop.usda",
+     "sha256": "ac4f817393f98c18edc683437d8ad18ba34ece05a8f15cc690f1f60d279e985a"
+    }
+   ],
+   "dims": [
+    2.69,
+    6.9,
+    1.7
+   ],
+   "modifications": "real proportions (dims:1.88,4.9,1.6), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.0576,
+     1.3135,
+     1.2916
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.88,
+     4.9,
+     1.6
+    ],
+    "tris_src": 3232,
+    "wheels": 4
+   }
+  },
+  "police_doors": {
+   "id": "police_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/police_doors.glb",
+   "tris": 3342,
+   "bytes": 233712,
+   "nodes": {
+    "Body": {
+     "tris": 3246,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 96,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      -0.176,
+      1.567,
+      -0.532
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.94,
+      0.917,
+      0.79
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.92,
+      0.731,
+      -1.078
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.804,
+      -1.372
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.32,
+      1.48,
+      -0.734
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.589,
+      0.885,
+      -2.141
+     ]
+    }
+   },
+   "model": "police",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Cop.usda",
+     "sha256": "ac4f817393f98c18edc683437d8ad18ba34ece05a8f15cc690f1f60d279e985a"
+    }
+   ],
+   "dims": [
+    3.91,
+    5.94,
+    1.63
+   ],
+   "modifications": "real proportions (dims:1.88,4.9,1.6), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.0576,
+     1.3135,
+     1.2916
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.88,
+     4.9,
+     1.6
+    ],
+    "tris_src": 3232,
+    "wheels": 4
+   }
+  },
+  "police_snowed": {
+   "id": "police_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/police_snowed.glb",
+   "tris": 2948,
+   "bytes": 192964,
+   "nodes": {
+    "Body": {
+     "tris": 2948,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Beacon": {
+     "anchor": [
+      -0.18,
+      1.567,
+      -0.529
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.92,
+      0.731,
+      -1.078
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.596,
+      0.581,
+      2.172
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.804,
+      -1.372
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.325,
+      1.48,
+      -0.73
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.589,
+      0.885,
+      -2.141
+     ]
+    }
+   },
+   "model": "police",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Cop.usda",
+     "sha256": "ac4f817393f98c18edc683437d8ad18ba34ece05a8f15cc690f1f60d279e985a"
+    }
+   ],
+   "dims": [
+    3.57,
+    6.8,
+    1.74
+   ],
+   "modifications": "real proportions (dims:1.88,4.9,1.6), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.0576,
+     1.3135,
+     1.2916
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.88,
+     4.9,
+     1.6
+    ],
+    "tris_src": 3232,
+    "wheels": 4
+   }
+  },
+  "sedan_burnt": {
+   "id": "sedan_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/sedan_burnt.glb",
+   "tris": 1736,
+   "bytes": 135604,
+   "nodes": {
+    "Body": {
+     "tris": 1736,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.624,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.443,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.443,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.686,
+      -1.302
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      0.873,
+      1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.712,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.712,
+      -2.087
+     ]
+    }
+   },
+   "model": "sedan",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_NormalCar1.usda",
+     "sha256": "88d80d5c7bc2e3a4937eb6d0ab8eb18d232219ae158f306340e5f73041c5868a"
+    }
+   ],
+   "dims": [
+    4.55,
+    7.24,
+    1.36
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.45), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.2324
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.45
+    ],
+    "tris_src": 2954,
+    "wheels": 4
+   }
+  },
+  "sedan_clean": {
+   "id": "sedan_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/sedan_clean.glb",
+   "tris": 1898,
+   "bytes": 154696,
+   "nodes": {
+    "Body": {
+     "tris": 1836,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 62,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.624,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.572,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.572,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.686,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.841,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.841,
+      -2.087
+     ]
+    }
+   },
+   "model": "sedan",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_NormalCar1.usda",
+     "sha256": "88d80d5c7bc2e3a4937eb6d0ab8eb18d232219ae158f306340e5f73041c5868a"
+    }
+   ],
+   "dims": [
+    1.82,
+    4.65,
+    1.53
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.45), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.2324
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.45
+    ],
+    "tris_src": 2954,
+    "wheels": 4
+   }
+  },
+  "sedan_crashed": {
+   "id": "sedan_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/sedan_crashed.glb",
+   "tris": 2303,
+   "bytes": 169936,
+   "nodes": {
+    "Body": {
+     "tris": 2257,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 46,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.624,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.576,
+      0.599,
+      1.923
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.576,
+      0.598,
+      2.041
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.686,
+      -1.302
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      0.898,
+      1.395
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.841,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.841,
+      -2.087
+     ]
+    }
+   },
+   "model": "sedan",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_NormalCar1.usda",
+     "sha256": "88d80d5c7bc2e3a4937eb6d0ab8eb18d232219ae158f306340e5f73041c5868a"
+    }
+   ],
+   "dims": [
+    2.73,
+    6.26,
+    1.66
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.45), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.2324
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.45
+    ],
+    "tris_src": 2954,
+    "wheels": 4
+   }
+  },
+  "sedan_doors": {
+   "id": "sedan_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/sedan_doors.glb",
+   "tris": 2883,
+   "bytes": 208792,
+   "nodes": {
+    "Body": {
+     "tris": 2799,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 84,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.91,
+      0.942,
+      0.792
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.624,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.612,
+      0.537,
+      2.196
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.612,
+      0.537,
+      2.196
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.686,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.841,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.841,
+      -2.087
+     ]
+    }
+   },
+   "model": "sedan",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_NormalCar1.usda",
+     "sha256": "88d80d5c7bc2e3a4937eb6d0ab8eb18d232219ae158f306340e5f73041c5868a"
+    }
+   ],
+   "dims": [
+    3.85,
+    5.76,
+    1.58
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.45), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.2324
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.45
+    ],
+    "tris_src": 2954,
+    "wheels": 4
+   }
+  },
+  "sedan_snowed": {
+   "id": "sedan_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/sedan_snowed.glb",
+   "tris": 2594,
+   "bytes": 172188,
+   "nodes": {
+    "Body": {
+     "tris": 2594,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.624,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.572,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.572,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.686,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.841,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.841,
+      -2.087
+     ]
+    }
+   },
+   "model": "sedan",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_NormalCar1.usda",
+     "sha256": "88d80d5c7bc2e3a4937eb6d0ab8eb18d232219ae158f306340e5f73041c5868a"
+    }
+   ],
+   "dims": [
+    3.5,
+    6.32,
+    1.72
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.45), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.2324
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.45
+    ],
+    "tris_src": 2954,
+    "wheels": 4
+   }
+  },
+  "suv_burnt": {
+   "id": "suv_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/suv_burnt.glb",
+   "tris": 2324,
+   "bytes": 168636,
+   "nodes": {
+    "Body": {
+     "tris": 2324,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.955,
+      0.742,
+      -1.056
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.639,
+      0.577,
+      2.179
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.639,
+      0.577,
+      2.179
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.816,
+      -1.344
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.039,
+      1.344
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.593,
+      0.885,
+      -2.069
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.593,
+      0.885,
+      -2.069
+     ]
+    }
+   },
+   "model": "suv",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_SUV.usda",
+     "sha256": "374c0c4c448dadeaa1eba2dac985d1c1c53f35c02b2f9ecdaa6592ce88430638"
+    }
+   ],
+   "dims": [
+    4.63,
+    8.01,
+    1.64
+   ],
+   "modifications": "real proportions (dims:1.95,4.8,1.78), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9237,
+     1.1403,
+     1.165
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.95,
+     4.8,
+     1.78
+    ],
+    "tris_src": 3294,
+    "wheels": 4
+   }
+  },
+  "suv_clean": {
+   "id": "suv_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/suv_clean.glb",
+   "tris": 2480,
+   "bytes": 187848,
+   "nodes": {
+    "Body": {
+     "tris": 2408,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 72,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.955,
+      0.742,
+      -1.056
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.639,
+      0.73,
+      2.179
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.639,
+      0.73,
+      2.179
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.816,
+      -1.344
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.593,
+      1.038,
+      -2.069
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.593,
+      1.038,
+      -2.069
+     ]
+    }
+   },
+   "model": "suv",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_SUV.usda",
+     "sha256": "374c0c4c448dadeaa1eba2dac985d1c1c53f35c02b2f9ecdaa6592ce88430638"
+    }
+   ],
+   "dims": [
+    1.95,
+    4.8,
+    1.85
+   ],
+   "modifications": "real proportions (dims:1.95,4.8,1.78), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9237,
+     1.1403,
+     1.165
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.95,
+     4.8,
+     1.78
+    ],
+    "tris_src": 3294,
+    "wheels": 4
+   }
+  },
+  "suv_crashed": {
+   "id": "suv_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/suv_crashed.glb",
+   "tris": 2808,
+   "bytes": 199648,
+   "nodes": {
+    "Body": {
+     "tris": 2752,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 56,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.955,
+      0.742,
+      -1.056
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.608,
+      0.777,
+      1.932
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.608,
+      0.761,
+      2.041
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.816,
+      -1.344
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.069,
+      1.44
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.593,
+      1.038,
+      -2.069
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.593,
+      1.038,
+      -2.069
+     ]
+    }
+   },
+   "model": "suv",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_SUV.usda",
+     "sha256": "374c0c4c448dadeaa1eba2dac985d1c1c53f35c02b2f9ecdaa6592ce88430638"
+    }
+   ],
+   "dims": [
+    2.92,
+    6.77,
+    1.98
+   ],
+   "modifications": "real proportions (dims:1.95,4.8,1.78), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9237,
+     1.1403,
+     1.165
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.95,
+     4.8,
+     1.78
+    ],
+    "tris_src": 3294,
+    "wheels": 4
+   }
+  },
+  "suv_doors": {
+   "id": "suv_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/suv_doors.glb",
+   "tris": 3547,
+   "bytes": 246500,
+   "nodes": {
+    "Body": {
+     "tris": 3449,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 98,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.975,
+      1.153,
+      0.899
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.955,
+      0.742,
+      -1.056
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.635,
+      0.686,
+      2.196
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.635,
+      0.686,
+      2.196
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.816,
+      -1.344
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.593,
+      1.038,
+      -2.069
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.593,
+      1.038,
+      -2.069
+     ]
+    }
+   },
+   "model": "suv",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_SUV.usda",
+     "sha256": "374c0c4c448dadeaa1eba2dac985d1c1c53f35c02b2f9ecdaa6592ce88430638"
+    }
+   ],
+   "dims": [
+    3.98,
+    5.77,
+    1.91
+   ],
+   "modifications": "real proportions (dims:1.95,4.8,1.78), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9237,
+     1.1403,
+     1.165
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.95,
+     4.8,
+     1.78
+    ],
+    "tris_src": 3294,
+    "wheels": 4
+   }
+  },
+  "suv_snowed": {
+   "id": "suv_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/suv_snowed.glb",
+   "tris": 2962,
+   "bytes": 200952,
+   "nodes": {
+    "Body": {
+     "tris": 2962,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.955,
+      0.742,
+      -1.056
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.639,
+      0.73,
+      2.179
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.639,
+      0.73,
+      2.179
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.816,
+      -1.344
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.593,
+      1.038,
+      -2.069
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.593,
+      1.038,
+      -2.069
+     ]
+    }
+   },
+   "model": "suv",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_SUV.usda",
+     "sha256": "374c0c4c448dadeaa1eba2dac985d1c1c53f35c02b2f9ecdaa6592ce88430638"
+    }
+   ],
+   "dims": [
+    3.53,
+    6.91,
+    2.11
+   ],
+   "modifications": "real proportions (dims:1.95,4.8,1.78), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     0.9237,
+     1.1403,
+     1.165
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.95,
+     4.8,
+     1.78
+    ],
+    "tris_src": 3294,
+    "wheels": 4
+   }
+  },
+  "taxi_burnt": {
+   "id": "taxi_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/taxi_burnt.glb",
+   "tris": 2098,
+   "bytes": 163468,
+   "nodes": {
+    "Body": {
+     "tris": 2098,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.665,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.417,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.417,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.731,
+      -1.302
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      0.93,
+      1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.67,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.67,
+      -2.087
+     ]
+    }
+   },
+   "model": "taxi",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Taxi.usda",
+     "sha256": "59a2e2d99b8aaad5814385d52e9f2c39b8d478b77d95c021b6eaba78ed737d8a"
+    }
+   ],
+   "dims": [
+    4.1,
+    7.3,
+    1.38
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.52), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.1599
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.52
+    ],
+    "tris_src": 3278,
+    "wheels": 4
+   }
+  },
+  "taxi_clean": {
+   "id": "taxi_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/taxi_clean.glb",
+   "tris": 2228,
+   "bytes": 184996,
+   "nodes": {
+    "Body": {
+     "tris": 2166,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 62,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.665,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.538,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.538,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.731,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.792,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.792,
+      -2.087
+     ]
+    }
+   },
+   "model": "taxi",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Taxi.usda",
+     "sha256": "59a2e2d99b8aaad5814385d52e9f2c39b8d478b77d95c021b6eaba78ed737d8a"
+    }
+   ],
+   "dims": [
+    1.82,
+    4.65,
+    1.52
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.52), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.1599
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.52
+    ],
+    "tris_src": 3278,
+    "wheels": 4
+   }
+  },
+  "taxi_crashed": {
+   "id": "taxi_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/taxi_crashed.glb",
+   "tris": 2688,
+   "bytes": 200628,
+   "nodes": {
+    "Body": {
+     "tris": 2642,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 46,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.665,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.576,
+      0.573,
+      1.937
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.576,
+      0.564,
+      2.056
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.731,
+      -1.302
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      0.957,
+      1.395
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.792,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.792,
+      -2.087
+     ]
+    }
+   },
+   "model": "taxi",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Taxi.usda",
+     "sha256": "59a2e2d99b8aaad5814385d52e9f2c39b8d478b77d95c021b6eaba78ed737d8a"
+    }
+   ],
+   "dims": [
+    2.56,
+    6.52,
+    1.62
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.52), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.1599
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.52
+    ],
+    "tris_src": 3278,
+    "wheels": 4
+   }
+  },
+  "taxi_doors": {
+   "id": "taxi_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/taxi_doors.glb",
+   "tris": 3330,
+   "bytes": 240364,
+   "nodes": {
+    "Body": {
+     "tris": 3246,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "Glass": {
+     "tris": 84,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.91,
+      0.889,
+      0.792
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.665,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.609,
+      0.51,
+      2.195
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.609,
+      0.51,
+      2.195
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.731,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.792,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.792,
+      -2.087
+     ]
+    }
+   },
+   "model": "taxi",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Taxi.usda",
+     "sha256": "59a2e2d99b8aaad5814385d52e9f2c39b8d478b77d95c021b6eaba78ed737d8a"
+    }
+   ],
+   "dims": [
+    3.85,
+    5.62,
+    1.55
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.52), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.1599
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.52
+    ],
+    "tris_src": 3278,
+    "wheels": 4
+   }
+  },
+  "taxi_snowed": {
+   "id": "taxi_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/taxi_snowed.glb",
+   "tris": 3010,
+   "bytes": 202300,
+   "nodes": {
+    "Body": {
+     "tris": 3010,
+     "materials": [
+      "palette_vcol",
+      "emissive_lamp"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.89,
+      0.665,
+      -1.023
+     ]
+    },
+    "Headlight_L": {
+     "anchor": [
+      0.61,
+      0.538,
+      2.188
+     ]
+    },
+    "Headlight_R": {
+     "anchor": [
+      -0.61,
+      0.538,
+      2.188
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      0.731,
+      -1.302
+     ]
+    },
+    "Taillight_L": {
+     "anchor": [
+      0.506,
+      0.792,
+      -2.087
+     ]
+    },
+    "Taillight_R": {
+     "anchor": [
+      -0.506,
+      0.792,
+      -2.087
+     ]
+    }
+   },
+   "model": "taxi",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "quaternius-cars",
+     "file": "S_Taxi.usda",
+     "sha256": "59a2e2d99b8aaad5814385d52e9f2c39b8d478b77d95c021b6eaba78ed737d8a"
+    }
+   ],
+   "dims": [
+    3.35,
+    6.93,
+    1.6
+   ],
+   "modifications": "real proportions (dims:1.82,4.65,1.52), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.007,
+     1.1017,
+     1.1599
+    ],
+    "floor_period": null,
+    "size_m": [
+     1.82,
+     4.65,
+     1.52
+    ],
+    "tris_src": 3278,
+    "wheels": 4
+   }
+  },
+  "van_burnt": {
+   "id": "van_burnt",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/van_burnt.glb",
+   "tris": 1188,
+   "bytes": 74780,
+   "nodes": {
+    "Body": {
+     "tris": 1188,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.98,
+      1.067,
+      -1.166
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.173,
+      -1.484
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.493,
+      1.484
+     ]
+    }
+   },
+   "model": "van",
+   "variant": "burnt",
+   "sources": [
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/van.glb",
+     "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    }
+   ],
+   "dims": [
+    4.65,
+    8.57,
+    2.23
+   ],
+   "modifications": "real proportions (dims:2.0,5.3,2.4), wheels rebuilt (16 sides), graded, burnt variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.3333,
+     1.9273,
+     1.7778
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.0,
+     5.3,
+     2.4
+    ],
+    "tris_src": 2082,
+    "wheels": 4
+   }
+  },
+  "van_clean": {
+   "id": "van_clean",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/van_clean.glb",
+   "tris": 1318,
+   "bytes": 94640,
+   "nodes": {
+    "Body": {
+     "tris": 936,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 382,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.98,
+      1.067,
+      -1.166
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.173,
+      -1.484
+     ]
+    }
+   },
+   "model": "van",
+   "variant": "clean",
+   "sources": [
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/van.glb",
+     "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    }
+   ],
+   "dims": [
+    2.0,
+    5.3,
+    2.49
+   ],
+   "modifications": "real proportions (dims:2.0,5.3,2.4), wheels rebuilt (16 sides), graded, clean variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.3333,
+     1.9273,
+     1.7778
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.0,
+     5.3,
+     2.4
+    ],
+    "tris_src": 2082,
+    "wheels": 4
+   }
+  },
+  "van_crashed": {
+   "id": "van_crashed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/van_crashed.glb",
+   "tris": 1574,
+   "bytes": 108668,
+   "nodes": {
+    "Body": {
+     "tris": 1259,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 315,
+     "materials": [
+      "glass"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.98,
+      1.067,
+      -1.166
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.173,
+      -1.484
+     ]
+    },
+    "Smoke_Engine": {
+     "anchor": [
+      0.0,
+      1.536,
+      1.59
+     ]
+    }
+   },
+   "model": "van",
+   "variant": "crashed",
+   "sources": [
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/van.glb",
+     "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    }
+   ],
+   "dims": [
+    2.83,
+    7.38,
+    2.64
+   ],
+   "modifications": "real proportions (dims:2.0,5.3,2.4), wheels rebuilt (16 sides), graded, crashed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.3333,
+     1.9273,
+     1.7778
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.0,
+     5.3,
+     2.4
+    ],
+    "tris_src": 2082,
+    "wheels": 4
+   }
+  },
+  "van_doors": {
+   "id": "van_doors",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/van_doors.glb",
+   "tris": 2071,
+   "bytes": 133908,
+   "nodes": {
+    "Body": {
+     "tris": 1554,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "Glass": {
+     "tris": 517,
+     "materials": [
+      "glass"
+     ]
+    },
+    "Door_Open": {
+     "anchor": [
+      0.867,
+      0.809,
+      2.554
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.98,
+      1.067,
+      -1.166
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.173,
+      -1.484
+     ]
+    }
+   },
+   "model": "van",
+   "variant": "doors",
+   "sources": [
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/van.glb",
+     "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    }
+   ],
+   "dims": [
+    3.32,
+    6.2,
+    2.55
+   ],
+   "modifications": "real proportions (dims:2.0,5.3,2.4), wheels rebuilt (16 sides), graded, doors variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.3333,
+     1.9273,
+     1.7778
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.0,
+     5.3,
+     2.4
+    ],
+    "tris_src": 2082,
+    "wheels": 4
+   }
+  },
+  "van_snowed": {
+   "id": "van_snowed",
+   "family": "vehicles",
+   "path": "res://assets/models/city/vehicles/van_snowed.glb",
+   "tris": 1644,
+   "bytes": 101692,
+   "nodes": {
+    "Body": {
+     "tris": 1644,
+     "materials": [
+      "palette_vcol"
+     ]
+    },
+    "FuelCap": {
+     "anchor": [
+      0.98,
+      1.067,
+      -1.166
+     ]
+    },
+    "Loot": {
+     "anchor": [
+      0.0,
+      1.173,
+      -1.484
+     ]
+    }
+   },
+   "model": "van",
+   "variant": "snowed",
+   "sources": [
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/van.glb",
+     "sha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1"
+    },
+    {
+     "pack": "kenney-car-kit",
+     "file": "Models/GLB format/Textures/colormap.png",
+     "sha256": "f3622a03a20c6696065cae9cbe391351be873508af190c2ebd1d420c055787a5"
+    }
+   ],
+   "dims": [
+    3.52,
+    7.22,
+    2.75
+   ],
+   "modifications": "real proportions (dims:2.0,5.3,2.4), wheels rebuilt (16 sides), graded, snowed variant, snow, AO",
+   "winterize": "a1.0",
+   "build": {
+    "floor_period_src": null,
+    "scale": [
+     1.3333,
+     1.9273,
+     1.7778
+    ],
+    "floor_period": null,
+    "size_m": [
+     2.0,
+     5.3,
+     2.4
+    ],
+    "tris_src": 2082,
+    "wheels": 4
+   }
+  }
+ }
+}

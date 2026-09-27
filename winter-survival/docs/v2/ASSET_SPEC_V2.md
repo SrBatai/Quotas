@@ -1140,3 +1140,264 @@ que lea `COLOR`.
    después con la misma luminancia media). Tris 2 650 → **3 202** (≤ 3 500; vista típica del claro 235.5 k, del bosque
    200 k ≤ 270 k). `verify_chars.py` comprueba ahora las caras traseras del superviviente en reposo y en 10 poses de
    `humanoid_loco` / `humanoid_combat` (`BF_POSES["survivor"]`) dentro de ALL OK.
+
+## A1 — assets CC0 de ciudad (Opus, A1)
+
+Primer lote de ciudad de **Altavega** a partir de packs CC0 (Kenney, Quaternius) invernizados con el pipeline de
+Blender. Todo se regenera con `cd blender && python3 build_all.py --only city` (≈ 2.5 min; descarga lo que falte de la
+caché, reconstruye, escribe manifiestos, licencias y créditos y ejecuta `verify_assets.py`). Verificación:
+`verify_assets.py` **ALL OK** (108 assets de ciudad, 18.1 MB ≤ 40 MB, además del resto del repo), `tests/inspect_models.gd`
+en un proyecto desechable: **203 assets, ALL OK** (los 108 de ciudad incluidos; importación de Godot 4.7.2 sin `ERROR`;
+`CityBuilding.validate(raíz, true) == []` en las 16 torres y edificios). Coordenadas **en Godot** (Y arriba, +Z = frente
+del modelo) salvo que se diga.
+
+### A1.1 Pipeline (`blender/third_party/`)
+
+| Paso | Fichero | Qué hace |
+|---|---|---|
+| lock | `sources.json` | 2 espejos de GitHub fijados a un *commit* (`series-ai/jam-ready-assets@f8206b38`, Kenney vía Git LFS; `chibifire-stages/quaternius-stage@5141a386`, Quaternius en USDA), 10 packs, 71 ficheros con SHA‑256, tamaño y marca LFS |
+| fetch | `fetch.py` | GET HTTPS al *commit* fijado → caché **fuera del repo** (`~/.cache/ventisca/third_party/<fuente>/<commit>/<ruta>` o `$VENTISCA_TP_CACHE`; se niega a usar una ruta dentro del repo). En LFS el SHA‑256 del contenido debe coincidir con el `oid` del puntero **y** con el lock. `--verify` comprueba la caché sin red, `--lock` registra ficheros nuevos, `--list` |
+| winterize | `winterize.py` | importa glTF / FBX / OBJ / USDA → *conform* (pivote en el centro de la huella a nivel de calle, frente −Y Blender, escala por módulo de planta o `dims:an,lar,al` reales) → colores por vértice (el atlas de la fuente se muestrea a `Col`; nada de texturas ni UV) con una clase por cara (`cls`: cuerpo, ventana, vidrio, faro, piloto, rotativo, nieve, losa, interior, panel, quemado, escarcha) → gradación OKLab hacia la paleta v2.1 (encaje exacto si ΔE_ok ≤ 0.03; si no, dentro de la gama de la paleta) → suciedad / escarcha / óxido → nieve en caras que miran arriba → AO (`lib/hd.bake_ao`) en `COLOR_0.a` → parche de caras traseras (regla M3) → GLB + `.import` |
+| corte urbano | `cutready.py` | plantas desde las filas de ventanas de la fuente, **una losa por planta**, volúmenes cerrados, prueba de vista cortada, reparto de torres en piezas y `ShadowProxy` |
+| vehículos | `vehicles.py` | ruedas rehechas (16 lados), variantes y anclas |
+| props propios | `procprops.py` | lo que no tiene fuente CC0 práctica: marquesina, sacos terreros, erizos checos, barricada y tienda militares, bionda, señales de calle / información / dirección |
+| tablas + escritura | `build_city.py` | tablas `TOWERS`, `BUILDINGS`, `VEHICLES`, `PROPS`, `HIGHWAY`, `PROCEDURAL`; escribe `assets/models/city/manifest.json`, `assets/third_party/{manifest.json, LICENSES/, README.md}` |
+| verificación | `verify_city.py` | lo llama `verify_assets.py` (o `verify_assets.py --city`); ver A1.6 |
+
+No se versiona ningún fichero de terceros ni `.blend` de assets de terceros: todo sale del lock. Reconstrucción
+determinista (orden de caras canónico antes del AO y al exportar): un *rebuild* sin cambios no toca los `.glb`
+(107 de 108; `bldg_n` aún varía en unos pocos atributos de vértice entre ejecuciones).
+**Volver a descargar desde cero:** borrar la caché y `python3 third_party/fetch.py` (exit 0 = todos los SHA‑256
+coinciden); `python3 third_party/fetch.py --verify` lo comprueba sin red.
+
+### A1.2 Ficheros (`res://assets/models/city/<familia>/<id>.glb`, cada uno con su `.import` con `uid`)
+
+5 torres, 11 edificios, 10 vehículos × 5 variantes, 36 props, 6 piezas de autopista = **108 `.glb`, 18.1 MB**.
+Manifiesto por asset (nodos, tris por pieza, materiales, anclas, colisión, plantas, fuentes con SHA‑256,
+modificaciones): `assets/models/city/manifest.json`.
+
+| Torre | Tris (todas las piezas) | Altura | Plantas | `ground_h` | Piezas | Origen |
+|---|---|---|---|---|---|---|
+| `tower_a` | 13 230 | 69.6 m | 18 | 5.69 | Base, Shaft_0..3, Roof, ShadowProxy (40) | Kenney City Kit (Commercial) `building-skyscraper-a.glb` |
+| `tower_b` | 15 942 | 94.7 m | 24 | 5.67 | Base, Shaft_0..4, Roof, ShadowProxy (36) | Kenney City Kit (Commercial) `building-skyscraper-b.glb` |
+| `tower_c` | 12 356 | 74.0 m | 18 | 4.27 | Base, Shaft_0..3, Roof, ShadowProxy (24) | Kenney City Kit (Commercial) `building-skyscraper-c.glb` |
+| `tower_d` | 15 041 | 100.3 m | 26 | 4.28 | Base, Shaft_0..5, Roof, ShadowProxy (24) | Kenney City Kit (Commercial) `building-skyscraper-d.glb` |
+| `tower_e` | 9 632 | 63.3 m | 16 | 6.50 | Base, Shaft_0..2, Roof, ShadowProxy (12) | Kenney City Kit (Commercial) `building-skyscraper-e.glb` |
+
+| Edificio | Tris | Altura | Plantas | Piezas | Origen |
+|---|---|---|---|---|---|
+| `bldg_a` | 4 138 | 12.3 m | 3 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-a.glb` |
+| `bldg_c` | 3 865 | 8.5 m | 2 | Base, Roof | Kenney City Kit (Commercial) `building-c.glb` |
+| `bldg_d` | 3 637 | 12.3 m | 3 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-d.glb` |
+| `bldg_e` | 5 215 | 8.5 m | 2 | Base, Roof | Kenney City Kit (Commercial) `building-e.glb` |
+| `bldg_f` | 4 855 | 16.1 m | 4 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-f.glb` |
+| `bldg_g` | 6 219 | 16.1 m | 4 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-g.glb` |
+| `bldg_i` | 6 937 | 16.0 m | 4 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-i.glb` |
+| `bldg_k` | 8 020 | 14.0 m | 3 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-k.glb` |
+| `bldg_l` | 9 333 | 21.6 m | 5 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-l.glb` |
+| `bldg_m` | 8 115 | 29.9 m | 7 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-m.glb` |
+| `bldg_n` | 11 279 | 23.6 m | 5 | ShadowProxy, Base, Roof | Kenney City Kit (Commercial) `building-n.glb` |
+
+| Vehículo | Medidas (an × lar × al) | clean | snowed | crashed | doors | burnt | Origen |
+|---|---|---|---|---|---|---|---|
+| `ambulance` | 2.30 × 6.30 × 2.80 | 1 698 | 2 130 | 1 914 | 2 366 | 1 766 | Quaternius Public Transport Pack (2017) `S_Ambulance.usda` |
+| `box_truck` | 2.50 × 7.20 × 3.40 | 4 481 | 5 243 | 5 564 | 5 767 | 4 351 | Quaternius Zombie Apocalypse Kit `S_VehicleTruck.usda` |
+| `bus` | 2.55 × 12.00 × 3.10 | 1 491 | 1 888 | 1 652 | 2 104 | 1 360 | Quaternius Public Transport Pack (2017) `S_Bus.usda` |
+| `military_truck` | 2.50 × 7.20 × 3.40 | 4 481 | 5 243 | 5 564 | 5 767 | 4 351 | Quaternius Zombie Apocalypse Kit `S_VehicleTruck.usda` |
+| `pickup` | 2.05 × 5.60 × 1.95 | 3 712 | 4 828 | 4 169 | 4 715 | 3 579 | Quaternius Zombie Apocalypse Kit `S_VehiclePickup.usda` |
+| `police` | 1.88 × 4.90 × 1.60 | 2 182 | 2 948 | 2 728 | 3 342 | 2 052 | Quaternius Cars (Realistic Car Pack) `S_Cop.usda` |
+| `sedan` | 1.82 × 4.65 × 1.45 | 1 898 | 2 594 | 2 303 | 2 883 | 1 736 | Quaternius Cars (Realistic Car Pack) `S_NormalCar1.usda` |
+| `suv` | 1.95 × 4.80 × 1.78 | 2 480 | 2 962 | 2 808 | 3 547 | 2 324 | Quaternius Cars (Realistic Car Pack) `S_SUV.usda` |
+| `taxi` | 1.82 × 4.65 × 1.52 | 2 228 | 3 010 | 2 688 | 3 330 | 2 098 | Quaternius Cars (Realistic Car Pack) `S_Taxi.usda` |
+| `van` | 2.00 × 5.30 × 2.40 | 1 318 | 1 644 | 1 574 | 2 071 | 1 188 | Kenney Car Kit `van.glb` |
+
+| Prop | Tris | Nodos / anclas | Colisión | Origen |
+|---|---|---|---|---|
+| `barrel` | 882 | — | box | Quaternius Zombie Apocalypse Kit `S_Barrel.usda` |
+| `barrier_plastic` | 852 | — | box | Quaternius Zombie Apocalypse Kit `S_PlasticBarrier.usda` |
+| `barrier_sawhorse` | 364 | — | box | Quaternius Zombie Apocalypse Kit `S_TrafficBarrier_2.usda` |
+| `barrier_striped` | 732 | — | box | Quaternius Zombie Apocalypse Kit `S_TrafficBarrier_1.usda` |
+| `bench` | 160 | — | box | Kenney Holiday Kit `bench.glb` |
+| `bin_wheelie` | 739 | — | box | Quaternius Survival Pack `S_Trashcan.usda` |
+| `bus_stop` | 290 | Panel, LightAnchor, LightPool, Seat, TextPanel | box | procedural |
+| `container_green` | 1 404 | Loot | box | Quaternius Zombie Apocalypse Kit `S_ContainerGreen.usda` |
+| `container_red` | 1 100 | Loot | box | Quaternius Zombie Apocalypse Kit `S_ContainerRed.usda` |
+| `guardrail` | 60 | — | box | procedural |
+| `hedgehog` | 36 | — | box | procedural |
+| `hydrant` | 976 | — | box | Quaternius Zombie Apocalypse Kit `S_FireHydrant.usda` |
+| `jersey_barrier` | 130 | — | box | Kenney City Kit (Roads) `construction-barrier.glb` |
+| `lamp_highway` | 163 | LightAnchor, LightPool | cylinder | Kenney City Kit (Roads) `light-curved.glb` |
+| `lamp_highway_double` | 292 | LightAnchor_0, LightAnchor_1, LightPool_0, LightPool_1 | cylinder | Kenney City Kit (Roads) `light-curved-double.glb` |
+| `lamp_ornate` | 1 028 | LightAnchor, LightPool | cylinder | Quaternius Modular Streets `S_StreetlightSingle.usda` |
+| `lamp_street` | 426 | LightAnchor, LightPool | cylinder | Quaternius Zombie Apocalypse Kit `S_StreetLights.usda` |
+| `mil_barricade` | 932 | — | box | procedural |
+| `mil_tent` | 175 | Entrance | box | procedural |
+| `pallet` | 240 | — | box | Quaternius Zombie Apocalypse Kit `S_Pallet.usda` |
+| `sandbag_wall` | 836 | — | box | procedural |
+| `sign_direction` | 80 | Panel, TextPanel | box | procedural |
+| `sign_info` | 52 | Panel, TextPanel | cylinder | procedural |
+| `sign_no_parking` | 244 | — | cylinder | Quaternius Modular Streets `S_SignNoParking.usda` |
+| `sign_panel_a` | 104 | Panel, TextPanel | cylinder | Quaternius Public Transport Pack (2017) `S_TrafficSign1.usda` |
+| `sign_panel_b` | 76 | Panel, TextPanel | cylinder | Quaternius Public Transport Pack (2017) `S_TrafficSign2.usda` |
+| `sign_panel_c` | 90 | Panel, TextPanel | cylinder | Quaternius Public Transport Pack (2017) `S_TrafficSign3.usda` |
+| `sign_stop` | 300 | — | cylinder | Quaternius Modular Streets `S_SignStop.usda` |
+| `sign_street` | 52 | Panel, TextPanel | cylinder | procedural |
+| `sign_yield` | 60 | — | cylinder | Quaternius Modular Streets `S_SignTriangle.usda` |
+| `tent_canvas` | 972 | — | box | Quaternius Survival Pack `S_Tent.usda` |
+| `traffic_cone` | 134 | — | box | Quaternius Zombie Apocalypse Kit `S_TrafficCone_1.usda` |
+| `traffic_light` | 849 | Signal_0 | cylinder | Quaternius Zombie Apocalypse Kit `S_TrafficLight_1.usda` |
+| `traffic_light_arm` | 1 369 | Signal_0, Signal_1, Signal_2 | cylinder | Quaternius Zombie Apocalypse Kit `S_TrafficLight_2.usda` |
+| `trash_bags` | 1 044 | — | box | Quaternius Zombie Apocalypse Kit `S_TrashBag_1.usda` |
+| `water_tower` | 1 159 | — | box | Quaternius Zombie Apocalypse Kit `S_WaterTower.usda` |
+
+| Autopista | Tris | Nodos / anclas | Colisión | Origen |
+|---|---|---|---|---|
+| `bridge_pillar` | 108 | — | box | Kenney City Kit (Roads) `bridge-pillar-wide.glb` |
+| `gantry_sign` | 362 | Panel_0, Panel_1, TextPanel_0, TextPanel_1 | box | Kenney City Kit (Roads) `sign-highway.glb` |
+| `gantry_sign_detailed` | 438 | Panel_0, Panel_1, TextPanel_0, TextPanel_1 | box | Kenney City Kit (Roads) `sign-highway-detailed.glb` |
+| `gantry_sign_wide` | 326 | Panel, TextPanel | box | Kenney City Kit (Roads) `sign-highway-wide.glb` |
+| `highway_barrier` | 160 | — | box | Kenney City Kit (Roads) `road-straight-barrier.glb` |
+| `overpass` | 1 228 | — | box | Kenney City Kit (Roads) `road-bridge.glb` |
+
+### A1.3 Contrato de nodos
+
+**Torres y edificios = contrato de edificio de ciudad de W0** (`scripts/world/city/city_building.gd`, README «Corte
+urbano y gráficos G2 (W0)»; sustituye a los nombres provisionales de doc 08). Ninguna pieza lleva desplazamiento en Y,
+escala ni inclinación; el origen de la raíz es el centro de la huella a nivel de calle; frente +Z.
+
+```
+tower_x.glb (raíz Node3D; meta: floor_h, ground_h, foundation, floors, generator, enterable, kind, roof_z, height, stub, source, extras)
+├─ ShadowProxy  prismas apilados de la sección (12–48 tris; extras shadow_only = true); CityBuilding lo pone SHADOWS_ONLY
+├─ Base         zócalo + plantas 0–3 (extras cut_group, floor_from 0, floor_to 3, z_from, z_to, window_cell [2.4, 3.8] + las claves de raíz)
+├─ Shaft_0..n   grupos de ≤ 4 plantas (extras floor_from / floor_to / z_from / z_to / window_cell)
+└─ Roof         coronación (peto, casetas, depósitos, nieve), la última planta
+bldg_x.glb: Base (todo hasta la coronación) + Roof (+ ShadowProxy si mide > 12 m: todos menos bldg_c / bldg_e)
+```
+
+- **Metadatos de raíz**: el pipeline los escribe como *extras* de la escena glTF y también en los extras de `Base`.
+  Godot 4.7 descarta los extras de escena, así que cada `.import` de ciudad lleva
+  `import_script/path="res://assets/models/city/city_import.gd"` (un `EditorScenePostImport` que copia los extras de
+  `Base` / `Body` / `Prop` a la raíz como meta `extras` y como claves sueltas, sin las claves por pieza `cut_group`,
+  `floor_*`, `z_*`). Resultado: `CityBuilding.meta_of(raíz, "floor_h")` lee 3.8 sin código extra.
+- **Plantas**: `floor_h` = **3.8 m** en todas (el módulo de fachada de Kenney escalado a una planta real); `ground_h`
+  por asset (bajos comerciales): torres a 5.69, b 5.67, c 4.27, d 4.28, e 6.50; edificios 3.80; `foundation` 0.0;
+  `generator` / `enterable` false. La planta k ≥ 1 se pisa en `ground_h + (k − 1)·floor_h` = la cara superior de su
+  **losa** (+ 3 cm: `cutready.SLAB_LIFT`, para no coincidir con las caras del módulo de la fuente). Losas con AO 0.25,
+  caras interiores de muro con color oscuro (clase `interior`); el shader pinta de todos modos las caras traseras con
+  `cap_color`.
+- **Materiales**: `palette_vcol` (estructura; `CityBuilding.apply_materials` lo cambia por `world_vcol_struct`) y
+  `window` en las caras de vidrio de fachada (RGB blanco, AO 0.98; → `window_city`). Una celda de ventana por vano de
+  2.4 m y planta de 3.8 m (`window_cell`). Rejillas distintas en el lote: (`ground_h`, `floor_h`) = (3.80, 3.8),
+  (4.27, 3.8), (4.28, 3.8), (5.67, 3.8), (5.69, 3.8), (6.50, 3.8) → `CityBuilding._family` crea 6 duplicados por
+  familia de material.
+
+**Vehículos** (restos estáticos; frente +Z, izquierda del conductor +X):
+
+```
+<modelo>_<variante>.glb
+├─ Body    1 malla: palette_vcol + emissive_lamp (faros); ruedas fundidas; extras model, variant, length, width,
+│          col = "box", col_center, col_size, anchors {nombre: [x, y, z]}
+├─ Glass   vidrio (material glass); no existe en snowed (escarcha) ni burnt
+└─ anclas  Headlight_L/R, Taillight_L/R, FuelCap, Loot (maletero / caja), Beacon (police, ambulance),
+           Door_Open (doors), Smoke_Engine (crashed, burnt)
+```
+
+Variantes: `clean` (poca nieve en techo y capó, algo de suciedad), `snowed` (enterrado hasta la línea de ventanas:
+montículo + ventisquero, losa gruesa en el techo, cristales escarchados), `crashed` (morro arrugado, parabrisas
+agrietado, faros rotos, inclinado sobre una rueda pinchada, cristales en el suelo), `doors` (puerta delantera izquierda
+— y trasera derecha en carrocerías de 4 puertas — abierta, interior oscuro visible), `burnt` (pintura carbonizada, sin
+cristales ni neumáticos — llantas, la carrocería más baja —, mancha de hollín). Montículos, restos y mancha forman
+parte de `Body`, por eso las medidas del asset crecen (hasta 4.6 × 9.3 m); la caja de colisión (`col_*`) es la del
+vehículo.
+
+**Props y autopista**:
+
+```
+<id>.glb
+├─ Prop         1 malla palette_vcol (+ emissive_lamp en farolas); extras col = "box" | "cylinder", col_center,
+│               col_size ([an, al, fondo] o [diámetro, alto]), anchors, panels
+├─ Panel[_n]    SOLO señales con texto: la cara del panel en su propia malla (para un material / textura de texto)
+└─ anclas       LightAnchor[_n] (bombilla) + LightPool[_n] (suelo, y = 0.02, bajo la bombilla: charco de luz),
+                TextPanel[_n] (centro del panel, 3 cm delante), Signal_n (semáforos), Seat, Loot, Entrance
+```
+
+Origen de los props en el centro de su base a nivel de calle, frente +Z; en los **postes** (farolas, semáforos, señales:
+`col = "cylinder"`) el origen es la base del poste y el cilindro de colisión es el poste (r ≤ 0.35 m); el brazo de
+farolas y semáforos apunta a +Z (colocar la farola en el bordillo mirando a la calzada). Colisión en los extras
+(`col*`, coordenadas del modelo), sin nodos `Col*`.
+
+### A1.4 Presupuestos (tris, todas las piezas) y resultados
+
+| Familia | Presupuesto | Entregado |
+|---|---|---|
+| torres | ≤ 16 000 | 9 632 – 15 942 |
+| edificios | ≤ 12 000 | 3 637 – 11 279 |
+| vehículos | 2 500 – 8 000 | 1 188 – 5 767 (mediana 2 641; 24 de 50 por debajo de 2 500, ver A1.8) |
+| props | ≤ 1 500 | 36 – 1 404 |
+| autopista | ≤ 4 000 | 108 – 1 228 |
+
+### A1.5 Licencias y procedencia
+
+- `assets/third_party/manifest.json`: por pack título, versión, autor, licencia (todas **CC0‑1.0**), página oficial,
+  repositorio y *commit* de donde se descargó, y por fichero fuente su SHA‑256, tamaño, LFS y los `.glb` que salen de
+  él (+ modificaciones de cada salida); `procedural_outputs` lista los props sin fuente de terceros.
+- `assets/third_party/LICENSES/<pack>.txt`: el `License.txt` de cada pack de Kenney; para Quaternius, el `LICENSE`
+  (CC0 1.0) del espejo con una cabecera que dice de dónde sale.
+- `assets/third_party/README.md`: tabla de packs, **créditos** (CC0 no los exige; se acredita igual: «City Kit
+  (Commercial) by Kenney (CC0)», …), cadena de custodia de los espejos y cómo añadir un pack.
+- Packs usados: Kenney City Kit (Commercial) 2.1, City Kit (Roads), Car Kit, Holiday Kit; Quaternius Cars, Zombie
+  Apocalypse Kit, Modular Streets, Public Transport, Survival. `verify_assets.py` falla si una salida no está en el
+  manifiesto, falta una licencia o un hash no coincide con el lock.
+
+### A1.6 Verificación (`third_party/verify_city.py`, dentro de `verify_assets.py`)
+
+glTF sin imágenes / UV, `NORMAL` y `COLOR_0` VEC4 con AO (reglas v2.1), ≤ 2 superficies por malla, materiales
+`palette_vcol` + `window` / `glass` / `emissive_lamp`; colores dentro de la gama OKLab de la paleta v2.1; presupuestos;
+contrato de nodos por familia (W0 en torres y edificios: metadatos, `Base`, `Shaft_<n>` ≤ 4 plantas con
+`floor_from` / `floor_to`, `ShadowProxy` cerrado de 12–400 tris obligatorio > 12 m); **corte urbano**: cada planta es
+un volumen cerrado (ningún rayo horizontal desde dentro escapa), una losa por planta (un rayo hacia abajo dentro de cada
+planta encuentra una cara hacia arriba a la cota de la planta), prueba de vista cortada (≤ 5 % de rayos al vacío);
+caras traseras visibles desde la cámara de juego ≤ 3·10⁻⁴ de los rayos; postes con el origen en el poste (cilindro
+r ≤ 0.4 m centrado); procedencia (manifiestos, licencias, lock,
+`.import`); tamaño total ≤ 40 MB. En Godot, `tests/inspect_models.gd::_check_city()`: presupuestos, AO, `Base` +
+metadatos de raíz + `Shaft_*` con `floor_from` + `ShadowProxy`, `CityBuilding.validate(raíz, true)`, `Body` + anclas y
+faros en +Z / +X, `Prop` + `LightPool` en el suelo junto a su `LightAnchor` + un `Panel` por `TextPanel`.
+
+### A1.7 Cómo añadir un pack
+
+1. Leer la licencia (solo CC0; MIT / BSD copiando el aviso). Buscar un espejo con el fichero exacto (doc 07 §1).
+2. Añadir el pack a `blender/third_party/sources.json` (fuente + `root` + ficheros con `"sha256": null`) y ejecutar
+   `python3 third_party/fetch.py --lock` (descarga y registra hash / tamaño / LFS).
+3. Añadir las filas en `build_city.py` (`TOWERS` / `BUILDINGS` / `VEHICLES` / `PROPS` / `HIGHWAY`: fichero fuente,
+   escala o `dims:`, pintura, anclas, colisión).
+4. `python3 build_all.py --only city` → ALL OK; el manifiesto, `LICENSES/` y el README de terceros se regeneran solos.
+5. Importar en un proyecto desechable, `tests/inspect_models.gd` ALL OK, y copiar los `.import` (con `uid`) al árbol.
+
+### A1.8 Desviaciones
+
+1. **Nombres de piezas de torre**: los del contrato W0 (`Base` / `Shaft_<n>` / `Roof` / `ShadowProxy`), no los de doc 08.
+2. **Planta de 3.8 m** (no 3.0) en torres y edificios: es la altura del módulo de ventanas de Kenney a escala real; el
+   contrato W0 admite 2.4–6.0 y CityBuilding crea el material de esa rejilla.
+3. **Metadatos de raíz vía script de post‑importación** (`city_import.gd`), porque Godot 4.7 descarta los extras de
+   escena glTF.
+4. **Vehículos por debajo de 2 500 tris** (24 de 50): las fuentes low‑poly no dan más detalle útil y subirlos sería
+   relleno. `clean`: sedan 1 898, taxi 2 228, police 2 182, suv 2 480, van 1 318, bus 1 491, ambulance 1 698 (pickup
+   3 712, box / military truck 4 481); las variantes de van, bus y ambulance quedan en 1 188–2 366. Máximo 5 767.
+5. **Vehículos estáticos**: ruedas rehechas y fundidas en `Body` (son restos, sin nodos `Wheel*`); `Glass` aparte.
+6. **Orígenes**: van de Kenney Car Kit (a medidas reales con `dims:`); box truck y military truck salen del mismo
+   camión de Quaternius con pinturas distintas; bus y ambulance toman el color de los nombres de material (el espejo
+   USDA pierde la textura). No hay piezas de Quaternius Downtown / Modular Buildings (no prácticas en A1).
+7. **Props procedurales** sin fuente de terceros: marquesina, sacos terreros, erizos, barricada y tienda militares,
+   bionda, señales de calle / información / dirección.
+8. **Tolerancias de verificación** de ciudad: caras traseras ≤ 3·10⁻⁴ de los rayos (resto del repo: 0), vista cortada
+   ≤ 5 %, y la prueba de losas acepta la cara de techo de la propia fuente como losa donde ya existe.
+9. **AO**: losas 0.25 (W0 pide ≤ 0.3), vidrio de fachada 0.98.
+
+### A1.9 Notas para render / mundo
+
+- Instanciar la escena y llamar `CityBuilding.attach(raíz)`: ya lee `floor_h` / `ground_h` / `floors` / `kind` de la meta
+  de raíz (post‑importación). Los props y vehículos van con `apply_prop_materials` (cápsula).
+- `ShadowProxy` lleva material `palette_vcol` (inofensivo: es SHADOWS_ONLY).
+- Farolas: `LightAnchor` = posición de la luz real / halo; `LightPool` = centro del charco de luz en el suelo.
+  Señales: `Panel*` es la malla sobre la que va el texto, `TextPanel*` su centro.
+- 6 rejillas (`ground_h`, `floor_h`) distintas → 6 duplicados por familia de material (A1.3).

@@ -14,6 +14,11 @@ extends SceneTree
 ##   - weapons/*.glb (M4, §12): Weapon + Grip at the origin, Tip up the handle (+Y) and not behind (+Z >= 0),
 ##     SupportGrip (two-handed) below the grip, extras weapon_class; gore/*.glb (M4): the generic mesh contract +
 ##     head_fragments = 6 Frag_n meshes.
+##   - city/<family>/*.glb (A1, ASSET_SPEC v2 "A1"): the generic mesh contract; root metadata copied by the
+##     post-import script (city_import.gd); towers / buildings: Base, Shaft_<n> with floor_from, ShadowProxy above 12 m,
+##     floor_h / ground_h / floors on the root and CityBuilding.validate() clean when that script exists; vehicles: Body
+##     [+ Glass], root anchors (Loot, FuelCap), headlights in front (+Z) with Headlight_L on +X; props / highway: Prop,
+##     LightPool on the ground under its LightAnchor, one TextPanel per Panel; AO alpha preserved; family budgets.
 ## Run: godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]
 ## --placeholders checks the primitive stand-ins (Placeholders.build) against the same contract instead of the .glb files.
 ## Ends with "ALL OK" (exit 0) or "N FAILURES" (exit 1).
@@ -125,6 +130,7 @@ func _initialize() -> void:
 	checked += _check_zombies()
 	checked += _check_subfolder("weapons")
 	checked += _check_subfolder("gore")
+	checked += _check_city()
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
 
@@ -376,6 +382,98 @@ func _check_subfolder(folder: String) -> int:
 			_fail(asset, p)
 		inst.free()
 		n += 1
+	return n
+
+
+## city/<family>/*.glb (A1): winterized CC0 city set. Budgets in triangles (all parts).
+const CITY_BUDGET := {"towers": 16000, "buildings": 12000, "vehicles": 8000, "props": 1500, "highway": 4000}
+
+
+func _check_city() -> int:
+	var n := 0
+	var cb: GDScript = null
+	if ResourceLoader.exists("res://scripts/world/city/city_building.gd"):
+		cb = load("res://scripts/world/city/city_building.gd")
+	for fam in CITY_BUDGET:
+		for name in _glbs("res://assets/models/city/" + fam):
+			var asset := "city/%s/%s" % [fam, name.get_basename()]
+			var scene := load("res://assets/models/city/%s/%s" % [fam, name]) as PackedScene
+			if scene == null:
+				_fail(asset, "cannot load (run godot --headless --import)")
+				continue
+			var inst := scene.instantiate() as Node3D
+			if not _quiet:
+				print("== ", asset)
+				_dump(inst, 1)
+			_check(asset, inst)
+			var problems: Array[String] = []
+			var tris := 0
+			var ao_min := 1.0
+			for node in _all(inst):
+				if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+					var mi := node as MeshInstance3D
+					for i in mi.mesh.get_surface_count():
+						var arrays := mi.mesh.surface_get_arrays(i)
+						var idx = arrays[Mesh.ARRAY_INDEX]
+						tris += (idx.size() if idx is PackedInt32Array and idx.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+						var cols = arrays[Mesh.ARRAY_COLOR]
+						if cols is PackedColorArray:
+							for c in cols:
+								ao_min = minf(ao_min, c.a)
+			if tris > int(CITY_BUDGET[fam]):
+				problems.append("%d tris > %d" % [tris, CITY_BUDGET[fam]])
+			if ao_min > 0.9:
+				problems.append("no baked AO in COLOR.a (min alpha %.2f)" % ao_min)
+			if fam == "towers" or fam == "buildings":
+				if inst.get_node_or_null("Base") == null:
+					problems.append("Base missing")
+				for k in ["floor_h", "ground_h", "floors", "kind"]:
+					if not inst.has_meta(k):
+						problems.append("root meta %s missing (post-import script not applied?)" % k)
+				for c in inst.get_children():
+					if String(c.name).begins_with("Shaft_") and not (c.get_meta("extras", {}) as Dictionary).has("floor_from"):
+						problems.append("%s lacks floor_from" % c.name)
+				if fam == "towers" and inst.get_node_or_null("ShadowProxy") == null:
+					problems.append("ShadowProxy missing")
+				if cb != null:
+					for p in cb.call("validate", inst, true):
+						problems.append("CityBuilding.validate: %s" % p)
+			elif fam == "vehicles":
+				if inst.get_node_or_null("Body") == null:
+					problems.append("Body missing")
+				var anchors: Dictionary = inst.get_meta("anchors", {})
+				for k in ["Loot", "FuelCap"]:
+					if not anchors.has(k) or inst.find_child(k, true, false) == null:
+						problems.append("anchor %s missing" % k)
+				var hl := inst.find_child("Headlight_L", true, false) as Node3D
+				if hl != null:
+					var p := _model_pos(hl, inst)
+					if p.z <= 0.0 or p.x <= 0.0:
+						problems.append("Headlight_L at %s: expected in front (+Z) on the left (+X)" % p)
+			else:
+				if inst.get_node_or_null("Prop") == null:
+					problems.append("Prop missing")
+				var panels := 0
+				var texts := 0
+				for c in inst.get_children():
+					var cn := String(c.name)
+					if cn.begins_with("Panel"):
+						panels += 1
+					elif cn.begins_with("TextPanel"):
+						texts += 1
+					elif cn.begins_with("LightPool"):
+						var la := inst.get_node_or_null(cn.replace("LightPool", "LightAnchor")) as Node3D
+						var lp := (c as Node3D).position
+						if la == null or absf(lp.y) > 0.05 or Vector2(la.position.x - lp.x, la.position.z - lp.z).length() > 1.5:
+							problems.append("%s not on the ground near its LightAnchor" % cn)
+				if panels != texts:
+					problems.append("%d Panel meshes, %d TextPanel anchors" % [panels, texts])
+			if problems.is_empty():
+				print("OK   %-34s tris=%d ao_min=%.2f" % [asset, tris, ao_min])
+			for p in problems:
+				_fail(asset, p)
+			inst.free()
+			n += 1
 	return n
 
 

@@ -37,6 +37,10 @@ M3 checks (ASSET_SPEC_V2 "M3"):
   * typical FOREST view (M3 streaming, default camera): instances x tris + reserve <= 270 k;
   * no visible BACK faces (M3 assets + the HD clearing props): orthographic rays from the game camera directions
     must not first hit a back face (open ends, flipped / folded faces, coplanar overlaps) -- backface_problems().
+A1 checks (ASSET_SPEC_V2 "A1"): every assets/models/city/**.glb through third_party/verify_city.py (city_problems):
+    third-party gamut instead of exact palette, closed volumes + a slab per floor + corte urbano view (towers,
+    buildings), node contracts, budgets, back faces, provenance in assets/third_party/manifest.json. Only the city
+    part: `python3 verify_assets.py --city [ids]` (or `python3 third_party/verify_city.py [ids]`).
 M4 checks (ASSET_SPEC_V2 "M4"): weapons/* (§12: origin = grip, Grip / Tip [/ SupportGrip] empties, handle along +Z = the
     longest axis, business end toward -Y for edged / hooked / nailed weapons, v2.1 hand-held budget 900, extras
     weapon_class / length) and gore/* (corpse, blood decals, severed limbs, head fragments: budgets, sizes, decals flat
@@ -1152,9 +1156,23 @@ def main():
     print("TOTAL tris=%d surfaces=%d (all %d assets once)" % (total, total_surf, len(ASSETS)))
     failures += view_budget(per)
     failures += forest_budget(per)
+    failures += city_problems()
     print("ALL OK" if failures == 0 else "%d FAILURES" % failures)
     return 0 if failures == 0 else 1
 
 
+def city_problems(argv=()):
+    """A1: assets/models/city/** and the third-party rules (blender/third_party/verify_city.py: closed volumes,
+    slab per floor, corte urbano view, node contracts, budgets, COLOR_0 + AO, back faces, licences / manifest)."""
+    if not (export.MODELS_DIR / "city").exists():
+        return 0
+    from third_party import verify_city
+    return verify_city.main(argv)
+
+
 if __name__ == "__main__":
+    if "--city" in sys.argv:
+        n = city_problems([a for a in sys.argv[1:] if a != "--city"])
+        print("ALL OK" if n == 0 else "%d FAILURES" % n)
+        sys.exit(1 if n else 0)
     sys.exit(main())
