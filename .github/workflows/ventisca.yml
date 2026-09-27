@@ -25,7 +25,7 @@ jobs:
   test:
     name: Headless tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 45   # W0: + city bench under xvfb (software rasterisers)
+    timeout-minutes: 55   # W0: + city bench under xvfb (software rasterisers); W1: 6.5 km perf walk, 4-client far, valley hashes
     defaults:
       run:
         working-directory: winter-survival
@@ -61,22 +61,37 @@ jobs:
           NET_TEST_OUT: /tmp/ventisca_net_sw
         run: tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787
 
-      - name: Net test far (2 clients 1 km apart, chunk interest)
+      - name: Net test far (W1, 4 clients in the 4 quadrants up to 5 km apart, chunk interest, server RSS ≤ 400 MB)
         env:
           NET_TEST_OUT: /tmp/ventisca_net_far
-        run: tests/net/run_net_test.sh --clients 2 --duration 30 --soak 45 --scenario far --port 7797
+        run: tests/net/run_net_test.sh --clients 4 --duration 40 --soak 55 --scenario far --port 7797
 
       - name: Net test zombies (M4, 4 clients, combat, downed/revive, ff, pvp, bandwidth)
         env:
           NET_TEST_OUT: /tmp/ventisca_net_zombies
         run: tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807
 
-      - name: World determinism (server path vs client path)
+      - name: World determinism (60 chunks in the 4 quadrants, server path vs client path)
         run: tests/run_determinism.sh
+
+      - name: W1 world checks (6 km grid and walls, macro 768², 20 banner points, ice, pads, roads, population 96²)
+        run: |
+          godot --headless --path . -s tests/w1_world.gd 2>&1 | tee /tmp/w1_world.log
+          grep -q "ALL PASSED" /tmp/w1_world.log
+
+      - name: W1 «el valle no cambia» (valley chunk hashes = pre-W1, closed Carretera del Puerto list)
+        run: |
+          godot --headless --path . -s tests/valley_unchanged.gd 2>&1 | tee /tmp/valley.log
+          grep -q "VALLEY UNCHANGED OK" /tmp/valley.log
+
+      - name: W1 macro map reproducible (tools/gen_macro_map.gd --check)
+        run: |
+          godot --headless --path . -s tools/gen_macro_map.gd ++ --check 2>&1 | tee /tmp/macro.log
+          grep -q "identical" /tmp/macro.log
 
       # Timing-based: shared CI runners add scheduling noise, so this reports but does not block.
       # The blocking perf gates run locally in tests/run_all.sh.
-      - name: Streaming perf walk, CPU (informational)
+      - name: Streaming perf walk, CPU, W1 6.5 km (informational)
         continue-on-error: true
         run: tests/run_perf_walk.sh --cpu
 
@@ -108,6 +123,100 @@ jobs:
         env:
           RENDER: forward
         run: tests/run_city_bench.sh perf
+
+  m5:
+    name: M5 server (SQLite, firearms, restart, dedicated server + Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      # R6: the only third-party addon, pinned (v4.9) and checked by SHA-256; the zip is cached by the script's hash
+      - name: Cache godot-sqlite
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ventisca
+          key: godot-sqlite-${{ hashFiles('winter-survival/tools/fetch_godot_sqlite.sh') }}
+
+      - name: Fetch godot-sqlite (pinned + SHA-256)
+        run: tools/fetch_godot_sqlite.sh
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      - name: Unit tests (SqliteBackend, schema 2 + migrations, crash mid-batch; loot, firearms)
+        run: |
+          for t in persistence_m5_test m5_units_test; do
+            godot --headless --path . -s tests/unit/$t.gd 2>&1 | tee /tmp/$t.log
+            grep -q "ALL PASSED" /tmp/$t.log
+          done
+
+      - name: Net test hitscan (150 ms RTT ± 20, 2 % loss; lag compensation, dry fire)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_hitscan
+        run: tests/net/run_net_test.sh --clients 2 --duration 25 --soak 38 --scenario hitscan --port 7837 --net-sim 150,20,2
+
+      - name: Restart scenario (SQLite store, SE quadrant, world_version 2)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_restart_sqlite
+        run: tests/net/run_restart_test.sh --backend sqlite --port 7827
+
+      - name: Restart scenario (JSON file store)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_restart_file
+        run: tests/net/run_restart_test.sh --backend file --port 7847
+
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-server
+
+      - name: Install export templates (linux_release only)
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -j -q /tmp/templates.tpz templates/version.txt templates/linux_release.x86_64 -d "$dest"
+          rm /tmp/templates.tpz
+
+      - name: Export the dedicated server (preset "Dedicated Server")
+        run: server/build_server.sh export/server
+
+      - name: Exported server on SQLite starts, saves and shuts down cleanly
+        env:
+          NET_BACKEND: sqlite
+          SERVER_BIN: export/server/ventisca_server.x86_64
+          NET_TEST_OUT: /tmp/ventisca_server_quick
+        run: tests/net/run_net_test.sh --quick --port 17777
+
+      - name: Docker image (build, start, admin status, graceful stop)
+        run: |
+          docker build -t ventisca-server:ci -f server/Dockerfile export/server
+          docker run -d --name ventisca -p 7777:7777/udp -v ventisca-data:/data ventisca-server:ci
+          for i in $(seq 1 60); do docker logs ventisca 2>&1 | grep -q "\[NET\] READY" && break; sleep 1; done
+          docker exec ventisca /srv/ventisca/admin.sh status
+          docker exec ventisca /srv/ventisca/admin.sh dbinfo | grep -q "backend=sqlite"
+          docker stop ventisca
+          docker logs ventisca 2>&1 | grep -q "save-and-quit: shutting down"
+          test "$(docker inspect ventisca --format '{{.State.ExitCode}}')" = "0"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-server-linux
+          path: winter-survival/export/server/
+          retention-days: 30
 
   export:
     name: Desktop builds
@@ -147,6 +256,9 @@ jobs:
             templates/web_nothreads_release.zip \
             -d "$dest"
           rm /tmp/templates.tpz
+
+      - name: Fetch godot-sqlite (hosting from the game uses the SQLite store)
+        run: tools/fetch_godot_sqlite.sh
 
       - name: Export Windows and Linux
         run: |

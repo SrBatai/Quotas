@@ -1185,3 +1185,352 @@ Los alias `Tower_*` son los nombres provisionales de la primera exportación de 
 - **Regresión del bosque**: `world_vcol` antiguo y nuevo sobre cabaña, pino, camioneta, roca, torre de vigilancia y superviviente, misma escena: con tiempo despejado **idénticos al píxel** (diferencia máxima 0); en ventisca cambia la nieve (v2, buscado).
 
 **Diferido**: rayo del cursor en `PlacementController`; zona de apuntado (`aim_zone`) hasta que exista el apuntado de M5; LUT 3D por clima (P1); `FogVolume` locales y volumétrica urbana (G2b); mapa de rodadas por chunk (G2c); integración con el *streaming* de ciudad (C1: `ChunkJob` → `CityBuilding.attach` + `CityHlod.build_for`); un segundo edificio de cámara cuando dos torres rozan la cámara a la vez.
+
+### 15.5 Nota de implementación M5 (vinculante hasta que se revise)
+
+Sustituye lo anterior de §11.3 (armas a distancia), §15 y §16 donde lo contradiga.
+
+#### Persistencia
+
+- **Backends.** `BackendFactory.create(kind, save_path) -> [backend, kind, path]` es la única puerta:
+  - `sqlite` es el valor por defecto;
+  - un `save_path` `.json` sin clave `backend` da `file`, así que las configuraciones de M2 no cambian;
+  - `memory` no guarda nada;
+  - si la clase `SQLite` no existe (sin extensión, Linux arm64, web), cae a `FileBackend` en el mismo path con `.json`.
+
+  `SqliteBackend` instancia la clase con `ClassDB.instantiate(&"SQLite")` y la guarda en una variable sin tipo, así que el
+  script compila sin el addon. Al abrir la primera vez un store SQLite nuevo, `BackendFactory.import_json` importa el
+  `world_save.json` de M2 si existe.
+- **godot-sqlite v4.9** (MIT). `tools/fetch_godot_sqlite.sh` fija la URL del *release* y su SHA‑256
+  (`c0eed5f0…0dedb`), guarda la descarga en caché en `~/.cache/ventisca` y copia solo los binarios de escritorio y
+  servidor, con un `.gdextension` recortado y un sello `VERSION`. La extensión no se versiona (`.gitignore`). El
+  preset Web excluye `addons/godot-sqlite/*` y se ha comprobado que no queda ninguna `extension_list` en el `.pck`.
+- **Esquema.** `PersistenceSchema.VERSION = 2` es el `PRAGMA user_version`. Las migraciones
+  `scripts/persistence/migrations/NNN_*.gd` exponen dos cosas:
+  - `statements()`: el SQL, que se ejecuta en una transacción por migración;
+  - `document(doc)`: la misma migración aplicada al JSON de `FileBackend`, que también se versiona con `schema_version`.
+
+  Contenido de cada versión:
+  - **001**: las tablas de §15.2, más `profile_json` (el perfil entero del jugador), `population_json` en `chunks`,
+    `data_json` en contenedores, estructuras y *drops*, y los índices por `(cx, cz)`.
+  - **002**: `containers.table_id`, `containers.bags_json`, la tabla `nominal(region, category, spawned)` y las filas
+    `world_meta.world_version` y `city_version`.
+
+  `world_version` se lee de `WorldConst.WORLD_VERSION` (2, el mundo de 96² de W1) mediante el mapa de constantes del
+  script, para no romper si falta la constante. `city_version` sale de `WorldConst.CITY_VERSION`, o vale 0 hasta que C1
+  la cree. `save_world_meta` fusiona con lo guardado y sella siempre las dos versiones.
+
+  Un store con un esquema más nuevo que el del servidor se rechaza con `ERR_FILE_UNRECOGNIZED` y nunca se degrada.
+  Un store nuevo, ya sea SQLite o JSON, pasa por todas las migraciones al abrirse, así que `dbinfo` muestra
+  `world_version=2` desde el primer segundo.
+- **Claves.** Las filas de los chunks usan `(cx, cz)` y `chunk_keys()` devuelve `WorldConst.key(cx, cz)`. No hay
+  ninguna otra codificación de clave en la persistencia. Los `wid` son de 63 bits y se guardan como `INT`.
+- **SQLite.** Al abrir se aplican `journal_mode=WAL`, `synchronous=NORMAL` y `busy_timeout`, y se ejecuta
+  `quick_check`, cuyo resultado se registra en el log y aparece en `dbinfo`.
+  - `begin_batch()` / `flush()` equivalen a `BEGIN IMMEDIATE` / `COMMIT`.
+  - Un `ChunkDelta` sucio se guarda por tabla, borrando e insertando las filas de ese `(cx, cz)`. Las columnas
+    tipadas de §15.2 se rellenan y la entrada completa va en `data_json`.
+  - `events` se poda a 5 000 filas.
+  - `backup(path)` usa `VACUUM INTO`.
+  - `close()` ejecuta `wal_checkpoint(TRUNCATE)`, así que tras un apagado limpio no quedan ficheros `-wal`.
+  - La tabla `corpses` existe pero no se usa: los cadáveres siguen siendo estructuras, como en M4.
+- **Guardado.** `PlayerManager.save_all()` es un único lote:
+  1. los perfiles;
+  2. `world_meta` (versión del juego, semilla, día, hora, clima, reglas, `saved_at`);
+  3. `NetWorld.save_to` (solo los chunks sucios);
+  4. `Loot.take_dirty_nominal`;
+  5. `flush`.
+
+  Tarda entre 0.5 y 1.1 ms con 1–2 jugadores y 10–26 chunks. El nodo `Autosave` lo llama cada `autosave_seconds`
+  y hace la copia diaria en `<dir>/backups/world-AAAAMMDD.(db|json)`, conservando `backup_keep`. Además se guarda
+  al cerrar un contenedor (su chunk, en el momento), al hibernar un chunk, con `save` y con `save-and-quit`.
+
+  Al arrancar se restauran el día y la hora; la restauración se difiere un *frame*, porque `DayNight` aún no está en
+  el árbol dentro de `Game._ready`. Si la semilla de `server.cfg` no coincide con la guardada, el servidor avisa.
+- **Réplica de lo restaurado.** `StructureSpawner` y `DropSpawner` spawnean siempre con `spawn()` en un servidor
+  dedicado, aunque no haya nadie conectado. Antes, un nodo restaurado al arrancar se añadía a mano y no se replicaba a
+  quien entraba después: la hoguera existía en el servidor y no en el cliente. Lo encontró el escenario `restart`.
+- **Prueba de caída.** Un proceso hijo (`tests/unit/crash_writer.gd`) confirma un lote, abre otro y escribe la
+  mitad; la prueba lo mata con `OS.kill` con la transacción abierta. Al reabrir, `quick_check` da `ok`, el lote confirmado está y el lote a medias no.
+
+#### Armas de fuego
+
+- **Datos.** `Firearms.TABLE` contiene la pistola, el revólver, la escopeta, el rifle y el arco (daño, perdigones,
+  crítico, cadencia, alcance y máximo, perforación, dispersión mínima, cono, retroceso, ruido, cargador, munición,
+  recarga, derribo, durabilidad e inclinación de la cámara). Las constantes `GUN_*`, `BOW_*`, `THROW_*` y `CARRY_*`
+  están en `Balance`. La recarga cuenta en el evento del clip (`mag_in`, `shell_in`, `bolt_close`) de
+  `data/anim_events.json`; la escopeta carga cartucho a cartucho y puede interrumpirse. Desencasquillar dura lo que
+  indica el evento `clear` de `Act_Unjam`.
+- **Estado.** `PlayerState.gun` es un `WeaponState` (dispersión, último disparo, recarga, atasco, aceite y disparos).
+  El cargador vive en el propio *slot* (`ammo`), así que un arma guardada o soltada conserva sus balas. El espejo
+  privado `gun` llega al dueño como `Events.weapon_state_changed`.
+- **Dispersión.** El objetivo es el mínimo del arma, más 3° andando, 8° corriendo o −1° agachado, multiplicado por 1.5
+  con Calor < 15. Se abre a 30°/s y se cierra de forma lineal a 14°/s, así que en ≤ 0.8 s llega a cualquier objetivo.
+  Cada disparo suma el retroceso del arma. Bandas: verde < 4°, ámbar 4–8°, rojo > 8°, gris si hay un aliado en la
+  línea de tiro sin fuego amigo.
+- **Petición y validación.**
+  - El cliente envía `request_fire(seq, aim, view_ms, draw_ms)`, limitado a 10/s (`reload` 4/s, `throw` 3/s).
+    `view_ms` es el retraso de interpolación de lo que ve, entre 100 y 300 ms.
+  - El servidor (`Gunplay.fire`) comprueba vivo, arma, cadencia × 0.85, munición y atasco, y contesta
+    `_fire_result(seq, ok, reason, hits, kills, crit, ammo)`.
+  - El retroceso temporal es `clamp(RTT + view_ms, 0, GUN_REWIND_MAX = 0.2 s)`. Los zombis se consultan con
+    `ZombieSystem.pos_ago` (su historial pasa a 30 muestras) y los jugadores con `HitHistory` (30 Hz, 1 s).
+  - `Hitscan.trace` es un segmento 2D contra círculos de 0.4 m, con perforación y oclusión por un rayo en la capa 1.
+    Los aliados sin fuego amigo se marcan como `pass`.
+  - Los perdigones salen de `Firearms.shot_yaws(id, yaw, spread, seed)`, sembrados por disparo; el crítico es una
+    tirada. El daño se agrega por víctima y pasa por `DamageResolver` con `crit_included`, así que las reglas
+    `pvp` / `friendly_fire` siguen teniendo un solo lector.
+- **Contrafactual de prueba.** En servidores con `debug_commands`, cada disparo imprime
+  `[EVT] shot … rewind= rtt= hits= norewind=`, donde `norewind` indica si la misma bala habría acertado sin
+  compensación.
+- **Arco.** Es un proyectil en `Projectiles` (nodo de `Systems`, solo en el servidor): avanza por pasos con
+  `Hitscan` y cae con gravedad. El 60 % de las flechas se recupera como un *drop* de `flechas`, y el daño y el
+  alcance escalan con la tensión.
+- **Lanzables.** La lata hace un ruido de 15 m donde cae. La bengala llama a `ZombieSystem.lure(pos, 40 m)` durante
+  30 s y da +5 de calor cerca.
+- **Ruido.** El ruido va por `SoundEvents` con el radio del arma × `noise_scale`. `ZombieNet.fx_noise` codifica un
+  radio > 127.5 m en metros enteros con el bit 7 de `b`, para que el anillo de 150 m de la escopeta llegue intacto.
+- **Cliente** (`FirearmClient`, hijo `Firearm` del jugador local):
+  - predice el fogonazo, el retroceso y la munición, y aplica magnetismo hacia un zombi a menos de 1.2 m (desactivado
+    en el rifle a más de 25 m);
+  - emite `Events.reticle_changed(spread, band, aim, radius)` a 30 Hz;
+  - la cámara se inclina `lean` 3 m (6 m con el rifle).
+
+  `CharacterVisual.set_weapon_class` usa la biblioteca `guns` y mezcla `guns/<clase>_Aim` en el cuerpo superior; los
+  `*_Shoot` van por la capa aditiva de impacto. `FirearmFx` dibuja trazadoras, el fogonazo y los proyectiles con un
+  reloj de juego escalado, así que un *frame* congelado los conserva. `ReticleHook` es el gancho mínimo; la retícula
+  completa es de H3.
+
+#### Botín
+
+- **Colocación.** `LootSpawns` escucha `streamer.chunk_loaded`, recorre los `poi_model` en busca de los *empties*
+  `Spawn_Container_*` / `Spawn_Loot_*`, ordenados por nombre, y crea `LootContainer` en los dos lados con
+  `wid = hash64(seed, GEN_LOOT, wid_del_POI, i + 1)`. Así no se replica ningún nodo: solo el delta del contenedor.
+  El gancho `LootSpawns.attach(parent, model, parent_wid, seed)` sirve a los POI del valle y a los de C1.
+- **Tirada.** `Loot.roll(seed, wid, table, day, salt)` es pura. Se tira en el servidor al abrir el contenedor por
+  primera vez, y el resultado se recorta con los topes nominales por región y categoría
+  (`LootTables.NOMINAL` × 1 a 1.75 según los jugadores, contadores en la tabla `nominal`). Los contenidos se guardan
+  en el delta del contenedor (`items`, `rolled_day`, `table`, `opened_day`, `bags`).
+  - `personal_loot_bags`: una bolsa por `token_hash` (sal = hash del token).
+  - Reposición: tras 3 días sin abrir, con probabilidad `loot_respawn` (0.6), se tira el 60 % de una tirada y nunca
+    munición. Es una versión simplificada de C22.
+- **Modelo.** `LootContainer` lee `assets/models/props/loot/manifest.json` (arte T2) para la caja de colisión y las
+  bisagras: la tapa, la solapa o las puertas giran `open_deg` sobre `hinge_axis` mientras `open_by ≠ 0`.
+
+#### Servidor operable
+
+- **`AdminCommands`.** Es la única implementación de los comandos; `AdminSocket` y el chat la llaman:
+  - todos los canales: `status`, `players`, `stats`, `dbinfo`, `save`, `backup`, `say`/`broadcast`, `kick`, `ban`,
+    `unban`, `bans`, `rule`, `rules`, `pvp`, `ff`, `time`, `day`, `weather`, `give`, `tp`;
+  - solo el socket: `save-and-quit` y `quit`.
+
+  El chat la usa si el `token_hash` está en `admin_tokens`, y siempre sin red.
+  - `Net.ban_check` corta en `_server_auth` con el motivo `banned:<why>`.
+  - `tp` limita con `WorldConst.clamp_playable(x, z, 2)`.
+  - `save-and-quit` guarda, avisa, cierra la base y sale con el código 0.
+- **RPC al dueño.** `PlayerNet.to_owner(method, args)` envía `_mirror`, `_notify` y `_fx`, y los retiene en orden
+  hasta que llega el primer input del dueño, que demuestra que su cliente ya spawneó el nodo. El spawn y esos RPC
+  fiables van por canales ENet distintos: con pérdida o *jitter* (`--net-sim`), un RPC temprano adelantaba al spawn y
+  se descartaba («Node not found»), y el trozo de espejo perdido (ranuras, misión…) quedaba mal hasta que volviera a
+  cambiar.
+- **Versiones.** `Net.GAME_VERSION` es `0.7.0-m5` y `NET_PROTOCOL` es 4. `Net.rules_from_cfg` lee todas las reglas,
+  también en el modo sin red.
+- **Export.** El preset «Dedicated Server» (Linux x86_64, `dedicated_server=true`) usa `strip` para todo salvo
+  `assets/materials/` y `assets/shaders/`, que se quedan en `keep` porque el material del terreno se carga como
+  `ShaderMaterial`. Lleva el `.pck` incrustado y ocupa 79 MB. `server/build_server.sh` añade
+  `libgdsqlite.linux.template_release.x86_64.so`, `run_server.sh`, `admin.sh` y `server.cfg.example`.
+- **Operación.**
+  - `run_server.sh` convierte SIGTERM/SIGINT en `admin.sh save-and-quit`, espera hasta 25 s y devuelve el código real
+    del servidor. La primera vez crea `server.cfg` con un `admin_token` aleatorio.
+  - La unidad `ventisca.service` usa `KillMode=mixed`, `TimeoutStopSec=35` y `Restart=always`.
+  - La imagen Docker parte de `bookworm-slim` (`ARG BASE`), no instala nada y guarda los datos en el volumen `/data`;
+    el `HEALTHCHECK` es `admin.sh status`. `admin.sh` usa `/dev/tcp` si falta `nc`.
+  - Probado en local: `docker build`, `run`, `exec admin.sh status/dbinfo`, un cliente por `-p …:7777/udp` y
+    `docker stop`, que da `save-and-quit` y el código 0; al rearrancar, el mundo se restaura desde `/data/world.db`.
+- **Pruebas.**
+  - `tests/net/net_sim.gd` es un relé UDP con un RTT de L ± J ms (la mitad en cada sentido) y P % de pérdida por
+    sentido. `run_net_test.sh --net-sim L,J,P` hace que los clientes se conecten a través de él, en PORT + 2.
+    `NET_BACKEND=sqlite|file` elige el store.
+  - `hitscan`: B anda a 2.2 m/s. A ve a B con RTT + 100 ms de retraso (unos 280 ms) y el tope de 200 ms deja a un
+    corredor de 6 m/s a 0.5 m, más que el radio de 0.4 m; esa es la limitación del tope de la especificación.
+    Pasa con ≥ 60 % de aciertos y más aciertos que el contrafactual sin compensación (15/15 frente a 12, 13 frente a
+    7, y 14 frente a 8 con el servidor exportado).
+  - `run_restart_test.sh`: dos procesos de servidor sobre el mismo store, sqlite y file.
+  - `persistence_m5_test`: 64 comprobaciones; `m5_units_test`: 34; el paso M5 de la prueba de humo.
+  - CI: el trabajo `m5`, en paralelo y con un límite de 45 min.
+
+**Diferido**:
+- el cuerpo a cuerpo mantiene su retroceso de ½ RTT (150 ms, M4);
+- disparar derribado;
+- ropa más allá de v0 (abrigo, guantes y gorro sin aislamiento por partes);
+- la tabla `corpses`;
+- reposición por regiones de C22;
+- binario SQLite para Linux arm64 (usa `FileBackend`);
+- el modelo de la bengala (placeholder);
+- la retícula y el HUD de munición definitivos (H3).
+
+### 8.10 Nota de implementación W1 (vinculante hasta que se revise)
+
+Implementa C25 (PLAN v3.8.2 W1; doc 09 §4.1–4.4): el mundo pasa de 3 × 3 km a **6 144 × 6 144 m** y el valle de M3
+queda, sin cambiar un byte, en el cuadrante noroeste. Sustituye a §8.1, §8.4 y §8.9 donde los contradiga.
+
+**Rejilla y claves** (`scripts/world/world_const.gd`):
+
+- `WORLD_CHUNKS = 96` (0…95 en cada eje) y `CENTER_CHUNK = 24`: el chunk 24 sigue centrado en el origen, así que los
+  índices, las claves y los `wid` del valle no cambian. Extensión de la rejilla: `EXTENT_MIN … EXTENT_MAX` = −1 568 …
+  +4 576 m en los dos ejes.
+- **Codificación de las claves de chunk: no cambia.** `key(cx, cz) = ((cx & 0xFFFF) << 16) | (cz & 0xFFFF)`,
+  `key_cx(k) = (k >> 16) & 0xFFFF`, `key_cz(k) = k & 0xFFFF`; siempre tuvo 16 + 16 bits, así que 96² cabe sin tocarla
+  (máx. `key(95, 95)` = 6 226 015). Persistencia (M5), red e índices usan solo la API (`key`, `key_of`, `chunk_of`,
+  `key_cx/key_cz`, `in_grid`). Nuevo: `chunk_index(cx, cz) = cz · 96 + cx` (0…9 215) para tablas densas en memoria
+  (**no** se persiste: depende del tamaño de la rejilla), `CHUNK_COUNT = 9 216` y `WORLD_VERSION = 2`
+  (`world_meta.world_version`).
+- Muros por eje: `WALL_MIN = −1 450`, `WALL_MAX = +4 420`; `in_playable(x, z)`, `clamp_playable(x, z, margen)`
+  (lo usa `/tp` vía `AdminCommands.teleport_player`), `wall_distance(x, z)` (distancia al muro más cercano) y
+  `quadrant(x, z)` (0 NO valle, 1 NE Altavega, 2 SO Peña Blanca, 3 SE La Vega, alrededor de +1 504 m). `WALL`,
+  `HALF` y `BORDER_START` quedan como constantes heredadas.
+- `Bounds`: cuatro muros en `WALL_MIN/WALL_MAX`. Niebla del borde: `World.border_fog_scale` = 1 + 3 ·
+  smooth(`BORDER_FOG` = 198 m → 0, `wall_distance`): la misma rampa que M3 en los lados oeste y norte del valle
+  (1 252 → 1 450 m) y ahora también en los lados este y sur del mundo.
+
+**Plano macro v1** (`tools/gen_macro_map.gd` → `data/world/macro_map.png` 768² a 8 m/px desde −1 536 m +
+`macro_roads.json` v2; `MacroMap.SIZE = 768`, `WorldConst.MACRO_ORIGIN`):
+
+- Canal G = bioma × 16 (16 biomas; M3 usaba × 40 para 6). Biomas 6–15: casco viejo, ensanche, financiero, barriada,
+  suburbio, industrial, puerto, base aérea, esquí/aludes, río helado. `MacroMap.RELIEF_OF_BIOME` escala el ruido del
+  slice por bioma (ciudad, puerto, polígono y base casi planos; río 0); vale **exactamente 1** en los biomas 0–5, y
+  `relief_block` devuelve {} cuando todo el bloque es 1 (tabla de áreas sumadas), así que el valle no multiplica nada.
+- El generador pinta **con el código v0 intacto** (su mapa 24 × 24, su borde de ±1 536 m) todos los píxeles con
+  x, z < 1 224 m (`VALLEY_KEEP`: el núcleo B‑spline ±16 m + retícula 4 m + los 24 m del parecido de bayas + la ventana
+  de 40 m del perfil de la N‑140 alrededor de los chunks del valle). Entre 1 224 y 1 400 m el antiguo anillo de borde
+  se funde (máx.) con las sierras nuevas; más allá, el generador W1: montañas dentro de las celdas `^`/`%` del mapa
+  48 × 48 (distancia con signo a su unión, con el mismo *warp* de v0), el anillo del borde del mundo con la fórmula v0
+  sobre la extensión nueva, ciudad/puerto/polígono/base planos, cauces para `PoiRegistry.WATER` y corredores: el puerto
+  de la Carretera del Puerto (`PASS_PROFILE`, 5 → 35 m y bajada a la Gran Vía; fuera del valle también rellena), la
+  entrada del túnel de Peña Roya y el desfiladero. `++ --check` rehace los dos ficheros y los compara byte a byte
+  (puerta en `run_all.sh` y CI).
+- Carreteras y ferrocarril como sellos de terreno (`HeightFunction`): las 9 de M3 (la N‑140 termina ahora en la boca
+  norte derrumbada del túnel) + Carretera del Puerto (7 m, pendiente ≤ 9 %: `max_grade`), Gran Vía (24 m), rondas
+  norte y sur (18 m), A‑14 (22 m, perfil ±96 m), N‑140 sur, esquí, Santa María y el ferrocarril del Albo (`rail`:
+  nieve pisada sin roderas). Claves nuevas del JSON: `name` (banner), `smooth`, `shoulder`, `max_grade`, `poles`,
+  `pole_model`, `guard` y `pads`. Los lechos se desvanecen 18 m antes del hielo y el perfil cruza el cauce en línea
+  recta (tablero del futuro puente; los puentes son POI de C1). Las carreteras W1 (`pads`) van a nivel sobre los *pads*
+  W1 que cruzan.
+
+**Datos** (`data/world/poi_registry.gd`):
+
+- `ASCII` 48 × 48 = doc 09 apéndice A con una corrección: el río Albo es continuo (filas 43–44 de la columna 31).
+- `REGIONS`: las 16 del valle (sin cambios) + 43 registros W1 con los datos que **H2 migrará a `LocationInfo`**: `id`,
+  `name` (banner), `display`, `kind` (city/district/town/village/poi/natural/road), `parent` (id), `danger`, `power`,
+  `temp`, `zombies` [mín, máx] por chunk (doc 09 §4.3), `milestone` y `reserved`. Orden del banner: lugares (tier 0) →
+  lagos y agua → carreteras con nombre (`ROAD_REGIONS`, `HeightFunction.named_road_at`) → áreas amplias (Altavega,
+  Sierra del Cierzo, Sierra de Peña Blanca, La Vega) → LAS CUMBRES (a < 202 m del muro más cercano) → PINOS ALTOS (solo
+  dentro del valle) → BOSQUE PROFUNDO. `regions_containing(x, z)` da la jerarquía (distrito antes que ciudad) y
+  `natural_depth` las áreas por función. `Locations` (H1) ya lee esos campos (cambio mínimo, sin UI nueva).
+- `PADS`: 17 del valle + 8 portales de túnel (arte T2, `carve` respetado: *pad* rectangular a nivel de la boca) y 27
+  *pads* reservados de C1–C3 (rectangulares o circulares; opcionales `h`, `h_at`, `blend`, `model_at`). Planos hoy
+  para que el terreno no cambie cuando llegue el POI.
+- `WATER`: río Albo (polilínea, 128 m), dársena, embalse del Cierzo (+14 m, tras la presa) e ibón (+7 m). **Hielo
+  plano y seguro hasta E1**: la altura es exactamente el nivel y la máscara `CUSTOM0.g` es hielo; orilla como el Lago de
+  las Ánimas. `Terrain.is_lake` los incluye (población congelada, sin *spawns* del director).
+
+**Scatter**: tablas por bioma W1 (la ciudad es suelo abierto con pocos árboles hasta C1), nada sobre el hielo ni
+sobre los *pads*, y dos generadores nuevos con celdas propias (el valle no cambia): props de cresta (celdas de 16 m
+por encima de 72 m: `crest_rock_a/b`, `crest_spire`, `scree_field`, `cliff_face`, `cairn`, `cornice`) y mobiliario de
+carretera (jalones cada 25–50 m, `road_delineator` en la A‑14 y la N‑140 sur, guardarraíles de 4 m en el tramo de
+montaña de la Carretera del Puerto). Variantes añadidas al final de `ScatterCatalog.VARIANTS` (índices estables);
+colisiones del `assets/models/world/manifest.json` del arte.
+
+**Población** (`scripts/world/population_table.gd`): tabla 96² (9 216 B, perezosa, `chunk_index`); el valle conserva
+la fórmula de M4; fuera, el rango `zombies` de la región más profunda, × 0.2 (máx. 12 por chunk) mientras la región
+está `reserved` (suelo sin edificios), o el rango del bioma. `PopulationManager.target_of` la consulta.
+
+**Aceptación** (medida con `taskset -c 0,1` en la VM compartida de 4 núcleos):
+
+- **«El valle no cambia»** (`tests/valley_unchanged.gd`, línea base `tests/data/valley_prew1_hashes.json` tomada antes
+  de tocar nada): de los 1 225 chunks con centro en |x|, |z| < 1 152 m (7…41 en cada eje), **1 214 idénticos** en
+  altura (bits float32 crudos), superficie y *scatter* (entradas + nodos + `wid`), y los **11 de la lista cerrada** de
+  la Carretera del Puerto cambian (fila 18, cx 34…41, + (40, 17), (41, 17), (41, 19)). El nombre de región no entra en
+  el hash (el antiguo anillo LAS CUMBRES del este y el sur es ahora SIERRA DEL CIERZO / SIERRA DE PEÑA BLANCA).
+- `tests/run_determinism.sh`: **60 chunks** (NO 30, NE 11, SO 9, SE 10) + `height_at` en 300 puntos, servidor y
+  cliente en dos procesos: idénticos.
+- `tests/w1_world.gd` (25 comprobaciones): rejilla, claves, muros, cuadrantes y niebla; macro 768² con los 16 biomas
+  donde los pone el doc 09; **banner correcto en los 20 puntos de prueba**; datos de `LocationInfo` completos (43
+  regiones, padres válidos) y leídos por `Locations`; hielo plano en río, dársena (también bajo los futuros puentes),
+  embalse e ibón; Carretera del Puerto de 1 169 m con pendiente máx. 9 %; la Gran Vía se corta en el Albo; *pads*
+  reservados planos (≤ 0.35 m); portales a nivel dentro del `carve` del arte; props de cresta, jalones y
+  guardarraíles; nada sobre el hielo; tabla de población 96² (NO 1 159, NE 4 444, SO 2 427, SE 4 774 residentes base;
+  máx. 12 por chunk; 0.4 s en llenarla entera).
+- `perf_walk --cpu`, ruta W1 de **6.52 km a 25 m/s** por los cuatro cuadrantes (valle → Carretera del Puerto → Gran
+  Vía → barriada → río Albo helado → dársena → Vega Baja → ferrocarril al SO), tres ejecuciones con carga 1–3 de otros
+  carriles en la VM: *streaming* (trabajo) **p99 1.75 / 1.78 / 1.78 ms**, p99.9 2.00 / 1.99 / 2.01 ms, máx. sin frames
+  con *steal*/bloqueo 3.75 / 6.33 / 4.93 ms, 0.10–0.12 % de frames sobre 2 ms, **0 tirones por *streaming***, suelo
+  nunca ausente, RSS 296 MB; 588–591 chunks generados (45–62 ms de media en hilo con esa carga). Pared (informativo):
+  p99 2.02 / 1.91 / 1.86 ms, p99.9 8.63 / 7.58 / 5.36 ms, máx. 269 / 274 / 17 ms (esperas en cola de hasta 274 ms).
+- Generación de un chunk (un hilo, sin carga): valle 28 ms, ciudad 35 ms, río 36–43 ms, puerto 39 ms. Plano macro:
+  decodificación 150 ms (un solo recorrido con tablas locales); `HeightFunction.create` 130 ms (perfiles de 19
+  carreteras; agua y *pads* filtrados por carretera). El cliente decodifica el macro mientras conecta, no en la
+  respuesta de autenticación (con 4 clientes arrancando a la vez en 2 núcleos, sin eso un cliente superó los 5 s de
+  `AUTH_TIMEOUT`).
+- `run_net_test.sh --scenario far` con **4 clientes en los 4 cuadrantes** (A valle, B urbanizaciones del norte
+  (2 816, −1 216), C Vega Baja (2 176, 2 432), D sur del ferrocarril (256, 3 136); B–D 5.05 km): cada uno ve irse a los
+  otros tres, tala su árbol y solo recibe eventos e instantáneas de su anillo; **RSS del servidor máx. 316 MB**
+  (puerta ≤ 400 MB en `run_net_test.sh`), 36 chunks calientes.
+- *Perf walk* en modo render (xvfb + Compatibility sobre llvmpipe, la misma ruta de 6.52 km): **RSS del cliente máx.
+  791 MB** (límite 2.5 GB), suelo siempre presente, 0 tirones por *streaming*; 578 chunks generados.
+- Capturas (Forward+ sobre lavapipe, presets `overview_pass`, `overview_city`, `overview_port`, `overview_sw`,
+  `overview_se` de `tests/screenshot_steps.gd`) y el plano macro (`tools/macro_preview.py`) en `docs/screenshots/w1/`.
+
+**Picos del *perf walk* (causa raíz).** Los picos aislados de 9–22 ms de un solo paso del *perf walk* `--cpu`
+(ya presentes antes de v3, p99.9 ≈ 2.0 ms, en un paso distinto en cada ejecución) **no son código nuestro: son el
+hilo principal expropiado**. Evidencia (`SchedProbe`, `scripts/world/streaming/sched_probe.gd`: `run_delay` y
+`pcount` de `/proc/thread-self/schedstat`, fallos de página de `/proc/thread-self/stat`, cambios voluntarios de
+`/proc/thread-self/status` y *steal* de `/proc/stat`; `perf_walk --sched` los lee alrededor de cada paso):
+  - de los pasos ≥ 2.5 ms, 22/23, 10/11 y 32/33 (ruta M3, tres ejecuciones) y 85/87 (ruta W1) tuvieron **espera en
+    la cola de ejecución** de ≥ 1.5 ms (o ≥ la mitad de su duración) **dentro del paso**: el hilo estaba listo y otro
+    hilo o proceso tenía el núcleo. Los dos restantes (`_step_collision` 6.4 ms, `_step_nodes` 3.1 ms) no tuvieron ni
+    espera ni cambio de contexto y < 1 *tick* de CPU: *steal* del hipervisor (la VM es Firecracker/KVM; con
+    `CONFIG_PARAVIRT_TIME_ACCOUNTING` el *steal* no cuenta como tiempo del hilo ni como espera);
+  - 0 fallos de página mayores y 0–1 menores en los pasos lentos (no son liberaciones grandes ni asignación); los
+    mismos pasos (Jolt en `_step_shapes`, subida de MultiMesh, *teardown*) cuestan 0.2–1.5 ms cuando no hay
+    expropiación: el tipo de paso afectado es aleatorio;
+  - nuestro proceso tiene ≤ 2 hilos ejecutables el 98.7 % del tiempo (muestreo de `/proc/<pid>/task/*/stat` cada
+    10 ms durante 50 s: 0 → 72 %, 1 → 23 %, 2 → 3.4 %, ≥ 3 → 1.3 %; el `WorkerThreadPool` ejecuta una sola tarea de
+    chunk de baja prioridad a la vez), así que en 2 núcleos fijados nuestros propios hilos no ahogan al principal;
+    en cambio, mientras medíamos, los otros carriles fijaban sus Godot (humo, red) y Blender a los mismos núcleos
+    (carga media 2–5 en la VM de 4 vCPU; la espera acumulada del hilo principal llegó a 36–42 s en 260 s de paseo).
+Arreglo en el código: el único bloqueo nuestro observado (un frame de 31 ms con un cambio de contexto voluntario en
+`_collect_jobs`, bajo carga) era el hilo principal esperando el *mutex* del `WorkerThreadPool` que tenía un hilo
+trabajador expropiado (`is_task_completed` lo toma por cada trabajo y frame): ahora `ChunkJob.finished` lo marca el
+propio trabajo al terminar y el principal solo toca el *pool* una vez por chunk (`wait_for_task_completion` de una tarea
+ya acabada). Para el resto (expropiación y *steal*) no hay coste nuestro que quitar; **la medida se hace robusta y
+honesta**:
+`WorldStreamer.sched_probe` lee la espera en cola del hilo principal al principio y al final de la ventana de
+*streaming* de cada frame (dos lecturas de procfs fuera de la ventana cronometrada) y `perf_walk --cpu` puntúa el
+**tiempo de trabajo** = pared − espera en cola (p99, p99.9, % sobre presupuesto); un frame > 33 ms solo se atribuye al
+*streaming* si su tiempo propio (pared − espera de todo el frame) pasa de 33 ms **y** el *streaming* se pasó de sus
+2 ms (los frames cuyo tiempo sin *streaming* también se disparó no cuentan); un frame se marca como **robado por el
+hipervisor** cuando la ventana de *streaming* perdió más de un *tick* (4 ms) que no fue ni CPU del hilo (campo 1 de
+`schedstat`, que con `CONFIG_PARAVIRT_TIME_ACCOUNTING` no incluye el *steal*) ni espera en cola, y el contador de
+*steal* de nuestras CPU creció: entonces su parte de *streaming* se limita a su CPU medida (+1 *tick*); el máximo de un
+solo frame excluye esos frames y los de hilo principal bloqueado (cambio voluntario), que se cuentan aparte. Los números de pared se siguen imprimiendo al lado. Sin Linux (o sin `CONFIG_SCHED_INFO`) la puerta
+usa los números de pared como en M3.
+
+**Desviaciones**: (1) el apéndice A pinta la vega sobre el río Albo en las filas 43–44 (columna 31): se deja el río continuo; (2) la
+Gran Vía y las rondas solo dan banner donde no hay un distrito (los distritos ganan: el cartel de carretera es de H2);
+(3) los puentes (Puente de Hierro, N‑140 sur, rondas, ferrocarril) no existen aún: las carreteras se cortan en las
+orillas y el perfil cruza el cauce en línea recta para el tablero de C1; (4) la lista cerrada de la Carretera del
+Puerto tiene 11 chunks: la fila 18 de x = 608 a 1 120 m (el sello y el despeje del *scatter*) y 3 junto a su último
+tramo del valle (el corte del puerto en el plano macro); (5) la población de las regiones urbanas aún sin edificios
+es el 20 % del rango del doc 09 (máx. 12 por chunk) hasta que C1/C2 construyan; (6) los portales de la A‑14 son dos de
+7 m (uno por calzada), dentro del muro; (7) `WALL`, `HALF` y `BORDER_START` se conservan como constantes heredadas;
+(8) el aviso «Navigation region synchronization had N edge error(s)» que aparece en el escenario `far` es de M4 y
+también sale en chunks de bosque del valle sin cambios (vértices casi duplicados de las obstrucciones proyectadas de
+Recast): no es de W1.
+
+**Diferido**: `LocationInfo`/`ZoneTracker` y el cartel de carretera (H2, con los datos de `REGIONS`/`ROAD_REGIONS`); la ciudad (C0,
+C1: lotes, edificios, puentes, Control del Puerto); hielo fino, aludes y peligros del río (E1); carteles de km
+(`km_sign`, `km_post` del arte T2) hasta el atlas `signage` (V1); vías y trenes del ferrocarril (C3); el esquema SQLite
+con `world_version = 2` es de M5 (`WorldConst.WORLD_VERSION`, claves por `WorldConst.key`).
+
+---

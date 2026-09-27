@@ -5,11 +5,20 @@ extends RefCounted
 ## M3 `overview`: a camera 250 m up east of the Lago de las Ánimas looking west (≈ 49° down): the Embarcadero road
 ## bed in the foreground, forest chunks, the flat lake ice beyond; streaming focused there with ring 7 (15 × 15
 ## chunks) so the edge of the loaded area stays out of frame.
+## W1 `overview_<place>`: the same camera over the W1 world (OVERVIEWS: target on the ground; same offset).
 
 var tree: SceneTree
 var flags: Array[String] = []  # debug flags: noshadow, noambient, placeholders, host=ip, port=n, zoom=m, walk=walk|run, quality=alto|medio|compat
 
 var preset: String = "day"
+## W1 overview presets: [target (x, z), streaming focus (x, z)]; the camera sits at target + (210, 253, −70) m.
+const OVERVIEWS := {
+	"overview_pass": [Vector2(1480, -384), Vector2(1400, -330)],     # Carretera del Puerto over the Sierra del Cierzo
+	"overview_city": [Vector2(2432, -384), Vector2(2350, -330)],     # río Albo at the Gran Vía (Puente de Hierro site), Las Torres
+	"overview_port": [Vector2(2432, 1216), Vector2(2350, 1270)],     # the frozen dársena of the Puerto fluvial
+	"overview_sw": [Vector2(640, 1760), Vector2(560, 1810)],         # Túnel de Peña Roya south portal, the desfiladero
+	"overview_se": [Vector2(2600, 3520), Vector2(2520, 3570)],       # the Albo by the Base aérea de La Vega
+}
 var out_path: String = "/tmp/ventisca_shot.png"
 
 
@@ -132,20 +141,32 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				var game_node := tree.current_scene
 				if game_node.get("craft_panel") != null:
 					(game_node.get("craft_panel") as CraftPanel).open(&"fuego")
-			"overview":
+			"overview", "overview_pass", "overview_city", "overview_port", "overview_sw", "overview_se":
 				WorldState.instance.set_time(1, 11.0)
 				world.get_node("WolfSpawner").enabled = false
 				var target := Vector3(-360.0, -3.0, 400.0)
 				var cam_pos := Vector3(-150.0, 250.0, 330.0)
+				var focus := Vector3(-440.0, 0.0, 420.0)
+				var tp := "/tp -300 200"
+				if OVERVIEWS.has(preset):
+					var ov: Array = OVERVIEWS[preset]
+					var tg: Vector2 = ov[0]
+					var fc: Vector2 = ov[1]
+					target = Vector3(tg.x, 0.0, tg.y)
+					focus = Vector3(fc.x, 0.0, fc.y)
+					tp = "/tp %.0f %.0f" % [tg.x + 60.0, tg.y - 60.0]
 				world.env_override = true
-				Chat.instance.send("/tp -300 200")
+				Chat.instance.send(tp)
 				await tree.process_frame
 				var ui := game.get_node_or_null("UI") as CanvasLayer
 				if ui != null:
 					ui.visible = false
-				world.streamer.focus_override = Vector3(-440.0, 0.0, 420.0)
+				world.streamer.focus_override = focus
 				world.streamer.ring_prefetch = 7
 				world.streamer.flush_all()
+				if OVERVIEWS.has(preset):
+					target.y = world.get_height(target.x, target.z)
+					cam_pos = target + Vector3(210.0, 253.0, -70.0)
 				var dn: DayNight = world.get_node("DayNight")
 				dn.fog_density_scale = 0.12
 				dn.fog_height_offset = -60.0
@@ -175,6 +196,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 				print("multi: local peer %d (outfit %d) sees %d remote players (outfits %s); net role=%s rtt=%.0f" % [Net.local_peer_id(), player.outfit, others, outfits, Net.role, float(Net.stats["rtt"])])
 		if preset.begins_with("hud_"):   # H1: HUD v2 presets (tests/hud_shots.gd)
 			await (load("res://tests/hud_shots.gd").new()).setup(tree, preset, game, world, player, inv)
+		if preset == "firearms":   # M5: shotgun at the campsite (tests/m5_shots.gd)
+			await (load("res://tests/m5_shots.gd").new()).setup(tree, game, world, player, inv)
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		var dn: DayNight = world.get_node("DayNight")
@@ -198,7 +221,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		if Net.is_server:
 			WorldState.instance.running = false  # freeze the clock for a stable shot
 		var rig := CameraRig.active()
-		if rig != null and preset != "overview":
+		if rig != null and not preset.begins_with("overview"):
 			rig.snap_to_player()
 			if _flag_value("zoom", "") != "":
 				rig.set_dist(float(_flag_value("zoom", "27")))   # closeup of the survivor (M2 skeletal checks)

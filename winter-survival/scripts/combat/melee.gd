@@ -60,6 +60,7 @@ static func perform(player: Player, mode: int, yaw: float, aim_id: int) -> Dicti
 			if not stats.spend_stamina(Balance.STAMINA_SHOVE):
 				out["reason"] = "aguante"
 				return out
+			Gunplay.cancel_reload(player)   # GDD §7.4: a shove cancels the reload in progress
 		Weapons.Mode.EXECUTE:
 			if not Weapons.can_execute(hand):
 				out["reason"] = "arma"

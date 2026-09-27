@@ -22,6 +22,11 @@ var torch_seconds_left: float = Balance.TORCH_DURATION
 var inventory: InventoryComponent
 var stats: StatsComponent
 var quests: QuestComponent
+## M5: firearm state (server authoritative; Gunplay) and its owner mirror (ammo, reserve, jam, reload: HUD data).
+var gun: WeaponState = WeaponState.new()
+var gun_view: Dictionary = {}
+## M5 clothing v0 worn (GDD §4.2 subset): slot -> item id ("coat" keeps the slice's has_coat).
+var worn: Dictionary = {}
 
 var _dirty: Dictionary = {}
 var _steps_done_seen: int = 0
@@ -138,7 +143,7 @@ func mark(key: StringName) -> void:
 
 
 func mark_all() -> void:
-	for k in [&"slots", &"stats", &"quest", &"dead", &"torch"]:
+	for k in [&"slots", &"stats", &"quest", &"dead", &"torch", &"gun"]:
 		_dirty[k] = true
 
 
@@ -154,7 +159,7 @@ func notify(text: String, seconds: float) -> void:
 	if is_local():
 		Events.notify.emit(text, seconds)
 	elif player != null:
-		Net.rpc_to(player.net, &"_notify", player.peer_id, [text, seconds])
+		player.net.to_owner(&"_notify", [text, seconds])
 
 
 ## Server: packs the dirty parts of the mirror and delivers them to the owner (called by PlayerNet each tick).
@@ -177,11 +182,15 @@ func flush_mirror() -> void:
 		d["hours"] = WorldState.instance.hours_into_day() if WorldState.instance != null else 0
 	if _dirty.has(&"torch"):
 		d["torch"] = torch_seconds_left
+	if _dirty.has(&"gun"):
+		d["gun"] = gun.to_mirror(Gunplay.ammo_in(player), Gunplay.reserve(player), Time.get_ticks_msec() / 1000.0)
+		d["worn"] = worn.duplicate()
+		d["weight"] = inventory.carried_weight() if inventory != null else 0.0
 	_dirty.clear()
 	if is_local():
 		apply_mirror(d)
 	else:
-		Net.rpc_to(player.net, &"_mirror", player.peer_id, [d])
+		player.net.to_owner(&"_mirror", [d])
 
 
 # ------------------------------------------------------------------ owner mirror
@@ -236,3 +245,10 @@ func apply_mirror(d: Dictionary) -> void:
 		_dead_seen = dead
 	if d.has("torch") and not Net.is_server:
 		torch_seconds_left = float(d["torch"])
+	if d.has("gun"):
+		gun_view = d["gun"]
+		gun_view["weight"] = float(d.get("weight", 0.0))
+		if not Net.is_server:
+			worn = d.get("worn", {})
+		if local:
+			Events.weapon_state_changed.emit(gun_view)

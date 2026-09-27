@@ -517,7 +517,9 @@ func _map(hud: Hud, player: Player) -> void:
 	ms._unhandled_input(ev)
 	await frames(2)
 	var uv := MapScreen.world_to_uv(Vector3.ZERO)
-	check(ms.is_open and ms.visible and ms._land != null and uv.is_equal_approx(Vector2(0.5, 0.5)), "M opens the paper map (land texture from the macro map)")
+	# W1: the 6 km macro map starts at −1536 m, so the clearing (origin) sits at a quarter of the sheet, not the centre
+	var uv0 := Vector2(-MapFog.ORIGIN / MapFog.SPAN, -MapFog.ORIGIN / MapFog.SPAN)
+	check(ms.is_open and ms.visible and ms._land != null and uv.is_equal_approx(uv0), "M opens the paper map (land texture from the macro map)")
 	var tabev := InputEventAction.new()
 	tabev.action = &"rotate_cam_right"
 	tabev.pressed = true

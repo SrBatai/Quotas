@@ -33,7 +33,7 @@ const EVT_CLOUD := 9
 const EVT_EXECUTE := 10
 
 const HASH_CELL := 2.0
-const HISTORY := 12                 # hit-history samples per L0 zombie (30 Hz → 0.4 s)
+const HISTORY := 30                 # hit-history samples per L0 zombie (30 Hz → 1 s: melee ≤ 150 ms, hitscan ≤ 200 ms, M5)
 ## L0 bodies move every `move_every` ticks with that many ticks of motion (2 = 30 Hz: halves the cost).
 var move_every: int = 2
 const L1_STEP := 0.5                # s between two L1 moves
@@ -877,6 +877,23 @@ func on_noise(at: Vector3, radius: float) -> void:
 			var p := pos[i]
 			if absf(p.x - at.x) <= reach and absf(p.z - at.z) <= reach and _dist2(p, at) <= reach:
 				wake(i, at)
+
+
+## Server (M5): a silent lure (a thrown flare's light, GDD §7.6): awake zombies within `radius` that are not
+## already fighting walk to investigate `at`. Returns how many were drawn.
+func lure(at: Vector3, radius: float) -> int:
+	var now := _now()
+	var n := 0
+	for i in near_any(at, radius):
+		if not is_alive(i):
+			continue
+		var st := state[i]
+		if st in [ZombieKinds.State.CHASE, ZombieKinds.State.ATTACK, ZombieKinds.State.FROZEN, ZombieKinds.State.WAKING,
+				ZombieKinds.State.KNOCKED, ZombieKinds.State.HIT, ZombieKinds.State.STAGGER]:
+			continue
+		_hear(i, at, now)
+		n += 1
+	return n
 
 
 ## Server: a frozen zombie cracks awake (Zom_Wake), then investigates `toward`.

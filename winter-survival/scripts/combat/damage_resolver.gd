@@ -93,11 +93,12 @@ static func _apply_zombie(attacker: Dictionary, dmg: float, dmg_kind: DamageKind
 		return result
 	var amount := maxf(dmg, 0.0)
 	var crit := bool(ctx.get("crit", false))
-	if crit:
+	if crit and not bool(ctx.get("crit_included", false)):
 		amount *= Balance.MELEE_CRIT_MULT
 	if sys.kind[slot] == ZombieKinds.Kind.FROZEN and dmg_kind == DamageKind.MELEE_BLUNT:
 		amount *= Balance.FROZEN_BLUNT_MULT
-	var knock := float(ctx.get("knock", 0.0)) if dmg_kind == DamageKind.MELEE_BLUNT else 0.0
+	# knockdown: blunt blows and, M5, bullets / buckshot / arrows (shotgun 70 %, GDD §7.6)
+	var knock := float(ctx.get("knock", 0.0)) if dmg_kind in [DamageKind.MELEE_BLUNT, DamageKind.BULLET, DamageKind.BUCKSHOT, DamageKind.ARROW] else 0.0
 	var peer := int(attacker.get("id", 0)) if int(attacker.get("kind", -1)) == Kind.PLAYER else 0
 	# a critical kill bursts the head (gore-lite, ASSET_SPEC v2 M4.1) unless the blade is the knife (`gore` false)
 	var killed := sys.apply_damage(slot, amount, peer, ctx.get("dir", Vector3.FORWARD), crit, knock, false, crit and bool(ctx.get("gore", true)))

@@ -50,6 +50,12 @@ func apply(id: StringName, force: bool = false) -> void:
 			# rigid placeholder: the socket must point the handle forward; half a turn fixes a hanging blade
 			if (socket.global_basis * Vector3(0, 0, 1)).y < -0.5:
 				tool_model.rotation.y = PI
+	# M5 (art T2): loose parts sit at their insert pose in the .glb; spare rounds and the drawn string / nocked arrow hide
+	if tool_model != null and Firearms.is_firearm(id):
+		for n in ["Round", "StringDrawn", "Arrow"]:
+			var part := tool_model.find_child(n, true, false) as Node3D
+			if part != null:
+				part.visible = false
 	var is_torch := id == &"antorcha"
 	if is_torch and tool_model != null:
 		torch_fire = FireEffect.new()

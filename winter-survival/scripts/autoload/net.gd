@@ -6,10 +6,11 @@ extends Node
 
 enum Role { NONE, OFFLINE, SERVER, CLIENT }
 
-const GAME_VERSION := "0.6.0-m4"
+const GAME_VERSION := "0.7.0-m5"
 ## 2 (M3): the auth nonce carries the world seed (8 bytes after the 16 random ones).
 ## 3 (M4): zombie packets (ZSNAP / ZREL), 4-byte inventory slots (durability), downed / swing player properties.
-const NET_PROTOCOL := 3
+## 4 (M5): firearms (request_fire / reload / unjam / throw, shot events, weapon mirror), loot containers, bans.
+const NET_PROTOCOL := 4
 const GAME_SCENE := "res://scenes/main/game.tscn"
 const DEFAULT_PORT := 7777
 const DEFAULT_ADMIN_PORT := 7778
@@ -32,6 +33,8 @@ var role: Role = Role.NONE
 var cfg := ConfigFile.new()
 var cfg_path: String = ""
 var rules: Dictionary = {"pvp": false, "friendly_fire": "off"}
+## Server (M5): `func(token_hash: String, ip: String) -> String` = the ban reason ("" = allowed); PlayerManager sets it.
+var ban_check: Callable = Callable()
 var enet: ENetMultiplayerPeer
 var hosted_pid: int = -1
 var hosted_admin_port: int = DEFAULT_ADMIN_PORT
@@ -146,7 +149,7 @@ func start_offline() -> void:
 	multiplayer.server_relay = false
 	multiplayer.allow_object_decoding = false
 	peers = {1: {"name": Identity.player_name, "token_hash": Identity.token_hash(), "ip": "local"}}
-	rules = {"pvp": false, "friendly_fire": "off"}
+	rules = rules_from_cfg(ConfigFile.new())
 	_set_role(Role.OFFLINE)
 
 
@@ -157,11 +160,28 @@ func load_config(path: String) -> void:
 	if cfg.load(path) != OK:
 		push_warning("Net: no %s; using defaults" % path)
 		cfg = ConfigFile.new()
-	rules = {
-		"pvp": bool(cfg.get_value("rules", "pvp", false)),
-		"friendly_fire": str(cfg.get_value("rules", "friendly_fire", "off")).to_lower(),
-		"zombie_count_scale": float(cfg.get_value("rules", "zombie_count_scale", 1.0)),
-		"noise_scale": float(cfg.get_value("rules", "noise_scale", 1.0)),
+	rules = rules_from_cfg(cfg)
+
+
+## `[rules]` of server.cfg (GDD v2 §12.4, ARQ v2 §16.2) with their defaults; replicated in WorldState.rules.
+static func rules_from_cfg(c: ConfigFile) -> Dictionary:
+	var ff := str(c.get_value("rules", "friendly_fire", "off")).to_lower()
+	return {
+		"pvp": bool(c.get_value("rules", "pvp", false)),
+		"friendly_fire": ff if ff in ["off", "reduced", "full"] else "off",
+		"zombie_count_scale": clampf(float(c.get_value("rules", "zombie_count_scale", 1.0)), 0.0, 4.0),
+		"noise_scale": clampf(float(c.get_value("rules", "noise_scale", 1.0)), 0.1, 4.0),
+		"cold_scale": clampf(float(c.get_value("rules", "cold_scale", 1.0)), 0.0, 4.0),
+		"loot_respawn": clampf(float(c.get_value("rules", "loot_respawn", 0.6)), 0.0, 1.0),
+		"personal_loot_bags": bool(c.get_value("rules", "personal_loot_bags", false)),
+		"ammo_crafting": bool(c.get_value("rules", "ammo_crafting", true)),
+		"permadeath": bool(c.get_value("rules", "permadeath", false)),
+		"safehouses": bool(c.get_value("rules", "safehouses", true)),
+		"container_locks": str(c.get_value("rules", "container_locks", "faction")),
+		"fire_spread": bool(c.get_value("rules", "fire_spread", false)),
+		"vehicle_theft": str(c.get_value("rules", "vehicle_theft", "faction")),
+		"safety_system": bool(c.get_value("rules", "safety_system", true)),
+		"sleep_vote": str(c.get_value("rules", "sleep_vote", "majority")),
 	}
 
 
@@ -287,6 +307,13 @@ func _server_auth(id: int, data: PackedByteArray) -> void:
 	elif str(d.get("token", "")).length() != 64:
 		reason = "identity"
 	_nonces.erase(id)
+	var ip := ""
+	if enet != null and enet.get_peer(id) != null:
+		ip = enet.get_peer(id).get_remote_address()
+	if reason == "" and ban_check.is_valid():
+		var why: String = ban_check.call(Identity.sha256_hex(str(d["token"]).hex_decode()), ip)
+		if why != "":
+			reason = "banned:" + why
 	if reason != "":
 		print("[NET] auth REJECT peer %d: %s" % [id, reason])
 		multiplayer.send_auth(id, ("ERR:" + reason).to_utf8_buffer())
@@ -294,9 +321,6 @@ func _server_auth(id: int, data: PackedByteArray) -> void:
 		return
 	var pname := _sanitize_name(str(d.get("name", "")))
 	var token_hash := Identity.sha256_hex(str(d["token"]).hex_decode())
-	var ip := ""
-	if enet != null and enet.get_peer(id) != null:
-		ip = enet.get_peer(id).get_remote_address()
 	peers[id] = {"name": pname, "token_hash": token_hash, "ip": ip}
 	print("[NET] auth OK peer %d name=%s" % [id, pname])
 	multiplayer.complete_auth(id)

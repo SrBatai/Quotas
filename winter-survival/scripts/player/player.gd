@@ -155,6 +155,9 @@ func _ready() -> void:
 			stove_on = stoves[0].is_lit
 	if is_local:
 		camera_rig.snap_to_player()
+		var gun := FirearmClient.new()   # M5: trigger / reload / throw prediction + reticle data (owner only)
+		gun.name = "Firearm"
+		add_child(gun)
 		Events.local_player_ready.emit(self)
 
 
@@ -234,7 +237,7 @@ func take_damage(amount: float, source: StringName, attacker_name: String = "") 
 
 ## Server → owner presentation effect (camera shake, sounds).
 func fx(kind: StringName, value: float) -> void:
-	Net.rpc_to(net, &"_fx", peer_id, [kind, value])
+	net.to_owner(&"_fx", [kind, value])
 
 
 func is_near_fire() -> bool:
@@ -315,10 +318,12 @@ func to_profile() -> Dictionary:
 			var e := {"id": String(s["id"]), "count": int(s["count"])}
 			if s.has("dur"):
 				e["dur"] = int(s["dur"])
+			if s.has("ammo"):
+				e["ammo"] = int(s["ammo"])
 			inv.append(e)
 	return {"name": display_name, "x": position.x, "y": position.y, "z": position.z, "yaw": aim_yaw, "outfit": outfit,
 		"health": state.health, "warmth": state.warmth, "hunger": state.hunger, "dead": dead,
-		"cause": String(state.death_cause), "has_coat": state.has_coat, "slots": inv,
+		"cause": String(state.death_cause), "has_coat": state.has_coat, "worn": state.worn.duplicate(), "slots": inv,
 		"torch": state.torch_seconds_left, "quest": state.quests.to_profile() if state.quests != null else {}}
 
 
@@ -329,6 +334,10 @@ func apply_profile(p: Dictionary) -> void:
 	state.warmth = float(p.get("warmth", Balance.WARMTH_START))
 	state.hunger = float(p.get("hunger", Balance.HUNGER_START))
 	state.has_coat = bool(p.get("has_coat", false))
+	state.worn.clear()
+	var worn: Dictionary = p.get("worn", {})
+	for k in worn:
+		state.worn[str(k)] = StringName(str(worn[k]))
 	state.torch_seconds_left = float(p.get("torch", Balance.TORCH_DURATION))
 	dead = bool(p.get("dead", false))
 	state.dead = dead
@@ -342,6 +351,8 @@ func apply_profile(p: Dictionary) -> void:
 			state.slots[i] = {"id": StringName(str(e["id"])), "count": int(e["count"])}
 			if e.has("dur"):
 				state.slots[i]["dur"] = int(e["dur"])
+			if e.has("ammo"):
+				state.slots[i]["ammo"] = int(e["ammo"])
 	if state.inventory != null:
 		state.inventory.after_load()
 	if state.quests != null:

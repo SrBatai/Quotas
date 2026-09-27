@@ -24,6 +24,10 @@ var director: Director
 var zombie_net: ZombieNet
 var zombie_client: ZombieClient
 var combat_fx: CombatFx
+## M5: loot containers at POI spawns (both flavours), projectiles (server), shot / projectile effects (client).
+var loot_spawns: LootSpawns
+var projectiles: Projectiles
+var firearm_fx: FirearmFx
 var _last_category: StringName = &"herramientas"
 var _ui: CanvasLayer
 
@@ -47,6 +51,10 @@ func _ready() -> void:
 		_add_client_branches()
 	if Net.is_server:
 		_add_server_branches()
+	loot_spawns = LootSpawns.new()
+	loot_spawns.name = "LootSpawns"
+	add_child(loot_spawns)
+	loot_spawns.setup(world)
 	Events.world_ready.connect(_on_world_ready)
 	if world.is_ready:
 		_on_world_ready()
@@ -68,6 +76,9 @@ func _add_server_branches() -> void:
 	zombie_net = ZombieNet.new()
 	zombie_net.name = "ZombieNet"
 	systems.add_child(zombie_net)
+	projectiles = Projectiles.new()
+	projectiles.name = "Projectiles"
+	systems.add_child(projectiles)
 	if world.is_configured:
 		_setup_zombies()
 	else:
@@ -93,12 +104,15 @@ func _add_client_branches() -> void:
 	combat_fx = CombatFx.new()
 	combat_fx.world = world
 	add_child(combat_fx)
+	firearm_fx = FirearmFx.new()
+	add_child(firearm_fx)
 	_ui = CanvasLayer.new()
 	_ui.name = "UI"
 	_ui.layer = 10
 	add_child(_ui)
 	hud = preload("res://scenes/ui/hud.tscn").instantiate()
 	_ui.add_child(hud)
+	_ui.add_child(ReticleHook.new())   # M5 minimal reticle / ammo hook (H3 replaces it; hidden without a firearm)
 	craft_panel = preload("res://scenes/ui/craft_panel.tscn").instantiate()
 	craft_panel.visible = false
 	_ui.add_child(craft_panel)

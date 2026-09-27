@@ -13,7 +13,7 @@ func _initialize() -> void:
 	Engine.max_fps = 60
 	# no autoload references here: this script compiles before the autoloads exist (-s mode)
 	var opts := {"server": false, "name": "?", "scenario": "basic", "duration": 60.0, "port": 7777,
-		"password": "", "host": "127.0.0.1", "clients": 4, "late": 0.0}
+		"password": "", "host": "127.0.0.1", "clients": 4, "late": 0.0, "phase": 1}
 	var args := OS.get_cmdline_user_args()
 	var i := 0
 	while i < args.size():
@@ -28,13 +28,16 @@ func _initialize() -> void:
 			"--host": i += 1; opts["host"] = args[i]
 			"--clients": i += 1; opts["clients"] = int(args[i])
 			"--late": i += 1; opts["late"] = float(args[i])
+			"--phase": i += 1; opts["phase"] = int(args[i])
 			_:
 				if a.begins_with("--name="):
 					opts["name"] = a.substr(7)
 		i += 1
-	var script: GDScript = load("res://tests/net/net_steps.gd")
+	# M5 scenarios (hitscan, restart) live in their own body, an extension of net_steps.gd
+	var body_path := "res://tests/net/net_steps_m5.gd" if str(opts["scenario"]) in ["hitscan", "restart"] else "res://tests/net/net_steps.gd"
+	var script: GDScript = load(body_path)
 	if script == null or not script.can_instantiate():
-		print("FAIL: cannot load net_steps.gd")
+		print("FAIL: cannot load %s" % body_path)
 		quit(1)
 		return
 	_body = script.new()

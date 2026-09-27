@@ -6,9 +6,10 @@ extends RefCounted
 ##                 gets the wood; A opens the cabinet, B is told "en uso"; A crafts a torch and places a campfire that
 ##                 B sees; C joins late (22 s) and receives the chunk deltas (felled tree, campfire, cabinet state).
 ##                 The test server enables the /kit and /tp chat commands (server.cfg `debug_commands=true`).
-##   far           (PLAN M3 acceptance, 2 clients) B teleports ≈ 1 km away: each client stops receiving the other
-##                 player (despawned, not in its poses), both chop a tree near themselves and only receive their own
-##                 world events / chunk snapshots (3 × 3 interest), and B's client streams its own ring.
+##   far           (PLAN M3 acceptance, 2 clients; W1: 4 clients in the 4 quadrants, up to 5 km apart) B, C, D
+##                 teleport away (FAR_POS_BY): each client stops receiving the others (despawned, not in its poses),
+##                 all chop a tree near themselves and only receive their own world events / chunk snapshots (3 × 3
+##                 interest), and each far client streams its own ring. The server logs its RSS (≤ 400 MB, W1).
 ##   zombies       (PLAN M4 acceptance, 4 clients) A fills the clearing's surroundings with 100 walkers and kills one with
 ##                 the bat: every client sees that id die; B is downed (/hurt), C revives it (hold), B is downed again,
 ##                 gives up, leaves a corpse every client sees and respawns at the cabin's bed after 20 s; D hits A with
@@ -105,8 +106,9 @@ func _run_server() -> void:
 			for p in world.get_node("Players").get_children():
 				pos.append("%s@%s%s" % [p.name, p.global_position.snapped(Vector3(0.1, 0.1, 0.1)), "(dc)" if p.disconnected else ""])
 		var chunks := NetWorld.instance.chunk_keys().size() if NetWorld.instance != null else 0
-		_log("alive wall=%.1fs frames=%d physics_ticks=%d (expected~%d) peers=%d net: out=%.1f kB/s in=%.1f kB/s chunks=%d players=%s" % [
-			t, _frames, ticks, int(t * 60), Net.stats["peers"], float(Net.stats["out_kbps"]), float(Net.stats["in_kbps"]), chunks, pos])
+		_rss_max = maxf(_rss_max, _rss_mb())
+		_log("alive wall=%.1fs frames=%d physics_ticks=%d (expected~%d) peers=%d net: out=%.1f kB/s in=%.1f kB/s chunks=%d rss=%.0f MB players=%s" % [
+			t, _frames, ticks, int(t * 60), Net.stats["peers"], float(Net.stats["out_kbps"]), float(Net.stats["in_kbps"]), chunks, _rss_mb(), pos])
 		if duration > 0.0 and t >= duration:
 			_log("server duration reached, quitting")
 			tree.quit(0)
@@ -120,7 +122,23 @@ func on_finalize() -> void:
 	var ticks := Engine.get_physics_frames() - _phys0
 	var expected := t * 60.0
 	var ok := t >= 5.0 and ticks >= expected * 0.9 and ticks <= expected * 1.1
-	print("[SERVER] SERVER RESULT %s: wall=%.1fs physics_ticks=%d expected~%d frames=%d" % ["OK" if ok else "FAIL", t, ticks, int(expected), _frames])
+	_rss_max = maxf(_rss_max, _rss_mb())
+	print("[SERVER] SERVER RESULT %s: wall=%.1fs physics_ticks=%d expected~%d frames=%d rss_max_mb=%.0f" % ["OK" if ok else "FAIL", t, ticks, int(expected), _frames, _rss_max])
+
+
+## W1: resident memory of the server process (MB), /proc/self/status VmRSS (0 elsewhere).
+var _rss_max: float = 0.0
+static func _rss_mb() -> float:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0.0
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmRSS:"):
+			return float(line.split(":")[1].strip_edges().split(" ")[0]) / 1024.0
+		if line == "":
+			break
+	return 0.0
 
 
 # ------------------------------------------------------------------ client
@@ -234,6 +252,8 @@ func _client_frame() -> void:
 			mv = Vector2(1, 0)   # pvp test: walk east through / into D
 		elif client_name == "D" and ct > 1.0 and ct <= 2.0:
 			mv = Vector2(0, 1)   # everybody sees a remote move
+	mv = _extra_move(ct, mv)
+	run = _extra_run(ct, run)
 	lp.input.scripted_move = mv
 	lp.input.scripted_run = run
 	lp.input.scripted_aim = lp.global_position + Vector3(cos(ct), 1.2, sin(ct)) * 5.0
@@ -279,13 +299,22 @@ func _client_frame() -> void:
 			tree.create_timer(4.0).timeout.connect(_join)
 		elif _step == 2 and ct > 9.0:
 			_step = 3
-	elif scenario == "shared_world" or scenario == "far" or scenario == "zombies":
+	elif scenario in ["shared_world", "far", "zombies", "hitscan", "restart"]:
 		while not _timeline.is_empty() and ct >= float(_timeline[0][0]):
 			var entry: Array = _timeline.pop_front()
 			(entry[1] as Callable).call(lp, world)
 	# a client that connected late still runs its last timeline steps (≤ 5 s of grace; the server soaks longer)
 	if t >= duration and (_timeline.is_empty() or t >= duration + 5.0):
 		_finish(lp)
+
+
+## Hooks for the M5 scenarios (tests/net/net_steps_m5.gd overrides them): scripted movement on top of the base ones.
+func _extra_move(_ct: float, mv: Vector2) -> Vector2:
+	return mv
+
+
+func _extra_run(_ct: float, run: bool) -> bool:
+	return run
 
 
 # ------------------------------------------------------------------ shared_world helpers
@@ -480,8 +509,13 @@ func _build_shared_world_timeline() -> void:
 	_timeline = tl
 
 
-## PLAN M3: two clients ≈ 1 km apart only receive their own ring.
-const FAR_POS := Vector3(-850.0, 0.0, -450.0)   # ≈ 960 m from the clearing, forest
+## PLAN M3: two clients ≈ 1 km apart only receive their own ring. W1: up to 4 clients in the 4 quadrants of the 6 km
+## world, up to 5 km apart — A stays in the valley (NW), B goes to the north suburbs of Altavega (NE), C to the
+## forest by Vega Baja (SE), D to the forest south of the railway (SW); B–D ≈ 5.05 km. The jump waits until every
+## client has spawned (FAR_JUMP_AT), so each one sees the others before they leave.
+const FAR_POS := Vector3(2816.0, 0.0, -1216.0)
+const FAR_POS_BY := {"B": Vector3(2816.0, 0.0, -1216.0), "C": Vector3(2176.0, 0.0, 2432.0), "D": Vector3(256.0, 0.0, 3136.0)}
+const FAR_JUMP_AT := 6.0
 var _far_t0: float = -1.0
 var _other_peer: int = 0
 
@@ -493,6 +527,8 @@ func _build_far_timeline() -> void:
 		for i in 4:
 			out.append([t0 + 0.7 * i, func(_lp: Player, _world: Node) -> void: _chop()])
 		return out
+	var jump := FAR_JUMP_AT if int(opts["clients"]) > 2 else 2.5
+	var far_pos: Vector3 = FAR_POS_BY.get(client_name, FAR_POS)
 	if client_name == "A":
 		tl = [
 			[1.0, func(_lp: Player, world: Node) -> void:
@@ -503,23 +539,24 @@ func _build_far_timeline() -> void:
 				toward.y = 0.0
 				_tp(_target_tree_pos + toward.normalized() * 1.5)],
 		]
-		tl.append_array(chop_at.call(6.5))
+		# A chops well after the others left: the interest of 4 peers is refreshed one peer per 0.5 s turn
+		tl.append_array(chop_at.call(jump + (10.0 if int(opts["clients"]) > 2 else 4.0)))
 	else:
 		tl = [
 			[1.0, func(_lp: Player, _world: Node) -> void: Chat.instance.send("/kit")],
-			[2.5, func(_lp: Player, _world: Node) -> void:
+			[jump, func(_lp: Player, _world: Node) -> void:
 				_far_t0 = (Time.get_ticks_msec() - _t0) / 1000.0
-				_tp(FAR_POS)],
-			[4.5, func(_lp: Player, world: Node) -> void:
+				_tp(far_pos)],
+			[jump + 2.0, func(_lp: Player, world: Node) -> void:
 				# only what arrives from now on counts (the clearing snapshots came before the jump)
 				NetWorld.instance.snapshot_keys.clear()
-				_pick_target_tree(world, FAR_POS)
-				var toward := (FAR_POS - _target_tree_pos)
+				_pick_target_tree(world, far_pos)
+				var toward := (far_pos - _target_tree_pos)
 				toward.y = 0.0
 				_tp(_target_tree_pos + (toward.normalized() if toward.length() > 0.1 else Vector3.RIGHT) * 1.5)],
 		]
-		tl.append_array(chop_at.call(6.5))
-	tl.append([16.0, func(lp: Player, world: Node) -> void: _far_report(lp, world)])
+		tl.append_array(chop_at.call(jump + 4.0))
+	tl.append([jump + (19.0 if int(opts["clients"]) > 2 else 13.5), func(lp: Player, world: Node) -> void: _far_report(lp, world)])
 	tl.sort_custom(func(a, b) -> bool: return float(a[0]) < float(b[0]))
 	_timeline = tl
 
@@ -551,7 +588,7 @@ func _far_report(lp: Player, world: Node) -> void:
 			mine += 1
 	_sw["own_interest"] = far_keys == 0 and mine == nw.my_interest.size() and mine >= 4
 	var streamed := w.streamer.loaded_chunk_at(lp.global_position.x, lp.global_position.z) != null
-	if client_name == "B":
+	if client_name != "A":
 		streamed = streamed and not w.streamer.chunks.has(WorldConst.key(24, 24))
 	_sw["streamed"] = streamed
 	_log("far report: pos=%s others=%d despawns=%d felled=%s events=%s foreign=%d felled_set=%d snapshots_after_jump=%s interest=%s loaded=%d streamer=%s" % [
@@ -781,14 +818,14 @@ func _finish(lp: Player) -> void:
 		var expected_keys := {"A": ["kit", "felled", "wood", "cabinet", "torch", "campfire"],
 			"B": ["stump", "no_wood", "label", "en_uso", "campfire"], "C": ["deltas", "felled", "campfire", "cabinet_free"]}
 		if scenario == "far":
-			expected_keys = {"A": ["felled", "other_gone", "own_events", "own_interest", "streamed"],
-				"B": ["felled", "other_gone", "own_events", "own_interest", "streamed"]}
+			var far_keys := ["felled", "other_gone", "own_events", "own_interest", "streamed"]
+			expected_keys = {"A": far_keys, "B": far_keys, "C": far_keys, "D": far_keys}
 		if scenario == "zombies":
 			expected_keys = {"A": ["horde", "killed", "same_death", "ff_damage"], "B": ["same_death", "downed", "revived", "dead", "respawn_bed"],
 				"C": ["same_death", "revive_sent", "corpse_seen", "pass_through", "pvp_block"], "D": ["same_death", "ff_blocked", "ff_full"]}
 		elif scenario == "far":
-			expected_keys = {"A": ["felled", "other_gone", "own_events", "own_interest", "streamed"],
-				"B": ["felled", "other_gone", "own_events", "own_interest", "streamed"]}
+			var far_keys2 := ["felled", "other_gone", "own_events", "own_interest", "streamed"]
+			expected_keys = {"A": far_keys2, "B": far_keys2, "C": far_keys2, "D": far_keys2}
 		var sw_ok := true
 		for k in expected_keys.get(client_name, []):
 			if not bool(_sw.get(k, false)):

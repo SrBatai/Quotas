@@ -66,3 +66,11 @@ signal hazard_changed(kind: StringName, state: StringName, data: Dictionary)   #
 signal status_changed(status: StringName, severity: float)   # bleeding / wet / … for the vitals (0 = gone)
 signal player_hit_from(dir: Vector3, amount: float)   # local player hit; world direction toward the attacker
 signal hud_info(active: bool)   # Info (hud_info: Tab / D-pad up held, or toggled)
+# M5 firearms / loot (presentation; the reticle and ammo HUD of H3 read these — ARQ v2 §15.5 note)
+signal weapon_state_changed(data: Dictionary)   # owner: {w, ammo, mag, reserve, jammed, reload_left, reload_total, unjam_left, spread, weight}
+signal reticle_changed(spread_deg: float, band: StringName, aim_point: Vector3, radius_m: float)   # owner, ≤ 30 Hz; spread < 0 = no firearm
+signal fire_result(seq: int, ok: bool, reason: String, hits: int, kills: int, crit: bool)   # owner: the server's verdict
+signal local_shot(weapon: StringName, spread_deg: float)   # owner: predicted shot (muzzle flash / recoil at once)
+signal shot_fired(shooter_peer: int, weapon: StringName, origin: Vector3, ends: PackedVector3Array, flags: int)   # every client in reach
+signal projectile_spawned(kind: int, from: Vector3, to: Vector3, flight: float, shooter_peer: int)   # arrow / can / flare
+signal loot_opened(wid: int, table: StringName, items: int)   # owner: a loot container opened (first roll or not)

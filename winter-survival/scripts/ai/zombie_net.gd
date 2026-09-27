@@ -285,8 +285,12 @@ func fx(kind: int, pos: Vector3, a: int, b: int = 0, reach: float = 70.0) -> voi
 
 
 ## SoundEvents → the white ring on every client that can see it (GDD §6.3 "Feedback").
+## M5: radii over 127.5 m (shotgun 150) are sent in whole metres with bit 7 of `b` set (half metres otherwise).
 func fx_noise(pos: Vector3, radius: float, kind: int) -> void:
-	fx(FX_NOISE, pos, int(round(radius * 2.0)), kind, maxf(radius + 50.0, 70.0))
+	if radius * 2.0 <= 255.0:
+		fx(FX_NOISE, pos, int(round(radius * 2.0)), kind & 0x7F, maxf(radius + 50.0, 70.0))
+	else:
+		fx(FX_NOISE, pos, mini(int(round(radius)), 255), (kind & 0x7F) | 0x80, maxf(radius + 50.0, 70.0))
 
 
 func _flush_rel(ps: PeerState) -> void:

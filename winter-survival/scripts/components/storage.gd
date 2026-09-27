@@ -47,13 +47,15 @@ func set_slots_from(arr: Array) -> void:
 			var s := {"id": StringName(str(d["id"])), "count": int(d["count"])}
 			if d.has("dur"):
 				s["dur"] = int(d["dur"])
+			if d.has("ammo"):
+				s["ammo"] = int(d["ammo"])
 			slots.append(s)
 	while slots.size() < slot_count:
 		slots.append({})
 	changed.emit()
 
 
-func add(id: StringName, n: int, dur: int = -1) -> int:
+func add(id: StringName, n: int, dur: int = -1, ammo: int = -1) -> int:
 	var left := n
 	var stack := Items.stack_max(id)
 	for s in slots:
@@ -71,6 +73,8 @@ func add(id: StringName, n: int, dur: int = -1) -> int:
 			slots[i] = {"id": id, "count": put}
 			if Items.has_durability(id):
 				slots[i]["dur"] = dur if dur >= 0 else 100
+			if ammo >= 0 and Firearms.is_firearm(id):
+				slots[i]["ammo"] = ammo
 			left -= put
 	if left != n:
 		changed.emit()
@@ -94,6 +98,8 @@ func take(slot: int, all: bool) -> Dictionary:
 	var out := {"id": s["id"], "count": n}
 	if s.has("dur"):
 		out["dur"] = s["dur"]
+	if s.has("ammo"):
+		out["ammo"] = s["ammo"]
 	remove_from_slot(slot, n)
 	return out
 

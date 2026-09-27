@@ -28,6 +28,9 @@ var pitch_deg: float = Balance.CAMERA_PITCH_DEG
 ## Tests / bench / miradores: force a profile id (&"" = follow the CameraZones).
 var profile_override: StringName = &""
 var _zone_t: float = 0.0
+## M5 (GDD §3.1): lean toward the cursor with a firearm in hand (FirearmClient sets it: ≤ 3 m, rifle 6 m), eased at 6/s.
+var lean: Vector3 = Vector3.ZERO
+var _lean_cur: Vector3 = Vector3.ZERO
 
 
 static func active() -> CameraRig:
@@ -69,7 +72,8 @@ func _process(delta: float) -> void:
 	var move_dir: Vector3 = player.get("move_dir") if player.get("move_dir") != null else Vector3.ZERO
 	var forward := Vector3(0, 0, -1).rotated(Vector3.UP, pivot.rotation.y)
 	var forward_offset := 0.0 if bool(player.get("in_house")) else Balance.CAMERA_FORWARD_OFFSET
-	var target := player.global_position + move_dir * Balance.CAMERA_LOOKAHEAD + forward * forward_offset
+	_lean_cur = _lean_cur.lerp(lean, 1.0 - exp(-Balance.CAMERA_FOLLOW * delta))
+	var target := player.global_position + move_dir * Balance.CAMERA_LOOKAHEAD + forward * forward_offset + _lean_cur
 	if not _snapped:
 		global_position = target
 		_snapped = true

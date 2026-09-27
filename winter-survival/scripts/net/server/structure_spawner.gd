@@ -44,7 +44,9 @@ func spawn_structure(kind: String, pos: Vector3, yaw: float, restore_name: Strin
 	var data := {"name": node_name, "kind": kind, "x": pos.x, "y": pos.y, "z": pos.z, "yaw": yaw}
 	data.merge(extra, false)
 	var node: Node3D
-	if multiplayer.multiplayer_peer == null or multiplayer.get_peers().is_empty():
+	# a dedicated server spawns through the spawner even with nobody connected (a restored chunk at start-up):
+	# a node added by hand is not replicated to the players who join later (M5 restart scenario)
+	if multiplayer.multiplayer_peer == null or (multiplayer.get_peers().is_empty() and not Net.is_dedicated):
 		node = _spawn_node(data)
 		placed_root().add_child(node)
 	else:

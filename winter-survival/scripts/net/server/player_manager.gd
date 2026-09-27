@@ -3,37 +3,123 @@ extends Node
 ## Server-only: spawns / despawns player bodies (MultiplayerSpawner replicates them), assigns each a jacket
 ## variant, keeps a body in the world for NET_GRACE_SECONDS after a disconnect and restores it to the same
 ## identity on reconnect (ARQ v2 §15.4), and drives the persistence backend (ARQ v2 §15): profiles + world
-## clock + chunk deltas through FileBackend (JSON, dedicated) or MemoryBackend (offline); SQLite is M5.
+## clock + chunk deltas. M5: BackendFactory picks SqliteBackend (godot-sqlite, WAL, schema migrations) or the
+## JSON FileBackend from server.cfg `[world] backend` / `save_path` (offline = MemoryBackend); Autosave writes one
+## batch every `autosave_seconds` + a daily backup; bans are checked at authentication (Net.ban_check).
 
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
 const OUTFITS := 4
+## M2 default store, imported once into a new SQLite store when no save_path is configured (single-player hosts).
+const LEGACY_SAVE := "user://world_save.json"
+
+static var instance: PlayerManager
 
 var save_path: String = "user://world_save.json"
 var backend: PersistenceBackend
+## Backend requested in server.cfg ("sqlite" / "file" / "memory"; "" = derived from save_path).
+var backend_requested: String = ""
+var autosave: Autosave
+var bans: Dictionary = {}
 var _grace: Dictionary = {}          # token_hash -> {"node": Player, "until": float}
-var _autosave: float = 0.0
 var _pending_peers: Array[int] = []
 var _world: World
 var _spawn_index: int = 0
 var _restored_chunks: int = 0
+var _closed: bool = false
+
+
+func _enter_tree() -> void:
+	instance = self
+
+
+func _exit_tree() -> void:
+	if instance == self:
+		instance = null
+	if Net.ban_check.is_valid() and Net.ban_check.get_object() == self:
+		Net.ban_check = Callable()
+	close_backend()
 
 
 func _ready() -> void:
 	_world = get_tree().get_first_node_in_group("world")
 	if Net.is_dedicated:
-		save_path = str(Net.cfg_get("world", "save_path", "user://world_save.json"))
-		var fb := FileBackend.new()
-		var err := fb.open(save_path)
-		backend = fb
-		if err == OK:
-			print("[EVT] persistence: %s (%d profiles, %d chunks)" % [save_path, fb.player_count(), fb.chunk_keys().size()])
-		var w := backend.load_world_meta()
-		if not w.is_empty() and WorldState.instance != null:
-			WorldState.instance.set_time(int(w.get("day", 1)), float(w.get("hour", 8.0)))
+		_open_backend()
+		autosave = Autosave.new()
+		autosave.name = "Autosave"
+		add_child(autosave)
+		autosave.setup(self)
+		bans = backend.load_bans()
+		Net.ban_check = is_banned
 	else:
 		backend = MemoryBackend.new()
+	Loot.reset()
+	Loot.nominal = backend.load_nominal()
 	Net.peer_joined.connect(_on_peer_joined)
 	Net.peer_left.connect(_on_peer_left)
+
+
+func _open_backend() -> void:
+	backend_requested = str(Net.cfg_get("world", "backend", ""))
+	var cfg_path := str(Net.cfg_get("world", "save_path", ""))
+	var r := BackendFactory.create(backend_requested, cfg_path)
+	backend = r[0]
+	save_path = str(r[2])
+	# single-player / old hosts: the M2 JSON store moves into a brand-new SQLite store once
+	if backend is SqliteBackend and (backend as SqliteBackend).loaded_schema == 0:
+		var legacy := cfg_path.get_basename() + ".json" if cfg_path != "" else LEGACY_SAVE
+		if FileAccess.file_exists(legacy):
+			var n := BackendFactory.import_json(legacy, backend)
+			print("[EVT] persistence: imported %s into %s (%d chunks)" % [legacy, save_path, n])
+	var sq := backend as SqliteBackend
+	print("[EVT] persistence: backend=%s (requested '%s') path=%s schema=%d%s players=%d chunks=%d" % [backend.kind(),
+		backend_requested, save_path, backend.schema_version(), " journal=%s quick_check=%s" % [sq.journal_mode(), sq.integrity] if sq != null else "",
+		backend.player_count(), backend.chunk_keys().size()])
+	var w := backend.load_world_meta()
+	if w.is_empty():
+		return
+	if WorldState.instance != null:
+		# the clock resumes; the weather scheduler restarts clean (a saved blizzard would skip its warning). Deferred:
+		# this runs inside Game._ready, before the world's DayNight (a time_changed listener) is inside the tree
+		WorldState.instance.set_time.call_deferred(int(w.get("day", 1)), float(w.get("hour", 8.0)))
+	var cfg_seed := int(Net.cfg_get("world", "seed", Balance.TERRAIN_SEED))
+	if w.has("seed") and int(w["seed"]) != cfg_seed:
+		push_warning("PlayerManager: %s was saved with seed %d but server.cfg says %d: the stored deltas belong to another world" % [save_path, int(w["seed"]), cfg_seed])
+	print("[EVT] persistence: world day %d hour %.1f world_version=%d city_version=%d (saved by %s)" % [int(w.get("day", 1)),
+		float(w.get("hour", 8.0)), int(w.get("world_version", -1)), int(w.get("city_version", -1)), str(w.get("version", "?"))])
+
+
+## Closes the store (final checkpoint). Idempotent; the node's exit and save-and-quit call it.
+func close_backend() -> void:
+	if _closed or backend == null:
+		return
+	_closed = true
+	backend.close()
+
+
+## Server bans (token hash or "ip:<address>"): the reason, or "" when the peer may join.
+func is_banned(token_hash: String, ip: String) -> String:
+	if bans.has(token_hash):
+		return str((bans[token_hash] as Dictionary).get("reason", "baneado"))
+	if ip != "" and bans.has("ip:" + ip):
+		return str((bans["ip:" + ip] as Dictionary).get("reason", "baneado"))
+	return ""
+
+
+func ban(token_hash: String, ip: String, reason: String) -> void:
+	if token_hash != "":
+		backend.save_ban(token_hash, ip, reason)
+	if ip != "":
+		backend.save_ban("ip:" + ip, ip, reason)
+	bans = backend.load_bans()
+	backend.log_event("ban", {"token": token_hash.substr(0, 12), "ip": ip, "reason": reason})
+
+
+func unban(key: String) -> bool:
+	var ok := backend.remove_ban(key)
+	if not ok and not key.begins_with("ip:"):
+		ok = backend.remove_ban("ip:" + key)
+	bans = backend.load_bans()
+	return ok
 
 
 func players() -> Array[Player]:
@@ -159,7 +245,7 @@ func _physics_process(_delta: float) -> void:
 			MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED, 0)
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for th in _grace.keys():
 		var g: Dictionary = _grace[th]
@@ -171,25 +257,38 @@ func _process(delta: float) -> void:
 			node.queue_free()
 			_grace.erase(th)
 			print("[EVT] grace expired for %s" % th.substr(0, 8))
-	if Net.is_dedicated:
-		_autosave += delta
-		if _autosave >= float(Net.cfg_get("world", "autosave_seconds", 60.0)):
-			_autosave = 0.0
-			save_all()
 
 
-## Autosave / admin `save`: connected profiles + world clock + dirty chunk deltas, then one atomic write.
+## Autosave / admin `save`: connected profiles + world clock + dirty chunk deltas + loot counters as ONE batch
+## (a single SQLite transaction; one atomic file write for the JSON backend).
 func save_all() -> void:
+	if backend == null:
+		return
+	var t0 := Time.get_ticks_usec()
+	backend.begin_batch()
 	for p in players():
 		backend.save_player(p.token_hash, p.to_profile())
 	var ws := WorldState.instance
 	backend.save_world_meta({"version": Net.GAME_VERSION, "seed": ws.world_seed, "day": ws.day, "hour": ws.hour,
-		"weather": String(ws.weather), "rules": ws.rules})
+		"weather": String(ws.weather), "rules": ws.rules, "saved_at": int(Time.get_unix_time_from_system())})
 	var chunks_saved := 0
 	if NetWorld.instance != null:
 		chunks_saved = NetWorld.instance.save_to(backend)
+	var nominal := Loot.take_dirty_nominal()
+	if not nominal.is_empty():
+		backend.save_nominal(nominal)
 	var err := backend.flush()
 	if err != OK:
-		push_warning("PlayerManager: save failed (%s)" % error_string(err))
+		push_warning("PlayerManager: save failed (%s %s)" % [error_string(err), backend.last_error])
 		return
-	print("[EVT] saved %d profiles, %d chunk deltas to %s" % [backend.player_count(), chunks_saved, save_path if Net.is_dedicated else "memory"])
+	print("[EVT] saved %d profiles, %d chunk deltas to %s (%s, %.1f ms)" % [players().size(), chunks_saved,
+		save_path if Net.is_dedicated else "memory", backend.kind(), (Time.get_ticks_usec() - t0) / 1000.0])
+
+
+## Saves one chunk's delta now (container closed, chunk hibernating): its own small transaction.
+func save_chunk_now(key: int) -> void:
+	if backend == null or NetWorld.instance == null:
+		return
+	var d: ChunkDelta = NetWorld.instance.chunks.get(key)
+	if d != null and d.is_dirty():
+		backend.save_chunk_delta(d)

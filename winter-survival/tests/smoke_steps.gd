@@ -70,6 +70,8 @@ func run(p_tree: SceneTree) -> void:
 	await tree.process_frame
 	# M4: the 20 s respawn wait (Balance.RESPAWN_DELAY) is shortened for the scripted deaths below
 	StatsComponent.respawn_delay = 0.2
+	# W1: streaming steps are also measured without the OS preemption of the main thread (ARQ v2 §8.10)
+	WorldStreamer.sched_step_wait = SchedProbe.available()
 	# 1. load the game scene through the flow (offline local server)
 	GameFlow.play_offline()
 	var waited := 0
@@ -473,6 +475,8 @@ func run(p_tree: SceneTree) -> void:
 	await _m3_checks(world, player)
 	# 17. M4 — zombies, navigation, melee, downed / revive / death / corpse (PLAN M4)
 	await _m4_checks(game, world, player)
+	# 17b. M5 — firearms, noise, loot (tests/m5_smoke_steps.gd)
+	await (load("res://tests/m5_smoke_steps.gd").new()).run(self, tree, game, world, player)
 	# 18. H1 — HUD v2 «Susurro» (tests/hud_steps.gd)
 	await (load("res://tests/hud_steps.gd").new()).run(self, tree, game, world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
@@ -483,9 +487,9 @@ func _m3_checks(world: World, player: Player) -> void:
 	var hf := world.hf
 	var st := world.streamer
 	# grid + hashing
-	check(WorldConst.WORLD_CHUNKS == 48 and WorldConst.CHUNK_SIZE == 64.0 and WorldConst.chunk_of(0.0) == 24 and WorldConst.chunk_of(-31.9) == 24
-		and WorldConst.chunk_of(32.1) == 25 and WorldConst.key_cx(WorldConst.key(47, 3)) == 47 and WorldConst.key_cz(WorldConst.key(47, 3)) == 3,
-		"WorldConst: 48 × 48 chunks of 64 m, chunk 24 centred on the origin, key round trip")
+	check(WorldConst.WORLD_CHUNKS == 96 and WorldConst.CHUNK_SIZE == 64.0 and WorldConst.chunk_of(0.0) == 24 and WorldConst.chunk_of(-31.9) == 24
+		and WorldConst.chunk_of(32.1) == 25 and WorldConst.key_cx(WorldConst.key(95, 3)) == 95 and WorldConst.key_cz(WorldConst.key(95, 3)) == 3,
+		"WorldConst: 96 × 96 chunks of 64 m (W1), chunk 24 centred on the origin, key round trip")
 	var h1 := WorldConst.hash64(1337, 101, -5, 7, 0)
 	check(h1 == WorldConst.hash64(1337, 101, -5, 7, 0) and h1 != WorldConst.hash64(1337, 101, -5, 8, 0) and h1 >= 0, "hash64 deterministic, 63-bit (%d)" % h1)
 	# height function: clearing untouched by the macro, big lake, road beds, border
@@ -500,10 +504,10 @@ func _m3_checks(world: World, player: Player) -> void:
 	var rh0 := hf.height_at(rp.x, rp.y)
 	var rh1 := hf.height_at(rp.x + rdir.x * 2.0, rp.y + rdir.y * 2.0)
 	check(hf.surface_at(rp.x, rp.y).r8 > 200 and absf(rh1 - rh0) < 0.3 and hf.road_distance(rp.x, rp.y, 10.0, "highway") < 0.0, "N‑140 road bed: asphalt mask, smooth profile (%.2f m over 2 m)" % absf(rh1 - rh0))
-	check(hf.height_at(1400.0, 0.0) > hf.height_at(0.0, 0.0) + 40.0, "border mountains rise at the world edge (%.0f m)" % hf.height_at(1400.0, 0.0))
+	check(hf.height_at(1400.0, 0.0) > hf.height_at(0.0, 0.0) + 40.0, "the old east border is the Sierra del Cierzo (%.0f m)" % hf.height_at(1400.0, 0.0))
 	# regions per chunk (+ the slice's small zones inside the clearing)
 	var names := [Regions.name_at(0, 0), Regions.name_at(-21, -13), Regions.name_at(-760, 380), Regions.name_at(646, -240), Regions.name_at(1400, 100), Regions.name_at(176, -512)]
-	check(names == ["CLARO", "CABAÑA DEL PESCADOR", "LAGO DE LAS ÁNIMAS", "N-140", "LAS CUMBRES", "VALDENIEVE"], "regions by chunk: %s" % [names])
+	check(names == ["CLARO", "CABAÑA DEL PESCADOR", "LAGO DE LAS ÁNIMAS", "N-140", "SIERRA DEL CIERZO", "VALDENIEVE"], "regions by chunk: %s" % [names])
 	# a client-side chunk build (headless runs have no meshes): mesh arrays, CUSTOM0 mask, baked AO, MultiMesh buffers
 	var job := ChunkJob.new()
 	job.cx = 24
@@ -543,7 +547,12 @@ func _m3_checks(world: World, player: Player) -> void:
 	# perf_budgets.json "perf_walk_cpu"
 	var smax := int(st.stats["step_usec_max"])
 	var sover := int(st.stats["steps_over_budget"])
-	check(smax < WorldConst.STREAM_BUDGET_USEC or (sover <= 1 and smax < 8000), "streaming steps within the 2 ms/frame budget (%d steps, %d over, max step %d µs %s, gen max %d µs in workers)" % [int(st.stats["steps"]), sover, smax, st.stats.get("step_max_by_kind", {}), int(st.stats["gen_usec_max"])])
+	if WorldStreamer.sched_step_wait:
+		# W1: wall − run-queue wait (a step the OS preempted is not a slow step; the raw numbers stay in the message)
+		smax = int(st.stats.get("step_work_usec_max", smax))
+		sover = int(st.stats.get("steps_over_budget_work", 0))
+	check(smax < WorldConst.STREAM_BUDGET_USEC or (sover <= 1 and smax < 8000), "streaming steps within the 2 ms/frame budget (%d steps, %d over, max step %d µs of work (wall %d µs, %d over) %s, gen max %d µs in workers)" % [
+		int(st.stats["steps"]), sover, smax, int(st.stats["step_usec_max"]), int(st.stats["steps_over_budget"]), st.stats.get("step_max_by_kind", {}), int(st.stats["gen_usec_max"])])
 	# hover pick through a tree crown (the ray misses the trunk collider): materializes that tree
 	var fp := world.nearest_scatter(player.global_position, "pine", 1)
 	if not fp.is_empty():
@@ -612,14 +621,15 @@ func _m3_checks(world: World, player: Player) -> void:
 			nw.erase_drop(WorldRegistry.wid_of(back))
 			back.queue_free()
 	# world border
-	check(not world.terrain.in_bounds(WorldConst.WALL + 5.0, 0.0) and world.get_node("Bounds").get_child_count() == 4, "world wall at ±%.0f m" % WorldConst.WALL)
-	Chat.instance.send("/tp 1460 60")
+	check(not world.terrain.in_bounds(WorldConst.WALL_MIN - 5.0, 0.0) and not world.terrain.in_bounds(WorldConst.WALL_MAX + 5.0, 0.0) and world.terrain.in_bounds(2000.0, 3000.0)
+		and world.get_node("Bounds").get_child_count() == 4, "world walls per axis at %.0f … %.0f m (W1)" % [WorldConst.WALL_MIN, WorldConst.WALL_MAX])
+	Chat.instance.send("/tp -1460 60")
 	await seconds(1.0)
-	player.input.scripted_move = Vector2(1, 0)
+	player.input.scripted_move = Vector2(-1, 0)
 	await seconds(1.0)
 	player.input.scripted_move = Vector2.INF
 	var dn := world.get_node_or_null("DayNight") as DayNight
-	check(player.global_position.x < WorldConst.WALL and (dn == null or dn.fog_density_scale > 2.0), "the border stops the player (x %.1f) and the fog thickens (×%.1f)" % [player.global_position.x, dn.fog_density_scale if dn != null else 0.0])
+	check(player.global_position.x > WorldConst.WALL_MIN and (dn == null or dn.fog_density_scale > 2.0), "the west border stops the player (x %.1f) and the fog thickens (×%.1f)" % [player.global_position.x, dn.fog_density_scale if dn != null else 0.0])
 	Events.region_changed.disconnect(rc)
 	Chat.instance.send("/tp %.2f %.2f" % [world.get_spawn_point().x, world.get_spawn_point().z])
 	await frames(5)
@@ -673,7 +683,13 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 	var sb := Vector3(seam_x + 12.0, 0.0, cab.z - 20.0)
 	sa.y = world.get_height(sa.x, sa.z)
 	sb.y = world.get_height(sb.x, sb.z)
-	var cross := NavigationServer3D.map_get_path(sys.nav.map, sa, sb, true)
+	# (the neighbour's region is applied asynchronously too: under load it can land after the clearing's)
+	var cross := PackedVector3Array()
+	for k in 120:
+		cross = NavigationServer3D.map_get_path(sys.nav.map, sa, sb, true)
+		if cross.size() >= 2 and cross[cross.size() - 1].distance_to(sb) < 1.5:
+			break
+		await tree.physics_frame
 	check(cross.size() >= 2 and cross[cross.size() - 1].distance_to(sb) < 1.5,
 		"a route crosses the chunk seam at x=%.0f (ends %.2f m from the goal)" % [seam_x, cross[cross.size() - 1].distance_to(sb) if cross.size() > 0 else -1.0])
 	check(sys.nav.regions.size() >= 9 and route.size() >= 3 and route_len > behind.distance_to(porch) + 1.5 and not through,

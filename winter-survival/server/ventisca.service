@@ -1,0 +1,30 @@
+# systemd unit of the VENTISCA dedicated server (ARQ v2 §16.3, M5).
+# Install (as root), with the export of server/build_server.sh copied to /srv/ventisca:
+#   useradd -r -m -d /srv/ventisca ventisca && cp -r export/server/* /srv/ventisca/ && chown -R ventisca: /srv/ventisca
+#   cp server/ventisca.service /etc/systemd/system/ && systemctl daemon-reload && systemctl enable --now ventisca
+#   journalctl -u ventisca -f          # logs ([EVT] / [ADMIN] / [NET] lines)
+#   sudo -u ventisca /srv/ventisca/admin.sh status
+# `systemctl stop` sends SIGTERM to run_server.sh, which turns it into `admin.sh save-and-quit` (final save, store
+# closed) before the process exits; Restart=always brings it back after a crash (the store keeps the last autosave).
+[Unit]
+Description=VENTISCA dedicated server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ventisca
+WorkingDirectory=/srv/ventisca
+Environment=HOME=/srv/ventisca
+Environment=VENTISCA_SERVER_CFG=/srv/ventisca/server.cfg
+ExecStart=/srv/ventisca/run_server.sh /srv/ventisca/server.cfg
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=35
+Restart=always
+RestartSec=5
+Nice=-5
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

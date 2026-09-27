@@ -113,7 +113,8 @@ en la mano). Con `debug_commands=true` en `server.cfg` (o sin red) el chat acept
 
 ## Mundo abierto por chunks (M3)
 
-El mundo mide **3 × 3 km**: 48 × 48 chunks de 64 m alrededor del claro, que queda en el centro exactamente como era.
+El mundo medía **3 × 3 km**: 48 × 48 chunks de 64 m alrededor del claro, que queda en el centro exactamente como era
+(desde W1 este valle es el cuadrante noroeste del mundo de 6 km: ver «Mundo de 6 km (W1)»).
 Alrededor hay un bosque determinista generado con la semilla del servidor, que el cliente recibe al conectarse y con
 la que genera el mismo mundo. Tiene:
 
@@ -390,11 +391,203 @@ en `assets/ui/susurro_theme.tres` (`godot --headless --path . -s tools/gen_hud_t
 `godot --headless --path . -s tests/hud_test.gd`) y `tests/run_hud_coverage.sh [--moments=idle,action,zone,blizzard,info]`.
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.5.
 
+## Mundo de 6 km (W1)
+
+El mundo mide ahora **6 144 × 6 144 m** (96 × 96 chunks de 64 m). El valle de M3 no se ha movido ni cambiado: sigue en
+el **cuadrante noroeste**, con sus coordenadas, sus índices de chunk (`CENTER_CHUNK = 24`) y sus `wid`, y el mundo crece
+hacia el este (+x) y el sur (+z). Los muros jugables van por eje: **x, z ∈ [−1 450, +4 420] m**; la niebla del borde se
+espesa según la distancia al muro más cercano.
+
+Lo que hay (doc 09 §4.2–4.3; nombres definitivos, C36):
+
+- **Sierra del Cierzo** (el antiguo borde este) con la **Carretera del Puerto**: sale de la Gasolinera Norte, sube el
+  puerto (≤ 9 % de pendiente, jalones de nieve y guardarraíles) y baja al **Control del Puerto** y a la Gran Vía.
+- **Altavega** como terreno: casco viejo, ensanche, Las Torres, barriada de San Lázaro, polígono y puerto, con la Gran
+  Vía, las rondas norte y sur y la **A‑14**; aún **no hay edificios** (llegan en C0/C1). Los sitios de los POI héroe
+  (catedral, hospital, estación, estadio, presa, base aérea…) son *pads* planos reservados.
+- **Río Albo**, la **dársena** del puerto fluvial, el **embalse del Cierzo** y el **ibón**: hielo plano y seguro (el hielo
+  fino llega con E1). Las carreteras se cortan en las orillas: los puentes son POI de C1.
+- **Sierra de Peña Blanca** (el antiguo borde sur) con el **túnel de Peña Roya** (boca norte derrumbada, boca sur
+  abierta), el desfiladero de la N‑140 sur, las pistas de esquí, el ferrocarril del Albo y **La Vega** con la base aérea.
+
+Datos: `data/world/poi_registry.gd` (mapa 48 × 48, regiones con los datos de `LocationInfo` para H2, *pads*, agua),
+`data/world/macro_map.png` (768² a 8 m/px, biomas 0–15) y `data/world/macro_roads.json` (carreteras y ferrocarril),
+generados por `godot --headless --path . -s tools/gen_macro_map.gd` (`++ --check` comprueba que se reproducen byte a
+byte). Población de zombis por chunk para los 96²: `scripts/world/population_table.gd`.
+
+| Plano macro | Carretera del Puerto | Río Albo en la Gran Vía | Dársena | Túnel de Peña Roya (boca sur) |
+|---|---|---|---|---|
+| ![Macro](docs/screenshots/w1/macro_map.jpg) | ![Puerto](docs/screenshots/w1/overview_pass.jpg) | ![Albo](docs/screenshots/w1/overview_city.jpg) | ![Dársena](docs/screenshots/w1/overview_port.jpg) | ![Túnel](docs/screenshots/w1/overview_sw.jpg) |
+
+(`python3 tools/macro_preview.py salida.png` dibuja el plano macro con biomas, relieve, carreteras y muros.)
+
+Para visitarlo con `debug_commands`: `/tp 1480 -384` (el puerto), `/tp 2432 -384` (el río en la Gran Vía),
+`/tp 2432 1216` (la dársena), `/tp 640 1760` (el túnel sur), `/tp 3264 3520` (la base aérea).
+
+Pruebas de W1: `godot --headless --path . -s tests/w1_world.gd` (muros, mapa, 20 puntos de banner, hielo, *pads*,
+carreteras, población), `godot --headless --path . -s tests/valley_unchanged.gd` («el valle no cambia»: los 1 225 chunks
+con |x|, |z| < 1 152 m idénticos a antes de W1 salvo la lista cerrada de la Carretera del Puerto),
+`tests/run_determinism.sh` (60 chunks en los cuatro cuadrantes), `tests/run_perf_walk.sh --cpu` (6.5 km a 25 m/s por
+los cuatro cuadrantes; `--route=m3` es la ruta de M3; `--sched` añade el diagnóstico del planificador) y
+`tests/net/run_net_test.sh --clients 4 --duration 40 --soak 55 --scenario far` (4 clientes en 4 cuadrantes, hasta 5 km;
+RSS del servidor ≤ 400 MB). Capturas: `RENDER=forward tests/run_screenshots.sh carpeta overview_pass overview_city
+overview_port overview_sw overview_se` (en `docs/screenshots/w1/`). Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md`
+§8.10.
+
+## Armas de fuego, botín y servidor (M5)
+
+![Escopeta en el campamento al caer la tarde (Forward+)](docs/screenshots/m5/firearms_forward.png)
+
+La captura se genera con `RENDER=forward tests/run_screenshots.sh <carpeta> firearms` (`tests/m5_shots.gd`).
+
+### Armas de fuego y arco
+
+Con un arma en la mano, el **clic dispara** (si no hay nada con qué interactuar bajo el cursor). **R** recarga o
+desencasquilla y **G** lanza una lata o una bengala hacia el cursor (12 m como mucho). El arco se tensa mientras
+mantienes el botón y suelta la flecha al soltarlo: cuanto más tenso, más daño y alcance. La cámara se inclina hacia el
+cursor 3 m (6 m con el rifle).
+
+| Arma | Daño | Cadencia | Alcance | Cargador | Ruido | Notas |
+|---|---|---|---|---|---|---|
+| Pistola 9 mm | 25 | 0.25 s | 15 m (máx. 40) | 15 | 80 m | 15 % de crítico |
+| Revólver .357 | 45 | 0.5 s | 18 m (máx. 45) | 6 | 90 m | atraviesa 2 en línea |
+| Escopeta del 12 | 8 × 12 perdigones | 0.9 s | 10 m (máx. 22) | 6 | 150 m | cono de 10°, carga cartucho a cartucho, derriba |
+| Rifle .308 | 90 | 1.5 s | 45 m (máx. 60) | 5 | 120 m | 40 % de crítico, atraviesa 2 |
+| Arco | 40 | tensado 1.4 s | 25 m (máx. 30) | 1 | 5 m | la flecha vuela (proyectil); se recupera el 60 % |
+
+- **Retícula.** El anillo es la dispersión en el punto de mira y se cierra en ≤ 0.8 s quieto: **verde** < 4°
+  (+15 % de crítico), **ámbar** 4–8°, **rojo** > 8°, **gris** si un aliado está en la línea de tiro sin fuego amigo.
+  Andar suma 3°, correr 8°, agachado −1°, con Calor < 15 ×1.5, y cada disparo suma el retroceso del arma. El cursor se
+  «pega» a un zombi a menos de 1.2 m.
+- **El servidor decide cada disparo.** Comprueba arma, munición, cadencia y atasco, retrocede a los objetivos lo que el
+  tirador los veía (RTT + interpolación, **como mucho 200 ms**) y traza el rayo en 2D contra zombis, jugadores y
+  animales (radio 0.4 m), con los muros y el terreno como oclusión. Los perdigones salen de una semilla por disparo,
+  así que todos ven el mismo abanico.
+- **Atascos y munición.** Cada disparo gasta durabilidad; con frío (< −15 °C) y sin aceite de arma, o con el arma
+  gastada, puede encasquillarse (R para limpiarla, 1.5 s). La munición es escasa, pesa y no se repone en los
+  contenedores. La recarga cuenta en el evento de la animación (`mag_in`, `shell_in`, `bolt_close` en
+  `data/anim_events.json`); empujar la interrumpe.
+- **Ruido.** Cada disparo es un `SoundEvent` con el radio del arma (`noise_scale` en las reglas lo escala): atrae a
+  los zombis y se ve como un anillo. La lata hace 15 m de ruido donde cae; la bengala no hace ruido, pero atrae a los
+  zombis a 40 m hacia su luz durante 30 s y da +5 de calor cerca.
+- **Peso.** Llevas 20 kg: por encima del 80 % vas ×0.85, por encima del 100 % ×0.6 y sin correr, y por encima del
+  120 % no te mueves. El arma de la mano cuenta la mitad.
+- **Botiquín.** Vendas (+15 PV), analgésicos (+8), botiquín (+50); el aceite de arma protege de los atascos por frío un
+  día de juego. Ropa v0: abrigo, guantes y gorro (se ponen desde la mochila; el arco pide guantes con Calor < 15).
+
+La retícula y la munición completas son del carril de interfaz (H3): el juego publica `Events.reticle_changed` y
+`Events.weapon_state_changed`, y `ReticleHook` dibuja por ahora un anillo y «15/15 · 30».
+
+### Botín
+
+Los POI traen contenedores en sus *empties* `Spawn_Container_*` (mochila, baúl, caja, armario de cocina…) y objetos
+sueltos en `Spawn_Loot_*`. El `wid` de cada uno sale de la semilla, el POI y el índice del *empty*, así que es el mismo
+en el servidor y en los clientes. El contenedor se **tira la primera vez que alguien lo abre** (`Loot.roll`,
+determinista por semilla + `wid` + día) con su tabla (`data/loot/loot_tables.gd`: cabaña, mirador, campamento, cocina,
+sueltos, cazador y las de ciudad para M6+) y lo que queda se guarda en el delta del chunk: al volver está como lo
+dejaste. Hay **topes por región** (munición, armas…) que crecen con los jugadores (×1 a ×1.75). Con
+`personal_loot_bags=true` cada jugador tira su propia bolsa en cada contenedor. Un contenedor que nadie toca en 3 días
+de juego puede reponerse (`loot_respawn`, 60 % por defecto; nunca munición). La tapa se abre mientras alguien lo
+registra.
+
+### Guardado (SQLite)
+
+El servidor dedicado guarda en **SQLite** (`godot-sqlite` v4.9, MIT, fijado con SHA‑256 en
+`tools/fetch_godot_sqlite.sh`; no está en el repositorio, se descarga con ese script) en modo WAL:
+
+- **Esquema versionado** (`user_version`, `scripts/persistence/migrations/NNN_*.gd`). La versión 2 añade la tabla de
+  topes del botín, las bolsas personales y `world_meta.world_version = 2` (el mundo de 96² chunks de W1). Un fichero de
+  un servidor más nuevo se rechaza; uno viejo se migra al abrirlo. Un `world_save.json` de M2 se importa solo.
+- **Autoguardado** cada `autosave_seconds` (60 s) en **una transacción** con todo lo cambiado; si el proceso muere a
+  mitad, la base vuelve al último autoguardado completo. Al cerrar un contenedor se guarda su chunk en el momento.
+- **Copia diaria** (`VACUUM INTO`) en `<carpeta del guardado>/backups/world-AAAAMMDD.db`; se conservan 7.
+- Sin la extensión (Linux arm64, o si no se ha descargado) el servidor usa `FileBackend` (un JSON atómico) y lo dice
+  en el log. La web no la lleva (el export Web la excluye) y juega sin guardar, como antes.
+
+### Servidor dedicado
+
+```bash
+tools/fetch_godot_sqlite.sh              # una vez: la extensión SQLite (con caché en ~/.cache/ventisca)
+server/build_server.sh                   # exporta export/server/ (preset "Dedicated Server", 79 MB, sin gráficos) + scripts
+```
+
+**systemd** (`server/ventisca.service`):
+
+```bash
+sudo useradd -r -m -d /srv/ventisca ventisca
+sudo cp -r export/server/* /srv/ventisca/ && sudo chown -R ventisca: /srv/ventisca
+sudo cp server/ventisca.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now ventisca
+journalctl -u ventisca -f                # el log ([NET] / [EVT] / [ADMIN])
+sudo -u ventisca /srv/ventisca/admin.sh status
+```
+
+La primera vez `run_server.sh` crea `/srv/ventisca/server.cfg` desde `server.cfg.example`, con un `admin_token`
+aleatorio. Edítalo y reinicia.
+
+**Docker** (`server/Dockerfile`, `server/docker-compose.yml`):
+
+```bash
+docker build -t ventisca-server -f server/Dockerfile export/server
+docker run -d --name ventisca -p 7777:7777/udp -v ventisca-data:/data --restart unless-stopped ventisca-server
+docker exec ventisca /srv/ventisca/admin.sh status
+docker stop ventisca                     # guarda y sale (save-and-quit), código 0
+# o bien: server/build_server.sh && docker compose -f server/docker-compose.yml up -d --build
+```
+
+La imagen no instala nada: `admin.sh` usa `/dev/tcp` de bash si no hay `nc`. El mundo y `server.cfg` viven en el
+volumen `/data`. Si Docker Hub limita las descargas: `--build-arg BASE=mirror.gcr.io/library/debian:bookworm-slim`.
+
+**Apagado.** `systemctl stop`, `docker stop` y Ctrl+C mandan SIGTERM a `run_server.sh`, que lo convierte en
+`admin.sh save-and-quit`: guarda, avisa a los jugadores, cierra la base y sale con 0. Si algo lo mata de golpe, se
+pierde como mucho lo posterior al último autoguardado. `Restart=always` (o `--restart unless-stopped`) lo levanta
+tras un fallo.
+
+**`server.cfg`** (`server/server.cfg.example`, todas las claves comentadas):
+
+- `[server]`: nombre, contraseña, puerto UDP, jugadores, `motd`, `admin_port`/`admin_token` (TCP solo en 127.0.0.1),
+  `admin_tokens` (jugadores que pueden usar los comandos de admin en el chat), `infractions_kick` y
+  `debug_commands`.
+- `[world]`: `seed`, `backend` (`sqlite`/`file`/`memory`), `save_path`, `autosave_seconds`, `backup_keep`,
+  `day_length_sec`, `great_blizzard_days` y `difficulty`.
+- `[rules]`: `pvp`, `friendly_fire`, `loot_respawn`, `personal_loot_bags`, `noise_scale`, `zombie_count_scale`,
+  `cold_scale`… Se cambian en caliente con `rule`.
+- `[net]`: `send_rate`, `zombie_rate`, `interest_chunks` y `max_kbps_per_client`.
+
+**Comandos de admin** (`server/admin.sh <comando>`, o en el chat con `/` para los `admin_tokens` y siempre sin red):
+
+| Comando | Qué hace |
+|---|---|
+| `status`, `players`, `stats`, `dbinfo` | Estado, jugadores (con el principio de su `token_hash`), red y la base (esquema, `world_version`, WAL, `quick_check`) |
+| `save`, `backup` | Guarda ya; copia de seguridad ahora |
+| `save-and-quit`, `quit` | Guarda y apaga; `quit` apaga sin guardar (los dos solo por el socket) |
+| `say <texto>` / `broadcast <texto>` | Mensaje del servidor a todos |
+| `kick <jugador> [motivo]` | Expulsa |
+| `ban <jugador\|token_hash\|ip> [motivo]`, `unban …`, `bans` | Veta (por identidad o IP), quita el veto, lista |
+| `rule <clave> <valor>`, `rules`, `pvp on\|off`, `ff off\|reduced\|full` | Reglas en caliente (se replican al HUD) |
+| `time <h>`, `day <n>`, `weather clear\|blizzard [s]` | Reloj y clima |
+| `give <jugador> <item> [n]`, `tp <jugador> <x> <z>` | Soporte (el `tp` respeta los muros del mundo de 6 km) |
+
+Pruebas de M5:
+
+- `tests/net/run_net_test.sh --clients 2 --duration 25 --soak 38 --scenario hitscan --net-sim 150,20,2`: un relé UDP
+  (`tests/net/net_sim.gd`) mete 150 ms de ping, ±20 ms y un 2 % de pérdida; B cruza la línea de tiro de A a 10 m. Pasa
+  con 13–15 aciertos de 15 (sin la compensación, 7–12) y rechaza el disparo sin munición.
+- `tests/net/run_restart_test.sh [--backend sqlite|file]`: un jugador en el cuadrante SE (3 500, 3 600) tala, enciende
+  dos hogueras, saquea la mochila del campamento y dispara. Tras `save-and-quit` y un servidor nuevo, todo sigue igual:
+  posición, inventario, cargador, hogueras, pino talado y contenedor vacío, con `world_version = 2`.
+- `godot --headless --path . -s tests/unit/persistence_m5_test.gd`: 64 comprobaciones de SQLite, migraciones y un
+  proceso matado a mitad de transacción.
+- `godot --headless --path . -s tests/unit/m5_units_test.gd`: 34 comprobaciones de botín y matemáticas de armas.
+- `NET_BACKEND=sqlite SERVER_BIN=export/server/ventisca_server.x86_64 tests/net/run_net_test.sh --quick`: el servidor
+  exportado.
+
+Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §15.5.
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M4 + W0: import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far, zombies), determinismo, perf walk, perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1: godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
 ./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak

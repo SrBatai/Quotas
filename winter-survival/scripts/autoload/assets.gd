@@ -8,7 +8,7 @@ extends Node
 
 const MODELS_DIR := "res://assets/models/"
 ## Sub-folders searched (in this order, then the root) for a model name without a folder. M4: weapons/.
-const MODEL_SUBDIRS := ["vegetation/", "props/", "poi/", "weapons/"]
+const MODEL_SUBDIRS := ["vegetation/", "props/", "poi/", "weapons/", "props/loot/", "world/"]   # M5: loot containers / pickups; W1: world props
 ## Alternative file names accepted for a model (spec spelling vs delivered file).
 const ALIASES := {"bat_nailed": "bat_nails"}
 const SHARED_MATERIAL_PATH := "res://assets/materials/world_vcol.tres"
@@ -233,6 +233,9 @@ func _prepare_meshes(model_name: String, root: Node3D) -> void:
 func _shared_mesh(mesh: Mesh) -> Mesh:
 	if _prepared.has(mesh):
 		return _prepared[mesh]
+	if not (mesh is ArrayMesh):
+		_prepared[mesh] = mesh   # primitive meshes of code-built placeholders (weapons, loot): nothing to convert
+		return mesh
 	var shared := get_shared_material()
 	var legacy := 0
 	var has_bones := false

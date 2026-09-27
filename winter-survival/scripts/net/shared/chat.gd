@@ -59,9 +59,29 @@ func say(text: String) -> void:
 	if clean == "":
 		return
 	if clean.begins_with("/"):
-		_debug_command(peer, clean)
+		if not _admin_command(peer, clean):
+			_debug_command(peer, clean)
 		return
 	server_broadcast(Net.name_of(peer), clean)
+
+
+## M5: `/kick /ban /unban /save /time /day /weather /give /tp /pvp /ff /say /status /players /rules …` from a player
+## listed in server.cfg `admin_tokens` (anyone offline) run through AdminCommands; the reply goes back to that
+## player only. Returns false when the line is not an admin command for this peer (the debug commands get it).
+func _admin_command(peer: int, line: String) -> bool:
+	var parts := line.substr(1).split(" ", false)
+	if parts.is_empty() or not AdminCommands.CHAT_COMMANDS.has(parts[0].to_lower()) or not AdminCommands.is_admin(peer):
+		return false
+	if PlayerManager.instance == null:
+		return false
+	# the M1/M4 debug forms (/give <item> <n>, /tp <x> <z>, /rule …) keep working: AdminCommands accepts them for self
+	var reply := AdminCommands.new(get_tree(), PlayerManager.instance).run(line.substr(1), peer)
+	print("[CHAT] admin command from %d: %s -> %s" % [peer, line, reply.split("\n")[0]])
+	if Net.has_client and peer == Net.local_peer_id():
+		Events.chat_message.emit("SERVIDOR", reply)
+	else:
+		Net.rpc_to(self, &"broadcast_say", peer, ["SERVIDOR", reply])
+	return true
 
 
 func debug_commands_enabled() -> bool:
@@ -92,6 +112,9 @@ func _debug_command(peer: int, line: String) -> void:
 			for id in [&"cuchillo", &"palanca", &"bate", &"machete"]:
 				p.state.inventory.add(id, 1, true)
 			p.state.notify("Armas de prueba recibidas", 2.0)
+		"/heal":
+			p.state.health = Balance.HEALTH_MAX   # M5 net tests: a shot target stays on its feet
+			p.state.mark(&"stats")
 		"/hurt":
 			var amount := float(parts[1]) if parts.size() >= 2 and parts[1].is_valid_float() else 20.0
 			DamageResolver.apply(DamageResolver.ref(DamageResolver.Kind.ZOMBIE, 0), DamageResolver.ref(DamageResolver.Kind.PLAYER, peer),
@@ -121,14 +144,8 @@ func _debug_command(peer: int, line: String) -> void:
 					PopulationManager.instance.enabled = parts[1] == "on"
 		"/tp":
 			if parts.size() >= 3 and parts[1].is_valid_float() and parts[2].is_valid_float():
-				var world := get_tree().get_first_node_in_group("world") as World
-				var x := clampf(float(parts[1]), -WorldConst.WALL + 2.0, WorldConst.WALL - 2.0)
-				var z := clampf(float(parts[2]), -WorldConst.WALL + 2.0, WorldConst.WALL - 2.0)
-				world.ensure_area(Vector3(x, 0.0, z), 1)   # M3: the collider must exist before the body lands
-				var pos := Vector3(x, world.get_height(x, z) + 0.3, z)
-				p.position = pos
-				p.net_position = pos
-				p.velocity = Vector3.ZERO
+				# M3: the collider must exist before the body lands; M5: W1's playable range (SE quadrant)
+				AdminCommands.teleport_player(p, float(parts[1]), float(parts[2]))
 
 
 ## `/zombies <n> [walker|runner|crawler|frozen|bloater] [radius]` · `/zombies clear` · `/zombies freeze`.

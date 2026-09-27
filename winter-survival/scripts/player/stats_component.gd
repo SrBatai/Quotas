@@ -94,9 +94,20 @@ func _process(delta: float) -> void:
 	_stamina(delta)
 	# movement parameters the owner predicts with
 	var run_ok := state.hunger > 0.0 and not _run_blocked and not player.downed
+	# M5 weight thresholds (GDD §9.4): > 80 % ×0.85, > 100 % ×0.6 and no running, > 120 % barely moves
+	var carry := state.inventory.carry_ratio if state.inventory != null else 0.0
+	var carry_mult := 1.0
+	if carry > Balance.CARRY_STUCK_AT:
+		carry_mult = 0.2
+		run_ok = false
+	elif carry > Balance.CARRY_HEAVY_AT:
+		carry_mult = Balance.CARRY_HEAVY_MULT
+		run_ok = false
+	elif carry > Balance.CARRY_SLOW_AT:
+		carry_mult = Balance.CARRY_SLOW_MULT
 	if player.can_run != run_ok:
 		player.can_run = run_ok
-	var mult := Balance.FREEZING_SPEED_MULT if state.warmth < Balance.FREEZING_SLOW_BELOW else 1.0
+	var mult := (Balance.FREEZING_SPEED_MULT if state.warmth < Balance.FREEZING_SLOW_BELOW else 1.0) * carry_mult
 	if Time.get_ticks_msec() / 1000.0 < _hurt_until:
 		mult *= Balance.HURT_SPEED_MULT
 	if not is_equal_approx(player.speed_mult, mult):
@@ -185,6 +196,8 @@ func take_damage(amount: float, source: StringName, attacker_name: String = "") 
 	_last_hit_t = now
 	_last_source = source
 	_last_attacker = attacker_name
+	if state.gun != null and state.gun.weapon != &"":
+		state.gun.spread += Balance.GUN_SPREAD_HURT   # GDD §7.1: taking damage opens the reticle
 	if source == &"lobo":
 		_last_wolf_time = now
 	if player.revive_by != 0:

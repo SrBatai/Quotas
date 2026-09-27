@@ -1,6 +1,7 @@
 extends SceneTree
 ## Streaming perf walk (PLAN M3 acceptance, ARQ v2 §18): the local player is moved along a fixed route at
-## 25 m/s (car speed, R4; 2.26 km) through forest, the N‑140 and back while the world streams around it. Measures every
+## 25 m/s (car speed, R4; W1: 6.5 km through the four quadrants of the 6 km world, --route=m3 the M3 2.26 km)
+## while the world streams around it. Measures every
 ## frame: frame time, the streamer's main-thread cost (budget 2 ms/frame), frames over 33 ms and whether streaming
 ## caused them, missing ground under the player, generation time in the workers, loaded chunks, memory (RSS).
 ## Two modes (tests/run_perf_walk.sh):
@@ -26,6 +27,12 @@ func _initialize() -> void:
 			opts["cpu"] = true
 		elif a == "--nothreads":
 			opts["nothreads"] = true
+		elif a == "--sched":
+			opts["sched"] = true
+		elif a == "--no-probe":
+			opts["no_probe"] = true
+		elif a.begins_with("--route="):
+			opts["route"] = a.substr(8)
 	Engine.max_fps = 0
 	var script: GDScript = load("res://tests/perf_walk_steps.gd")
 	if script == null or not script.can_instantiate():
@@ -34,7 +41,7 @@ func _initialize() -> void:
 		return
 	_body = script.new()
 	_body.run(self, opts)
-	var t := create_timer(900.0)
+	var t := create_timer(2400.0)   # W1: the render walk of 6.5 km under llvmpipe takes ≈ 15 min
 	t.timeout.connect(func() -> void:
 		print("FAIL: perf walk watchdog timeout")
 		quit(1))

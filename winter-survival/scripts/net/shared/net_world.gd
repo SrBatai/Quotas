@@ -19,7 +19,8 @@ const REASONS := {
 	"accion": "No puedes hacer eso", "rate": "Demasiado rápido",
 }
 const RATE_LIMITS := {&"interact": Balance.NET_INTERACT_PER_SECOND, &"craft": Balance.NET_CRAFT_PER_SECOND,
-	&"attack": 4.0, &"hit": 4.0, &"slot": 10.0, &"container": 10.0, &"melee": 8.0, &"revive": 6.0}
+	&"attack": 4.0, &"hit": 4.0, &"slot": 10.0, &"container": 10.0, &"melee": 8.0, &"revive": 6.0,
+	&"fire": 10.0, &"reload": 4.0, &"throw": 3.0}
 
 static var instance: NetWorld
 
@@ -49,6 +50,7 @@ var _revivers: Dictionary = {}      # reviver peer -> {target, t0}
 func _enter_tree() -> void:
 	instance = self
 	Melee.clear()
+	HitHistory.clear()
 
 
 func _exit_tree() -> void:
@@ -62,7 +64,8 @@ func _ready() -> void:
 		Net.peer_left.connect(func(peer_id: int) -> void:
 			_rate.erase([peer_id, &"interact"])
 			_infractions.erase(peer_id)
-			interest.erase(peer_id))
+			interest.erase(peer_id)
+			HitHistory.forget(peer_id))
 
 
 # ------------------------------------------------------------------ helpers (server)
@@ -255,6 +258,112 @@ func _melee_result(mode: int, ok: bool, hits: int, kills: int, reason: String) -
 	Events.melee_result.emit(mode, ok, hits, kills, reason)
 	if not ok and reason == "aguante":
 		Events.notify.emit("Sin aliento", 1.2)
+
+
+# ------------------------------------------------------------------ M5 firearms / bow / throwables (ARQ v2 §6.8, §11.3)
+## Client → server: a trigger pull with the hand firearm toward `aim` (Gunplay.fire validates and resolves it with
+## lag compensation). `seq` = the owner's shot counter, `view_ms` = its interpolation delay, `draw_ms` = bow draw.
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_fire(seq: int, aim: Vector3, view_ms: int, draw_ms: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer := Net.sender()
+	var p := _player_of(peer)
+	if p == null or not _allow(peer, &"fire"):
+		return
+	if not is_finite(aim.x) or not is_finite(aim.y) or not is_finite(aim.z) or aim.distance_to(p.global_position) > Balance.GUN_MAX_AIM + 5.0:
+		_note_infraction(peer, "fire:args")
+		return
+	send_fire_result(peer, Gunplay.fire(p, seq, aim, view_ms, draw_ms))
+
+
+## Client → server: reload the hand firearm (or clear a jam).
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_reload() -> void:
+	if not multiplayer.is_server():
+		return
+	var peer := Net.sender()
+	var p := _player_of(peer)
+	if p == null or not _allow(peer, &"reload"):
+		return
+	var why := Gunplay.start_reload(p)
+	if why != "" and why != "lleno" and why != "recargando":
+		Net.rpc_to(self, &"_fire_result", peer, [-1, false, why, 0, 0, false, Gunplay.ammo_in(p)])
+
+
+## Client → server: throw the hand throwable (can, flare) toward `target`.
+@rpc("any_peer", "call_remote", "reliable", 1)
+func request_throw(target: Vector3) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer := Net.sender()
+	var p := _player_of(peer)
+	if p == null or not _allow(peer, &"throw") or Projectiles.instance == null:
+		return
+	var why := Projectiles.instance.throw_item(p, target)
+	if why == "args":
+		_note_infraction(peer, "throw:args")
+
+
+## Server: a shot's outcome to its shooter.
+func send_fire_result(peer: int, res: Dictionary) -> void:
+	Net.rpc_to(self, &"_fire_result", peer, [int(res.get("seq", -1)), bool(res.get("ok", false)), str(res.get("reason", "")),
+		int(res.get("hits", 0)), int(res.get("kills", 0)), bool(res.get("crit", false)), int(res.get("ammo", -1))])
+
+
+@rpc("authority", "call_remote", "reliable", 1)
+func _fire_result(seq: int, ok: bool, reason: String, hits: int, kills: int, crit: bool, ammo: int) -> void:
+	if Net.is_dedicated:
+		return
+	Events.fire_result.emit(seq, ok, reason, hits, kills, crit)
+	if not ok and ammo >= 0:
+		var lp := GameFlow.local_player() as Player
+		if lp != null and lp.state != null:
+			lp.state.gun_view["ammo"] = ammo
+
+
+## Peers that should see / hear something at `pos`: their 3 × 3 interest or within `reach` m (a gunshot carries).
+func _peers_near(pos: Vector3, reach: float) -> Array[int]:
+	var out: Array[int] = []
+	if multiplayer.multiplayer_peer == null:
+		return out
+	for peer in multiplayer.get_peers():
+		var pl := _player_of(peer)
+		if pl == null or pl.disconnected:
+			continue
+		if sees(peer, pos) or Vector2(pl.global_position.x - pos.x, pl.global_position.z - pos.z).length() <= reach:
+			out.append(peer)
+	return out
+
+
+## Server: a shot for every client that can see or hear it (tracers, muzzle flash, sound): the shooter included.
+func broadcast_shot(p: Player, weapon: StringName, origin: Vector3, ends: PackedVector3Array, flags: int, reach: float) -> void:
+	if Net.has_client:
+		_shot(p.peer_id, weapon, origin, ends, flags)
+	for peer in _peers_near(origin, reach):
+		Net.rpc_to(self, &"_shot", peer, [p.peer_id, weapon, origin, ends, flags])
+
+
+@rpc("authority", "call_remote", "reliable", 1)
+func _shot(shooter: int, weapon: StringName, origin: Vector3, ends: PackedVector3Array, flags: int) -> void:
+	if Net.is_dedicated:
+		return
+	Events.shot_fired.emit(shooter, weapon, origin, ends, flags)
+
+
+## Server: an arrow / a thrown can or flare for every client around.
+func broadcast_projectile(kind: int, from: Vector3, to: Vector3, flight: float, shooter: int) -> void:
+	if Net.has_client:
+		_projectile(kind, from, to, flight, shooter)
+	for peer in _peers_near(from, 80.0):
+		Net.rpc_to(self, &"_projectile", peer, [kind, from, to, flight, shooter])
+
+
+@rpc("authority", "call_remote", "reliable", 1)
+func _projectile(kind: int, from: Vector3, to: Vector3, flight: float, shooter: int) -> void:
+	if Net.is_dedicated:
+		return
+	Events.projectile_spawned.emit(kind, from, to, flight, shooter)
 
 
 ## Client → server: start (`hold` true) or stop holding "reanimar" on the downed player `target_peer`.
@@ -471,6 +580,22 @@ func close_storage(st: Storage) -> void:
 	set_delta(st.wid(), {"open_by": 0})
 	set_container(st.wid(), {"open_by": 0})
 	Net.rpc_to(self, &"_storage_closed", peer, [st.wid()])
+	# ARQ v2 §15.3: a closed container is saved at once (its chunk's delta, one small transaction)
+	if Net.is_dedicated and PlayerManager.instance != null:
+		PlayerManager.instance.save_chunk_now(chunk_for(st.wid()).key())
+
+
+## Server → opener: a loot container was opened (HUD / tests: how many stacks it held).
+@rpc("authority", "call_remote", "reliable", 1)
+func _loot_opened(wid: int, table: StringName, items: int) -> void:
+	if Net.is_dedicated:
+		return
+	Events.loot_opened.emit(wid, table, items)
+
+
+## Server: the persisted container entry of `wid` (items, rolled_day, table, bags…), {} when none.
+func container_entry(wid: int, hint: Node = null) -> Dictionary:
+	return chunk_for(wid, hint).get_entry(&"containers", wid)
 
 
 ## Server: called by Storage.changed → refresh the opener's mirror and the persistent copy of the contents.
@@ -486,6 +611,9 @@ func _physics_process(delta: float) -> void:
 	if not Net.is_server:
 		return
 	Melee.tick()
+	var world := _world()
+	if world != null and world.has_node("Players"):
+		Gunplay.tick(world.get_node("Players").get_children(), delta)
 	if not _revivers.is_empty():
 		_update_revives()
 	_interest_t -= delta

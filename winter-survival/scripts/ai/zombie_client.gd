@@ -81,6 +81,10 @@ class ZRec:
 		return [p[n - 1], y[n - 1], 0.0]
 
 
+## M5 tests: radius of the last noise ring received (m).
+var last_noise_radius: float = 0.0
+
+
 func _enter_tree() -> void:
 	instance = self
 
@@ -215,13 +219,15 @@ func _on_event(id: int, ev: int, arg: int, dir: float) -> void:
 			AudioManager.play(&"bloater_pop", r.render_pos)
 
 
-func _on_fx(kind: int, pos: Vector3, a: int, _b: int) -> void:
+func _on_fx(kind: int, pos: Vector3, a: int, b: int) -> void:
 	fx_count[kind] = int(fx_count.get(kind, 0)) + 1
+	if kind == ZombieNet.FX_NOISE:
+		last_noise_radius = float(a) if (b & 0x80) != 0 else float(a) / 2.0
 	if CombatFx.instance == null:
 		return
 	match kind:
 		ZombieNet.FX_NOISE:
-			CombatFx.instance.ring(pos, float(a) / 2.0)
+			CombatFx.instance.ring(pos, float(a) if (b & 0x80) != 0 else float(a) / 2.0)
 		ZombieNet.FX_BLOOD:
 			CombatFx.instance.blood(pos, float(a) / 100.0)
 		ZombieNet.FX_PLAYER_HIT:

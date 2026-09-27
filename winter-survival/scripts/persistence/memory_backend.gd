@@ -1,7 +1,7 @@
 class_name MemoryBackend
 extends PersistenceBackend
 ## In-memory persistence (tests, offline play): the same tables as the SQLite schema, held as dictionaries.
-## FileBackend extends it and only adds the JSON serialisation.
+## FileBackend extends it and only adds the JSON serialisation and the document migrations.
 
 const MAX_EVENTS := 500
 
@@ -9,7 +9,13 @@ var world_meta: Dictionary = {}
 var players: Dictionary = {}        # token_hash -> profile
 var chunks: Dictionary = {}         # key -> Dictionary (ChunkDelta.to_dict form, string wids)
 var hordes: Array = []
+var bans: Dictionary = {}           # token_hash / "ip:<addr>" -> {ip, reason, ts}
+var nominal: Dictionary = {}        # "region|category" -> spawned (loot nominal counters, GDD §9.3)
 var _events: Array = []
+
+
+func kind() -> String:
+	return "memory"
 
 
 func load_world_meta() -> Dictionary:
@@ -17,7 +23,8 @@ func load_world_meta() -> Dictionary:
 
 
 func save_world_meta(d: Dictionary) -> void:
-	world_meta = d.duplicate(true)
+	world_meta.merge(d.duplicate(true), true)
+	world_meta = PersistenceSchema.stamp_meta(world_meta)
 
 
 func load_player(token_hash: String) -> Dictionary:
@@ -71,7 +78,7 @@ func save_hordes(a: Array) -> void:
 
 
 func log_event(type: String, data: Dictionary) -> void:
-	_events.append({"ts": Time.get_unix_time_from_system(), "type": type, "data": data.duplicate(true)})
+	_events.append({"ts": int(Time.get_unix_time_from_system()), "type": type, "data": data.duplicate(true)})
 	while _events.size() > MAX_EVENTS:
 		_events.pop_front()
 
@@ -80,13 +87,34 @@ func events() -> Array:
 	return _events.duplicate(true)
 
 
+func load_bans() -> Dictionary:
+	return bans.duplicate(true)
+
+
+func save_ban(key: String, ip: String, reason: String) -> void:
+	if key != "":
+		bans[key] = {"ip": ip, "reason": reason, "ts": int(Time.get_unix_time_from_system())}
+
+
+func remove_ban(key: String) -> bool:
+	return bans.erase(key)
+
+
+func load_nominal() -> Dictionary:
+	return nominal.duplicate()
+
+
+func save_nominal(d: Dictionary) -> void:
+	nominal.merge(d, true)
+
+
 ## Whole store as one JSON-friendly dictionary (FileBackend writes it; tests compare it).
 func to_document() -> Dictionary:
 	var ch := {}
 	for k in chunks:
 		ch[str(k)] = chunks[k]
-	return {"version": Net.GAME_VERSION, "world": world_meta, "players": players, "chunks": ch, "hordes": hordes,
-		"events": _events}
+	return {"version": Net.GAME_VERSION, "schema_version": PersistenceSchema.VERSION, "world": world_meta,
+		"players": players, "chunks": ch, "hordes": hordes, "events": _events, "bans": bans, "nominal": nominal}
 
 
 func from_document(doc: Dictionary) -> void:
@@ -98,3 +126,5 @@ func from_document(doc: Dictionary) -> void:
 		chunks[int(k)] = ch[k]
 	hordes = doc.get("hordes", [])
 	_events = doc.get("events", [])
+	bans = doc.get("bans", {})
+	nominal = doc.get("nominal", {})

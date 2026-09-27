@@ -37,7 +37,7 @@ static func chunk_name(cx: int, cz: int) -> String:
 	var w := World.instance
 	if w != null and w.is_configured:
 		var c := WorldConst.chunk_center(cx, cz)
-		n = PoiRegistry.region_of_chunk(cx, cz, w.hf.road_distance(c.x, c.z, 40.0, "highway") < 32.0)
+		n = PoiRegistry.region_of_chunk(cx, cz, w.hf.named_road_at(c.x, c.z, 32.0))
 		if n == "CLARO DEL CAZADOR":
 			n = DEFAULT
 		_chunk_names[k] = n

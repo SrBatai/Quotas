@@ -25,6 +25,7 @@ var scale: float = 1.0
 ## chunk key -> {"n": target, "killed": int, "out": records alive in the world, "spawned": bool}
 var pop: Dictionary = {}
 var _t: float = 0.0
+var _table: PopulationTable
 
 
 func _enter_tree() -> void:
@@ -48,32 +49,12 @@ func _rule_scale() -> float:
 	return clampf(float(WorldState.rules_now().get("zombie_count_scale", 1.0)), 0.0, 4.0) * scale
 
 
-## Resident target of a chunk (deterministic from the seed and the macro map).
+## Resident target of a chunk (deterministic from the seed and the macro map): the 96² PopulationTable (W1; the
+## valley keeps the M4 values) × the rule scale.
 func target_of(key: int) -> int:
-	var cx := WorldConst.key_cx(key)
-	var cz := WorldConst.key_cz(key)
-	var c := WorldConst.chunk_center(cx, cz)
-	if maxf(absf(c.x), absf(c.z)) < CLEARING_SAFE or not WorldConst.in_playable(c.x, c.z):
-		return 0
-	var hf := world.hf
-	var seed_v := hf.world_seed
-	var u := WorldConst.rand01(seed_v, GEN, cx, cz, 0)
-	var b := hf.macro.biome_at(c.x, c.z)
-	var n := 0
-	match b:
-		MacroMap.Biome.DENSE_FOREST, MacroMap.Biome.FOREST:
-			n = 1 if u < 0.45 else 0
-		MacroMap.Biome.FIELD:
-			n = 1 if u < 0.35 else 0
-		MacroMap.Biome.LAKE:
-			n = 1 if u < 0.3 else 0
-		MacroMap.Biome.SETTLEMENT:
-			n = 3 + int(WorldConst.rand01(seed_v, GEN, cx, cz, 1) * 6.0)
-	for pad in PoiRegistry.PADS:
-		var pc: Vector2 = pad["center"]
-		if str(pad.get("model", "")) == "cabin_small" and WorldConst.key(WorldConst.chunk_of(pc.x), WorldConst.chunk_of(pc.y)) == key:
-			n += 1
-	return int(round(float(n) * _rule_scale()))
+	if _table == null or _table.hf != world.hf:
+		_table = PopulationTable.create(world.hf)
+	return int(round(float(_table.target(WorldConst.key_cx(key), WorldConst.key_cz(key))) * _rule_scale()))
 
 
 func _entry(key: int) -> Dictionary:

@@ -1,23 +1,53 @@
-; VENTISCA dedicated server configuration (Godot ConfigFile format, ARQ v2 §16.2 — M1 subset).
-; Copy to user://server.cfg (the path the game writes when you press "Jugar") or pass --config <path>:
-;   ventisca --headless -- --server --config /srv/ventisca/server.cfg
-; Keys not present here fall back to the defaults shown.
+; VENTISCA dedicated server configuration (Godot ConfigFile format, ARQ v2 §16.2; M5: complete).
+; Copy it next to the server (Docker: /data/server.cfg; systemd: /srv/ventisca/server.cfg) or to user://server.cfg,
+; the file the game writes when you press "Jugar solo" / "Crear partida":
+;   ventisca_server.x86_64 --headless -- --server --config /srv/ventisca/server.cfg
+; Keys not present fall back to the defaults shown here. The [rules] are replicated to every client (HUD) and can be
+; changed at runtime with the admin socket (server/admin.sh rule pvp on) or the chat (/pvp on) by an admin.
 
 [server]
 name="Ventisca"
 password=""                 ; empty = no password (clients authenticate with HMAC-SHA256(password, nonce))
-port=7777                   ; UDP (ENet)
+port=7777                   ; UDP (ENet): the only port to open / forward
 max_players=4
 motd="Abrígate."
-admin_port=7778             ; TCP, bound to 127.0.0.1 only (server/admin.sh)
-admin_token=""              ; first line of every admin connection; empty = any local process may administer
+admin_port=7778             ; TCP, bound to 127.0.0.1 only (server/admin.sh; never expose it)
+admin_token=""              ; first line of every admin connection; SET ONE on a public machine (empty = any local process)
+admin_tokens=[]             ; identity hashes (sha256 of the player's token, see `admin.sh players`) allowed to use /kick /ban /save … in the chat
+infractions_kick=30         ; invalid requests before a kick (warning at half)
+debug_commands=false        ; test servers only: /kit /give /tp /zombies /hurt /heal … for everybody
 
 [world]
-seed=1337
-save_path="user://world_save.json"   ; M1: JSON profiles + clock (SQLite arrives in M5)
-autosave_seconds=60
+seed=1337                   ; changing it on an existing store makes the saved deltas meaningless (the server warns)
+backend="sqlite"            ; sqlite (godot-sqlite, WAL) | file (one JSON document) | memory (nothing is saved)
+save_path="user://world.db" ; SQLite store; the JSON backend uses the same path with .json. Docker: /data/world.db
+autosave_seconds=60         ; one transaction with every change since the last save (a crash loses at most this)
+backup_keep=7               ; daily backups in <save dir>/backups/world-YYYYMMDD.db (VACUUM INTO), the newest N kept
 day_length_sec=420.0        ; slice pacing; M8 moves to 1800 (PLAN C18)
+great_blizzard_days=7
+difficulty="normal"
 
-[rules]                     ; consulted only by DamageResolver (PLAN C20)
+[rules]                     ; GDD v2 §12.4 (DamageResolver is the only reader of pvp / friendly_fire, PLAN C20)
 pvp=false
 friendly_fire="off"         ; off | reduced | full
+safehouses=true
+days_to_claim=3
+no_raid_when_offline=true
+container_locks="faction"
+fire_spread=false
+vehicle_theft="faction"
+permadeath=false
+loot_respawn=0.6            ; chance that a container untouched for 3 game days restocks (60 % of a roll, never ammo)
+personal_loot_bags=false    ; true: every player rolls their own contents in each container
+zombie_count_scale=1.0
+noise_scale=1.0             ; multiplies every noise radius (gunshots 80–150 m)
+cold_scale=1.0
+ammo_crafting=true
+safety_system=true
+sleep_vote="majority"
+
+[net]
+send_rate=30
+zombie_rate=10
+interest_chunks=1
+max_kbps_per_client=300

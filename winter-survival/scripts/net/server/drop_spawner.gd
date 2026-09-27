@@ -43,7 +43,9 @@ func spawn_drop(item_id: StringName, model: String, pos: Vector3, amount: int = 
 	var data := {"name": drop_name, "item": String(item_id), "model": model,
 		"x": pos.x, "y": pos.y, "z": pos.z, "amount": amount, "yaw": randf() * TAU}
 	var node: Node3D
-	if multiplayer.multiplayer_peer == null or multiplayer.get_peers().is_empty():
+	# a dedicated server spawns through the spawner even with nobody connected (a restored chunk at start-up):
+	# a node added by hand is not replicated to the players who join later (M5 restart scenario)
+	if multiplayer.multiplayer_peer == null or (multiplayer.get_peers().is_empty() and not Net.is_dedicated):
 		node = _spawn_node(data)
 		drops_root().add_child(node)
 	else:

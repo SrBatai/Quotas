@@ -18,6 +18,8 @@ var _queue: Array[Dictionary] = []     # server: received commands (jitter buffe
 var _last_seq: int = 0                 # server: newest sequence accepted
 var _last_cmd: Dictionary = {}
 var _tick: int = 0
+var _owner_seen: bool = false          # server: the owner's first input arrived (its client has spawned this node)
+var _held: Array = []                  # server: owner RPCs held until then ([method, args], in order)
 var _idle_cmd: Dictionary = {"seq": 0, "move": Vector2.ZERO, "aim_yaw": 0.0, "aim": Vector3.ZERO, "btn": 0, "slot": 0, "flags": 0}
 @onready var body: Player = get_parent()
 
@@ -94,6 +96,11 @@ func _inputs(bytes: PackedByteArray) -> void:
 			continue   # duplicate (redundancy) or old
 		_last_seq = seq
 		_queue.append(cmd)
+	if not _owner_seen:
+		_owner_seen = true
+		for h in _held:
+			Net.rpc_to(self, h[0], owner_peer, h[1])
+		_held.clear()
 	while _queue.size() > Balance.NET_MAX_INPUT_QUEUE * 2:
 		_queue.pop_front()
 
@@ -156,6 +163,17 @@ func on_remote_pose(pos: Vector3, yaw: float) -> void:
 
 
 # ------------------------------------------------------------------ owner-only mirror + effects (server → owner)
+## Server → owner RPC on this node (`_mirror`, `_notify`, `_fx`). Held (in order) until the owner's first input
+## proves its client has spawned this node: the spawn (MultiplayerSpawner) and these reliable RPCs travel on different
+## ENet channels, so with loss / jitter an early RPC can overtake the spawn and be dropped ("Node not found"), and a
+## lost mirror diff (slots, quest…) would stay wrong until that part changed again (M5, seen under --net-sim).
+func to_owner(method: StringName, args: Array) -> void:
+	if _owner_seen or not Net.is_server or body.is_local:
+		Net.rpc_to(self, method, owner_peer, args)
+	else:
+		_held.append([method, args])
+
+
 @rpc("authority", "call_remote", "reliable", 1)
 func _mirror(d: Dictionary) -> void:
 	if Net.is_server:

@@ -136,6 +136,26 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _player.placement != null and _player.placement.active:
 		return
+	var gun := _player.get_node_or_null("Firearm") as FirearmClient
+	# M5: with a firearm in hand the click shoots (a zombie under the cursor or empty ground); interactables and
+	# downed teammates under the cursor keep their click. The bow draws while held and looses on release.
+	if gun != null and gun.has_firearm():
+		if event.is_action_pressed("interact_click") and target == null and revive_target == null:
+			gun.trigger_pressed(zombie_target if zombie_target != null and zombie_target.state != ZombieKinds.State.DEAD else null)
+			return
+		if event.is_action_released("interact_click") and gun.drawing:
+			gun.trigger_released()
+			return
+		if event.is_action_pressed("interact") and gun.wants_reload():
+			gun.reload()
+			return
+		if event.is_action_pressed("attack"):
+			var z: ZombieClient.ZRec = ZombieClient.instance.nearest_to(_player.global_position, float(Firearms.of(gun.weapon)["range"])) if ZombieClient.instance != null else null
+			if z != null:
+				gun.trigger_pressed(z)
+				if gun.drawing:
+					gun.trigger_released()
+				return
 	if event.is_action_pressed("interact_click"):
 		if zombie_target != null and zombie_target.state != ZombieKinds.State.DEAD:
 			begin_melee(zombie_target.id, zombie_target.render_pos)

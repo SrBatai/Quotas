@@ -9,3 +9,5 @@ blender/sources/*.blend1
 __pycache__/
 # Perf probe output (tests/run_perf.sh)
 tests/perf/
+# godot-sqlite GDExtension: fetched at a pinned version + SHA-256 by tools/fetch_godot_sqlite.sh (M5, R6/R25)
+/addons/godot-sqlite/

@@ -198,6 +198,8 @@ func _update_down_label() -> void:
 func on_tool_changed(id: StringName) -> void:
 	if tool_holder != null:
 		tool_holder.apply(id)
+	if visual != null:
+		visual.set_weapon_class(StringName(Firearms.of(id).get("class", &"")))   # M5: aim layer
 
 
 func on_outfit_changed(v: int) -> void:
@@ -206,6 +208,7 @@ func on_outfit_changed(v: int) -> void:
 	visual.setup(v)
 	tool_holder.setup(player, visual)
 	tool_holder.apply(player.hand_tool, true)
+	visual.set_weapon_class(StringName(Firearms.of(player.hand_tool).get("class", &"")))
 
 
 func on_dead_changed(_dead: bool) -> void:

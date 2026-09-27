@@ -1,8 +1,8 @@
 class_name AdminSocket
 extends Node
-## Localhost TCP admin socket (ARQ v2 §16.5, M1 subset). SIGTERM kills the headless server instantly, so the
-## clean shutdown path is this socket: "<token>\n<command>\n" → reply lines, "END", close. Commands:
-## status | players | save | save-and-quit | say <text> | time <hour> | day <n> | rule <key> <value> | quit.
+## Localhost TCP admin socket (ARQ v2 §16.5). SIGTERM kills the headless server instantly, so the clean shutdown
+## path is this socket (systemd ExecStop / Docker stop hook: server/admin.sh save-and-quit): "<token>\n<command>\n"
+## → reply lines, "END", close. The command set lives in AdminCommands (also reachable from the chat by admins).
 
 const IDLE_TIMEOUT := 5.0
 
@@ -11,6 +11,7 @@ var token: String = ""
 var _server := TCPServer.new()
 var _conns: Array[Dictionary] = []   # {"peer": StreamPeerTCP, "buf": String, "t": float, "done": bool}
 var _manager: PlayerManager
+var _commands: AdminCommands
 
 
 func setup(manager: PlayerManager) -> void:
@@ -57,64 +58,8 @@ func _process(delta: float) -> void:
 
 func _handle(given_token: String, line: String) -> String:
 	if token != "" and given_token != token:
+		print("[ADMIN] rejected connection (bad token)")
 		return "ERR token"
-	var parts := line.split(" ", false)
-	if parts.is_empty():
-		return "ERR empty"
-	var cmd := parts[0].to_lower()
-	print("[ADMIN] %s" % line)
-	match cmd:
-		"status":
-			return "OK %s" % _status_line()
-		"players":
-			var out := "OK"
-			for p in _manager.players():
-				out += "\n%d %s %s" % [p.peer_id, p.display_name, p.global_position.snapped(Vector3(0.1, 0.1, 0.1))]
-			return out
-		"save":
-			_manager.save_all()
-			return "OK saved %s" % _manager.save_path
-		"save-and-quit":
-			_manager.save_all()
-			print("[ADMIN] save-and-quit: shutting down")
-			get_tree().create_timer(0.2).timeout.connect(func() -> void: get_tree().quit(0))
-			return "OK saving and quitting"
-		"quit":
-			get_tree().create_timer(0.2).timeout.connect(func() -> void: get_tree().quit(0))
-			return "OK quitting"
-		"say":
-			Chat.instance.server_broadcast("SERVIDOR", line.substr(4))
-			return "OK"
-		"time":
-			if parts.size() >= 2:
-				WorldState.instance.set_time(WorldState.instance.day, float(parts[1]))
-				return "OK hour=%.2f" % WorldState.instance.hour
-			return "ERR usage: time <hour>"
-		"day":
-			if parts.size() >= 2:
-				WorldState.instance.set_time(int(parts[1]), WorldState.instance.hour)
-				return "OK day=%d" % WorldState.instance.day
-			return "ERR usage: day <n>"
-		"rule":
-			if parts.size() >= 3:
-				var rules := WorldState.instance.rules.duplicate()
-				var key := parts[1]
-				if key == "pvp":
-					rules["pvp"] = parts[2].to_lower() in ["true", "1", "on"]
-				elif key == "friendly_fire":
-					rules["friendly_fire"] = parts[2].to_lower()
-				else:
-					return "ERR unknown rule"
-				WorldState.instance.set_rules(rules)
-				Net.rules = rules
-				return "OK %s" % str(rules)
-			return "ERR usage: rule <pvp|friendly_fire> <value>"
-	return "ERR unknown command"
-
-
-func _status_line() -> String:
-	var ws := WorldState.instance
-	return "players=%d/%d day=%d hour=%.2f weather=%s pvp=%s ff=%s tick=%d out=%.1fkB/s in=%.1fkB/s uptime=%.0fs" % [
-		_manager.players().size(), int(Net.cfg_get("server", "max_players", 4)), ws.day, ws.hour, ws.weather,
-		ws.rules.get("pvp", false), ws.rules.get("friendly_fire", "off"), Engine.get_physics_frames(),
-		float(Net.stats["out_kbps"]), float(Net.stats["in_kbps"]), Time.get_ticks_msec() / 1000.0]
+	if _commands == null:
+		_commands = AdminCommands.new(get_tree(), _manager)
+	return _commands.run(line, 0)

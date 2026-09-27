@@ -21,6 +21,9 @@ const LOCO_LIB := "res://assets/models/anims/humanoid_loco.glb"
 ## M4 (ASSET_SPEC v2 §6.2): Melee1H_*, Melee2H_*, Melee_Charged, Act_Shove/Stomp/Execute/Revive, Hit_*, Down_*,
 ## Death_A. Until the file exists (or for a clip it lacks) PoseAnim stand-ins with the same names are used.
 const COMBAT_LIB := "res://assets/models/anims/humanoid_combat.glb"
+## M5 (art T2): Pistol_* / LongGun_* / Bow_* / Act_Unjam clips (animation_library); the aim loops feed the "upper"
+## layer while a firearm is in hand, the *_Shoot clips are additive (recoil on top of the aim).
+const GUNS_LIB := "res://assets/models/anims/humanoid_firearms.glb"
 const COMBAT_CLIPS := ["Melee1H_Light_A", "Melee1H_Light_B", "Melee2H_Swing_A", "Melee2H_Swing_B", "Melee_Charged",
 	"Act_Shove", "Act_Stomp", "Act_Execute", "Act_Revive", "Hit_Front", "Hit_Back"]
 const AUTHORED := {&"Walk": 2.2, &"Run": 6.0, &"CrouchWalk": 1.3, &"DownCrawl": 0.8}
@@ -126,6 +129,10 @@ func _setup_skeletal() -> void:
 			inst.free()
 		if clib != null:
 			anim_player.add_animation_library("combat", clib)
+	if not anim_player.has_animation_library("guns") and ResourceLoader.exists(GUNS_LIB):
+		var glib := load(GUNS_LIB) as AnimationLibrary
+		if glib != null:
+			anim_player.add_animation_library("guns", glib)
 	has_down_clips = anim_player.has_animation("combat/Down_Idle") and anim_player.has_animation("combat/Down_Crawl") \
 		and anim_player.has_animation("combat/Death_A")
 	# sockets follow the animated bones (external skeleton: the attachments live outside the imported scene)
@@ -361,10 +368,18 @@ func play_action(action: StringName, from: float = 0.0) -> void:
 	if action == &"Hit_Front" or action == &"Hit_Back":
 		play_hit(action == &"Hit_Back")
 		return
+	if String(action).contains("_Shoot") and anim_player.has_animation("guns/%s" % action):
+		# additive recoil (art T2) on top of the aim pose: the hit layer's Add2
+		(tree.tree_root as AnimationNodeBlendTree).get_node("hit_anim").set("animation", "guns/%s" % action)
+		tree.set("parameters/hit_add/add_amount", 1.0)
+		tree.set("parameters/hit_seek/seek_request", 0.0)
+		return
 	_charge_hold = false
 	var clip := "loco/Act_Chop"
 	if action != &"chop" and action != &"attack":
-		if anim_player.has_animation("combat/%s" % action):
+		if anim_player.has_animation("guns/%s" % action):
+			clip = "guns/%s" % action
+		elif anim_player.has_animation("combat/%s" % action):
 			clip = "combat/%s" % action
 		elif anim_player.has_animation("loco/%s" % action):
 			clip = "loco/%s" % action
@@ -381,6 +396,19 @@ func play_action(action: StringName, from: float = 0.0) -> void:
 	tree.set("parameters/action/request", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)
 	if from > 0.0:
 		tree.set("parameters/action_seek/seek_request", from)
+
+
+## M5: the weapon-class layer (ASSET_SPEC v2 §6.5 "upper" ← weapon_class): Pistol / LongGun / Bow hold their aim loop
+## on the torso while the firearm is in hand; anything else (melee, tools, empty hand) turns the layer off.
+func set_weapon_class(cls: StringName) -> void:
+	if not is_skeletal or tree == null or tree.tree_root == null:
+		return
+	var clip := "guns/%s_Aim" % cls
+	if cls == &"" or not anim_player.has_animation(clip):
+		tree.set("parameters/upper/blend_amount", 0.0)
+		return
+	(tree.tree_root as AnimationNodeBlendTree).get_node("upper_pose").set("animation", clip)
+	tree.set("parameters/upper/blend_amount", 1.0)
 
 
 ## Additive flinch (a bite, a blow): Hit_Front, or Hit_Back when struck from behind.

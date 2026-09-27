@@ -15,7 +15,7 @@ func _initialize() -> void:
 	_body = script.new()
 	_body.run(self)
 	# watchdog: a crashed coroutine must not hang the runner
-	var t := create_timer(240.0)
+	var t := create_timer(360.0)   # M5 adds ~40 s of firearm / loot steps
 	t.timeout.connect(func() -> void:
 		print("FAIL: smoke test watchdog timeout")
 		quit(1))

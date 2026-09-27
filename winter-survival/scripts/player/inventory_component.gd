@@ -5,6 +5,8 @@ extends Node
 ## per-player simulation events the quests listen to.
 
 var state: PlayerState
+## M5 (GDD §9.4): carried weight / capacity, refreshed on every change (StatsComponent slows the player with it).
+var carry_ratio: float = 0.0
 
 
 func setup(s: PlayerState) -> void:
@@ -18,6 +20,8 @@ func _slots() -> Array[Dictionary]:
 
 func _changed() -> void:
 	state.mark(&"slots")
+	state.mark(&"gun")   # reserve ammo / weight shown with the weapon data
+	carry_ratio = carried_weight() / Balance.CARRY_CAPACITY
 	_sync_hand()
 
 
@@ -39,19 +43,38 @@ func clear() -> void:
 	for i in _slots().size():
 		_slots()[i] = {}
 	state.has_coat = false
+	state.worn.clear()
 	_changed()
 
 
-static func _new_slot(id: StringName, count: int, dur: int) -> Dictionary:
+static func _new_slot(id: StringName, count: int, dur: int, ammo: int = -1) -> Dictionary:
 	var d := {"id": id, "count": count}
 	if Items.has_durability(id):
 		d["dur"] = dur if dur >= 0 else 100
+	if Firearms.is_firearm(id) and not Firearms.is_bow(id):
+		d["ammo"] = maxi(ammo, 0)
 	return d
 
 
+## Weight carried (kg, GDD §9.4): the weapon in hand counts half.
+func carried_weight() -> float:
+	var w := 0.0
+	var slots := _slots()
+	for i in slots.size():
+		var s := slots[i]
+		if s.is_empty():
+			continue
+		var k := Items.weight(s["id"]) * float(s["count"])
+		if i == 0 and (Weapons.is_weapon(s["id"]) or Firearms.is_firearm(s["id"])):
+			k *= Balance.CARRY_HAND_FACTOR
+		w += k
+	return w
+
+
 ## Adds n of id; returns the leftover that did not fit. Emits item_picked_up for the amount added. `dur` = the
-## durability carried by a weapon moved from a container / corpse (-1 = new, 100).
-func add(id: StringName, n: int, silent: bool = false, dur: int = -1) -> int:
+## durability carried by a weapon moved from a container / corpse (-1 = new, 100); `ammo` = the rounds loaded in a
+## firearm (M5: they travel with the gun).
+func add(id: StringName, n: int, silent: bool = false, dur: int = -1, ammo: int = -1) -> int:
 	if n <= 0 or not Items.exists(id):
 		return n
 	var slots := _slots()
@@ -60,7 +83,7 @@ func add(id: StringName, n: int, silent: bool = false, dur: int = -1) -> int:
 	if Items.is_tool_item(id):
 		if slots[0].is_empty():
 			var put := mini(left, stack)
-			slots[0] = _new_slot(id, put, dur)
+			slots[0] = _new_slot(id, put, dur, ammo)
 			left -= put
 		elif slots[0]["id"] == id and int(slots[0]["count"]) < stack:
 			var put := mini(left, stack - int(slots[0]["count"]))
@@ -79,7 +102,7 @@ func add(id: StringName, n: int, silent: bool = false, dur: int = -1) -> int:
 			break
 		if slots[i].is_empty():
 			var put := mini(left, stack)
-			slots[i] = _new_slot(id, put, dur)
+			slots[i] = _new_slot(id, put, dur, ammo)
 			left -= put
 	var added := n - left
 	if added > 0:
@@ -136,7 +159,7 @@ func unequip_hand() -> void:
 	state.notify("Inventario lleno", 2.0)
 
 
-## Hotbar click: tool → equip, food → eat one.
+## Hotbar click: tool → equip, food → eat one, medicine → use one, clothing → wear / take off (M5).
 func use_slot(i: int) -> void:
 	var slots := _slots()
 	if i < 0 or i >= slots.size() or slots[i].is_empty():
@@ -149,6 +172,46 @@ func use_slot(i: int) -> void:
 			equip_from_slot(i)
 	elif Items.is_food(id):
 		eat(id)
+	elif Items.is_medicine(id):
+		use_medicine(id)
+	elif Items.is_clothing(id):
+		toggle_wear(id)
+
+
+## M5 medicine (vendas, analgésicos, botiquín) and gun oil (GDD §7.3: no cold jams for a day).
+func use_medicine(id: StringName) -> bool:
+	if not Items.is_medicine(id) or not state.has(id, 1):
+		return false
+	if bool(Items.DB[id].get("gun_oil", false)):
+		remove(id, 1)
+		state.gun.oil_until = Time.get_ticks_msec() / 1000.0 + Balance.GUN_OIL_SECONDS
+		state.notify("Arma engrasada: no se encasquillará con el frío", 2.5)
+		return true
+	if state.health >= Balance.HEALTH_MAX - 0.5:
+		state.notify("No estás herido", 1.5)
+		return false
+	remove(id, 1)
+	state.health = minf(state.health + Items.food_delta(id, "health"), Balance.HEALTH_MAX)
+	state.mark(&"stats")
+	state.emit_sim(&"item_consumed", [id])
+	state.notify("%s (%+d salud)" % [Items.display_name(id), int(Items.food_delta(id, "health"))], 2.0)
+	AudioManager.play(&"bandage")
+	return true
+
+
+## M5 clothing v0: the coat keeps the slice's has_coat (warmth drain ×0.6); gloves let the bow be drawn when cold.
+func toggle_wear(id: StringName) -> void:
+	var slot := str(Items.DB[id].get("slot", ""))
+	if slot == "":
+		return
+	if state.worn.get(slot, &"") == id:
+		state.worn.erase(slot)
+	else:
+		state.worn[slot] = id
+	if slot == "coat":
+		state.has_coat = state.worn.has("coat") or state.worn.has("fur")   # "fur" = the crafted coat (slice recipe flag)
+	state.notify("%s %s" % ["Te pones" if state.worn.get(slot, &"") == id else "Te quitas", Items.display_name(id).to_lower()], 1.5)
+	_changed()
 
 
 ## Swap the torch with the hand tool (T key).
@@ -189,7 +252,7 @@ func take_from_container(storage: Storage, slot: int, all: bool) -> bool:
 	var entry: Dictionary = storage.slots[slot]
 	var id: StringName = entry["id"]
 	var want: int = int(entry["count"]) if all else 1
-	var left := add(id, want, false, int(entry.get("dur", -1)))
+	var left := add(id, want, false, int(entry.get("dur", -1)), int(entry.get("ammo", -1)))
 	var moved := want - left
 	if moved <= 0:
 		state.notify("Inventario lleno", 2.0)
@@ -205,7 +268,7 @@ func deposit_to_container(storage: Storage, slot: int, all: bool) -> bool:
 		return false
 	var id: StringName = slots[slot]["id"]
 	var want: int = int(slots[slot]["count"]) if all else 1
-	var left: int = storage.add(id, want, int(slots[slot].get("dur", -1)))
+	var left: int = storage.add(id, want, int(slots[slot].get("dur", -1)), int(slots[slot].get("ammo", -1)))
 	var moved := want - left
 	if moved <= 0:
 		state.notify("Contenedor lleno", 2.0)
@@ -217,6 +280,10 @@ func deposit_to_container(storage: Storage, slot: int, all: bool) -> bool:
 func set_flag(flag: String, value: bool) -> void:
 	if flag == "has_coat":
 		state.has_coat = value
+		if value:
+			state.worn["fur"] = &"piel"
+		else:
+			state.worn.erase("fur")
 		_changed()
 
 
@@ -226,7 +293,7 @@ func wear_hand(rng: RandomNumberGenerator) -> bool:
 	var slots := _slots()
 	if slots[0].is_empty() or not Items.has_durability(slots[0]["id"]):
 		return true
-	var n := int(Weapons.of(slots[0]["id"]).get("dur_n", 0))
+	var n := int(Firearms.of(slots[0]["id"]).get("dur_n", 0)) if Firearms.is_firearm(slots[0]["id"]) else int(Weapons.of(slots[0]["id"]).get("dur_n", 0))
 	if n <= 0 or rng.randf() >= 100.0 / float(n):
 		return true
 	var d := int(slots[0].get("dur", 100)) - 1
@@ -250,6 +317,7 @@ func take_all() -> Array[Dictionary]:
 			out.append(_slots()[i].duplicate())
 		_slots()[i] = {}
 	state.has_coat = false
+	state.worn.clear()
 	_changed()
 	return out
 
