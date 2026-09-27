@@ -714,6 +714,23 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 	Chat.instance.send("/zombies 20 walker 24")
 	await frames(3)
 	check(sys.count_alive() >= 18 and int(sys.stats["spawned"]) - before_spawn >= 18, "/zombies 20: %d walkers spawned around the player" % sys.count_alive())
+	# sight test setup: the ring spawns with random headings and the cabin and the trees hide about half of it, so
+	# how many walkers could see the player was a dice roll (2 of 20 in a CI run). Every walker turns to the player
+	# and stands still (no wander); the range, the line of sight and the per-think roll stay the real ones.
+	var now0 := sys._now()
+	var vr := ZombieKinds.vision(ZombieKinds.Kind.WALKER, WorldState.is_night_now(), WorldState.weather_now() == &"blizzard")
+	var can_see := 0
+	for i in sys.used.size():
+		if sys.used[i] != 1:
+			continue
+		var to := player.global_position - sys.pos[i]
+		if Vector2(to.x, to.z).length() <= vr and sys._los(sys.pos[i], player.global_position):
+			can_see += 1
+		if sys.state[i] == ZombieKinds.State.IDLE or sys.state[i] == ZombieKinds.State.WANDER:
+			sys.yaw[i] = atan2(to.x, to.z)
+			sys.state[i] = ZombieKinds.State.IDLE
+			sys.vel[i] = Vector3.ZERO
+			sys.timer[i] = now0 + 60.0
 	await seconds(1.2)
 	check(zc.records.size() >= 15 and zc.packets > 0 and zc.snap_entries > 0, "zombies replicated to the local client: %d records, %d packets, %d snapshot entries" % [zc.records.size(), zc.packets, zc.snap_entries])
 	check(sys.bodies_in_use() >= 15 and sys.l0.size() >= 15, "L0 zombies got pooled CharacterBody3D bodies (%d bodies)" % sys.bodies_in_use())
@@ -736,7 +753,8 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 	check(is_equal_approx(Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), AnimEvents.at("Melee2H_Swing_A", "hit_start", -1.0)) and AnimEvents.has("Zom_Grab", "bite_1")
 		and is_equal_approx(ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0), AnimEvents.at("Zom_Attack_A", "hit_start", -1.0)),
 		"data/anim_events.json: '-loop' keys normalised; bat blow at %.2f s, Zom_Attack_A window at %.2f s" % [Weapons.hit_delay(&"bate", Weapons.Mode.LIGHT), ZombieSystem.attack_windup(ZombieKinds.Kind.WALKER, 0)])
-	# sight is probabilistic (distance, light, the 120° cone, the cabin in the way): up to 10 s for three of them
+	# sight is probabilistic (the closer, the likelier; a roll per think): up to 10 s for three of the walkers that
+	# face the player within range with a clear line
 	var chasing := 0
 	var waited_s := 0.0
 	while waited_s < 10.0:
@@ -745,11 +763,18 @@ func _m4_checks(game: Node, world: World, player: Player) -> void:
 		chasing = sys.count_state(ZombieKinds.State.CHASE) + sys.count_state(ZombieKinds.State.ATTACK)
 		if chasing >= 3 and waited_s >= 2.5:
 			break
-	check(chasing >= 3, "zombies saw the player and chase it (%d chasing / attacking after %.1f s)" % [chasing, waited_s])
+	check(can_see >= 3 and chasing >= 3, "zombies saw the player and chase it (%d chasing / attacking after %.1f s; %d facing it within %.0f m with a clear line)" % [
+		chasing, waited_s, can_see, vr])
+	# the idle ones stand still, so only the chasers leave home: give the late spotters a moment to get going
 	var moved := 0
-	for i in sys.l0:
-		if sys.used[i] == 1 and sys.pos[i].distance_to(sys.home[i]) > 1.0:
-			moved += 1
+	for k in 20:
+		moved = 0
+		for i in sys.l0:
+			if sys.used[i] == 1 and sys.pos[i].distance_to(sys.home[i]) > 1.0:
+				moved += 1
+		if moved >= 3:
+			break
+		await seconds(0.25)
 	check(moved >= 3 and int(sys.queue.stats["queries"]) + int(sys.queue.stats["shared"]) >= 1, "chasers move along navmesh routes (%d moved, %d route queries, %d shared)" % [moved, int(sys.queue.stats["queries"]), int(sys.queue.stats["shared"])])
 	# -- kill one with the bat (validated melee: cone, reach, stamina, noise, blood, same death on the client)
 	sys.clear_all()
