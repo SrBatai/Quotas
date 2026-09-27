@@ -1,5 +1,7 @@
 class_name UiTheme
-## Shared theme + style helpers (GDD §17 UI palette).
+## Shared theme + style helpers for the panels and menus (GDD §17 UI palette). H1: the fonts are Barlow / Barlow
+## Condensed (OFL, assets/fonts/) instead of the fallback font with synthetic bold (audit §1.3.4). The in-game HUD
+## uses the v2 «Susurro» tokens (`UiTokens`, `UiStyle`) instead of these panel styles.
 
 const PANEL_BG := Color("#1E2A3A", 0.88)
 const PANEL_BG_SOLID := Color("#1E2A3A", 0.97)
@@ -25,18 +27,20 @@ static var _bold_font: FontVariation
 static func title_font() -> Font:
 	if _title_font == null:
 		_title_font = FontVariation.new()
-		_title_font.base_font = ThemeDB.fallback_font
-		_title_font.variation_embolden = 1.1
-		_title_font.spacing_glyph = 2
+		_title_font.base_font = UiStyle.font_file(&"cond_semibold")
+		_title_font.spacing_glyph = 1
 	return _title_font
 
 
 static func bold_font() -> Font:
 	if _bold_font == null:
 		_bold_font = FontVariation.new()
-		_bold_font.base_font = ThemeDB.fallback_font
-		_bold_font.variation_embolden = 0.7
+		_bold_font.base_font = UiStyle.font_file(&"semibold")
 	return _bold_font
+
+
+static func body_font() -> Font:
+	return UiStyle.font(&"regular", ["tnum"])
 
 
 static func flat_box(bg: Color, border: Color = Color.TRANSPARENT, border_w: int = 1, radius: int = 4, margin: int = 8) -> StyleBoxFlat:
@@ -58,6 +62,7 @@ static func get_theme() -> Theme:
 	if _theme != null:
 		return _theme
 	var t := Theme.new()
+	t.default_font = body_font()
 	t.default_font_size = 13
 	t.set_stylebox("panel", "PanelContainer", panel_box(10))
 	t.set_stylebox("panel", "Panel", panel_box(0))

@@ -2,6 +2,8 @@ class_name QuestComponent
 extends Node
 ## Server-side quest tracker of one player (the old `QuestManager` autoload): listens to the player's own
 ## simulation events plus the world's day roll; the state dictionary is mirrored to the owner.
+## H1: the state also carries `missions` (the day checklist as a main mission of the `Missions` model, with step
+## ids, progress and world targets) for the HUD v2; the legacy keys stay for older readers and the tests.
 
 var state: PlayerState
 var day: int = 1
@@ -11,6 +13,7 @@ var steps: Array = []
 var index: int = 0
 var counter: int = 0
 var day_completed: bool = false
+var _data: Dictionary = {}
 
 
 func setup(s: PlayerState) -> void:
@@ -29,6 +32,7 @@ func _on_day_started(new_day: int) -> void:
 func reset_for_day(new_day: int) -> void:
 	day = new_day
 	var data := Quests.for_day(new_day)
+	_data = data
 	title_small = data["title_small"]
 	title_big = data["title_big"]
 	steps = data["steps"]
@@ -82,6 +86,7 @@ func get_state() -> Dictionary:
 	return {
 		"title_small": title_small, "title_big": title_big, "day": day,
 		"index": index, "total": steps.size(), "steps": list, "day_completed": day_completed,
+		"missions": [Missions.from_day(day, _data, index, counter)],
 	}
 
 

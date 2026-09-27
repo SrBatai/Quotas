@@ -56,3 +56,13 @@ signal deer_died(deer: Node)
 # M4 combat (presentation, owner client)
 signal melee_result(mode: int, ok: bool, hits: int, kills: int, reason: String)
 signal local_swing(clip: StringName)
+# H1 HUD «Susurro» (docs/research/10_hud_ux.md §8.5 / §V.8; presentation, owner client)
+signal location_entered(info: Dictionary)   # ZoneTracker: {id, name, kind, parent, facts, first_visit, compact}
+signal location_left(id: StringName)
+signal notify_ex(n: Dictionary)   # NotifyRouter: {priority 0–3, key, title, body, seconds, channel &"banner"|&"feed"}
+signal mission_state(missions: Array)   # MissionLog: the mission list after a change (Missions model)
+signal objective_updated(mission_id: StringName, step_id: StringName, what: StringName)   # new|progress|completed|mission_done|mission_new
+signal hazard_changed(kind: StringName, state: StringName, data: Dictionary)   # forecast|soon|active|end
+signal status_changed(status: StringName, severity: float)   # bleeding / wet / … for the vitals (0 = gone)
+signal player_hit_from(dir: Vector3, amount: float)   # local player hit; world direction toward the attacker
+signal hud_info(active: bool)   # Info (hud_info: Tab / D-pad up held, or toggled)

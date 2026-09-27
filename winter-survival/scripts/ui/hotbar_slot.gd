@@ -1,6 +1,8 @@
 class_name HotbarSlot
 extends Control
-## One inventory / container slot: icon, count, MANO caption, "+" when empty, food bonus badge.
+## One container slot (storage panels): icon, count, MANO caption, a dot when empty, food bonus badge.
+## H1: the in-game hotbar is `Hotbar` (v2, no slots); the "+" of empty slots became a dot and the 7 px caption
+## 10 px (audit §1.1).
 
 signal pressed(index: int, shift: bool)
 
@@ -19,17 +21,17 @@ var _item: StringName = &""
 func _ready() -> void:
 	custom_minimum_size = Vector2(52, 52)
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	_plus = UiTheme.label("+", 20, Color("#93A6BF", 0.6))
+	_plus = UiTheme.label("·", 20, Color("#93A6BF", 0.6))
 	_plus.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_plus.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_plus)
-	_caption = UiTheme.label("MANO", 7, UiTheme.TEXT_2, true, true)
+	_caption = UiTheme.label("MANO", 10, UiTheme.TEXT_2, true, true)
 	_caption.position = Vector2(4, 2)
 	_caption.add_theme_font_override("font", UiTheme.title_font())
 	_caption.visible = false
 	add_child(_caption)
-	_count = UiTheme.label("", 11, UiTheme.TEXT, true)
+	_count = UiTheme.label("", 12, UiTheme.TEXT, true)
 	_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_count.position = Vector2(20, 33)
 	_count.size = Vector2(28, 16)

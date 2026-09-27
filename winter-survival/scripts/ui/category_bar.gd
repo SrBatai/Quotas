@@ -1,6 +1,7 @@
 class_name CategoryBar
 extends PanelContainer
-## Vertical toolbar with the six crafting categories.
+## Vertical toolbar with the six crafting categories. HUD v2: shown only while the craft panel is open
+## (docs/research/10_hud_ux.md appendix §1.2 "Barra de categorías: ocultar"), which frees the left column.
 
 signal category_pressed(category: StringName)
 
@@ -18,7 +19,6 @@ func _ready() -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(42, 42)
 		b.focus_mode = Control.FOCUS_NONE
-		b.tooltip_text = Recipes.TITLES[cat].capitalize()
 		var tex := UiIcons.tex(Recipes.CATEGORY_ICONS[cat])
 		if tex != null:
 			b.icon = tex
@@ -31,10 +31,12 @@ func _ready() -> void:
 		col.add_child(b)
 		_buttons[cat] = b
 	UiTheme.add_ice_edge(self)
+	visible = false
 
 
 func set_active(cat: StringName) -> void:
 	active = cat
+	visible = cat != &""
 	for c in _buttons:
 		var b: Button = _buttons[c]
 		if c == cat:

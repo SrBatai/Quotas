@@ -1,9 +1,11 @@
 class_name ChatBox
 extends Control
 ## Bottom-left chat: last lines fade after a while; Enter opens the input, Esc cancels.
+## HUD v2 (docs/research/10_hud_ux.md §V.3 "Chat"): whisper lines (Barlow Light with the soft shadow, no box) that
+## fade 6 s after arriving; all of them come back while typing.
 
 const SHOW_LINES := 6
-const FADE_AFTER := 12.0
+const FADE_AFTER := UiTokens.T_CHAT
 
 var _lines: VBoxContainer
 var _input: LineEdit
@@ -42,13 +44,11 @@ func _ready() -> void:
 
 
 func _on_message(who: String, text: String) -> void:
-	var l := UiTheme.label("%s: %s" % [who, text], 12, UiTheme.TEXT, false)
+	var l := Label.new()
+	l.text = "%s: %s" % [who, text]
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.7))
-	l.add_theme_constant_override("shadow_offset_x", 1)
-	l.add_theme_constant_override("shadow_offset_y", 1)
-	if who == "SERVIDOR":
-		l.add_theme_color_override("font_color", UiTheme.ACCENT)
+	l.label_settings = UiStyle.settings_scaled(&"whisper", 2.0 / 3.0, UiTokens.WARN if who == "SERVIDOR" else UiTokens.INK)
 	_lines.add_child(l)
 	_entries.append({"label": l, "t": 0.0})
 	while _entries.size() > SHOW_LINES:
@@ -61,7 +61,7 @@ func _process(delta: float) -> void:
 		e["t"] = float(e["t"]) + delta
 		var l: Label = e["label"]
 		var t := float(e["t"])
-		l.modulate.a = 1.0 if is_typing else clampf((FADE_AFTER + 2.0 - t) / 2.0, 0.0, 1.0)
+		l.modulate.a = 1.0 if is_typing else clampf((FADE_AFTER + 0.8 - t) / 0.8, 0.0, 1.0)
 
 
 func _unhandled_input(event: InputEvent) -> void:

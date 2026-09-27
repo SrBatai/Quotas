@@ -1,6 +1,9 @@
 class_name PauseMenu
 extends Control
-## PAUSA overlay.
+## PAUSA overlay (+ "Interfaz y accesibilidad": HUD preset, scale, Info hold / toggle, motion, colour-blind).
+
+var _panel: PanelContainer
+var _hud_settings: HudSettingsPanel
 
 
 func _ready() -> void:
@@ -19,6 +22,13 @@ func _ready() -> void:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", UiTheme.flat_box(UiTheme.PANEL_BG_SOLID, UiTheme.BORDER, 1, 5, 24))
 	center.add_child(panel)
+	_panel = panel
+	_hud_settings = HudSettingsPanel.new()
+	_hud_settings.visible = false
+	_hud_settings.back.connect(func() -> void:
+		_hud_settings.visible = false
+		_panel.visible = true)
+	center.add_child(_hud_settings)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	panel.add_child(vb)
@@ -33,6 +43,11 @@ func _ready() -> void:
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.visible = not Net.is_offline
 	vb.add_child(hint)
+	var b2 := UiTheme.menu_button("Interfaz y accesibilidad")
+	b2.pressed.connect(func() -> void:
+		_panel.visible = false
+		_hud_settings.visible = true)
+	vb.add_child(b2)
 	var b3 := UiTheme.menu_button("Menú principal")
 	b3.pressed.connect(func() -> void:
 		resume()
@@ -54,6 +69,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func open() -> void:
 	visible = true
+	_panel.visible = true
+	_hud_settings.visible = false
 	GameFlow.set_paused(true)
 
 

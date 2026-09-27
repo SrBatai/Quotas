@@ -42,7 +42,7 @@ func _ready() -> void:
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 10)
 	vb.add_child(foot)
-	var hint := UiTheme.label("Clic: coger uno · Mayús+clic: la pila · Clic en tu barra: guardar", 9, UiTheme.TEXT_2)
+	var hint := UiTheme.label("Clic: coger uno · Mayús+clic: la pila · Clic en tu barra: guardar", 11, UiTheme.TEXT_2)
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	foot.add_child(hint)
