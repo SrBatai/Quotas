@@ -17,6 +17,7 @@ const PRESETS := {
 		"particles": 1.0, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_MEDIUM,
 		"volumetric_fog": true, "projectors": true, "omni_shadows": 2, "terrain_shadows": true,
 		"trail_backend": "drawable", "snow_amount_max": 0.7,
+		"city_cut": true, "silhouettes": true, "lamp_lights": 12, "visibility_fade": true, "hlod_begin": 140.0,
 	},
 	&"medio": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 60.0, "shadow_blur": 1.5, "pcss_angular": 0.0,
@@ -24,6 +25,7 @@ const PRESETS := {
 		"particles": 0.6, "glow": true, "ssao": true, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_LOW,
 		"volumetric_fog": false, "projectors": true, "omni_shadows": 0, "terrain_shadows": false,
 		"trail_backend": "drawable", "snow_amount_max": 0.7,
+		"city_cut": true, "silhouettes": true, "lamp_lights": 6, "visibility_fade": true, "hlod_begin": 140.0,
 	},
 	&"compat": {
 		"shadow_size": 2048, "shadow_splits": 2, "shadow_distance": 50.0, "shadow_blur": 3.0, "pcss_angular": 0.0,
@@ -31,8 +33,16 @@ const PRESETS := {
 		"particles": 0.45, "glow": true, "ssao": false, "ssao_quality": RenderingServer.ENV_SSAO_QUALITY_VERY_LOW,
 		"volumetric_fog": false, "projectors": false, "omni_shadows": 0, "terrain_shadows": false,
 		"trail_backend": "drawable", "snow_amount_max": 0.6,
+		"city_cut": true, "silhouettes": true, "lamp_lights": 0, "visibility_fade": false, "hlod_begin": 120.0,
 	},
 }
+## G2a / W0 city keys (doc 08 §5, doc 09 §7.1): the «corte urbano» and the silhouettes run everywhere (no stencil,
+## opaque dither); `lamp_lights` = real OmniLight3D for the street lamps nearest the camera (the rest, and all of
+## them in Compatibility / Web, are emissive bulbs + fake light pools); `visibility_fade` = dithered
+## visibility-range fades (Forward+ only; Compatibility cuts); `hlod_begin` = distance where a chunk's merged
+## silhouette replaces its buildings (miradores / menus only: the play camera never sees that far).
+## The Web build (Compatibility, WebGL2) tightens these further (WEB_OVERRIDES).
+const WEB_OVERRIDES := {"lamp_lights": 0, "hlod_begin": 100.0, "visibility_fade": false}
 ## The Compatibility renderer blends its shadowed lights in sRGB and comes out brighter than Forward+ with the same
 ## Environment (doc 06 §3.13, measured): DayNight multiplies the tonemap exposure and the sun energy by these
 ## whenever that renderer is active, whatever the preset says.
@@ -82,6 +92,34 @@ static func is_compat_renderer() -> bool:
 
 func settings() -> Dictionary:
 	return PRESETS.get(preset, PRESETS[&"alto"])
+
+
+## A preset value with the Web overrides applied.
+func value(key: String, default: Variant = null) -> Variant:
+	if OS.has_feature("web") and WEB_OVERRIDES.has(key):
+		return WEB_OVERRIDES[key]
+	return settings().get(key, default)
+
+
+func city_cut_enabled() -> bool:
+	return bool(value("city_cut", true))
+
+
+func silhouettes_enabled() -> bool:
+	return bool(value("silhouettes", true))
+
+
+func lamp_light_budget() -> int:
+	return int(value("lamp_lights", 0))
+
+
+## Dithered visibility-range fades only exist in Forward+.
+func visibility_fade() -> bool:
+	return bool(value("visibility_fade", false)) and not is_compat_renderer()
+
+
+func hlod_begin() -> float:
+	return float(value("hlod_begin", 140.0))
 
 
 func particle_ratio() -> float:

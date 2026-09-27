@@ -995,3 +995,193 @@ Regla: **un hito no se cierra con un test en rojo**; si un presupuesto no se cum
 | `tests/inspect_models.gd` | ampliar | esqueletos, animaciones, grupos de corte, anclas de vehículo | M0+ |
 | `prototypes/netpoc/*` | fuente de M1 | `Net`, auth, spawner, `player_net` | M1 |
 | `prototypes/animpoc/*` | fuente del rig | `blender/lib/rig.py`, `anim.py`, `humanoid_bonemap.tres`, plantillas `.import`, `AnimationTree` | M0–M2 |
+
+---
+
+## §17.5 Nota de implementación H1 (HUD)
+
+Vinculante hasta que se revise. Implementa la dirección v2 «Susurro» de `docs/research/10_hud_ux.md` §V (con las
+reglas de comportamiento del apéndice v1) y sustituye a §17 y a la fila `scripts/ui/*` de §20 donde lo contradigan.
+
+#### Espacio y capas
+
+- `Hud` (`scripts/ui/hud.gd`, bajo el `CanvasLayer` `UI` de `game.gd`) contiene los efectos de pantalla completa
+  (`Frost`, `DamageVignette`), la barra de categorías antigua (solo visible con la fabricación abierta) y `Root`.
+- `Root` es un espacio de referencia de **1920 × 1080**: se escala con `k = min(w/1920, h/1080) × escala de UI` (80–150 %,
+  115 % en Steam Deck), así que la base del proyecto sigue en 1280 × 720 con `canvas_items` y los paneles antiguos no
+  cambian. A 16:10 sobra alto y los bloques se anclan a los bordes reales.
+- `Safe`: márgenes de 64 / 52 px, más el ajuste «Margen de pantalla» (0–5 %) y el área segura del sistema cuando la
+  ventana ocupa la pantalla. En 21:9 o más ancho, los bloques de esquina quedan en una caja 16:9 centrada (ajuste
+  «Ancho del HUD»); el carril de borde y el mundo usan el ancho completo.
+
+#### Tokens, tema y fuentes
+
+- `UiTokens`: colores y opacidades (tinta al 92/70/52/32 %, `hair` 38 %, `accent #FFB454`, `cold`, `blood`, `warn`,
+  colores de jugador y su variante Okabe–Ito), tamaños, pesos, formas, tiempos de entrada / lectura / salida, curvas
+  (seno: entrada `EASE_OUT`, salida `EASE_IN_OUT`, 6 px de desplazamiento como máximo), umbrales y la fórmula del velo
+  `α = mix(0.18, 0.45, smoothstep(0.35, 0.80, luma))`. Formatos en español: «84 m», «640 m», «1,4 km», «−18 °C», «2:40».
+- `UiStyle`: fuentes Barlow (ExtraLight, Light, Regular, Medium, SemiBold) y Barlow Condensed (Thin, ExtraLight,
+  Light, SemiBold) en `assets/fonts/` con su `OFL.txt`; `FontVariation` con `smcp` + `c2sc` (versalitas reales) y `tnum`.
+  Un `LabelSettings` **compartido** por estilo y color: cuando el fondo es claro (nieve, ventisca) o con «Texto
+  reforzado», `UiStyle.set_flags()` cambia el peso de todos a la vez (Light → Regular).
+- Sombra: Godot dibuja la sombra de las etiquetas como un contorno duro. La sombra difusa de las maquetas se aproxima
+  con una sombra de 1 px más **4 contornos apilados** (4 / 9 / 16 / 26 px, α 0,12 / 0,07 / 0,045 / 0,025); el mismo
+  apilado se usa en `UiStyle.draw_text()` para lo que se dibuja con `_draw()`.
+- `Theme`: `assets/ui/susurro_theme.tres`, generado desde los tokens (`tools/gen_hud_theme.gd`): fuente por defecto
+  Barlow Light 18, variaciones `LabelWhisper`, `LabelMain`, `LabelNum`, `LabelSmallCaps`, `LabelZoneTitle`, etc., y todos
+  los tokens (colores, constantes, tiempos en ms, fórmula del velo) bajo el tipo `Susurro`. Sin `StyleBox` de panel.
+- `Scrim`: velo radial (no es una caja) detrás de cada grupo de texto; su α sale de una **estimación de la luminancia**
+  del fondo por hora, clima e interior (leer la pantalla cada 0,25 s costaría una copia GPU → CPU). «Fondo del texto:
+  Opaco» lo sube al 70 %. Los velos están en el grupo `hud_scrim` y la medida de cobertura los excluye.
+- Iconos de línea (1,5 px, rejilla 24) en `assets/icons/line/*.svg`, importados con *mipmaps*.
+- Los paneles y menús antiguos (`UiTheme`) usan ya Barlow en lugar de la fuente por defecto con negrita sintética.
+
+#### Visibilidad, entrada y acento
+
+- `HudVisibility`: una máquina de estados por elemento (oculto → apareciendo → visible → fundiéndose) con `poke(id)`
+  (tiempo de lectura), `set_hold(id, on)` (mientras dure una condición) e Info. El preajuste (Mínimo / Estándar /
+  Completo) y las anulaciones por elemento (`dinámico / siempre / oculto`) se leen de `UiSettings` y se guardan en
+  caché. Elementos: `hotbar`, `hotbar.name`, `vitals.{warmth,health,hunger}`, `mission`, `edge`, `hazard`, `clock`,
+  `info.missions`.
+- Entrada: acción nueva `hud_info` (Tab + D‑pad ↑) y `map` (M + Back). `HudInput` consume `hud_info`: una **pulsación**
+  (< 0,22 s) se reenvía como `InputEventAction` de su uso anterior (`toggle_craft` con Tab, `zoom_in` con D‑pad ↑) y
+  **mantener** es Info. Con Info abierta, R / Y siguen otra misión. `HudInput.gamepad` elige los glifos.
+- `AccentArbiter` (10 Hz): compañero derribado > fuente de calor más cercana con Calor < 30 (fogatas del grupo
+  `heat_source`, estufas encendidas) > objetivo seguido. Da el ámbar y el **único** indicador de borde: siempre para
+  las dos primeras; para el objetivo, 5 s tras actualizarse o con Info.
+
+#### Componentes (`scripts/ui/hud/`)
+
+| Script | Qué hace |
+|---|---|
+| `world_layer.gd` | Todo lo anclado al mundo (30 Hz, un solo `CanvasItem`): rombo del objetivo, ✓ al completar, carril de borde (dirección con la guiñada de la cámara y `sin 48°`, deslizado fuera de la barra, las constantes y la línea de misión), calor cercano, compañeros, indicador de derribado, arco de daño (dirección hacia el zombi o lobo más cercano, o `Events.player_hit_from`), arco de aguante y avisos de interacción con anillo de mantener |
+| `vitals.gd` | Constantes abajo a la izquierda, solo las que importan; desglose térmico con Info |
+| `mission_line.gd`, `mission_list.gd`, `info_block.gd` | Línea «objetivo actualizado», misiones a petición, hora / temperatura / grupo |
+| `zone_tracker.gd`, `zone_title.gd` | Entrada en zonas con histéresis y el título cinematográfico |
+| `notify_router.gd`, `notify_banner.gd`, `pickup_stack.gd`, `hazard_line.gd` | Avisos: enrutador, aviso central, columna lateral y línea de peligro |
+| `team_tracker.gd`, `downed_overlay.gd` | Compañeros (5 Hz; una entrada puede apuntar a un jugador ya liberado hasta el siguiente refresco: se lee con `TeamTracker.player_of()`) y la pantalla propia de derribado |
+| `mission_log.gd`, `mission_targets.gd`, `ui_climate.gd` | Modelo de misiones en el cliente, anclas de objetivos y temperaturas mostradas |
+| `../map/map_screen.gd`, `../map/map_fog.gd` | Mapa de papel con niebla de guerra y diario (P1) |
+| `../hotbar.gd`, `../hud_settings_panel.gd` | Barra rápida v2 y el panel «Interfaz y accesibilidad» del menú de pausa |
+
+#### Datos
+
+- **Misiones** (`scripts/data/missions.gd`): diccionarios de red `{id, kind: main|side|dynamic, title, giver, state,
+  tracked, expires_at, steps: [{id, title, hint, count, progress, done, targets}]}`. `QuestComponent.get_state()` añade
+  `missions` (el día como misión principal, `Missions.from_day`) y conserva las claves antiguas. `Quests` lleva `id` y
+  `targets` por paso; las anclas (`group:stove`, `pickup:madera`, `group:storage`, `zone:<id>`, `pos`) se resuelven en el
+  cliente. `MissionLog` compara cada estado con el anterior y emite `Events.objective_updated` (`mission_new`,
+  `progress`, `completed`, `mission_done`).
+- **Lugares** (`scripts/data/locations.gd`): las zonas pequeñas del claro, `PoiRegistry.REGIONS` y las regiones
+  naturales de `PoiRegistry.region_at` (lago, N‑140, Las Cumbres, Pinos Altos, Bosque profundo), ordenadas de más a menos
+  específica, con `kind`, `parent`, `danger`, `power` y `temp`. `depth()` da la profundidad firmada en metros y
+  `inset()` el margen de entrada (12 m, o la mitad del tamaño en lugares pequeños). La ciudad **Altavega** y cuatro
+  distritos están en `Locations.CITY` desactivados: `Locations.enable_city(true, desplazamiento)` o `register()` los
+  activan cuando el mundo los tenga.
+- **Zonas** (`ZoneTracker`, 4 Hz): el lugar actual se mantiene hasta estar `inset` fuera; uno más específico entra al
+  estar `inset` dentro; hace falta 1,5 s estable. Primera visita: tarjeta completa; re‑entrada: el nombre al 60 % (o
+  nada en zonas naturales); 90 s por lugar y 20 s entre tarjetas; espera en combate (golpe, golpe dado o zombi
+  persiguiendo a < 25 m en los últimos 5 s) y con un P0 (derribado, congelación). El descubrimiento se guarda por semilla
+  en `user://hud_discovered.cfg`. `RegionTracker` y `Events.region_changed` siguen existiendo para quien los use.
+- **Temperatura** (`UiClimate`): el juego aún no simula la temperatura del aire (M8); el HUD usa la tabla del GDD §4.1
+  (−8 °C de día, −18 °C de noche, −10 °C en ventisca, más el ajuste del lugar) como modelo de presentación, y la
+  sensación suma ropa, viento, refugio y fuego. La tendencia sale del Calor real.
+
+#### Señales nuevas en `Events`
+
+`location_entered(info)`, `location_left(id)`, `notify_ex(n)`, `mission_state(missions)`,
+`objective_updated(mission_id, step_id, what)`, `hazard_changed(kind, state, data)`, `status_changed(status, severity)`,
+`player_hit_from(dir, amount)`, `hud_info(active)`. Los avisos antiguos (`Events.notify`) pasan por `NotifyRouter`, que
+los clasifica: la ventisca va a la línea de peligro, frío y hambre a las constantes, «Sin aliento» al arco de aguante,
+fabricado / comido / estufa a la columna lateral y el resto al aviso central. Lo recogido sale de la diferencia del
+espejo de inventario, que funciona también en clientes remotos (allí `item_picked_up` no se emite).
+
+#### Red
+
+Todo el HUD es del cliente. No se ha tocado el servidor: el descubrimiento de zonas y la niebla del mapa son locales
+(por semilla); los compartidos por el grupo del apéndice §6.1 y §6.11 quedan para cuando haya perfil de grupo. La
+salud de los compañeros no se replica, así que «herido» usa lo que ya viaja en `ServerSync` (`cold`, `speed_mult`).
+
+#### Rendimiento y pruebas
+
+- Lógica del HUD (todos sus `_process` en un momento cargado): ≈ 0,1–0,3 ms por frame en la VM compartida
+  (presupuesto 0,5 ms; `tests/hud_steps.gd` lo mide). Los componentes redibujan solo cuando cambia algo; el mundo, a
+  30 Hz. Un pase de pantalla completa (escarcha) solo con Calor < 40; sin `BackBufferCopy` ni lectura de pantalla,
+  así que funciona igual en Compatibility (web) y Forward+.
+- Cobertura medida con el método de §V.5 (`tests/run_hud_coverage.sh`: solo la capa del HUD, sobre negro y blanco,
+  cajas tras un cierre de 15 px): reposo **0,08 %** (puerta ≤ 3 %), acción 1,6–2,1 %, título de zona 2,6–2,9 % (según la corrida), ventisca
+  2,53 %, Info 5,80 %.
+- `tests/hud_steps.gd` (paso 18 del humo; o solo con `tests/hud_test.gd`): tokens, tema y fuentes, escala y áreas
+  seguras (16:9, 21:9, 16:10), máquina de visibilidad y preajustes, reposo, barra con mando, constantes y escarcha,
+  misiones, histéresis de zonas (zigzag = 0 cambios), jerarquía de Altavega, combate, avisos (prelación, cola, fusión),
+  peligros, Info y la pulsación de Tab, acento, carril de borde en 360 direcciones, mapa y presupuesto de CPU.
+- Capturas `hud_idle`, `hud_action`, `hud_zone`, `hud_blizzard` y `hud_info` (`tests/hud_shots.gd`, a 1080p).
+
+#### Pendiente
+
+Cartel de autovía en vehículo (M7), *pings* y rueda de peticiones, subtítulos y rótulos de sonido con dirección, TTS,
+paletas de daltonismo para los semánticos (las formas por tipo ya existen), descubrimiento y niebla compartidos por el
+grupo en el servidor, salud de los compañeros replicada, capas desbloqueables y notas del mapa, sonidos de UI (los
+eventos `ui_*` ya se llaman), y la temperatura simulada de M8.
+
+---
+
+### 9.7 Nota de implementación W0 + G2a (vinculante hasta que se revise)
+
+Implementa el «corte urbano» de `docs/research/09_ciudad_mundo_vivo.md` §3 y el G2a de `docs/research/08_graficos_g2.md` (P0: fundido de edificios altos = el corte completo, nieve por normal v2, ventanas de ciudad y charcos de luz, torres en piezas con `visibility_range` y HLOD por chunk). Complementa §9.3 (el `CutawayManager` de M6a heredará `BuildingCutaway`) y §17 (presupuestos de ciudad).
+
+**Decisión que cambia el doc 09: sin `instance uniform`.** Godot reserva 16 `vec4` del búfer global por cada instancia que usa un shader con uniformes de instancia, y en Compatibility ese búfer es un UBO (4 096 `vec4` en llvmpipe/WebGL2): **256 instancias**. Medido en 4.7.2: con 1 200 cubos, 944 dan `Too many instances using shader instance variables`. Una manzana de ciudad lo supera. Por eso todo lo que el doc 09 ponía por instancia sale de:
+- **globales** (`project.godot [shader_globals]`, los escribe `CityCut` cada frame): `ws_cut_player` (pies del jugador local, encendido), `ws_cut_floor` (nivel de planta del jugador de/a + mezcla de 0.25 s + muñón 0.4 m), `ws_cut_view` (dirección a cámara, pasillo W = 10 m, zona R = 16–26 m según la distancia horizontal de la cámara), `ws_cut_capsule` (pecho + Rc 3.5–4.5 m), `ws_cut_aim` (segunda zona, apagada hasta que exista el apuntado), `ws_cut_own` + `ws_cut_own_ext` (huella OBB del edificio en el que está el jugador, muñón 0.6 m y techo de su planta), `ws_cut_cam` + `ws_cut_cam_ext` (huella del edificio que contiene o roza la cámara, **nuevo**: ver abajo) y `ws_cut_style` (intensidad del tramado, cápsula de props, borde);
+- **`MODEL_MATRIX[3].y`** = base del edificio (contrato: las piezas no se desplazan en Y);
+- **uniformes de material** por familia: `ground_h` / `floor_h` / `cap_color` (`world_vcol_struct.tres` 3.3/3.0, `world_vcol_struct_4m.tres` 4.3/3.0; otra rejilla = un duplicado cacheado por `CityBuilding.struct_material`).
+
+**Familia de materiales `world_vcol`** (un solo cuerpo, `assets/shaders/world_vcol_common.gdshaderinc`; las variantes solo activan `#define`):
+
+| Material | Shader | Para | Corte |
+|---|---|---|---|
+| `world_vcol.tres` | `world_vcol.gdshader` (`cull_back`) | personajes, bosque, props, POIs (todo lo de antes) | ninguno: sin `discard`, coste de G1 |
+| `world_vcol_capsule.tres` | `world_vcol_capsule.gdshader` (`cull_back`, `WV_CUT_CAPSULE`) | props de ciudad, farolas, coches | cápsula cámara→pecho, solo con el perfil de ciudad |
+| `world_vcol_struct.tres` / `_4m` | `world_vcol_struct.gdshader` (`cull_disabled`, `WV_CUT_STRUCT`) | estructura de edificios de ciudad | corte por forjado + zona + pasillo + cápsula + edificio propio + edificio de la cámara, tapas |
+| `window_city.tres` / `_4m` | `window_city.gdshader` | vidrio de fachada de ciudad | el mismo que la estructura |
+
+Include `assets/shaders/city_cut.gdshaderinc`: `city_cut_struct_discard`, `city_cut_capsule_discard`, `city_cut_plan`; los *built‑ins* de etapa entran como parámetros; nunca en `IN_SHADOW_PASS`. `CityCut.fade_at()` / `is_cut()` son el espejo en GDScript (umbral 0.5): lo usan el rayo del cursor (`CityCut.ray_through_cut`, cableado en `Interactor`) y los tests.
+
+**Capas implementadas** (doc 09 §3.1) y cambios respecto al prototipo:
+- **A/B/C** como en §3.2–3.3. Las **tapas** son las caras traseras (`cap_color` oscuro, normal hacia arriba). **Nuevo, la planta legible**: toda cara hacia arriba bajo una columna cortada de su edificio (la losa de la planta siguiente, o la planta propia) se pinta como plano (`plan_color`, `plan_mix` 0.55, algo de emisión que baja de noche) aunque esté en la sombra de las plantas superiores, que siguen proyectándola. Muros con grosor y tabiques → líneas de *poché*; núcleos abiertos → huecos negros.
+- **Nuevo: edificio de la cámara.** Si la cámara está dentro de una torre o a < 6 m de su huella por debajo del tejado (`CityBuilding.hugs_camera`), esa torre entera se corta por encima del forjado del lado de la cámara: con solo pasillo + zona, sus losas fuera del pasillo, vistas a través de la fachada cortada, tapaban un tercio de la pantalla (el «anillo» del doc 09 §3.8).
+- **D, siluetas**: `material_overlay` por instancia (`assets/shaders/silhouette.gdshader`, `depth_test_inverted`) puesto por `Silhouettes` (cliente, 5 Hz): jugadores siempre, del color de su chaqueta; zombis solo **percibidos** (por defecto: ≤ 24 m y línea de visión desde los ojos del jugador en la capa `world`; `perceive_filter` se sustituye cuando llegue la visibilidad honesta). Para que un personaje no se tiña a sí mismo (desde −48° los hombros tapan los pies a 1.3 m de profundidad) cada vértice se acerca **1.8 m a la cámara por su propio rayo de vista** (mismos píxeles, menos profundidad): sin textura de profundidad ni stencil, igual en Forward+, Compatibility y Web. Un *overlay* ajeno (el hielo de los congelados) no se toca.
+- **E, edificio propio**: `CityCut` elige el edificio registrado que contiene los pies del jugador (no cuenta estar en el tejado) y le pasa la planta: `Roof` y los `Shaft_<n>` por encima se ocultan **conservando la sombra** (`SHADOWS_ONLY`; si un `ShadowProxy` ya proyecta por ellos, `visible = false`), nunca `visible = false` en algo que proyecta. En el shader, dentro de su huella: todo por encima del techo de la planta se va y los muros del lado de la cámara bajan a 0.6 m (rampa lateral estrecha, −1.5…0.5 m respecto al jugador; la general del corte es la del doc, −3…1 m). **En una azotea** (`CityCut.roof_building`) el peto y las casetas del lado de la cámara bajan a 0.6 m sobre el tejado y nada se oculta en CPU.
+- **F, cursor**: `Interactor` usa `CityCut.ray_through_cut` (hasta 4 reintentos excluyendo el colisionador cortado); sin ciudad es un `intersect_ray` normal.
+- **`BuildingCutaway`** (`scripts/world/city/building_cutaway.gd`) es ahora la lógica de grupos de corte de ASSET_SPEC v2 §8.4: `PoiCutaway` la hereda en modo `VISIBLE` (**comportamiento M3 idéntico**, comprobado en `tests/render_steps.gd` con `cabin_small` y `lookout_tower`) y `CityBuilding` en modo `SHADOW` para las partes enterables. La cabaña del claro sigue con su `Cutaway` (el smoke test comprueba `Roof.visible == false`).
+
+**Contrato de edificio de ciudad** (para el arte; lo comprueba `CityBuilding.validate()`):
+
+```
+<Edificio>  Node3D, origen = centro de la huella a nivel de calle; lo registra CityBuilding.attach(raíz) (grupo city_building)
+  metadatos (meta del nodo o extras glTF de la raíz):
+    floor_h 3.0 · ground_h 3.3 (4.3 con bajos de 4 m) · foundation 0.3 · floors · generator (bool) · enterable (bool) · kind
+  Base          zócalo / plantas bajas (0 … ≤ 24 m): el detalle                          (alias Tower_Base)
+  Shaft | Shaft_<n>   fuste en grupos de ≤ 4 plantas; extras floor_from (obligatorio) / floor_to   (alias Tower_Shaft_<n>)
+  Roof          coronación, peto, casetas, depósitos, nieve                               (alias Tower_Top)
+  ShadowProxy   prisma cerrado low-poly (12–400 tris), sin material: el único que proyecta sombra (SHADOWS_ONLY)   (alias Tower_Shadow)
+  Floor<k> · Walls<k>_{N,S,E,W}(+_Stub) · Interior<k> · Door_<n> · Window_<n> · Spawn_* · Col*   parte enterable (§8.4)
+```
+
+Los alias `Tower_*` son los nombres provisionales de la primera exportación de A1; `CityBuilding.canonical()` los traduce. Reglas: piezas **sin desplazamiento en Y ni escala**, solo giro en Y (la base sale del origen de cada pieza); **volúmenes cerrados**, muros exteriores con grosor (cara interior hacia dentro), **una losa por planta** en `base + ground_h + n·floor_h`, tabiques con grosor, núcleos como cajas abiertas por arriba; materiales `palette_vcol` (→ `world_vcol_struct`), `window`/`glass` (→ `window_city`: una celda por vano de 2.4 m y planta), `emissive_*` sin tocar; AO horneada en `COLOR.a` ≤ 0.3 en losas y muros interiores (sin nieve dentro, `snow_shelter` 1) y ≈ 1 al aire libre. `CityBuilding` pone `visibility_range_end` 180 m (`Base`) / 150 m (`Shaft*`, `Roof`) con fundido propio en Forward+ (en Compatibility, corte), sombras solo en `ShadowProxy`, y el HLOD por chunk (`CityHlod.build_for(chunk)` / `remove_from`): una malla fusionada de las huellas (1 *draw call*) visible desde `Quality.hlod_begin()` (140 m; 120 en `compat`, 100 en Web) y `visibility_parent` en las piezas. En juego nunca entra en cuadro; sirve a miradores y menús (`CityHlod.mesh_builder` admite un impostor).
+
+**Nieve por normal v2** (`snow_include.gdshaderinc`, toda la familia): borde roto por ruido de valor en espacio mundo (0.6 m + 2.5 m), abrigo por la AO horneada (sin nieve bajo aleros, bajo coches ni dentro), nieve pegada a barlovento en caras verticales (`snow_wind`: dirección hacia la que sopla + intensidad, `DayNight` desde `WorldState.wind_yaw`: 0.3 en calma, 1 en ventisca) y `snow_base` por familia (0 en `world_vcol`: con tiempo despejado los assets de siempre se ven **igual que en G1**; 0.45 estructura de ciudad, 0.35 props de ciudad). Mismo color de nieve que el terreno (el tinte de blancos de G1).
+
+**Noche de ciudad**: `window_city` divide el vidrio en celdas (vano × planta, en espacio mundo); por celda un *hash* decide encendida (28 % de las alimentadas), cálida / fría (12 %) / parpadeo (3 %), velas de supervivientes (1.5 % sin corriente) y se re‑sortea escalonadamente cada 2 h de juego. La corriente sale de `city_lights.y` (red) o del **mapa de potencia** `city_power_map` (R8, `CityLights.create_power_map` / `paint_power`: sectores de red y **manzanas con generador**). `CityLights` pone los **charcos de luz falsos** (quads aditivos en un `MultiMesh` con `INSTANCE_CUSTOM`: color, intensidad, parpadeo) y los halos de las bombillas (otro `MultiMesh`): 2 *draw calls* por conjunto de farolas; `OmniLight3D` reales solo en las farolas alimentadas más cercanas (`Quality` `lamp_lights`: `alto` 12, `medio` 6, `compat`/Web 0). `DayNight` escribe la noche de ciudad (se encienden un poco antes del ocaso; 0.35 en ventisca de día).
+
+**P1 hecho**: capa de bruma a pie de calle con los perfiles de ciudad (`DayNight.city_haze`: `fog_height` +3 m y `fog_height_density` +0.006 de día / +0.010 de noche, en los tres renderizadores); nieve que arrastra el viento a ras de suelo (`SnowDrift`, `GPUParticles3D` de 900 × ratio de calidad, franjas planas orientadas por la velocidad, 1 *draw call*, apagada con viento de calma) y ondas de nieve suelta que corren por el terreno en ventisca (`terrain.gdshader`, `snow_wind.z` > 0.35). **Diferido**: LUT 3D por clima.
+
+**Perfiles de cámara** (`CameraProfile` / `CameraZone`, `CameraRig`): `default` = la cámara de G1 (−48°, 16–38 m, *far* 70); `city` (−43°, 16–44 m, *far* 95, cápsula de props activa) en los distritos; `rooftop` (−40°, 20–50 m, *far* 130) a más de 7 m sobre el origen de la zona. Pitch y *far* se mezclan (τ 0.45 s), el zoom se recorta al rango del perfil. El corte escala con la cámara, así que el jugador sigue visible con cualquier perfil (medido abajo). `DayNight.city_haze` añade una capa de niebla de altura a pie de calle con los perfiles de ciudad (P1).
+
+**Rendimiento y puertas** (banco `tests/city_bench/`, 12 edificios de 6–40 plantas —los del lado de la cámara procedurales y listos para corte, los demás las torres y edificios winterizados de A1 (`assets/models/city/towers/tower_a…e`, `buildings/bldg_m/n`) cuando existen—, 9 coches y 10 farolas de A1 (o copias CC0 de prueba), jugador y 17 zombis; `tests/run_city_bench.sh`):
+
+- **Puertas bloqueantes** (`tests/run_all.sh` y CI): `tests/render_checks.gd` (*headless*, 78 comprobaciones: el espejo GDScript del corte, contrato de edificio y alias, corte de POIs M3 idéntico, perfiles de cámara, luces, siluetas, HLOD, rayo del cursor, `CityCut.update` < 0.2 ms con 300 edificios: medido 0.02–0.04 ms gracias a una rejilla de 32 m) y `tests/run_city_bench.sh gate` (xvfb): jugador visible ≥ 99 % (o ≤ 6 píxeles de borde) desde 24 m en 15 vistas (calle‑cañón, cruce en diagonal, azotea, planta 3 de un edificio, calle junto a la torre de arte `tower_d` de 100 m; 16–50 m; perfiles `default`/`city`/`rooftop`), zombis legibles ≥ 95 % en las vistas de calle a 24–38 m, sombra de la torre cortada en la calle ±5 % (medido: razón 1.000) y *draw calls*/primitivas del encuadre de ciudad ≤ 700 (Compatibility) / ≤ 1 000 (Forward+).
+- **Medido** (1280 × 720, banco con el arte de A1): jugador visible 99.7–101.2 % en Compatibility y 99.6–100.3 % en Forward+ (sin corte: 0 % en la calle‑cañón a 24/38/44 m, junto a la torre de arte a 38/44 m y dentro del edificio; la cámara está dentro o pegada a una torre en 5 de las vistas); zombis de la calle a 24–38 m 100.0–100.1 % / 99.9–100.1 % (a 44–50 m, informativo: 67–98 %); *draw calls* día/noche 117/53 (Compatibility, 343 k/128 k primitivas) y 116/97 (Forward+, 350 k/331 k). Desde una azotea o una planta alta, los zombis al pie del propio edificio los tapa su fachada (por debajo del jugador: no se corta y no hay línea de visión, así que tampoco silueta): esas filas solo informan.
+- **Coste** (informativo, rasterizadores por software, `tests/run_city_bench.sh perf` con `ROUNDS=3`): frente al material `world_vcol` de G1 en los mismos edificios, mediana de 3 rondas intercaladas: **Forward+ (lavapipe)**: variante `struct` con el corte apagado +2.0 / +3.2 % (día / noche), evaluando todo el corte sin quitar nada +5.1 / +7.4 % (presupuesto del doc 09: 10 %), corte real +23.4 / +20.5 % (la calle y los personajes que el corte deja a la vista); **Compatibility (llvmpipe)**: +41.6 / +40.3 %, +57.1 / +60.3 % y +16.9 / +37.6 %: sin pre‑pase de profundidad, `cull_disabled` + `discard` pesan (el doc 09 midió +32 % en llvmpipe). Riesgo abierto: medir en una iGPU real; si hace falta, una variante `compat` de la estructura con `cull_back` y sin tapas. En el rasterizador por software lo caro es `cull_disabled` + la ruta de `discard` (la variante `struct` con el corte apagado ya cuesta eso); en GPU real el doc 09 estima ≤ 0.3 ms a 1080p y el *early‑Z* solo se pierde en la estructura de ciudad. El bosque no paga nada: `world_vcol` no tiene `discard` y, sin edificios de ciudad registrados, `CityCut` no escribe los globales. `World` solo añade los nodos visuales de W0 (`CityCut`, `Silhouettes`, `CityLights`, `SnowDrift`) cuando hay pantalla: ni los clientes *headless* ni `perf_walk --cpu` los tienen (ese banco sigue en p99.9 ≈ 2.0 ms, máx. 2.4–5.1 ms en tres pasadas solas).
+- **Regresión del bosque**: `world_vcol` antiguo y nuevo sobre cabaña, pino, camioneta, roca, torre de vigilancia y superviviente, misma escena: con tiempo despejado **idénticos al píxel** (diferencia máxima 0); en ventisca cambia la nieve (v2, buscado).
+
+**Diferido**: rayo del cursor en `PlacementController`; zona de apuntado (`aim_zone`) hasta que exista el apuntado de M5; LUT 3D por clima (P1); `FogVolume` locales y volumétrica urbana (G2b); mapa de rodadas por chunk (G2c); integración con el *streaming* de ciudad (C1: `ChunkJob` → `CityBuilding.attach` + `CityHlod.build_for`); un segundo edificio de cámara cuando dos torres rozan la cámara a la vez.

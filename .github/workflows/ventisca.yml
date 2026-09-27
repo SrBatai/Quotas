@@ -25,7 +25,7 @@ jobs:
   test:
     name: Headless tests
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45   # W0: + city bench under xvfb (software rasterisers)
     defaults:
       run:
         working-directory: winter-survival
@@ -88,6 +88,26 @@ jobs:
         run: |
           godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
           grep -q "ALL PASSED" /tmp/persistence.log
+
+      - name: Render checks (W0 + G2a, headless)
+        run: godot --headless --path . -s tests/render_checks.gd
+
+      # The city bench renders: software GL (llvmpipe) and Vulkan (lavapipe) under xvfb.
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
+
+      # Blocking: the player stays visible through the «corte urbano» (16–50 m, default / city / rooftop profiles,
+      # inside a building), the cut keeps the tower shadows, draw calls / primitives within doc 08 budgets.
+      # Frame timings are printed only (software rasteriser).
+      - name: City bench gate (W0, Compatibility on llvmpipe)
+        run: tests/run_city_bench.sh gate
+
+      # Timing-based: Forward+ on lavapipe, cut on / evaluate-only / off / G1 material.
+      - name: City bench perf, Forward+ on lavapipe (informational)
+        continue-on-error: true
+        env:
+          RENDER: forward
+        run: tests/run_city_bench.sh perf
 
   export:
     name: Desktop builds

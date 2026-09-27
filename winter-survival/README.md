@@ -43,9 +43,12 @@ sustituto de primitivas con los mismos nombres de nodo (`scripts/data/placeholde
 | Cancelar / cerrar panel | Clic derecho, Esc | B |
 | Pausa | Esc | Start |
 | Girar cámara | Q / E | LB / RB |
-| Zoom | Rueda del ratón | D-pad arriba/abajo |
+| Zoom | Rueda del ratón | D-pad arriba (pulsar) / abajo |
 | Ranuras de la barra | Teclas 1–9 | D-pad izq/der + A |
-| Fabricación | Tab | Y |
+| Fabricación | Tab (pulsar) | Y |
+| Info: misiones, hora, temperatura y grupo | Mantener Tab | Mantener D-pad arriba |
+| Seguir otra misión (con Info abierta) | R | Y |
+| Mapa y diario | M (Q / E: pestaña, rueda: zoom) | Back (LB / RB, D-pad) |
 | Equipar/guardar antorcha | T | D-pad abajo (mantener) |
 | Comer lo mejor disponible | F | — |
 
@@ -64,6 +67,9 @@ tests/run_perf_horde.sh          # servidor dedicado + 4 bots + 200 zombis: tick
 RENDER=forward tests/run_screenshots.sh /tmp/shots   # capturas (Compatibility por defecto; Forward+ con lavapipe)
 RENDER=forward tests/run_screenshots.sh /tmp/shots zombies   # la pelea al atardecer delante de la cabaña (M4)
 tests/run_multi_shot.sh /tmp/shots/multi.png         # captura con 2 jugadores remotos (chaquetas distintas)
+tests/run_hud_coverage.sh --moments=idle,action,zone,blizzard,info   # H1: el HUD en reposo ocupa ≤ 3 % de 1080p (solo la capa del HUD)
+godot --headless --path . -s tests/hud_test.gd       # H1: las comprobaciones del HUD sin el resto del humo
+RENDER=forward tests/run_screenshots.sh /tmp/shots hud_idle hud_action hud_zone hud_blizzard hud_info   # H1, a 1080p
 ```
 
 ## Reconstruir los modelos 3D (Blender)
@@ -237,11 +243,158 @@ Funcionan sin red o con `debug_commands=true` en `server.cfg`:
 bajan al 60 %, y la navmesh se hornea con celdas de 0.5 m, un chunk cada 0.3 s. El streaming sigue con su
 presupuesto de 2 ms por frame.
 
+## Corte urbano y gráficos G2 (W0)
+
+Infraestructura de render para la ciudad de **Altavega** (hito W0 + G2a; diseño en `docs/research/09_ciudad_mundo_vivo.md`
+§3 y `docs/research/08_graficos_g2.md`, nota vinculante en `docs/v2/ARQUITECTURA_V2.md` §9.7). Aún no hay ciudad en el
+mapa (llega con W1/C1): todo se prueba en el banco `tests/city_bench/`, una calle‑cañón con torres de 6–40 plantas
+(procedurales, listas para corte, y las torres, coches y farolas winterizados de arte de `assets/models/city/` cuando
+están; si faltan, unas copias CC0 de prueba en `tests/city_bench/models/`), el jugador a pie de calle y un grupo de zombis.
+
+| Día (perfil de ciudad, 24 m) | Noche (ventanas por celda, charcos de luz) | Corte: cámara a 38 m pegada a una torre de 30 plantas |
+|---|---|---|
+| ![Día](docs/screenshots/w0/city_day.jpg) | ![Noche](docs/screenshots/w0/city_night.jpg) | ![Corte](docs/screenshots/w0/city_cut.jpg) |
+
+Perfil de cámara por defecto (izquierda: −48°, 24 m y 38 m) frente al de ciudad (derecha: −43°, 24 m y 44 m):
+`docs/screenshots/w0/profile_compare.jpg` (y cada vista por separado, `profile_*.jpg`). Dentro de un edificio (planta
+tercera, tejado solo como sombra): `city_inside.jpg`; en una azotea con el perfil `rooftop`: `city_rooftop.jpg`; la
+silueta de distrito (HLOD) desde un mirador: `city_hlod.jpg`.
+
+- **Corte urbano** (`assets/shaders/city_cut.gdshaderinc` + `scripts/world/city/city_cut.gd`): con la cámara alta, lo
+  que queda entre la cámara y el jugador por encima de la losa de la planta siguiente a la suya se descarta con tramado
+  (pasillo cámara→jugador, zona de 16–26 m alrededor del jugador, cápsula cámara→pecho); la torre que contiene o roza la
+  cámara se corta entera por encima de ese forjado; dentro de un edificio, su tejado y sus plantas superiores quedan
+  solo como sombra y los muros del lado de la cámara bajan a 0.6 m. Lo cortado se ve **macizo, como una planta**
+  (tapas oscuras en el grosor de muros y tabiques, suelo de la losa siguiente iluminado). Nunca se corta en el pase de
+  sombras (la calle sigue en sombra). Sin stencil ni `instance uniform` (en Compatibility solo caben 256 instancias):
+  10 globales por frame y el origen de cada pieza. Funciona igual en Forward+, Compatibility y Web.
+- **Siluetas**: los jugadores siempre (color de su chaqueta) y los zombis que el jugador **percibe** (línea de vista,
+  ≤ 24 m) se ven a través de lo que los tape (`Silhouettes`, `material_overlay`).
+- **Materiales**: `world_vcol` (lo de siempre, sin corte), `world_vcol_struct` (estructura de ciudad), `world_vcol_capsule`
+  (props de ciudad, solo cápsula), `window_city` (vidrio de fachada), `light_pool` / `light_halo` (farolas).
+- **Nieve por normal v2** en toda la familia `world_vcol`: borde roto por ruido, abrigo por la AO horneada, nieve a
+  barlovento (`snow_wind`, global que escribe `DayNight` desde el viento del servidor) y `snow_base` por familia. Con tiempo
+  despejado el bosque se ve exactamente como en G1.
+- **Noche de ciudad**: ventanas por celda (encendidas por *hash*, cálidas / frías / con parpadeo, velas sin corriente),
+  mapa de potencia con manzanas **con generador**, charcos de luz falsos y halos en `MultiMesh` y luces reales solo en
+  las farolas más cercanas (`alto` 12, `medio` 6, `compat`/Web 0).
+- **Torres por piezas** `Base` / `Shaft_<n>` / `Roof` / `ShadowProxy` con `visibility_range` y **HLOD por chunk**
+  (`CityHlod`, solo para miradores y menús).
+- **Perfiles de cámara** por región (`CameraZone`): en un distrito la cámara baja a −43° y deja alejarse hasta 44 m; en
+  una azotea, −40° y 50 m. Se mezclan suavemente y el corte mantiene al jugador visible.
+- **P1**: capa de bruma a pie de calle con los perfiles de ciudad (`DayNight.city_haze`) y nieve arrastrada por el
+  viento a ras de suelo (`SnowDrift`).
+
+**Contrato de edificio de ciudad** (para el arte; lo comprueba `CityBuilding.validate()`; detalle en ARQ §9.7):
+
+| Nodo / dato | Qué |
+|---|---|
+| raíz `Node3D` | origen = centro de la huella a nivel de calle; `CityBuilding.attach(raíz)` la registra (grupo `city_building`) |
+| metadatos | `floor_h` 3.0, `ground_h` 3.3 (4.3 con bajos comerciales de 4 m; cualquier otra rejilla vale, p. ej. las torres de A1 con 3.8 m), `foundation` 0.3, `floors`, `generator`, `enterable`, `kind` |
+| `Base` (alias `Tower_Base`) | zócalo y plantas bajas (hasta ≈ 24 m), el detalle |
+| `Shaft` o `Shaft_<n>` (alias `Tower_Shaft_<n>`) | fuste en grupos de ≤ 4 plantas; extras `floor_from` (obligatorio) / `floor_to` |
+| `Roof` (alias `Tower_Top`) | coronación, peto, casetas, depósitos, nieve |
+| `ShadowProxy` (alias `Tower_Shadow`) | prisma cerrado de 12–400 tris, sin material: el único que proyecta sombra (el código lo pone en `SHADOWS_ONLY` y apaga la sombra de las demás piezas) |
+| `Floor<k>`, `Walls<k>_*`(+`_Stub`), `Interior<k>`, `Door_n`, `Window_n`, `Spawn_*`, `Col*` | parte enterable (ASSET_SPEC v2 §8.4) |
+
+Los nombres canónicos son los de la izquierda; los alias `Tower_*` (nombres provisionales de la primera exportación de
+arte) se aceptan igual (`CityBuilding.canonical()`). Reglas: piezas sin desplazamiento en Y ni escala (solo giro en Y); volúmenes cerrados, muros exteriores con grosor,
+una losa por planta en `ground_h + n·floor_h`, tabiques con grosor y núcleos abiertos por arriba; material
+`palette_vcol` para la estructura y `window`/`glass` para el vidrio de fachada (una celda por vano de 2.4 m y planta);
+AO horneada ≤ 0.3 en losas y muros interiores.
+
+Pruebas (se ejecutan en `tests/run_all.sh`; en CI el banco en Compatibility bloquea y el de Forward+ informa):
+
+```bash
+godot --headless --path . -s tests/render_checks.gd     # corte (espejo GDScript), contrato de edificio, corte de POIs, perfiles de cámara, luces, siluetas, HLOD, cursor
+tests/run_city_bench.sh gate                            # visibilidad del jugador y los zombis (16–50 m, calle, cruce, azotea, dentro), sombras, draw calls
+RENDER=forward tests/run_city_bench.sh gate             # lo mismo en Forward+ con lavapipe
+RENDER=forward tests/run_city_bench.sh shots /tmp/w0   # city_day, city_night, city_cut, city_inside, city_rooftop, city_hlod, profile_compare
+RENDER=forward tests/run_screenshots.sh /tmp/w0 city_day city_night city_cut   # los mismos presets desde el script de capturas
+```
+
+Resultados (banco, 1280 × 720, rasterizadores por software: los tiempos solo valen como proporción):
+
+| Puerta | Compatibility (llvmpipe) | Forward+ (lavapipe) |
+|---|---|---|
+| Jugador visible con el corte (15 vistas: calle, cruce, azotea, dentro de un edificio, junto a una torre de arte de 100 m; 16–50 m; perfiles default / city / rooftop; puerta ≥ 99 % desde 24 m) | 99.7–101.2 % | 99.6–100.3 % |
+| Jugador visible **sin** corte (calle‑cañón a 24 / 38 / 44 m, junto a la torre de arte a 38 / 44 m, dentro) | 0 % | 0 % |
+| Zombis legibles en la calle (visibles o con silueta), 24–38 m (puerta ≥ 95 %) | 100.0–100.1 % | 99.9–100.1 % |
+| Sombra de la torre cortada en la calle (luminancia con corte / solo sombras) | 1.000 | 1.000 |
+| *Draw calls* / primitivas, día · noche (presupuesto 700 · 1 000) | 117 / 343 k · 53 / 128 k | 116 / 350 k · 97 / 331 k |
+| Coste del corte frente al material de G1, día / noche (informativo; presupuesto del doc 09: 10 %) | +57 / +60 % evaluándolo (+40 % ya por `cull_disabled` + `discard` sin pre‑pase) | +5.1 / +7.4 % |
+| `CityCut.update` con 300 edificios registrados (CPU, *headless*) | 0.02–0.04 ms por frame (rejilla de 32 m) | |
+
+## HUD «Susurro» (H1)
+
+| En reposo | Acción | Título de zona | Ventisca | Info (misiones) |
+|---|---|---|---|---|
+| ![Reposo](docs/screenshots/h1/hud_idle.jpg) | ![Acción](docs/screenshots/h1/hud_action.jpg) | ![Zona](docs/screenshots/h1/hud_zone.jpg) | ![Ventisca](docs/screenshots/h1/hud_blizzard.jpg) | ![Info](docs/screenshots/h1/hud_info.jpg) |
+
+| Mapa de papel (P1) | Diario (P1) |
+|---|---|
+| ![Mapa](docs/screenshots/h1/hud_map.jpg) | ![Diario](docs/screenshots/h1/hud_journal.jpg) |
+
+Capturas Forward+ a 1920 × 1080: `RENDER=forward tests/run_screenshots.sh <carpeta> hud_idle hud_action hud_zone
+hud_blizzard hud_info hud_map hud_journal` (los presets `hud_*` salen a 1080p). Son la dirección v2 «Susurro» de
+`docs/research/10_hud_ux.md` §V; la comparación con sus maquetas `v2_*.jpg` está en
+`docs/screenshots/h1/maqueta_vs_h1.jpg`.
+
+**El mundo es la imagen.** En reposo solo queda la barra rápida plegada en 10 trazos de 2 px: el HUD ocupa el
+**0,08 %** de la pantalla (medido por `tests/run_hud_coverage.sh`, que renderiza solo la capa del HUD sobre negro y
+sobre blanco; el límite es 3 %). Todo lo demás aparece cuando cambia y se funde a los 3–5 s, o se pide:
+
+- **Info** (mantener Tab / D‑pad ↑): la lista de misiones sobre un velo lateral (misiones, encargos, en la radio), la
+  hora y la temperatura arriba a la derecha, el grupo en una línea, las constantes con número y el desglose térmico, y
+  los demás destinos en el borde. Pulsar Tab sigue abriendo la fabricación y pulsar D‑pad ↑ sigue acercando la cámara;
+  con Info abierta, R / Y sigue otra misión. En *Interfaz y accesibilidad* se puede cambiar a pulsar para alternar.
+- **Barra rápida**: se despliega en iconos sin ranuras al usarla (1–9, D‑pad + A, clic, cambio de arma, algo nuevo en
+  la barra) con el nombre encima («Bate con clavos 12 %», en `warn` por debajo del 20 %), y se pliega a los 3 s. La
+  selección con mando se dibuja (antes no se veía).
+- **Constantes** (abajo a la izquierda, solo la que importa): Calor < 40 o bajando ≥ 1/s o sentida ±5 °C, Salud < 50 o
+  un cambio ≥ 2, Hambre < 30 o al comer. Anillo fino, número con tendencia y una palabra («te estás congelando»,
+  «herido»; «sangrando» y «mojado 40 %» llegan por `Events.status_changed`). Aguante: un arco junto al hombro. Golpe:
+  arco rojo en el suelo hacia quien te muerde y un destello en los bordes; Salud < 25: latido.
+- **Misiones**: el checklist del día es una misión principal del modelo nuevo (`scripts/data/missions.gd`: principal /
+  secundaria / dinámica, pasos con progreso y objetivos en el mundo). Línea «objetivo actualizado» arriba a la
+  izquierda con el filete ámbar (5 s), ✓ en el mundo al completar un paso, rombo de 10 px sobre el objetivo en
+  pantalla y **un único indicador de borde** con su distancia.
+- **Un solo acento ámbar**, por prioridad: compañero derribado > fuente de calor más cercana si te congelas (Calor <
+  30: «refugio 4 m») > objetivo seguido.
+- **Título de zona** cinematográfico sin caja (Barlow Condensed ExtraLight 76 px, el espaciado se cierra de .78 a .42
+  em): «zona descubierta», el nombre y una línea de datos («Altavega · sin electricidad · −18 °C · peligro alto»,
+  según lo que se sepa del lugar). Se entra estando 12 m dentro durante 1,5 s y se sale 12 m fuera: ya no parpadea al
+  cruzar un borde de chunk. La re‑entrada muestra solo el nombre al 60 %. En combate espera. La ciudad y sus distritos
+  están preparados en `scripts/data/locations.gd` (`Locations.enable_city()` / `register()`).
+- **Avisos**: un aviso central con prioridad y cola (P0 interrumpe, «2 avisos en espera»), una columna lateral para
+  lo recogido y fabricado con contadores que se suman («Madera +3 (5)»), y los peligros en una línea: prevista →
+  se acerca → «❄ VENTISCA · visibilidad 6 m · 2:40» → a los 5 s solo el icono y el tiempo.
+- **Compañeros**: nada si están cerca; punto y nombre si están lejos (> 25 m, 10 m en ventisca), tienen frío o hablan
+  (su línea de chat encima 6 s). Derribado: un indicador ámbar con el anillo de desangrado, «Ana 38 s» y «mantén X
+  para reanimar · 6 m», que llena el anillo mientras reanimas.
+- **Frío**: viñeta de escarcha en los bordes (intensidad 1 − Calor/40): «la interfaz también tiene frío».
+- **Avisos de interacción** a menos de 2,5 m, anclados al objeto con la tecla o el botón del dispositivo actual y un
+  anillo para las acciones que se mantienen; con ratón sigue la etiqueta junto al cursor.
+- **Mapa de papel y diario** (M / Back): el mapa se dibuja con tinta solo donde has estado (niebla de 8 m que se
+  guarda por mundo), con carreteras, lugares, la cabaña, tu flecha, el grupo y el objetivo; tres zooms. El diario
+  lista las misiones con sus pasos y los lugares descubiertos.
+
+**Interfaz y accesibilidad** (menú de pausa): preajuste Mínimo (por defecto) / Estándar (constantes y barra siempre)
+/ Completo (más la línea de misión y la hora), escala 80–150 % (115 % en Steam Deck), margen de pantalla, ancho del
+HUD en 21:9, Info mantener o alternar, movimiento reducido, destellos reducidos, texto reforzado, fondo del texto
+opaco y marcadores y colores para daltonismo. Se guarda en `user://settings.cfg` (`[hud]`).
+
+Fuentes Barlow y Barlow Condensed (OFL, `assets/fonts/` con su licencia), tokens en `scripts/ui/ui_tokens.gd`, tema
+en `assets/ui/susurro_theme.tres` (`godot --headless --path . -s tools/gen_hud_theme.gd`), componentes en
+`scripts/ui/hud/`. Pruebas: los pasos de `tests/hud_steps.gd` (dentro del humo, o solos con
+`godot --headless --path . -s tests/hud_test.gd`) y `tests/run_hud_coverage.sh [--moments=idle,action,zone,blizzard,info]`.
+Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.5.
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M4: import, parse, persistencia, humo, contrato de arte, perf, red (basic, shared_world, far, zombies), determinismo, perf walk, perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M4 + W0: import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far, zombies), determinismo, perf walk, perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
 ./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak

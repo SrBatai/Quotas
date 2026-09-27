@@ -473,6 +473,8 @@ func run(p_tree: SceneTree) -> void:
 	await _m3_checks(world, player)
 	# 17. M4 — zombies, navigation, melee, downed / revive / death / corpse (PLAN M4)
 	await _m4_checks(game, world, player)
+	# 18. H1 — HUD v2 «Susurro» (tests/hud_steps.gd)
+	await (load("res://tests/hud_steps.gd").new()).run(self, tree, game, world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
 	tree.quit(1 if _failed else 0)
 

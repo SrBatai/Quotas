@@ -5,7 +5,10 @@
 # `zombies` (4 clients, M4: same deaths everywhere, downed/revive/respawn at the bed, friendly fire, pvp, zombie
 # bandwidth), the M3 world gates (determinism client vs server, streaming perf walk: --cpu headless budget + render
 # mode under xvfb/llvmpipe for ground and memory), the M4 horde perf (200 zombies + 4 bots on a dedicated server,
-# median tick) and, with --shots, the screenshots. --no-walk-render skips the (slow) render walk.
+# median tick), the W0 + G2a render checks (headless) and city bench (xvfb: visibility through the «corte urbano»,
+# shadows, draw-call budgets), the H1 HUD coverage gate (idle HUD ≤ 3 % of 1080p, rendered; the HUD logic checks
+# run inside the smoke test) and, with --shots, the screenshots (+ city presets). --no-walk-render skips the (slow)
+# render walk.
 # On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
@@ -44,6 +47,32 @@ if command -v xvfb-run > /dev/null; then
   grep -E "draw calls|objects|primitives|frame ms|ok   |FAIL|PERF" /tmp/ventisca_perf_all.log
 else
   echo "xvfb-run not found: perf probe skipped"
+fi
+
+step "hud coverage (H1: idle HUD ≤ 3 % of 1920 × 1080, HUD layer only over black / white; xvfb + Compatibility)"
+if command -v xvfb-run > /dev/null; then
+  if tests/run_hud_coverage.sh --moments=idle,action,zone,blizzard,info > /tmp/ventisca_hud_cov_all.log 2>&1; then
+    grep -E "^coverage |ok   |HUD COVERAGE" /tmp/ventisca_hud_cov_all.log
+  else
+    grep -E "^coverage |FAIL|SCRIPT ERROR|HUD COVERAGE" /tmp/ventisca_hud_cov_all.log | head -n 20; status=1
+  fi
+else
+  echo "xvfb-run not found: hud coverage skipped"
+fi
+
+step "render checks (W0 + G2a: corte urbano maths, city building contract, POI cutaway, camera profiles, headless)"
+godot --headless --path . -s tests/render_checks.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== render checks" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "RENDER CHECKS FAILED"; status=1; }
+
+step "city bench (W0 + G2a: player visible through the cut at 16-50 m, shadows kept, draw-call budgets; xvfb + Compatibility)"
+if command -v xvfb-run > /dev/null; then
+  if tests/run_city_bench.sh gate > /tmp/ventisca_city_all.log 2>&1; then
+    grep -E "^  (canyon|crossing|rooftop|inside|north|shadow|fade|ok|info|compat)|CITY BENCH" /tmp/ventisca_city_all.log
+  else
+    grep -E "FAIL|SCRIPT ERROR|CITY BENCH|^  (canyon|crossing|rooftop|inside|north)" /tmp/ventisca_city_all.log | head -n 30; status=1
+  fi
+else
+  echo "xvfb-run not found: city bench skipped"
 fi
 
 step "net test (M1: 1 headless server + 4 headless clients, soak 90 s)"
@@ -111,6 +140,7 @@ fi
 if [ "$SHOTS" -eq 1 ]; then
   step "screenshots"
   tests/run_screenshots.sh "${SHOTS_DIR:-/tmp/ventisca_shots}" > /tmp/ventisca_shots_all.log 2>&1 || status=1
+  tests/run_city_bench.sh shots "${SHOTS_DIR:-/tmp/ventisca_shots}/city" >> /tmp/ventisca_shots_all.log 2>&1 || status=1
   grep -E "screenshot .* ->" /tmp/ventisca_shots_all.log
 fi
 

@@ -76,6 +76,18 @@ var menu_hour: float = 17.75
 ## clearing's fog look). 1 / 0 at the clearing.
 var fog_density_scale: float = 1.0
 var fog_height_offset: float = 0.0
+## G2a: last `snow_wind` global (xy where the wind blows to, z strength) and the city night factor (0..1).
+var snow_wind := Vector4(1, 0, 0.3, 0)
+var city_night: float = 0.0
+## Same wind for the effects that are not shaders (SnowDrift), without reading the global back.
+static var current_wind := Vector4(1, 0, 0.3, 0)
+var _wind_sent: bool = false
+## G2b-lite: street haze while the camera is in a city profile (0..1, blended): a denser height-fog layer over
+## the street that sinks the bases of the towers at night and at dawn (doc 08 §3.5, layered fog, all renderers).
+var city_haze: float = 0.0
+const CITY_HAZE_TOP := 3.0
+const CITY_HAZE_DAY := 0.006
+const CITY_HAZE_NIGHT := 0.010
 
 var _camera_yaw: float = Balance.CAMERA_YAW_DEG
 var _last_spill: float = -1.0
@@ -159,7 +171,11 @@ func _on_time_changed(_day: int, hour: float, _night: bool) -> void:
 	apply(hour)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	# street haze follows the camera profile (city districts / roofs)
+	var rig := CameraRig.active()
+	var haze_target := 1.0 if rig != null and rig.profile.id != &"default" else 0.0
+	city_haze = move_toward(city_haze, haze_target, 0.5 * delta)
 	# keep the blizzard blend and the menu (no clock) in sync
 	apply(WorldState.hour_now() if WorldState.instance != null else menu_hour)
 
@@ -246,8 +262,8 @@ func apply(hour: float) -> void:
 	e.ambient_light_energy = k[K_AMBIENT_ENERGY] * ambient_scale
 	e.fog_light_color = k[K_FOG]
 	e.fog_density = k[K_FOG_DENSITY] * fog_density_scale
-	e.fog_height = k[K_FOG_HEIGHT] + fog_height_offset
-	e.fog_height_density = k[K_FOG_HEIGHT_DENSITY]
+	e.fog_height = k[K_FOG_HEIGHT] + fog_height_offset + CITY_HAZE_TOP * city_haze
+	e.fog_height_density = k[K_FOG_HEIGHT_DENSITY] + city_haze * lerpf(CITY_HAZE_DAY, CITY_HAZE_NIGHT, night_amount)
 	e.fog_aerial_perspective = k[K_AERIAL]
 	e.tonemap_exposure = k[K_EXPOSURE] * Quality.exposure_scale()
 	e.adjustment_saturation = k[K_SATURATION]
@@ -269,6 +285,23 @@ func apply(hour: float) -> void:
 	# snow accumulates on upward faces of every world_vcol surface while the blizzard blows (PLAN C17)
 	snow_amount = blizzard_blend * Quality.snow_amount_max()
 	RenderingServer.global_shader_parameter_set("snow_amount", snow_amount)
+	_apply_city(hour, elev)
+
+
+## G2a: wind for the snow v2 (windward faces catch snow: a light prevailing drift, strong in blizzards) and the
+## city night (windows by cell, lamp pools) through CityLights. The windows come on a little before sunset.
+func _apply_city(hour: float, elev: float) -> void:
+	var yaw := WorldState.instance.wind_yaw if WorldState.instance != null else 0.0
+	var wd := Vector3(-1, 0, 0).rotated(Vector3.UP, yaw)   # where the wind blows to (Snowfall convention)
+	var wind := Vector4(wd.x, wd.z, 0.3 + 0.7 * blizzard_blend, 0.0)
+	if not wind.is_equal_approx(snow_wind) or not _wind_sent:
+		snow_wind = wind
+		current_wind = wind
+		_wind_sent = true
+		RenderingServer.global_shader_parameter_set("snow_wind", snow_wind)
+	city_night = maxf(clampf(1.0 - (elev - 1.0) / 9.0, 0.0, 1.0), 0.35 * blizzard_blend)
+	var day := WorldState.day_now() if WorldState.instance != null else 1
+	CityLights.set_sky(city_night, float(day - 1) * 24.0 + hour)
 
 
 func is_dark() -> bool:

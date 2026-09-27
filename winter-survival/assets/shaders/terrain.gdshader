@@ -46,6 +46,12 @@ uniform vec4 ice_color : source_color = vec4(0.50, 0.66, 0.82, 1.0);
 uniform float ice_drift : hint_range(0.0, 1.0) = 0.75;
 uniform float ice_roughness : hint_range(0.0, 1.0) = 0.32;
 uniform float ice_specular : hint_range(0.0, 1.0) = 0.45;
+// G2a: loose snow blown over the ground (doc 08 §3.10): bands of value noise stretched across the wind that run
+// with it. `snow_wind` (xy: where the wind blows to, z: strength) comes from DayNight; below strength 0.35 (calm
+// weather) the term is off, so the G1 look is unchanged outside blizzards.
+global uniform vec4 snow_wind;
+uniform float drift_strength : hint_range(0.0, 0.3) = 0.07;
+uniform float drift_speed = 3.5;
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
@@ -130,6 +136,13 @@ void fragment() {
 	// tone variation (two octaves of value noise, no texture)
 	float nz = vnoise(v_world_pos.xz * noise_scale) * 0.65 + vnoise(v_world_pos.xz * noise_scale * 3.1) * 0.35;
 	albedo *= 1.0 + (nz - 0.5) * 2.0 * noise_strength;
+	float gust = smoothstep(0.35, 1.0, snow_wind.z);
+	if (gust > 0.0) {
+		vec2 wd = normalize(snow_wind.xy + vec2(1e-4));
+		vec2 q = vec2(dot(v_world_pos.xz, wd) - TIME * drift_speed, dot(v_world_pos.xz, vec2(-wd.y, wd.x)));
+		float ripple = vnoise(vec2(q.x * 0.35, q.y * 2.2)) * 0.6 + vnoise(vec2(q.x * 0.9, q.y * 5.0)) * 0.4;
+		albedo *= 1.0 + (ripple - 0.5) * 2.0 * drift_strength * gust;
+	}
 	// M3 surface mask: road beds (packed, greyer, dirtier), tracks, lake ice (bluer, glossy, faint streaks)
 	float road = v_surface.r;
 	float track = v_surface.b;

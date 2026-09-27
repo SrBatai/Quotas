@@ -64,6 +64,8 @@ func _ready() -> void:
 				remove_child(node)
 				node.queue_free()
 		footprints = null
+	if Net.has_client and not decorative_only:
+		_add_city_render()
 	var s := world_seed if world_seed != 0 else Balance.TERRAIN_SEED
 	if decorative_only:
 		configure(s)
@@ -79,6 +81,19 @@ func _ready() -> void:
 			if not is_configured and is_inside_tree():
 				configure(sv), CONNECT_ONE_SHOT)
 	call_deferred("_emit_ready")
+
+
+## W0 / G2a client rendering: «corte urbano» globals, silhouettes, city lights (no cost without city buildings:
+## the globals only reach the city materials; the silhouettes poll players at 5 Hz) and the wind-blown ground snow.
+## Purely visual: not added without a display (headless clients, the --cpu perf walk, tests), where nothing draws.
+func _add_city_render() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	for pair in [["CityCut", CityCut], ["Silhouettes", Silhouettes], ["CityLights", CityLights], ["SnowDrift", SnowDrift]]:
+		if get_node_or_null(str(pair[0])) == null:
+			var n: Node = (pair[1] as GDScript).new()
+			n.name = str(pair[0])
+			add_child(n)
 
 
 func _emit_ready() -> void:

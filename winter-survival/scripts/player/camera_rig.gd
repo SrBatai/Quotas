@@ -1,6 +1,11 @@
 class_name CameraRig
 extends Node3D
-## Top-level follow rig: Pivot (yaw) → Pitch → Camera3D. Yaw in 45° steps, zoom 14–30 m, shake.
+## Top-level follow rig: Pivot (yaw) → Pitch → Camera3D. Yaw in 45° steps, zoom 16–38 m, shake.
+## W0: per-region camera profiles (CameraProfile / CameraZone, scripts/world/city/): the pitch and the far plane
+## blend toward the active profile and the zoom is clamped to its range (city districts: −43°, up to 44 m; roofs:
+## −40°, up to 50 m). Outside every zone the `default` profile is the G1 camera, unchanged.
+
+signal profile_changed(id: StringName)
 
 static var _active: CameraRig
 
@@ -17,6 +22,12 @@ var _rng := RandomNumberGenerator.new()
 var _yaw_tween: Tween
 var _zoom_tween: Tween
 var _snapped: bool = false
+## Active camera profile and the blended pitch (degrees).
+var profile: CameraProfile = CameraProfile.preset(&"default")
+var pitch_deg: float = Balance.CAMERA_PITCH_DEG
+## Tests / bench / miradores: force a profile id (&"" = follow the CameraZones).
+var profile_override: StringName = &""
+var _zone_t: float = 0.0
 
 
 static func active() -> CameraRig:
@@ -64,6 +75,7 @@ func _process(delta: float) -> void:
 		_snapped = true
 	else:
 		global_position = global_position.lerp(target, 1.0 - exp(-Balance.CAMERA_FOLLOW * delta))
+	_update_profile(delta)
 	if _shake_time > 0.0:
 		_shake_time -= delta
 		var s := _shake * clampf(_shake_time / 0.3, 0.0, 1.0)
@@ -97,7 +109,7 @@ func rotate_step(direction: int) -> void:
 
 
 func set_dist(value: float) -> void:
-	dist = clampf(value, Balance.CAMERA_DIST_MIN, Balance.CAMERA_DIST_MAX)
+	dist = clampf(value, profile.dist_min, profile.dist_max)
 	if _zoom_tween != null and _zoom_tween.is_valid():
 		_zoom_tween.kill()
 	_zoom_tween = create_tween()
@@ -106,6 +118,41 @@ func set_dist(value: float) -> void:
 
 func get_yaw() -> float:
 	return pivot.rotation.y
+
+
+## Picks the profile (override, else the CameraZone under the player) every 0.25 s and blends toward it.
+func _update_profile(delta: float) -> void:
+	_zone_t -= delta
+	if _zone_t <= 0.0:
+		_zone_t = 0.25
+		var want := profile_override
+		if want == &"" and is_inside_tree():
+			want = CameraZone.pick(get_tree(), player.global_position)
+		if want != profile.id:
+			set_profile(want)
+	var k := 1.0 - exp(-delta / CameraProfile.BLEND_TAU)
+	pitch_deg = lerpf(pitch_deg, profile.pitch_deg, k)
+	pitch.rotation_degrees.x = pitch_deg
+	camera.far = lerpf(camera.far, profile.far, k)
+
+
+## Switches profile (blended). The zoom is clamped into the new range.
+func set_profile(id: StringName) -> void:
+	profile = CameraProfile.preset(id)
+	if dist < profile.dist_min or dist > profile.dist_max:
+		set_dist(dist)
+	if CityCut.instance != null:
+		CityCut.instance.props_capsule = profile.props_capsule
+	profile_changed.emit(profile.id)
+
+
+## Jumps to the active profile's pitch / far at once (teleports, screenshots).
+func snap_profile() -> void:
+	if profile_override != &"" and profile_override != profile.id:
+		set_profile(profile_override)
+	pitch_deg = profile.pitch_deg
+	pitch.rotation_degrees.x = pitch_deg
+	camera.far = profile.far
 
 
 func shake(strength: float) -> void:

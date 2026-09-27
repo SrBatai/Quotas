@@ -1,0 +1,12 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/world_vcol_struct.gdshader" id="1"]
+
+[resource]
+resource_name = "world_vcol_struct"
+shader = ExtResource("1")
+shader_parameter/snow_base = 0.45
+shader_parameter/ground_h = 3.3
+shader_parameter/floor_h = 3.0
+shader_parameter/cap_color = Color(0.13, 0.14, 0.17, 1)
+shader_parameter/snow_shelter = 1.0

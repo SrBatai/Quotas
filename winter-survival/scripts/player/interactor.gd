@@ -67,7 +67,8 @@ func _physics_process(delta: float) -> void:
 	var q := PhysicsRayQueryParameters3D.create(from, to, 1 | 4 | 8 | 128, [_player.get_rid()])
 	q.collide_with_areas = true
 	q.collide_with_bodies = true
-	var hit: Dictionary = _player.get_world_3d().direct_space_state.intersect_ray(q)
+	# W0: the ray goes through the parts of city buildings the «corte urbano» removed (doc 09 §3.1 layer F)
+	var hit: Dictionary = CityCut.ray_through_cut(_player.get_world_3d().direct_space_state, q)
 	var found: InteractableComponent = null
 	if not hit.is_empty() and hit.collider != null:
 		found = InteractableComponent.find_from(hit.collider)

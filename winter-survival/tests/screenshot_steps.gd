@@ -31,9 +31,9 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	var quality := _flag_value("quality", "" if Quality.is_compat_renderer() else "alto")
 	if quality != "":
 		Quality.set_preset(StringName(quality), false)
-	var ready := false
+	var ready := [false]   # lambdas capture locals by value: a reference holder (else the wait below ran 900 frames)
 	Events.world_ready.connect(func() -> void:
-		ready = true
+		ready[0] = true
 		# under a software renderer a frame can take seconds of game clock: stop the blizzard roll before the
 		# clock reaches 14:00 (the preset below sets the time it wants)
 		var w := tree.current_scene.get_node_or_null("World/Weather") as Weather
@@ -49,7 +49,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	else:
 		GameFlow.play_offline()
 	var waited := 0
-	while preset != "menu" and not ready and waited < 900:
+	while preset != "menu" and not ready[0] and waited < 900:
 		await tree.process_frame
 		waited += 1
 	waited = 0
@@ -173,6 +173,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 						outfits.append(c.get("outfit"))
 				Chat.instance.send("/give hacha 1")
 				print("multi: local peer %d (outfit %d) sees %d remote players (outfits %s); net role=%s rtt=%.0f" % [Net.local_peer_id(), player.outfit, others, outfits, Net.role, float(Net.stats["rtt"])])
+		if preset.begins_with("hud_"):   # H1: HUD v2 presets (tests/hud_shots.gd)
+			await (load("res://tests/hud_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		var dn: DayNight = world.get_node("DayNight")
@@ -204,8 +206,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			# mid-stride pose: walk (or run) along +X while the shot settles
 			player.input.scripted_move = Vector2(1, 0)
 			player.input.scripted_run = _flag_value("walk", "walk") == "run"
-	# let particles / shadows settle
-	for i in 90:
+	# let particles / shadows settle (the H1 HUD presets are frozen at their frame: 24 are enough)
+	for i in (24 if preset.begins_with("hud_") else 90):
 		await tree.process_frame
 	await RenderingServer.frame_post_draw
 	var img := tree.root.get_viewport().get_texture().get_image()
