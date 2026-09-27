@@ -628,10 +628,22 @@ func set_view(view: String, dist: float, profile: StringName = &"city") -> void:
 	rig.snap_profile()
 	rig.dist = dist
 	rig.camera.position = Vector3(0, 0, dist)
+	# Deterministic camera: put the rig exactly on its follow target (player + 3 m forward, the game's framing).
+	# CameraRig.snap_to_player() only snaps to the player and lets the camera ease the last 3 m with the REAL frame
+	# delta, so under a software rasteriser the camera was still creeping between the reference and the measured
+	# frame (frame timing differs per machine: CI vs local disagreed by several % of zombie pixels). On its target,
+	# the rig's follow lerp is the identity, whatever the frame time.
 	rig.snap_to_player()
+	rig.global_position = follow_target()
 	rig._process(0.0)
 	rig.snap_profile()
 	cut.update(1.0)
+
+
+## Where the CameraRig settles for the current player position (CameraRig._process with no motion).
+func follow_target() -> Vector3:
+	var fwd := Vector3(0, 0, -1).rotated(Vector3.UP, rig.pivot.rotation.y)
+	return player.global_position + fwd * Balance.CAMERA_FORWARD_OFFSET
 
 
 ## Perf reference: the buildings' structure with the plain G1 world_vcol (cull_back, no discard) instead of
@@ -671,5 +683,10 @@ func advance_characters(dt: float) -> void:
 		(player_visual as CharacterVisual).advance(dt)
 
 
-func _process(delta: float) -> void:
-	advance_characters(delta)
+## Characters advance a fixed step per rendered frame (not the real delta): the same frame count gives the same
+## poses on any machine, so screenshots and perf frames are reproducible.
+const ANIM_STEP := 1.0 / 30.0
+
+
+func _process(_delta: float) -> void:
+	advance_characters(ANIM_STEP)

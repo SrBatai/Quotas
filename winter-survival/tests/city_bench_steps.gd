@@ -108,6 +108,7 @@ func _gate() -> void:
 		sil.poll()
 		await _frames(4)
 		var ref := _count(await _capture())
+		var cam_ref: Vector3 = (bench.get("rig") as CameraRig).camera.global_position
 		# no cut (what the doc 09 prototype calls "std")
 		bench.call("set_occluders_visible", true)
 		cut.enabled = false
@@ -122,6 +123,11 @@ func _gate() -> void:
 		await _frames(4)
 		var img := await _capture()
 		var got := _count(img)
+		# the comparison is only meaningful with the camera where it was for the reference frame
+		var drift := (bench.get("rig") as CameraRig).camera.global_position.distance_to(cam_ref)
+		if drift > 0.001:
+			ok = false
+			print("FAIL: %s %.0f m: the camera moved %.4f m between the reference and the measured frame" % [view, dist, drift])
 		var pr := maxf(1.0, float(ref["player"]))
 		var zr := maxf(1.0, float(ref["zombie"]))
 		var r := {
