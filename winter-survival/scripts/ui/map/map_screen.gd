@@ -11,7 +11,7 @@ extends Control
 ## - DIARIO: notebook paper with ruled lines and a red margin: the missions (done ✓, current with its count and
 ##   hint, the rest), and the places discovered.
 
-const ZOOMS := [1.0, 1.0 / 3.0, 400.0 / 3072.0]
+const ZOOMS := [1.0, 1.0 / 3.0, 400.0 / MapFog.SPAN]   # W1: the last one is still a 400 m window
 const PAPER := Color("#E9E1CD")
 const INK := Color(0.20, 0.18, 0.16)
 const INK_SOFT := Color(0.20, 0.18, 0.16, 0.62)
@@ -153,9 +153,9 @@ func _ensure_land() -> void:
 			var forest := dens if b == MacroMap.Biome.DENSE_FOREST else (dens * 0.7 if b == MacroMap.Biome.FOREST else 0.0)
 			var i := k % n
 			var j := k / n
-			var wx := -MapFog.HALF + (float(i) + 0.5) * MacroMap.PX
-			var wz := -MapFog.HALF + (float(j) + 0.5) * MacroMap.PX
-			var water := 1.0 if b == MacroMap.Biome.LAKE or PoiRegistry.lake_sdf(wx, wz) < 0.0 else 0.0
+			var wx := MapFog.ORIGIN + (float(i) + 0.5) * MacroMap.PX
+			var wz := MapFog.ORIGIN + (float(j) + 0.5) * MacroMap.PX
+			var water := 1.0 if b == MacroMap.Biome.LAKE or b == MacroMap.Biome.RIVER or PoiRegistry.lake_sdf(wx, wz) < 0.0 else 0.0
 			data[k * 4] = clampi(int((mm.rel[k] - lo) / _land_range * 255.0), 0, 255)
 			data[k * 4 + 1] = int(forest * 255.0)
 			data[k * 4 + 2] = int(water * 255.0)
@@ -185,7 +185,7 @@ func _update_view() -> void:
 
 
 static func world_to_uv(p: Vector3) -> Vector2:
-	return Vector2((p.x + MapFog.HALF) / (MapFog.HALF * 2.0), (p.z + MapFog.HALF) / (MapFog.HALF * 2.0))
+	return Vector2((p.x - MapFog.ORIGIN) / MapFog.SPAN, (p.z - MapFog.ORIGIN) / MapFog.SPAN)
 
 
 func uv_to_screen(uv: Vector2) -> Vector2:
@@ -241,7 +241,7 @@ func _draw_map(ci: CanvasItem) -> void:
 	var body := UiStyle.font(&"regular")
 	# frame + 500 m grid with letters / numbers
 	ci.draw_rect(r, Color(INK, 0.8), false, 2.0)
-	var step := 500.0 / (MapFog.HALF * 2.0)
+	var step := 500.0 / MapFog.SPAN
 	var g0 := int(floor(v.position.x / step))
 	var g1 := int(ceil(v.end.x / step))
 	for i in range(g0, g1 + 1):
@@ -344,7 +344,7 @@ func _draw_map(ci: CanvasItem) -> void:
 		tri.append(tri[0])
 		ci.draw_polyline(tri, INK, 1.2, true)
 	# scale bar + north
-	var span_m := v.size.x * MapFog.HALF * 2.0
+	var span_m := v.size.x * MapFog.SPAN
 	var bar_m := 500.0 if span_m > 1500.0 else (200.0 if span_m > 600.0 else 100.0)
 	var bar_px := bar_m / span_m * r.size.x
 	var bp := r.end - Vector2(bar_px + 24.0, 24.0)

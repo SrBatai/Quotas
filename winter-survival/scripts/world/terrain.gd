@@ -50,11 +50,11 @@ func get_normal(x: float, z: float) -> Vector3:
 	return Vector3(hl - hr, 2.0 * e, hd - hu).normalized()
 
 
-## The clearing pond or the Lago de las Ánimas.
+## The clearing pond, the Lago de las Ánimas or a W1 frozen water body (río Albo, dársena, embalse, ibón).
 func is_lake(x: float, z: float) -> bool:
 	if Vector2(x, z).distance_to(lake_center) < lake_radius:
 		return true
-	return hf != null and hf.is_big_lake(x, z)
+	return hf != null and (hf.is_big_lake(x, z) or hf.is_w1_water(x, z))
 
 
 func in_bounds(x: float, z: float) -> bool:

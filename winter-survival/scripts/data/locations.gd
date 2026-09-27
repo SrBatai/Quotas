@@ -132,7 +132,9 @@ static func _build() -> void:
 	for r: Dictionary in PoiRegistry.REGIONS:
 		var n := str(r["name"])
 		var shape := {"rect": [r["center"], r["size"]]} if r.has("size") else {"circle": [r["center"], float(r["radius"])]}
-		out.append(_entry(n, shape))
+		if r.has("water"):
+			shape = {"fn": StringName("water:" + str(r["water"]))}   # W1 water: exact shape (PoiRegistry.natural_depth)
+		out.append(_entry(n, shape, r))
 	if _city_enabled or bool(CITY.get("enabled", false)):
 		for d: Dictionary in CITY["districts"]:
 			var e := d.duplicate(true)
@@ -161,8 +163,19 @@ static func _build() -> void:
 		_list.append(r[2])
 
 
-static func _entry(region_name: String, shape: Dictionary) -> Dictionary:
+static func _entry(region_name: String, shape: Dictionary, rec: Dictionary = {}) -> Dictionary:
 	var k: Dictionary = KNOWN.get(region_name, {})
+	if k.is_empty() and rec.has("display"):
+		# W1 regions carry their LocationInfo data in PoiRegistry.REGIONS (display, kind, parent, danger, power, temp)
+		k = {"name": rec["display"], "kind": rec.get("kind", "poi"), "parent": rec.get("parent", ""), "danger": rec.get("danger", 1),
+			"power": rec.get("power", ""), "temp": rec.get("temp", 0.0)}
+		var e := _entry(region_name, shape)
+		for f in ["name", "kind", "parent", "power"]:
+			e[f] = str(k[f])
+		e["danger"] = int(k["danger"])
+		e["temp"] = float(k["temp"])
+		e["id"] = str(rec.get("id", e["id"]))
+		return e
 	var parent := str(k.get("parent", ""))
 	if parent == "claro":
 		parent = "claro_del_cazador"
@@ -209,13 +222,15 @@ static func depth(e: Dictionary, x: float, z: float) -> float:
 			var w := World.instance
 			if w == null or not w.is_configured or w.hf == null:
 				return -INF
+			if w.hf.named_road_at(x, z, 32.0) != PoiRegistry.REGION_ROAD:
+				return -INF   # W1: the A‑14 and the other named roads are not the N‑140
 			return 32.0 - w.hf.road_distance(x, z, 40.0, "highway")
-		&"border":
-			return maxf(absf(x), absf(z)) - (WorldConst.BORDER_START + 96.0)
-		&"high_forest":
-			return maxf(absf(x), absf(z)) - 900.0
+		&"border", &"high_forest":
+			return PoiRegistry.natural_depth(String(shape["fn"]), x, z)   # W1: per-side border, valley-only high forest
 		&"default":
 			return INF
+	if String(shape.get("fn", "")).begins_with("water:"):
+		return PoiRegistry.natural_depth(String(shape["fn"]), x, z)
 	return -INF
 
 

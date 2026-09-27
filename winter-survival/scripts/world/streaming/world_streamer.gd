@@ -40,6 +40,18 @@ var max_tasks: int = 2
 static var force_visual: bool = false
 ## Tools: behave as the web nothreads build (chunk generation on the main thread, one per refresh).
 static var force_no_threads: bool = false
+## Tools (perf_walk --cpu): read the main thread's run-queue wait (SchedProbe) at the start and end of each frame's
+## streaming work → `frame_wait_usec` (two procfs reads per frame, outside the timed window).
+static var sched_probe: bool = false
+## Tools (perf_walk --sched, diagnostics): scheduler counters around every step; the slow ones go to `probe_steps`:
+## [kind, wall µs, on-CPU µs (tick-granular), run-queue wait µs, slices, minor faults, major faults, voluntary
+## switches (blocked)]. The reads
+## happen inside the streaming window: the per-frame numbers are a little higher with it on.
+static var sched_steps: bool = false
+## Tests (smoke): per-step work = wall − run-queue wait → stats "step_work_usec_max" / "steps_over_budget_work".
+static var sched_step_wait: bool = false
+const PROBE_SLOW_USEC := 1500
+var probe_steps: Array = []
 
 var chunks: Dictionary = {}        # key -> WorldChunk (building or loaded)
 var _jobs: Dictionary = {}         # key -> ChunkJob in flight
@@ -53,6 +65,16 @@ var _focus_keys: Array[int] = []
 var _refresh_t: float = 0.0
 ## Main-thread µs spent this frame (streaming cost, PLAN M3 budget) and running stats.
 var frame_usec: int = 0
+## With `sched_probe` (tools): µs of `frame_usec` the main thread spent runnable but NOT running (the OS gave the
+## core to another thread or process: SchedProbe run-queue wait inside the streaming window). frame_usec −
+## frame_wait_usec is the streaming work itself (W1 perf walk; ARQ v2 §8.10).
+var frame_wait_usec: int = 0
+## With `sched_probe`: voluntary context switches of the main thread inside the streaming window (it blocked: its
+## time off the CPU is then neither work nor run-queue wait).
+var frame_blocks: int = 0
+## With `sched_probe`: the main thread's on-CPU µs inside the streaming window (tick-granular, ±4 ms, excludes
+## hypervisor steal): wall − wait − cpu far above one tick means the vCPU was stolen (or the thread slept).
+var frame_cpu_usec: int = 0
 ## [refresh, collect, instantiate, unload] µs of the last frame + the last step kind (perf tools).
 var last_phases: Array = []
 var _last_step_kind: String = ""
@@ -191,6 +213,9 @@ func _refresh_desired() -> void:
 func _process(delta: float) -> void:
 	if not enabled:
 		return
+	var ew0: PackedInt64Array = SchedProbe.exec_wait_ns() if sched_probe else PackedInt64Array([0, 0])
+	var w0 := ew0[1]
+	var v0 := SchedProbe.vol_switches() if sched_probe else 0
 	var t0 := Time.get_ticks_usec()
 	_refresh_t -= delta
 	if _refresh_t <= 0.0:
@@ -204,6 +229,10 @@ func _process(delta: float) -> void:
 	var t3 := Time.get_ticks_usec()
 	_unload_some(t0)
 	frame_usec = Time.get_ticks_usec() - t0
+	var ew1: PackedInt64Array = SchedProbe.exec_wait_ns() if sched_probe else PackedInt64Array([0, 0])
+	frame_wait_usec = mini(int((ew1[1] - w0) / 1000), frame_usec) if sched_probe else 0
+	frame_cpu_usec = int((ew1[0] - ew0[0]) / 1000) if sched_probe else frame_usec
+	frame_blocks = SchedProbe.vol_switches() - v0 if sched_probe else 0
 	last_phases = [t1 - t0, t2 - t1, t3 - t2, frame_usec - (t3 - t0), _last_step_kind]
 	var parts: Dictionary = stats.get("phase_usec_max", {})
 	parts["refresh"] = maxi(int(parts.get("refresh", 0)), t1 - t0)
@@ -291,7 +320,7 @@ func is_busy() -> bool:
 func _collect_jobs() -> void:
 	for k in _jobs.keys():
 		var j: ChunkJob = _jobs[k]
-		if WorkerThreadPool.is_task_completed(j.task_id):
+		if j.finished:
 			WorkerThreadPool.wait_for_task_completion(j.task_id)
 			_jobs.erase(k)
 			_finish_job(j)
@@ -332,10 +361,20 @@ func _instantiate(t0: int) -> void:
 		if ran > 0 and elapsed + est + STEP_MARGIN_USEC > budget_usec:
 			break
 		ran += 1
+		var pa: PackedInt64Array = SchedProbe.sample() if sched_steps else PackedInt64Array()
+		var qw0 := SchedProbe.wait_ns() if sched_step_wait else 0
 		var s0 := Time.get_ticks_usec()
 		_last_step_kind = kind
 		var done := ch.step()
 		var cost := Time.get_ticks_usec() - s0
+		if sched_steps:
+			_probe_record(kind, cost, pa)
+		if sched_step_wait:
+			# W1: the step's work = wall − the main thread's run-queue wait inside it (preempted by the OS)
+			var work := maxi(cost - int((SchedProbe.wait_ns() - qw0) / 1000), 0)
+			stats["step_work_usec_max"] = maxi(int(stats.get("step_work_usec_max", 0)), work)
+			if work > budget_usec:
+				stats["steps_over_budget_work"] = int(stats.get("steps_over_budget_work", 0)) + 1
 		_step_costs[kind] = int(lerpf(float(_step_costs.get(kind, cost)), float(cost), 0.3))
 		stats["step_usec_max"] = maxi(int(stats["step_usec_max"]), cost)
 		stats["steps"] = int(stats["steps"]) + 1
@@ -350,6 +389,13 @@ func _instantiate(t0: int) -> void:
 			chunk_loaded.emit(ch.key)
 
 
+func _probe_record(kind: String, wall_usec: int, before: PackedInt64Array) -> void:
+	if wall_usec < PROBE_SLOW_USEC:
+		return
+	var d := SchedProbe.delta(before, SchedProbe.sample())
+	probe_steps.append([kind, wall_usec, int(d[0] / 1000), int(d[1] / 1000), int(d[2]), int(d[3]), int(d[4]), int(d[5])])
+
+
 func _unload_some(t0: int) -> void:
 	# finish freeing chunks unloaded earlier, a few nodes at a time, inside the frame budget
 	while not _dying.is_empty():
@@ -357,9 +403,12 @@ func _unload_some(t0: int) -> void:
 		if left <= 150:
 			return
 		var d: WorldChunk = _dying[0]
+		var pa: PackedInt64Array = SchedProbe.sample() if sched_steps else PackedInt64Array()
 		var t1 := Time.get_ticks_usec()
 		var done := d.teardown_step(left - 100)
 		stats["unload_usec_max"] = maxi(int(stats.get("unload_usec_max", 0)), Time.get_ticks_usec() - t1)
+		if sched_steps:
+			_probe_record("teardown", Time.get_ticks_usec() - t1, pa)
 		if done:
 			_dying.pop_front()
 			chunks_root.remove_child(d)

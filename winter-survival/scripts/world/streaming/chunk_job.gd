@@ -31,6 +31,11 @@ var felled: Dictionary = {}
 var task_id: int = -1
 var usec: int = 0
 var cancelled: bool = false
+## Set by the worker as the last thing `run` does (W1): the streamer polls this flag instead of the pool's
+## `is_task_completed`, so the main thread takes the WorkerThreadPool mutex once per chunk (to release the finished
+## task), not once per job and frame — a worker holding that mutex while the OS preempts it blocked the main
+## thread for up to 31 ms under load (ARQ v2 §8.10).
+var finished: bool = false
 # ---- outputs
 var heights := PackedFloat32Array()
 var surface := PackedInt32Array()
@@ -71,6 +76,7 @@ func run() -> void:
 			heights[j * N + i] = hb[(j + 1) * nb + i + 1]
 			surface[j * N + i] = sb[(j + 1) * nb + i + 1]
 	if cancelled:
+		finished = true
 		return
 	# scatter: own entries + neighbours' for the AO
 	var all_proc := ScatterGen.procedural(hf, rect, true)
@@ -85,11 +91,12 @@ func run() -> void:
 	for o in static_occ:
 		occluders.append(o)
 	var c := WorldConst.chunk_center(cx, cz)
-	region = PoiRegistry.region_of_chunk(cx, cz, hf.road_distance(c.x, c.z, 40.0, "highway") < 32.0)
+	region = PoiRegistry.region_of_chunk(cx, cz, hf.named_road_at(c.x, c.z, 32.0))
 	if visual and not cancelled:
 		_build_mesh(ox, oz, hb, nb)
 		_build_multimesh(ox, oz)
 	usec = Time.get_ticks_usec() - t0
+	finished = true
 
 
 ## Height at a world point inside this chunk (bilinear on the own samples = the world height).

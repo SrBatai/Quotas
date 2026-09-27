@@ -15,8 +15,11 @@ class_name ScatterCatalog
 
 enum Kind { TREE, LOG, ROCK, STUMP, BUSH, SNOW, DECO }
 
-const MANIFESTS := ["res://assets/models/vegetation/manifest.json", "res://assets/models/props/manifest.json"]
+const MANIFESTS := ["res://assets/models/vegetation/manifest.json", "res://assets/models/props/manifest.json",
+	"res://assets/models/world/manifest.json"]
 const LEGACY := ["pine_a", "pine_b", "pine_c", "dead_tree", "fallen_log", "rock_a", "rock_b", "rock_c", "stump"]
+## W1 props that stay walk-through whatever their manifest says (loose scree, snow cornices: decoration on the ground).
+const NO_COLLISION := ["scree_field", "cornice"]
 
 const VARIANTS := [
 	{"name": "pine_a", "kind": Kind.TREE, "chop": "pine", "col": {"t": "cyl", "s": [0.35, 3.0], "c": Vector3(0, 1.5, 0)}, "layer": 65, "occ": [1.7, 0.45], "shadow": true, "pick": [1.1, 7.0]},
@@ -48,6 +51,22 @@ const VARIANTS := [
 	{"name": "birch", "kind": Kind.TREE, "chop": "pine", "col": {"t": "cyl", "s": [0.24, 3.0], "c": Vector3(0, 1.5, 0)}, "layer": 65, "occ": [1.2, 0.35], "shadow": true, "pick": [1.15, 7.4]},
 	{"name": "rock_f", "kind": Kind.ROCK, "chop": "", "col": {"t": "box", "s": [1.6, 0.4, 1.2], "c": Vector3(0, 0.2, 0)}, "layer": 65, "occ": [1.0, 0.45], "shadow": true, "pick": []},
 	{"name": "fallen_log_c", "kind": Kind.LOG, "chop": "log", "col": {"t": "box", "s": [3.1, 0.9, 1.7], "c": Vector3(0.25, 0.45, 0)}, "layer": 65, "occ": [1.7, 0.4], "shadow": true, "pick": [1.7, 1.6]},
+	# W1 world props (assets/models/world/, art T2; placeholders until delivered): crests and mountains (outside the
+	# valley: macro height > ScatterGen.CREST_MIN_H) and road furniture along the W1 roads (macro_roads.json)
+	{"name": "crest_rock_a", "kind": Kind.ROCK, "chop": "", "col": {"t": "box", "s": [3.2, 2.2, 2.6], "c": Vector3(0, 1.1, 0)}, "layer": 65, "occ": [2.2, 0.5], "shadow": true, "pick": []},
+	{"name": "crest_rock_b", "kind": Kind.ROCK, "chop": "", "col": {"t": "box", "s": [2.4, 1.6, 2.0], "c": Vector3(0, 0.8, 0)}, "layer": 65, "occ": [1.7, 0.5], "shadow": true, "pick": []},
+	{"name": "crest_spire", "kind": Kind.ROCK, "chop": "", "col": {"t": "cyl", "s": [1.1, 5.0], "c": Vector3(0, 2.5, 0)}, "layer": 65, "occ": [1.8, 0.5], "shadow": true, "pick": []},
+	{"name": "scree_field", "kind": Kind.SNOW, "chop": "", "col": {"t": ""}, "layer": 0, "occ": [2.5, 0.25], "shadow": false, "pick": []},
+	{"name": "cliff_face", "kind": Kind.ROCK, "chop": "", "col": {"t": "box", "s": [6.0, 4.0, 2.0], "c": Vector3(0, 2.0, 0)}, "layer": 65, "occ": [3.0, 0.5], "shadow": true, "pick": []},
+	{"name": "cairn", "kind": Kind.ROCK, "chop": "", "col": {"t": "cyl", "s": [0.6, 1.4], "c": Vector3(0, 0.7, 0)}, "layer": 65, "occ": [0.9, 0.4], "shadow": true, "pick": []},
+	{"name": "cornice", "kind": Kind.SNOW, "chop": "", "col": {"t": ""}, "layer": 0, "occ": [2.0, 0.2], "shadow": true, "pick": []},
+	{"name": "snow_pole", "kind": Kind.DECO, "chop": "", "col": {"t": ""}, "layer": 0, "occ": [0.0, 0.0], "shadow": false, "pick": []},
+	{"name": "snow_pole_tall", "kind": Kind.DECO, "chop": "", "col": {"t": ""}, "layer": 0, "occ": [0.0, 0.0], "shadow": false, "pick": []},
+	{"name": "road_delineator", "kind": Kind.DECO, "chop": "", "col": {"t": ""}, "layer": 0, "occ": [0.0, 0.0], "shadow": false, "pick": []},
+	{"name": "guardrail", "kind": Kind.DECO, "chop": "", "col": {"t": "box", "s": [4.0, 0.8, 0.3], "c": Vector3(0, 0.4, 0)}, "layer": 1, "occ": [0.0, 0.0], "shadow": true, "pick": []},
+	{"name": "guardrail_end", "kind": Kind.DECO, "chop": "", "col": {"t": "box", "s": [4.0, 0.8, 0.3], "c": Vector3(0, 0.4, 0)}, "layer": 1, "occ": [0.0, 0.0], "shadow": true, "pick": []},
+	{"name": "guardrail_bent", "kind": Kind.DECO, "chop": "", "col": {"t": "box", "s": [4.0, 0.8, 0.3], "c": Vector3(0, 0.4, 0)}, "layer": 1, "occ": [0.0, 0.0], "shadow": true, "pick": []},
+	{"name": "parapet_stone", "kind": Kind.DECO, "chop": "", "col": {"t": "box", "s": [4.0, 0.9, 0.5], "c": Vector3(0, 0.45, 0)}, "layer": 1, "occ": [0.0, 0.0], "shadow": true, "pick": []},
 ]
 
 ## Node kinds (not MultiMesh): interactive or unique objects instantiated as scenes by the chunk.
@@ -85,6 +104,9 @@ static func load_manifests() -> void:
 				_:
 					v["col"] = {"t": ""}
 					v["layer"] = 0
+			if NO_COLLISION.has(n):
+				v["col"] = {"t": ""}
+				v["layer"] = 0
 			var height := float(m.get("height", 0.0))
 			var radius := float(m.get("radius", 1.0))
 			if int(m.get("choppable", 0)) == 0:

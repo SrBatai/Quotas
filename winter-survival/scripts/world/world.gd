@@ -1,6 +1,6 @@
 class_name World
 extends Node3D
-## The open world (M3, ARQ v2 §8): a deterministic 3 × 3 km terrain streamed in 64 m chunks around the players
+## The open world (M3, ARQ v2 §8; W1: 6 × 6 km, PLAN C25): a deterministic terrain streamed in 64 m chunks around the players
 ## (WorldStreamer) with the slice's hunter's clearing as a hand-placed POI at the centre (cabin, A-frame, truck,
 ## signpost, fences, pond: permanent nodes; its trees / rocks / bushes / pickups are the slice scatter, ported
 ## exactly, now in the chunks). Same scene on the server and the client: both build the height field and the
@@ -76,7 +76,10 @@ func _ready() -> void:
 	elif Net.server_seed != 0:
 		configure(Net.server_seed)
 	else:
-		# pure client: the seed arrives with the authentication nonce (before any spawn / RPC)
+		# pure client: the seed arrives with the authentication nonce (before any spawn / RPC). W1: the 768² macro map
+		# is decoded now, while connecting, so the auth reply is not delayed by it when the seed arrives
+		if _macro_cache == null:
+			_macro_cache = MacroMap.load_default()
 		Net.seed_received.connect(func(sv: int) -> void:
 			if not is_configured and is_inside_tree():
 				configure(sv), CONNECT_ONE_SHOT)
@@ -186,6 +189,11 @@ func get_respawn_point() -> Vector3:
 
 func region_at(x: float, z: float) -> String:
 	return Regions.name_at(x, z)
+
+
+## Border fog multiplier at a point: 1 inside, rising to 4 at the nearest wall (WorldConst.BORDER_FOG m ramp).
+static func border_fog_scale(x: float, z: float) -> float:
+	return 1.0 + 3.0 * HeightFunction.smooth(WorldConst.BORDER_FOG, 0.0, WorldConst.wall_distance(x, z))
 
 
 ## Synchronous chunk load around a point (spawn, teleport, a body over a hole). No-op before the seed is known.
@@ -400,7 +408,8 @@ func _process(delta: float) -> void:
 	var rig := CameraRig.active()
 	if rig != null:
 		focus = rig.global_position
-	# the fog is tuned for the clearing: follow the ground height, thicken toward the world border (PLAN C6)
+	# the fog is tuned for the clearing: follow the ground height, thicken toward the nearest wall (PLAN C6; W1 C25:
+	# per side, by the distance to the nearest wall — M3's Chebyshev ramp from 1252 m to the ±1450 m wall is the
+	# same curve on the valley's west and north sides)
 	dn.fog_height_offset = terrain.get_height(focus.x, focus.z) - _spawn_ground
-	var cheb := maxf(absf(focus.x), absf(focus.z))
-	dn.fog_density_scale = 1.0 + 3.0 * HeightFunction.smooth(WorldConst.BORDER_START + 100.0, WorldConst.WALL, cheb)
+	dn.fog_density_scale = border_fog_scale(focus.x, focus.z)

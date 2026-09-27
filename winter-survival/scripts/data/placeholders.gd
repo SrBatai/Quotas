@@ -175,8 +175,82 @@ static func _build_parts(root: Node3D, asset_name: String) -> void:
 		"lookout_tower": _build_lookout_tower(root)
 		# M4 melee weapons (ASSET_SPEC v2 §12: origin = grip, handle +Y, working end / edge +Z)
 		"knife", "crowbar", "bat", "bat_nailed", "machete": _build_weapon(root, asset_name)
+		# M5 firearms / bow / projectiles / loot (ASSET_SPEC v2 §12, §13): boxes with the contract anchors
+		"pistol", "revolver", "shotgun", "rifle_hunting", "bow", "arrow", "can", "flare": _build_firearm(root, asset_name)
+		"crate", "footlocker", "backpack", "locker", "kitchen_cabinet", "can_beans": _build_loot(root, asset_name)
+		# W1 world props (assets/models/world/, art T2): one mesh at the origin for the MultiMesh variants
+		"crest_rock_a", "crest_rock_b", "crest_spire", "cliff_face", "cairn": _mesh_node(root, "Rock", asset_name)
+		"scree_field", "cornice": _mesh_node(root, "Snow", asset_name)
+		"snow_pole", "snow_pole_tall", "road_delineator": _mesh_node(root, "Pole", asset_name)
+		"guardrail", "guardrail_end", "guardrail_bent", "parapet_stone": _mesh_node(root, "Rail", asset_name)
+		"km_sign", "km_post": _mesh_node(root, "Prop", asset_name)
+		"tunnel_portal", "tunnel_portal_collapsed":
+			_mesh_node(root, "Portal", asset_name)
+			_col_box(root, "ColLeft", Vector3(-7.5, 0, -1.5), Vector3(-5.5, 7.5, 1.5))
+			_col_box(root, "ColRight", Vector3(5.5, 0, -1.5), Vector3(7.5, 7.5, 1.5))
+			_col_box(root, "ColTop", Vector3(-7.5, 6.0, -1.5), Vector3(7.5, 7.5, 1.5))
+			if asset_name == "tunnel_portal_collapsed":
+				_col_box(root, "ColRubble", Vector3(-5.5, 0, -1.0), Vector3(5.5, 6.0, 1.0))
 		_:
 			push_warning("Placeholders: unknown asset '%s'" % asset_name)
+
+
+## Stand-in firearms: origin = grip, grip along +Y, barrel toward +Z (ASSET_SPEC v2 §12), with `Muzzle`, `Magazine`,
+## `SupportGrip` (long guns / bow) and `Sight` anchors. Projectiles: an arrow along +Z, a can, a flare.
+static func _build_firearm(root: Node3D, asset_name: String) -> void:
+	var specs := {
+		"pistol": [["Grip", Vector3(0.03, 0.12, 0.04), Vector3(0, 0.0, -0.01), "iron"], ["Slide", Vector3(0.035, 0.04, 0.23), Vector3(0, 0.08, 0.07), "iron"]],
+		"revolver": [["Grip", Vector3(0.03, 0.12, 0.04), Vector3(0, 0.0, -0.02), "wood_dark"], ["Cylinder", Vector3(0.05, 0.05, 0.06), Vector3(0, 0.08, 0.04), "iron"],
+			["Barrel", Vector3(0.025, 0.025, 0.2), Vector3(0, 0.09, 0.17), "iron"]],
+		"shotgun": [["Stock", Vector3(0.05, 0.1, 0.32), Vector3(0, -0.02, -0.2), "wood_dark"], ["Receiver", Vector3(0.05, 0.07, 0.2), Vector3(0, 0.05, 0.08), "iron"],
+			["Barrel", Vector3(0.035, 0.035, 0.62), Vector3(0, 0.07, 0.48), "iron"], ["Pump", Vector3(0.05, 0.05, 0.18), Vector3(0, 0.02, 0.36), "wood_light"]],
+		"rifle_hunting": [["Stock", Vector3(0.05, 0.11, 0.36), Vector3(0, -0.02, -0.22), "wood_light"], ["Receiver", Vector3(0.045, 0.06, 0.24), Vector3(0, 0.05, 0.1), "iron"],
+			["Barrel", Vector3(0.025, 0.025, 0.62), Vector3(0, 0.07, 0.52), "iron"], ["Scope", Vector3(0.04, 0.04, 0.26), Vector3(0, 0.13, 0.12), "iron"]],
+		"bow": [["Limbs", Vector3(0.03, 1.25, 0.05), Vector3(0, 0.1, 0.05), "wood_light"], ["String", Vector3(0.006, 1.2, 0.006), Vector3(0, 0.1, -0.05), "cloth"]],
+		"arrow": [["Shaft", Vector3(0.012, 0.012, 0.7), Vector3(0, 0, 0), "wood_light"], ["Head", Vector3(0.025, 0.025, 0.05), Vector3(0, 0, 0.37), "iron"]],
+		"can": [["Can", Vector3(0.07, 0.11, 0.07), Vector3(0, 0.055, 0), "iron"]],
+		"flare": [["Flare", Vector3(0.035, 0.035, 0.24), Vector3(0, 0.02, 0), "can_red"]],
+	}
+	for part in specs.get(asset_name, []):
+		var mi := MeshInstance3D.new()
+		mi.name = part[0]
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		mi.mesh = bm
+		mi.position = part[2]
+		mi.material_override = Assets.material(part[3])
+		root.add_child(mi)
+	var anchors := {
+		"pistol": {"Muzzle": Vector3(0, 0.08, 0.19), "Magazine": Vector3(0, -0.02, -0.01), "Sight": Vector3(0, 0.11, 0.15)},
+		"revolver": {"Muzzle": Vector3(0, 0.09, 0.27), "Sight": Vector3(0, 0.11, 0.25)},
+		"shotgun": {"Muzzle": Vector3(0, 0.07, 0.79), "SupportGrip": Vector3(0, 0.02, 0.36), "Sight": Vector3(0, 0.1, 0.7)},
+		"rifle_hunting": {"Muzzle": Vector3(0, 0.07, 0.83), "SupportGrip": Vector3(0, 0.03, 0.3), "Magazine": Vector3(0, 0.01, 0.08), "Sight": Vector3(0, 0.15, 0.12)},
+		"bow": {"Muzzle": Vector3(0, 0.1, 0.08), "SupportGrip": Vector3(0, 0.1, 0.0)},
+	}
+	var a: Dictionary = anchors.get(asset_name, {})
+	for k in a:
+		var n := Node3D.new()
+		n.name = k
+		n.position = a[k]
+		root.add_child(n)
+
+
+## Stand-in loot containers (ASSET_SPEC v2 §13 "Botín"): origin at the base centre, front +Z.
+static func _build_loot(root: Node3D, asset_name: String) -> void:
+	var specs := {
+		"crate": [Vector3(0.85, 0.6, 0.55), "wood_light"], "footlocker": [Vector3(0.9, 0.5, 0.5), "wood_dark"],
+		"backpack": [Vector3(0.45, 0.55, 0.3), "truck_paint"], "locker": [Vector3(0.5, 1.8, 0.5), "iron"], "kitchen_cabinet": [Vector3(0.8, 0.9, 0.5), "wood"],
+		"can_beans": [Vector3(0.09, 0.12, 0.09), "can_red"],
+	}
+	var sp: Array = specs.get(asset_name, [Vector3(0.5, 0.5, 0.5), "wood_light"])
+	var mi := MeshInstance3D.new()
+	mi.name = "Body"
+	var bm := BoxMesh.new()
+	bm.size = sp[0]
+	mi.mesh = bm
+	mi.position = Vector3(0, (sp[0] as Vector3).y * 0.5, 0)
+	mi.material_override = Assets.material(sp[1])
+	root.add_child(mi)
 
 
 ## Stand-in melee weapons: a handle along +Y from the grip and the head / blade, edge toward +Z.
@@ -445,6 +519,49 @@ static func _mesh(key: String) -> ArrayMesh:
 			for sx in [-1.8, 1.8]:
 				for sz in [-1.8, 1.8]:
 					b.box("wood_dark", Vector3(sx - 0.07, 7.0, sz - 0.07), Vector3(sx + 0.07, 8.4, sz + 0.07))
+		# W1 world props (placeholders; the art arrives in assets/models/world/)
+		"crest_rock_a": b.blob("stone", Vector3(0, 1.0, 0), Vector3(3.4, 2.6, 2.8), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone_dark", "flat_bottom": true, "segments": 9, "rings": 5})
+		"crest_rock_b": b.blob("stone", Vector3(0, 0.7, 0), Vector3(2.6, 1.8, 2.2), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone_dark", "flat_bottom": true, "segments": 8, "rings": 5})
+		"crest_spire": b.cone("stone_dark", Vector3.ZERO, 1.2, 0.3, 5.5, 6, {"mat_high": "snow", "ring_frac": 0.8})
+		"cliff_face": b.blob("stone_dark", Vector3(0, 1.8, 0), Vector3(6.2, 4.2, 2.2), {"rng": rng, "snow_mat": "snow", "dark_mat": "stone", "flat_bottom": true, "segments": 8, "rings": 4})
+		"cairn":
+			for i in 4:
+				b.blob("stone", Vector3(0, 0.2 + 0.32 * i, 0), Vector3(0.9 - 0.15 * i, 0.4, 0.9 - 0.15 * i), {"rng": rng, "snow_mat": "snow", "flat_bottom": true, "segments": 6, "rings": 3})
+		"scree_field":
+			for i in 7:
+				b.blob("stone", Vector3(rng.randf_range(-2.2, 2.2), 0.1, rng.randf_range(-2.2, 2.2)), Vector3(0.6, 0.35, 0.5), {"rng": rng, "snow_mat": "snow", "flat_bottom": true, "segments": 6, "rings": 3})
+		"cornice": b.blob("snow", Vector3(0, 0.5, 0), Vector3(4.0, 1.2, 2.2), {"rng": rng, "flat_bottom": true, "segments": 8, "rings": 4})
+		"snow_pole": 
+			b.box("can_red", Vector3(-0.03, 0.0, -0.03), Vector3(0.03, 1.0, 0.03))
+			b.box("snow", Vector3(-0.03, 1.0, -0.03), Vector3(0.03, 1.3, 0.03))
+			b.box("can_red", Vector3(-0.03, 1.3, -0.03), Vector3(0.03, 1.8, 0.03))
+		"snow_pole_tall":
+			b.box("can_red", Vector3(-0.035, 0.0, -0.035), Vector3(0.035, 1.6, 0.035))
+			b.box("snow", Vector3(-0.035, 1.6, -0.035), Vector3(0.035, 2.0, 0.035))
+			b.box("can_red", Vector3(-0.035, 2.0, -0.035), Vector3(0.035, 2.8, 0.035))
+		"road_delineator":
+			b.box("concrete", Vector3(-0.06, 0.0, -0.04), Vector3(0.06, 1.0, 0.04))
+			b.box("iron", Vector3(-0.06, 0.8, -0.05), Vector3(0.06, 0.95, 0.05))
+		"guardrail", "guardrail_end", "guardrail_bent":
+			var drop := 0.25 if key == "guardrail_bent" else 0.0
+			b.box("concrete", Vector3(-2.0, 0.45 - drop, 0.0), Vector3(2.0, 0.75 - drop, 0.08))
+			for px in [-1.9, 0.0, 1.9]:
+				b.box("iron", Vector3(px - 0.05, 0.0, 0.08), Vector3(px + 0.05, 0.75, 0.18))
+			if key == "guardrail_end":
+				b.box("concrete", Vector3(1.8, 0.0, 0.0), Vector3(2.0, 0.45, 0.08))
+		"parapet_stone": b.box("stone", Vector3(-2.0, 0.0, -0.25), Vector3(2.0, 0.9, 0.25), "snow")
+		"km_sign":
+			b.box("iron", Vector3(-0.04, 0.0, -0.04), Vector3(0.04, 2.2, 0.04))
+			b.box("cabin_trim", Vector3(-0.5, 1.6, 0.04), Vector3(0.5, 2.2, 0.08))
+		"km_post": b.box("cabin_trim", Vector3(-0.12, 0.0, -0.06), Vector3(0.12, 0.7, 0.06), "can_red")
+		"tunnel_portal", "tunnel_portal_collapsed":
+			b.box("concrete", Vector3(-7.5, 0.0, -1.5), Vector3(-5.5, 7.5, 1.5), "snow")
+			b.box("concrete", Vector3(5.5, 0.0, -1.5), Vector3(7.5, 7.5, 1.5), "snow")
+			b.box("concrete", Vector3(-7.5, 6.0, -1.5), Vector3(7.5, 7.5, 1.5), "snow")
+			b.box("iron", Vector3(-5.5, 0.0, -1.4), Vector3(5.5, 6.0, -1.3))
+			if key == "tunnel_portal_collapsed":
+				for i in 6:
+					b.blob("stone", Vector3(rng.randf_range(-4.0, 4.0), rng.randf_range(0.3, 3.5), rng.randf_range(-0.8, 0.8)), Vector3(2.2, 1.8, 1.6), {"rng": rng, "snow_mat": "snow", "flat_bottom": true, "segments": 6, "rings": 3})
 		_:
 			b.box("stone", Vector3(-0.25, 0, -0.25), Vector3(0.25, 0.5, 0.25))
 	var mesh := b.commit()

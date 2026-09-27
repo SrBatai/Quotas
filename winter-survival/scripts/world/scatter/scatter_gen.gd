@@ -19,15 +19,27 @@ const GEN_LOGS := 102
 const GEN_ROCKS := 103
 const GEN_SMALL := 104
 const GEN_NODES := 105
+## W1 generators (new cells / sequences: the M3 ones above are untouched)
+const GEN_CREST := 106
+const GEN_ROADSIDE := 107
 ## The slice clearing (legacy list) owns |x|, |z| < CLEARING_ZONE; the procedural scatter starts outside.
 const CLEARING_ZONE := 80.0
 const LEGACY_BOUNDS := 78.0
 const LEGACY_EXCLUSIONS := [[Vector2(-21, -13), 8.0], [Vector2(-11, -3), 4.5], [Vector2(-6.5, 9.5), 1.5]]
 
-## Per-biome acceptance (MacroMap.Biome order: dense forest, forest, field, lake, mountain, settlement).
-const TREE_P := [0.62, 0.42, 0.03, 0.0, 0.35, 0.05]
-const ROCK_P := [0.06, 0.10, 0.05, 0.0, 0.55, 0.03]
-const LOG_P := [0.45, 0.35, 0.08, 0.0, 0.25, 0.05]
+## Per-biome acceptance (MacroMap.Biome order: dense forest, forest, field, lake, mountain, settlement; W1: old
+## town, ensanche, financial, barriada, suburb, industrial, port, air base, ski / avalanche, river). The W1 city
+## districts are empty ground until C1 (a few trees of squares and gardens, snow drifts, nothing urban).
+const TREE_P := [0.62, 0.42, 0.03, 0.0, 0.35, 0.05, 0.012, 0.015, 0.006, 0.035, 0.10, 0.008, 0.0, 0.0, 0.10, 0.0]
+const ROCK_P := [0.06, 0.10, 0.05, 0.0, 0.55, 0.03, 0.0, 0.0, 0.0, 0.0, 0.02, 0.01, 0.0, 0.01, 0.30, 0.0]
+const LOG_P := [0.45, 0.35, 0.08, 0.0, 0.25, 0.05, 0.01, 0.01, 0.0, 0.02, 0.05, 0.01, 0.0, 0.0, 0.10, 0.0]
+## W1 biomes (index − 6): small props (bush, snow pile) and interactive nodes (firewood, stone, berry bush).
+const W1_BUSH_P := [0.02, 0.02, 0.01, 0.04, 0.10, 0.01, 0.0, 0.0, 0.02, 0.0]
+const W1_SNOW_P := [0.10, 0.10, 0.08, 0.10, 0.10, 0.10, 0.12, 0.14, 0.06, 0.0]
+const W1_NODE_P := [[0.03, 0.03, 0.0], [0.03, 0.03, 0.0], [0.02, 0.02, 0.0], [0.03, 0.03, 0.0], [0.10, 0.06, 0.03],
+	[0.03, 0.05, 0.0], [0.02, 0.04, 0.0], [0.01, 0.04, 0.0], [0.04, 0.10, 0.02], [0.0, 0.0, 0.0]]
+const URBAN_TREE_W := [["birch", 0.35], ["pine_young", 0.35], ["dead_tree_c", 0.15], ["pine_c", 0.15]]
+const SUBURB_TREE_W := [["pine_young", 0.30], ["birch", 0.30], ["pine_c", 0.20], ["pine_b", 0.10], ["dead_tree", 0.10]]
 const TREE_W := [
 	[["pine_a", 0.22], ["pine_b", 0.16], ["pine_c", 0.10], ["pine_d", 0.16], ["pine_e", 0.10], ["pine_f", 0.12], ["pine_young", 0.05], ["dead_tree", 0.04], ["dead_tree_b", 0.03], ["birch", 0.02]],
 	[["pine_a", 0.18], ["pine_b", 0.18], ["pine_c", 0.14], ["pine_d", 0.05], ["pine_e", 0.07], ["pine_f", 0.10], ["pine_young", 0.10], ["dead_tree", 0.06], ["dead_tree_b", 0.03], ["dead_tree_c", 0.03], ["birch", 0.06]],
@@ -35,6 +47,10 @@ const TREE_W := [
 	[["pine_c", 1.0]],
 	[["pine_d", 0.28], ["pine_a", 0.20], ["pine_e", 0.12], ["pine_f", 0.12], ["pine_c", 0.08], ["dead_tree", 0.10], ["dead_tree_b", 0.10]],
 	[["pine_young", 0.35], ["pine_b", 0.25], ["birch", 0.20], ["dead_tree", 0.20]],
+	URBAN_TREE_W, URBAN_TREE_W, URBAN_TREE_W, URBAN_TREE_W, SUBURB_TREE_W, URBAN_TREE_W,
+	[["dead_tree_c", 1.0]], [["dead_tree_c", 1.0]],
+	[["pine_d", 0.30], ["pine_e", 0.20], ["pine_f", 0.15], ["pine_young", 0.15], ["dead_tree", 0.10], ["dead_tree_b", 0.10]],
+	[["pine_c", 1.0]],
 ]
 const ROCK_W_FOREST := [["rock_a", 0.30], ["rock_b", 0.18], ["rock_c", 0.25], ["rock_d", 0.12], ["rock_f", 0.15]]
 const ROCK_W_MOUNTAIN := [["rock_e", 0.32], ["rock_b", 0.22], ["rock_d", 0.18], ["rock_a", 0.14], ["rock_f", 0.14]]
@@ -44,6 +60,11 @@ const SNOW_W := [["snow_pile_a", 0.35], ["snow_pile_b", 0.30], ["snow_pile_c", 0
 ## interactive berry bush, so players do not click a decoration expecting berries next to one.
 const BUSH_W := [["bush_a", 0.70], ["bush_b", 0.30]]
 const BERRY_LOOKALIKE_DIST := 24.0
+## W1 crest props: 16 m cells above this macro height (m over the clearing; the valley's ground never reaches it).
+const CREST_MIN_H := 72.0
+const CREST_P := 0.16
+## W1 road furniture spacing along the roads that ask for it (macro_roads.json "poles" / "guard").
+const GUARD_PIECE := 4.0
 
 static var _cum_cache: Dictionary = {}
 
@@ -206,13 +227,26 @@ class Ctx:
 	var segs: PackedFloat32Array
 	var pads: PackedFloat32Array
 	var lake: bool
+	var water: Dictionary = {}
 	var trees: Dictionary = {}   # tree cell key -> entry or {}
+
+
+## Probability of the interactive berry-bush node of a 16 m cell (nodes pass, k = 2) in biome `b` (M3 values for
+## the valley's biomes; W1_NODE_P for the new ones).
+static func _berry_p(b: int) -> float:
+	if b <= MacroMap.Biome.SETTLEMENT:
+		if b == MacroMap.Biome.LAKE or b == MacroMap.Biome.MOUNTAIN:
+			return 0.0
+		return 0.07 if b <= MacroMap.Biome.FIELD else 0.02
+	return float(W1_NODE_P[b - 6][2])
 
 
 static func _blocked(c: Ctx, x: float, z: float, clr: float) -> bool:
 	if absf(x) < CLEARING_ZONE and absf(z) < CLEARING_ZONE:
 		return true
 	if c.lake and PoiRegistry.lake_sdf(x, z) < 2.0 + clr:
+		return true
+	if not c.water.is_empty() and HeightFunction.water_sdf(c.water, x, z).x < 2.0 + clr:
 		return true
 	var segs := c.segs
 	for k in range(0, segs.size(), 5):
@@ -230,11 +264,14 @@ static func _blocked(c: Ctx, x: float, z: float, clr: float) -> bool:
 		if px * px + pz * pz < lim * lim:
 			return true
 	var pads := c.pads
-	for k in range(0, pads.size(), 3):
-		var dx := pads[k] - x
-		var dz := pads[k + 1] - z
-		var lim := pads[k + 2] + clr
-		if dx * dx + dz * dz < lim * lim:
+	for k in range(0, pads.size(), 5):
+		if pads[k + 2] > 0.0:
+			var dx := pads[k] - x
+			var dz := pads[k + 1] - z
+			var lim := pads[k + 2] + clr
+			if dx * dx + dz * dz < lim * lim:
+				return true
+		elif absf(x - pads[k]) < pads[k + 3] + clr and absf(z - pads[k + 1]) < pads[k + 4] + clr:
 			return true
 	return false
 
@@ -273,7 +310,7 @@ static func _near_berry_bush(c: Ctx, x: float, z: float, r: float) -> bool:
 			if Vector2(nx - x, nz - z).length() > r:
 				continue
 			var b := c.macro.biome_at(nx, nz)
-			if sub(hn, 0) < (0.07 if b <= MacroMap.Biome.FIELD else 0.02) and b != MacroMap.Biome.LAKE and b != MacroMap.Biome.MOUNTAIN:
+			if sub(hn, 0) < _berry_p(b):
 				return true
 	return false
 
@@ -298,6 +335,7 @@ static func procedural(hf: HeightFunction, rect: Rect2, margin: bool = false) ->
 	c.segs = hf.road_segments_in(rect.grow(40.0))
 	c.pads = hf.pads_in(rect.grow(40.0))
 	c.lake = PoiRegistry.LAKE_BBOX.grow(40.0).intersects(rect)
+	c.water = hf.water_prims_in(rect.grow(40.0))
 	var out: Array = []
 	# fully inside the slice clearing: nothing procedural
 	var zone := Rect2(-CLEARING_ZONE, -CLEARING_ZONE, CLEARING_ZONE * 2.0, CLEARING_ZONE * 2.0)
@@ -321,7 +359,7 @@ static func procedural(hf: HeightFunction, rect: Rect2, margin: bool = false) ->
 			if not _blocked(c, x, z, 1.0):
 				var b := c.macro.biome_at(x, z)
 				if sub(h, 0) < float(ROCK_P[b]) * (0.6 + 0.4 * c.macro.density_at(x, z)) and not _near_tree(c, x, z, 1.8):
-					var table: Array = ROCK_W_MOUNTAIN if b == MacroMap.Biome.MOUNTAIN else ROCK_W_FOREST
+					var table: Array = ROCK_W_MOUNTAIN if b == MacroMap.Biome.MOUNTAIN or b == MacroMap.Biome.SKI else ROCK_W_FOREST
 					out.append({"v": pick(table, sub(h, 3)), "node": -1, "x": x, "z": z, "yaw": sub(h, 4) * TAU,
 						"s": 0.8 + 0.5 * sub(h, 5), "wid": h})
 			for k in 2:
@@ -331,16 +369,20 @@ static func procedural(hf: HeightFunction, rect: Rect2, margin: bool = false) ->
 				if _blocked(c, sx, sz, 0.3):
 					continue
 				var b := c.macro.biome_at(sx, sz)
-				if b == MacroMap.Biome.LAKE:
+				if b == MacroMap.Biome.LAKE or b == MacroMap.Biome.RIVER:
 					continue
 				var r := sub(hs, 0)
 				var table: Array = []
 				if k == 0:
 					var pb := 0.15 if b == MacroMap.Biome.FIELD else (0.10 if b != MacroMap.Biome.MOUNTAIN else 0.02)
+					if b > MacroMap.Biome.SETTLEMENT:
+						pb = float(W1_BUSH_P[b - 6])
 					if r < pb:
 						table = BUSH_W
 				else:
 					var ps := 0.12 if b == MacroMap.Biome.FIELD else 0.07
+					if b > MacroMap.Biome.SETTLEMENT:
+						ps = float(W1_SNOW_P[b - 6])
 					if r < ps:
 						table = SNOW_W
 				if table.is_empty() or _near_tree(c, sx, sz, 1.2):
@@ -368,21 +410,127 @@ static func procedural(hf: HeightFunction, rect: Rect2, margin: bool = false) ->
 				if _blocked(c, nx, nz, 0.6):
 					continue
 				var b := c.macro.biome_at(nx, nz)
-				if b == MacroMap.Biome.LAKE or b == MacroMap.Biome.MOUNTAIN:
+				if b == MacroMap.Biome.LAKE or b == MacroMap.Biome.MOUNTAIN or b == MacroMap.Biome.RIVER:
 					continue
 				var r := sub(hn, 0)
 				var e := {}
-				if k == 0 and r < (0.22 if b <= MacroMap.Biome.FOREST else 0.08):
+				var p_wood := 0.22 if b <= MacroMap.Biome.FOREST else 0.08
+				var p_stone := 0.12
+				if b > MacroMap.Biome.SETTLEMENT:
+					p_wood = float(W1_NODE_P[b - 6][0])
+					p_stone = float(W1_NODE_P[b - 6][1])
+				if k == 0 and r < p_wood:
 					e = {"item": &"madera", "model": "firewood", "node": ScatterCatalog.NodeKind.PICKUP}
-				elif k == 1 and r < 0.12:
+				elif k == 1 and r < p_stone:
 					e = {"item": &"piedra", "model": "stone", "node": ScatterCatalog.NodeKind.PICKUP}
-				elif k == 2 and r < (0.07 if b <= MacroMap.Biome.FIELD else 0.02):
+				elif k == 2 and r < _berry_p(b):
 					e = {"node": ScatterCatalog.NodeKind.BERRY_BUSH}
 				if e.is_empty() or _near_tree(c, nx, nz, 1.3):
 					continue
 				e.merge({"v": -1, "x": nx, "z": nz, "yaw": sub(hn, 4) * TAU, "s": 1.0, "wid": hn})
 				out.append(e)
+	# 6. W1 crest props (16 m cells, only high ground: never in the valley) and 7. W1 road furniture
+	_crest(c, hf, r16, out)
+	_roadside(c, hf, rect.grow(4.0) if margin else rect, out)
 	return out
+
+
+## High mountain props (W1 art: crest rocks, spires, scree, cairns, cornices) on the sierras and the border ring.
+static func _crest(c: Ctx, hf: HeightFunction, r16: Rect2, out: Array) -> void:
+	if c.macro == null or not c.macro.ok:
+		return
+	for gz in range(int(floor(r16.position.y / 16.0)), int(ceil(r16.end.y / 16.0))):
+		for gx in range(int(floor(r16.position.x / 16.0)), int(ceil(r16.end.x / 16.0))):
+			var h := WorldConst.hash64(c.world_seed, GEN_CREST, gx, gz)
+			if sub(h, 0) >= CREST_P:
+				continue
+			var x := (float(gx) + 0.5 + (sub(h, 1) - 0.5) * 0.8) * 16.0
+			var z := (float(gz) + 0.5 + (sub(h, 2) - 0.5) * 0.8) * 16.0
+			var b := c.macro.biome_at(x, z)
+			if b != MacroMap.Biome.MOUNTAIN and b != MacroMap.Biome.SKI:
+				continue
+			var mh := c.macro.height_rel(x, z)
+			if mh < CREST_MIN_H or _blocked(c, x, z, 2.0) or _near_tree(c, x, z, 2.5):
+				continue
+			var r := sub(h, 3)
+			var v := "crest_rock_a"
+			if mh > 118.0 and r < 0.10:
+				v = "cairn"
+			elif mh > 100.0 and r < 0.35:
+				v = "cornice"
+			elif r < 0.45:
+				v = "crest_rock_b"
+			elif r < 0.55:
+				v = "crest_spire"
+			elif r < 0.75:
+				v = "scree_field"
+			elif r < 0.82:
+				v = "cliff_face"
+			out.append({"v": ScatterCatalog.index_of(v), "node": -1, "x": x, "z": z, "yaw": sub(h, 4) * TAU,
+				"s": 0.8 + 0.5 * sub(h, 5), "wid": h})
+
+
+## Snow poles and guardrails along the W1 roads that ask for them (macro_roads.json "poles": spacing m,
+## "guard": [[s0, s1], …] metres along the road), none on the ice or on pads. Guardrails: 4 m pieces along the
+## road, +Z (the model's road side) toward the centreline.
+static func _roadside(c: Ctx, hf: HeightFunction, rect: Rect2, out: Array) -> void:
+	for ri in hf.furniture_roads():
+		var info: Dictionary = hf.furniture_of(ri)
+		var bb: Rect2 = info["bbox"]
+		if not bb.grow(8.0).intersects(rect):
+			continue
+		var hw := float(info["hw"])
+		var poles := float(info["poles"])
+		if poles > 0.0:
+			var n := int(floor(float(info["length"]) / poles))
+			for k in n + 1:
+				var s := float(k) * poles
+				var side := 1.0 if k % 2 == 0 else -1.0
+				var pd := hf.road_point_dir(ri, s)
+				var nrm := Vector2(-pd[1].y, pd[1].x) * side
+				var p: Vector2 = pd[0] + nrm * (hw + 1.3)
+				if not rect.has_point(p) or _blocked_furniture(c, p):
+					continue
+				var h := WorldConst.hash64(c.world_seed, GEN_ROADSIDE, ri, k, 0)
+				var v := "snow_pole_tall" if sub(h, 0) < 0.15 else "snow_pole"
+				if str(info["pole_model"]) != "":
+					v = str(info["pole_model"])
+				out.append({"v": ScatterCatalog.index_of(v), "node": -1, "x": p.x, "z": p.y, "yaw": atan2(-nrm.x, -nrm.y),
+					"s": 1.0, "wid": h})
+		for g in info["guard"]:
+			var s0 := float(g[0])
+			var s1 := float(g[1])
+			var k0 := int(ceil(s0 / GUARD_PIECE))
+			var k1 := int(floor(s1 / GUARD_PIECE))
+			for k in range(k0, k1):
+				for side in [1.0, -1.0]:
+					var s := (float(k) + 0.5) * GUARD_PIECE
+					var pd := hf.road_point_dir(ri, s)
+					var nrm := Vector2(-pd[1].y, pd[1].x) * float(side)
+					var p: Vector2 = pd[0] + nrm * (hw + 0.8)
+					if not rect.has_point(p) or _blocked_furniture(c, p):
+						continue
+					var h := WorldConst.hash64(c.world_seed, GEN_ROADSIDE, ri, k, 1 if side > 0.0 else 2)
+					var v := "guardrail"
+					if k == k0 or k == k1 - 1:
+						v = "guardrail_end"
+					elif sub(h, 0) < 0.06:
+						v = "guardrail_bent"
+					out.append({"v": ScatterCatalog.index_of(v), "node": -1, "x": p.x, "z": p.y, "yaw": atan2(-nrm.x, -nrm.y),
+						"s": 1.0, "wid": h})
+
+
+static func _blocked_furniture(c: Ctx, p: Vector2) -> bool:
+	if not c.water.is_empty() and HeightFunction.water_sdf(c.water, p.x, p.y).x < 20.0:
+		return true
+	var pads := c.pads
+	for k in range(0, pads.size(), 5):
+		if pads[k + 2] > 0.0:
+			if Vector2(pads[k] - p.x, pads[k + 1] - p.y).length() < pads[k + 2]:
+				return true
+		elif absf(p.x - pads[k]) < pads[k + 3] and absf(p.y - pads[k + 1]) < pads[k + 4]:
+			return true
+	return false
 
 
 ## POI props of PoiRegistry.PADS whose centre lies in `rect` (static models on their pad).
@@ -391,7 +539,7 @@ static func poi_entries(world_seed: int, rect: Rect2) -> Array:
 	for i in PoiRegistry.PADS.size():
 		var pad: Dictionary = PoiRegistry.PADS[i]
 		var model := str(pad.get("model", ""))
-		var c: Vector2 = pad["center"]
+		var c: Vector2 = pad.get("model_at", pad["center"])
 		if model == "" or not rect.has_point(c):
 			continue
 		out.append({"v": -1, "node": ScatterCatalog.NodeKind.PROP, "model": model, "id": str(pad["id"]), "x": c.x, "z": c.y,

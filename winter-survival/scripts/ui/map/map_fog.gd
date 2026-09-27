@@ -9,6 +9,10 @@ const PATH := "user://hud_map_fog.cfg"
 const SIZE := MacroMap.SIZE
 const CELL := MacroMap.PX
 const HALF := float(MacroMap.SIZE) * MacroMap.PX * 0.5
+## W1: the macro grid starts at WorldConst.MACRO_ORIGIN (−1536 m) and spans SPAN m (the 6 km world is not centred
+## on the origin any more: cells are counted from ORIGIN, not from −HALF).
+const ORIGIN := WorldConst.MACRO_ORIGIN
+const SPAN := float(MacroMap.SIZE) * MacroMap.PX
 const REVEAL := 40.0
 const REVEAL_HIGH := 120.0
 const PERIOD := 0.5
@@ -53,7 +57,7 @@ func _process(delta: float) -> void:
 
 ## World position → cell (x, y).
 static func cell_of(x: float, z: float) -> Vector2i:
-	return Vector2i(int(floor((x + HALF) / CELL)), int(floor((z + HALF) / CELL)))
+	return Vector2i(int(floor((x - ORIGIN) / CELL)), int(floor((z - ORIGIN) / CELL)))
 
 
 func reveal(x: float, z: float, radius: float) -> void:
