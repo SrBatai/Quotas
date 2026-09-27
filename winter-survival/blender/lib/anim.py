@@ -64,6 +64,10 @@ def check_action_name(name, looping):
         out.append("action name %r does not match Set_Action[_Variant][-loop]" % name)
     if looping != name.endswith("-loop"):
         out.append("action %r: -loop suffix %s" % (name, "missing" if looping else "on a one-shot"))
+    base = name[:-5] if name.endswith("-loop") else name
+    if base.lower().endswith(("loop", "cycle")):
+        # T2: Godot's importer also treats a trailing "cycle" / "loop" (any case) as a loop marker and strips it
+        out.append("action %r ends with loop / cycle: Godot would strip it and loop the clip" % name)
     return out
 
 

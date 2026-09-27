@@ -8,6 +8,8 @@ Output: ../assets/icons/items/<icon>.png (names = the `icon` fields of scripts/d
 UI loads them before the flat SVG pictograms, scripts/ui/ui_icons.gd).
 
 M4: knife, machete, crowbar, bat, bat_nailed (the weapons/*.glb game models, sources/<weapon>.blend).
+T2: pistol, revolver, shotgun, rifle_hunting, bow, arrow (weapons/build_firearms.py models), ammo_9mm, ammo_357,
+ammo_shells, ammo_308, arrows, medkit, bandage, batteries, jerrycan, gun_parts, gun_oil (props/build_loot.py models).
 Models: small HD v2.1 props built here (palette colours in `Col`, smooth where soft, chamfered where hard, doc 05
 §4.2), or the game models reused from ../blender/sources/<asset>.blend (axe, torch, campfire, tent, box) with an
 emissive flame. Every icon uses ONE identical setup (camera, lights, colour management, samples):
@@ -716,6 +718,38 @@ def icon_bat_nailed():
     return icon_weapon("bat_nailed")
 
 
+def icon_firearm(asset, drop=(), rot=(0, 0, 0), post=(0, 0, 100), soften=0.0):
+    """T2 firearms / bow / arrow (weapons/build_firearms.py): the game model lying on its left side, muzzle to the
+    right; loose parts parked at their insert pose (Round, spare Magazine / Arrow) and alternative states dropped."""
+    objs = load_model(asset, soften=soften)
+    for n in drop:
+        if n in objs:
+            bpy.data.objects.remove(objs.pop(n), do_unlink=True)
+    return dict(rot=rot, post=post)
+
+
+def icon_loot(asset, rot=(0, 0, 0), post=(0, 0, 18)):
+    """T2 loot pickups (props/build_loot.py): the ground model as it lies."""
+    load_model(asset)
+    return dict(rot=rot, post=post)
+
+
+T2_ICONS = {
+    "pistol": lambda: icon_firearm("pistol"),
+    "revolver": lambda: icon_firearm("revolver", drop=("Round",)),
+    "shotgun": lambda: icon_firearm("shotgun", drop=("Round",), rot=(12, 0, 0)),
+    "rifle_hunting": lambda: icon_firearm("rifle_hunting", drop=("Round",), rot=(12, 0, 0)),
+    "bow": lambda: icon_firearm("bow", drop=("StringDrawn", "Arrow"), rot=(40, 0, 0)),     # braced, limbs diagonal
+    "arrow": lambda: icon_firearm("arrow", rot=(0, 0, 0), post=(0, 0, 125)),
+    "ammo_9mm": lambda: icon_loot("ammo_box_9mm"), "ammo_357": lambda: icon_loot("ammo_box_357"),
+    "ammo_shells": lambda: icon_loot("ammo_box_shells"), "ammo_308": lambda: icon_loot("ammo_box_308"),
+    "arrows": lambda: icon_loot("arrow_bundle", post=(0, 0, 35)), "medkit": lambda: icon_loot("medkit"),
+    "bandage": lambda: icon_loot("bandage"), "batteries": lambda: icon_loot("batteries"),
+    "jerrycan": lambda: icon_loot("jerrycan", post=(0, 0, 70)), "gun_parts": lambda: icon_loot("gun_parts"),
+    "gun_oil": lambda: icon_loot("gun_oil"),
+}
+
+
 ICONS = {
     "wood": icon_wood, "stone": icon_stone, "berry": icon_berry, "berries_hot": icon_berries_hot,
     "meat_raw": icon_meat_raw, "meat_cooked": icon_meat_cooked, "can_beans": icon_can_beans,
@@ -724,6 +758,7 @@ ICONS = {
     # M4 melee weapons (icon file name = model name)
     "knife": icon_knife, "machete": icon_machete, "crowbar": icon_crowbar, "bat": icon_bat, "bat_nailed": icon_bat_nailed,
 }
+ICONS.update(T2_ICONS)            # T2: firearms, bow, arrows, ammo and loot pickups
 
 
 # ================================================================================================================

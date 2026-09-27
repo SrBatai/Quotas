@@ -59,7 +59,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import bpy  # noqa: E402
-from mathutils import Euler, Vector  # noqa: E402
+from mathutils import Euler, Matrix, Vector  # noqa: E402
 
 from lib import export  # noqa: E402
 from lib import palette  # noqa: E402
@@ -283,8 +283,104 @@ M4_ASSETS = {
                              minz=None, extra={"fragments": 6}, hd=True, bf=True),
 }
 ASSETS.update(M4_ASSETS)
+
+# T2 (ASSET_SPEC_V2 "T2"): firearms / bow / arrow / muzzle flash (weapons/build_firearms.py + lib/gunspec.py), loot
+# containers and pickups (props/build_loot.py), W1 world props (world/build_world_props.py).
+T2_WEAPON_BUDGET = 900
+
+
+def _firearm(name):
+    from lib import gunspec as G
+    from weapons import build_firearms as BF
+    spec = G.FIREARMS.get(name) or BF.EXTRA_SPECS[name]
+    piv = {"Weapon" if name not in ("arrow", "muzzle_flash") else ("Arrow" if name == "arrow" else "Flash"): ZERO}
+    piv.update({k: tuple(v) for k, v in spec["anchors"].items()})
+    for part, pos in spec.get("parts", {}).items():
+        piv[part] = tuple(pos)
+    dims = {"y": spec["length"]} if name not in ("bow", "muzzle_flash") else ({"z": spec["length"]} if name == "bow" else {})
+    return a(0 if name not in ("muzzle_flash",) else 1, T2_WEAPON_BUDGET, piv, dims=dims, minz=None,
+             extra={"firearm": name, "ao_exempt": name == "muzzle_flash"}, hd=True, bf=True)
+
+
+def _loot_container(root, parts, loot, dims, budget=1200):
+    piv = {root: ZERO, "Loot": loot}
+    piv.update(parts)
+    return a(0, budget, piv, parents={k: root for k in list(parts) + ["Loot"]}, dims=dims,
+             extra={"container": root}, hd=True, bf=True)
+
+
+def _pickup(dims, budget=400):
+    return a(0, budget, {"Item": ZERO}, dims=dims, extra={"pickup": True}, hd=True, bf=True)
+
+
+T2_ASSETS = {"weapons/" + n: _firearm(n) for n in ("pistol", "revolver", "shotgun", "rifle_hunting", "bow", "arrow",
+                                                 "muzzle_flash")}
+T2_ASSETS.update({
+    "props/loot/crate": _loot_container("Crate", {"Lid": (0.0, 0.336, 0.50)}, (0.0, 0.0, 0.12), {"x": 0.97, "y": 0.67, "z": 0.55}),
+    "props/loot/footlocker": _loot_container("Footlocker", {"Lid": (0.0, 0.224, 0.33)}, (0.0, 0.0, 0.10),
+                                             {"x": 0.92, "y": 0.47, "z": 0.44}),
+    "props/loot/locker": _loot_container("Locker", {"Door": (-0.246, -0.261, 0.0)}, (0.0, 0.0, 1.10),
+                                         {"x": 0.51, "y": 0.52, "z": 1.87}),
+    "props/loot/fridge": _loot_container("Fridge", {"Door": (0.35, -0.355, 0.0)}, (0.0, 0.0, 0.95),
+                                         {"x": 0.70, "y": 0.72, "z": 1.76}),
+    "props/loot/kitchen_cabinet": _loot_container("KitchenCabinet", {"Door_L": (-0.396, -0.302, 0.0),
+                                                                     "Door_R": (0.396, -0.302, 0.0)},
+                                                  (0.0, 0.0, 0.30), {"x": 0.82, "y": 0.63, "z": 0.92}),
+    "props/loot/backpack": _loot_container("Backpack", {"Flap": (0.0, 0.16, 0.46)}, (0.0, 0.02, 0.30),
+                                           {"x": 0.49, "y": 0.37, "z": 0.53}),
+    "props/loot/body_bag": _loot_container("BodyBag", {"Flap": (0.0, 0.352, 0.07)}, (0.1, 0.0, 0.12),
+                                           {"x": 1.96, "y": 0.71, "z": 0.23}),
+    "props/loot/ammo_box_9mm": _pickup({"x": 0.17}), "props/loot/ammo_box_357": _pickup({"x": 0.17}),
+    "props/loot/ammo_box_shells": _pickup({"x": 0.17}), "props/loot/ammo_box_308": _pickup({"x": 0.20}),
+    "props/loot/arrow_bundle": _pickup({"x": 0.94}), "props/loot/medkit": _pickup({"x": 0.34}),
+    "props/loot/bandage": _pickup({"z": 0.10}), "props/loot/can_beans": _pickup({"z": 0.14}),
+    "props/loot/can_soup": _pickup({"z": 0.14}), "props/loot/batteries": _pickup({"x": 0.20}),
+    "props/loot/jerrycan": _pickup({"z": 0.475}), "props/loot/gun_parts": _pickup({"x": 0.35}),
+    "props/loot/gun_oil": _pickup({"z": 0.26}),
+})
+W_ROCK = {"Rock": ZERO}
+T2_ASSETS.update({
+    "world/crest_rock_a": a(0, 1000, W_ROCK, dims={"z": 2.90}, mm="rock", hd=True),
+    "world/crest_rock_b": a(0, 1000, W_ROCK, dims={"z": 1.83}, mm="rock", hd=True),
+    "world/crest_spire": a(0, 1000, W_ROCK, dims={"z": 4.30}, mm="rock", hd=True),
+    "world/scree_field": a(0, 1000, W_ROCK, dims={"x": 5.2}, mm="rock", hd=True),
+    "world/cliff_face": a(0, 1200, W_ROCK, dims={"x": 8.2, "z": 6.3}, mm="rock", hd=True),
+    "world/cairn": a(1, 1000, W_ROCK, dims={"z": 1.1}, mm="rock", hd=True),
+    "world/cornice": a(0, 500, {"Snow": ZERO}, dims={"x": 6.0}, mm="snow", hd=True),
+    "world/snow_pole": a(0, 250, {"Pole": ZERO}, dims={"z": 2.3}, mm="pole", hd=True, extra={"pole": True}),
+    "world/snow_pole_tall": a(0, 250, {"Pole": ZERO}, dims={"z": 4.3}, mm="pole", hd=True, extra={"pole": True}),
+    "world/road_delineator": a(0, 250, {"Pole": ZERO}, dims={"z": 1.2}, mm="pole", hd=True, extra={"pole": True}),
+    "world/guardrail": a(0, 700, {"Rail": ZERO}, dims={"x": 4.04}, mm="rail", hd=True, extra={"rail": True}),
+    "world/guardrail_end": a(0, 700, {"Rail": ZERO}, dims={"x": 4.02}, mm="rail", hd=True, extra={"rail": True}),
+    "world/guardrail_bent": a(1, 700, {"Rail": ZERO}, dims={"x": 4.04}, mm="rail", hd=True, extra={"rail": True}),
+    "world/parapet_stone": a(0, 700, {"Rail": ZERO}, dims={"x": 4.04}, mm="rail", hd=True, extra={"rail": True}),
+    "world/tunnel_portal": a(0, 14000, {"Portal": ZERO, "Panel": ZERO, "TextPanel": (0.0, -0.16, 6.70),
+                                        "RoadIn": (0.0, -0.5, 0.0), "Inside": (0.0, 11.0, 0.0)},
+                             minz=None, extra={"portal": False}, col=None, hd=True, bf=True),
+    "world/tunnel_portal_collapsed": a(0, 14000, {"Portal": ZERO, "Rubble": ZERO, "Panel": ZERO,
+                                                  "TextPanel": (0.0, -0.16, 6.70), "RoadIn": (0.0, -0.5, 0.0),
+                                                  "Inside": (0.0, 3.0, 0.0)},
+                                       minz=None, extra={"portal": True}, col=None, hd=True, bf=True),
+    "world/km_sign": a(0, 400, {"Prop": ZERO, "Panel": ZERO, "TextPanel": (0.0, -0.075, 1.44)}, dims={"z": 2.0},
+                       extra={"sign": True}, hd=True, bf=True),
+    "world/km_post": a(0, 400, {"Prop": ZERO, "Panel": ZERO, "TextPanel": (0.0, -0.14, 0.50)}, dims={"z": 1.24},
+                       extra={"sign": True}, hd=True, bf=True),
+})
+for _k in ("world/tunnel_portal", "world/tunnel_portal_collapsed"):
+    T2_ASSETS[_k]["col"] = None                       # checked by portal_problems (wing prisms are not boxes)
+ASSETS.update(T2_ASSETS)
+# W1: typical mountain-road view at the game camera (Carretera del Puerto: guardrails, poles, crest rocks, a portal)
+MOUNTAIN_VIEW = {
+    "world/guardrail": 16, "world/guardrail_end": 2, "world/guardrail_bent": 2, "world/parapet_stone": 8,
+    "world/snow_pole": 14, "world/snow_pole_tall": 6, "world/road_delineator": 14, "world/km_post": 1,
+    "world/crest_rock_a": 4, "world/crest_rock_b": 4, "world/crest_spire": 2, "world/scree_field": 3,
+    "world/cliff_face": 4, "world/cornice": 3, "world/cairn": 1, "world/tunnel_portal": 1,
+    "vegetation/pine_d": 6, "vegetation/pine_young": 8, "vegetation/rock_e": 2, "vegetation/snow_drift_4": 4,
+    "chars/survivor_red": 4,
+}
+MOUNTAIN_RESERVE = {"zombies (30 x 2 000)": 60000, "terrain": 30000, "vehicles (4 x 5 000)": 20000}
 MM_NODES = {"pine": "Tree", "dead_tree": "Tree", "birch": "Tree", "bush": "Bush", "rock": "Rock", "snow": "Snow",
-            "log": "Log", "ice": "Icicles"}
+            "log": "Log", "ice": "Icicles", "pole": "Pole", "rail": "Rail"}
 COL_KINDS = {"cylinder": 2, "sphere": 1, "box": 3, "none": 0}
 
 # M3 streaming: a typical forest view at the default camera (instances on screen + shadow range) + a forest POI
@@ -931,6 +1027,233 @@ def fragment_problems(spec, objs):
     return out
 
 
+# ------------------------------------------------------------------------------------------------
+# T2 family checks (ASSET_SPEC_V2 "T2")
+# ------------------------------------------------------------------------------------------------
+FIREARM_CLASSES = ("Pistol", "LongGun", "Bow")
+
+
+def _pos(o):
+    return o.matrix_world.translation
+
+
+def _near(p, q, tol=0.002):
+    return (Vector(p) - Vector(q)).length <= tol
+
+
+def firearm_problems(spec, by, g):
+    """§12 + T2: nodes of lib/gunspec.py at their exact positions (the clips rely on them), top level, weapon extras,
+    muzzle at the front end of the barrel, grip around the origin, shooter's right = -X, loose parts with their origin
+    at the left fist that carries them (every part within 0.25 m of its origin), part movement extras."""
+    from lib import gunspec as G
+    from weapons import build_firearms as BF
+    name = spec["extra"]["firearm"]
+    ws = G.FIREARMS.get(name) or BF.EXTRA_SPECS[name]
+    out = []
+    for o in by.values():
+        if o.parent is not None:
+            out.append("%s must be top level" % o.name)
+    for k, v in list(ws["anchors"].items()) + list(ws.get("parts", {}).items()):
+        if k in by and not _near(_pos(by[k]), v):
+            out.append("%s at %s, gunspec %s" % (k, tuple(round(c, 4) for c in _pos(by[k])), v))
+    main = by.get("Weapon") or by.get("Arrow") or by.get("Flash")
+    node = next((nd for nd in g["nodes"] if nd.get("name") == main.name), {}) if main else {}
+    ex = node.get("extras", {})
+    if ex.get("weapon_class") != ws["cls"] or abs(float(ex.get("length", 0)) - ws["length"]) > 1e-3 \
+            or "caliber" not in ex or "capacity" not in ex:
+        out.append("%s extras %s (want weapon_class %s, length %s, caliber, capacity)" % (main.name if main else "?", ex,
+                                                                                         ws["cls"], ws["length"]))
+    if ws["cls"] in FIREARM_CLASSES:
+        w = by["Weapon"]
+        mn, mx = world_bounds([w])
+        if not all(mn[i] - 0.005 <= 0.0 <= mx[i] + 0.005 for i in range(3)):
+            out.append("origin (grip) outside the Weapon bounds")
+        d0 = min((w.matrix_world @ v.co).length for v in w.data.vertices)
+        if d0 > 0.045:
+            out.append("no grip geometry around the origin (nearest vertex %.3f m)" % d0)
+        mz = _pos(by["Muzzle"])
+        if mz.y >= 0.0 or (ws["cls"] != "Bow" and abs(mz.y - mn.y) > 0.02):
+            out.append("Muzzle y %.3f not at the front end of the barrel (mesh min y %.3f)" % (mz.y, mn.y))
+        if ws["cls"] != "Bow" and mz.y > _pos(by["SupportGrip"]).y:
+            out.append("Muzzle behind the SupportGrip")
+        if "EjectPort" in by and _pos(by["EjectPort"]).x >= 0.0:
+            out.append("EjectPort on the shooter's left (+X): must be at -X")
+        if ws["cls"] == "Bow" and not _pos(by["DrawPoint"]).y > _pos(by["SupportGrip"]).y + 0.3:
+            out.append("DrawPoint must be >= 0.3 m behind the SupportGrip")
+        for part in ws.get("parts", {}):
+            o = by.get(part)
+            if o is None or o.type != 'MESH':
+                out.append("part %s missing / not a mesh" % part)
+                continue
+            far = max(((o.matrix_world @ v.co) - _pos(o)).length for v in o.data.vertices)
+            if part in BF.LOOSE and far > (G.ARROW_LEN + 0.03 if part == "Arrow" else 0.25):
+                out.append("%s geometry %.2f m from its origin (the carrying fist)" % (part, far))
+            for k in BF.PART_EXTRAS.get(part, {}):
+                if k not in o.keys():
+                    out.append("%s extras lack %s" % (part, k))
+    elif ws["cls"] == "Ammo":
+        if not (_pos(by["Tip"]).y < 0.0 < _pos(by["Nock"]).y):
+            out.append("arrow Tip must be toward -Y and Nock toward +Y")
+    elif ws["cls"] == "Fx":
+        f = by["Flash"]
+        if [m.name for m in f.data.materials if m] != ["emissive_lamp"]:
+            out.append("Flash must use only emissive_lamp")
+        if world_bounds([f])[1].y > 0.01:
+            out.append("Flash must extend toward -Y from the origin (the muzzle)")
+    return out
+
+
+def _godot_to_blender_axis(v):
+    return Vector((v[0], -v[2], v[1]))
+
+
+def container_problems(spec, by, objs):
+    """§9 + T2: root mesh + moving part children with the origin on their hinge (on the outline of the container),
+    hinge_axis / open_deg extras, the part really opens (lids up, doors toward the front), no visible back faces
+    in the OPEN state either; Loot inside; root extras (container, slots, col_center, col_size)."""
+    out = []
+    root = by.get(spec["extra"]["container"])
+    if root is None:
+        return ["no root mesh"]
+    for k in ("container", "slots", "col_center", "col_size"):
+        if k not in root.keys():
+            out.append("%s extras lack %s" % (root.name, k))
+    mn, mx = world_bounds([o for o in objs if o.type == 'MESH'])
+    loot = by.get("Loot")
+    if loot is not None and not all(mn[i] < _pos(loot)[i] < mx[i] for i in range(3)):
+        out.append("Loot outside the container")
+    parts = [o for o in root.children if o.type == 'MESH']
+    if not parts:
+        out.append("no moving part (Lid / Door / Flap)")
+    for o in parts:
+        if "hinge_axis" not in o.keys() or "open_deg" not in o.keys():
+            out.append("%s lacks hinge_axis / open_deg" % o.name)
+            continue
+        piv = _pos(o)
+        if min(min(abs(piv[i] - mn[i]), abs(piv[i] - mx[i])) for i in range(3)) > 0.04:
+            out.append("%s hinge %s not on the outline of the container" % (o.name, tuple(round(c, 3) for c in piv)))
+        axis = _godot_to_blender_axis(list(o["hinge_axis"]))
+        if abs(axis.length - 1.0) > 1e-3 or not 60.0 <= abs(o["open_deg"]) <= 180.0:
+            out.append("%s hinge_axis %s / open_deg %s" % (o.name, list(o["hinge_axis"]), o["open_deg"]))
+            continue
+        c0 = sum(world_bounds([o]), Vector()) / 2
+        mb0 = o.matrix_basis.copy()
+        o.matrix_basis = Matrix.Translation(mb0.translation) @ Matrix.Rotation(math.radians(o["open_deg"]), 4, axis)
+        bpy.context.view_layer.update()
+        c1 = sum(world_bounds([o]), Vector()) / 2
+        if abs(axis.z) > 0.9:                       # door: swings toward the front (-Y)
+            if c1.y > c0.y - 0.05:
+                out.append("%s opens backward / inward (centre y %.2f -> %.2f)" % (o.name, c0.y, c1.y))
+        elif c1.z < c0.z + 0.03:                     # lid / flap: goes up
+            out.append("%s does not open upward (centre z %.2f -> %.2f)" % (o.name, c0.z, c1.z))
+        out += ["open state: " + x for x in backface_problems(objs, ground=True)]
+        o.matrix_basis = mb0
+        bpy.context.view_layer.update()
+    return out
+
+
+def pickup_problems(by, objs):
+    out = []
+    if sorted(o.name for o in objs) != ["Item"]:
+        out.append("pickup must be exactly one mesh Item (has %s)" % sorted(o.name for o in objs))
+        return out
+    o = by["Item"]
+    for k in ("pickup", "col_center", "col_size"):
+        if k not in o.keys():
+            out.append("Item extras lack %s" % k)
+    mn, mx = world_bounds([o])
+    size = mx - mn
+    c = (mn + mx) / 2
+    if math.hypot(c.x, c.y) > 0.25 * max(size.x, size.y) + 0.01:
+        out.append("origin not at the base centre")
+    return out
+
+
+def road_prop_problems(spec, by):
+    """W1 rails: 4 m sections along X (tile every 4 m, <= 12 cm overlap); poles: centred upright."""
+    out = []
+    o = by.get("Rail") or by.get("Pole")
+    mn, mx = world_bounds([o])
+    if spec["extra"].get("rail"):
+        if not 3.95 <= mx.x - mn.x <= 4.12 or abs(mn.x + mx.x) > 0.1:
+            out.append("rail section spans x %.2f..%.2f (want a 4 m section centred on the origin)" % (mn.x, mx.x))
+    else:
+        top = [o.matrix_world @ v.co for v in o.data.vertices if (o.matrix_world @ v.co).z > 0.5]
+        if not top or max(math.hypot(p.x, p.y) for p in top) > 0.12:
+            out.append("pole not upright on the origin")
+    return out
+
+
+def portal_problems(spec, by, objs):
+    """W1 tunnel portals: extras, Col* set (closed convex boxes / wing prisms), road anchors, a clear (open) or blocked
+    (collapsed) gallery, name Panel with its TextPanel in front."""
+    from world import build_world_props as W
+    out = []
+    collapsed = spec["extra"]["portal"]
+    p = by.get("Portal")
+    for k in ("road_width", "clearance", "crown", "depth", "blocked", "carve", "panels"):
+        if k not in p.keys():
+            out.append("Portal extras lack %s" % k)
+    if bool(p.get("blocked")) != collapsed:
+        out.append("Portal blocked=%s, want %s" % (p.get("blocked"), collapsed))
+    want = {n + "-convcolonly" for n in W.portal_cols(collapsed)} | {"ColWingL-convcolonly", "ColWingR-convcolonly"}
+    have = {o.name for o in objs if is_col(o)}
+    if want != have:
+        out.append("collision set: missing %s extra %s" % (sorted(want - have), sorted(have - want)))
+    for o in objs:
+        if is_col(o):
+            out += col_shape_problems(o)
+    from mathutils.bvhtree import BVHTree
+    vis = [o for o in objs if o.type == 'MESH' and not is_col(o)]
+    verts, polys = [], []
+    for o in vis:
+        base = len(verts)
+        verts += [o.matrix_world @ v.co for v in o.data.vertices]
+        polys += [tuple(base + i for i in pl.vertices) for pl in o.data.polygons]
+    tree = BVHTree.FromPolygons(verts, polys)
+    start = _pos(by["RoadIn"]) + Vector((0, 0, 1.5))
+    hit = tree.ray_cast(start, Vector((0, 1, 0)), 100.0)
+    dist = (hit[0] - start).length if hit[0] is not None else 999.0
+    if collapsed and dist > 5.0:
+        out.append("collapsed portal not blocked (clear for %.1f m)" % dist)
+    if not collapsed and dist < W.TUN_DEPTH - 0.5:
+        out.append("open gallery blocked after %.1f m (depth %.1f)" % (dist, W.TUN_DEPTH))
+    if _pos(by["RoadIn"]).y >= 0.0:
+        out.append("RoadIn must be in front of the portal (-Y)")
+    pmn, _pmx = world_bounds([by["Panel"]])
+    if _pos(by["TextPanel"]).y >= pmn.y:
+        out.append("TextPanel not in front of the Panel")
+    return out
+
+
+def sign_problems(by):
+    out = []
+    prop, panel = by.get("Prop"), by.get("Panel")
+    if prop is None or panel is None:
+        return ["Prop / Panel missing"]
+    for k in ("col", "col_center", "col_size", "panels"):
+        if k not in prop.keys():
+            out.append("Prop extras lack %s" % k)
+    pmn, _pmx = world_bounds([panel])
+    if _pos(by["TextPanel"]).y >= pmn.y:
+        out.append("TextPanel not in front of the Panel (-Y)")
+    return out
+
+
+def mountain_budget(per):
+    """W1: typical mountain-road view (Carretera del Puerto) at the game camera + reserve <= VIEW_BUDGET."""
+    view = 0
+    for name, n in MOUNTAIN_VIEW.items():
+        path = export.MODELS_DIR / ("%s.glb" % name)
+        t = per[name] if name in per else (glb_tris(path) if path.exists() else 0)
+        view += n * t
+    reserve = sum(MOUNTAIN_RESERVE.values())
+    ok = view + reserve <= VIEW_BUDGET
+    print("%s typical mountain-road view (W1): assets %d + reserve %d (%s) = %d tris (budget %d)" % (
+        "OK  " if ok else "FAIL", view, reserve, ", ".join(MOUNTAIN_RESERVE), view + reserve, VIEW_BUDGET))
+    return 0 if ok else 1
+
+
 def verify(name, spec0, allowed_bytes, godot_targets):
     """Returns (status, message, tris, surfaces)."""
     spec = final_spec(spec0)
@@ -946,7 +1269,8 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         return "FAIL", "FAIL %s: glb too small or bad header" % name, 0, 0
 
     g, binary = load_glb(glb)
-    problems, surfaces = gltf_problems(g, binary, godot_targets, alphas=[] if spec["extra"].get("decal") else None)
+    ao_exempt = spec["extra"].get("decal") or spec["extra"].get("ao_exempt")
+    problems, surfaces = gltf_problems(g, binary, godot_targets, alphas=[] if ao_exempt else None)
     if spec["max_surfaces"] is not None and surfaces > spec["max_surfaces"]:
         problems.append("%d surfaces > %d" % (surfaces, spec["max_surfaces"]))
 
@@ -1091,11 +1415,23 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems += mm_problems(name, spec, objs, g)
     if spec["extra"].get("weapon"):
         problems += weapon_problems(spec, by, g)
+    if spec["extra"].get("firearm"):
+        problems += firearm_problems(spec, by, g)
+    if spec["extra"].get("container"):
+        problems += container_problems(spec, by, objs)
+    if spec["extra"].get("pickup"):
+        problems += pickup_problems(by, objs)
+    if spec["extra"].get("rail") or spec["extra"].get("pole"):
+        problems += road_prop_problems(spec, by)
+    if "portal" in spec["extra"]:
+        problems += portal_problems(spec, by, objs)
+    if spec["extra"].get("sign"):
+        problems += sign_problems(by)
     if spec["extra"].get("fragments"):
         problems += fragment_problems(spec, objs)
     if spec["bf"]:
-        problems += backface_problems(objs, ground=spec["minz"] is not None and spec["minz"] >= -0.01
-                                      and "maxz" not in spec["extra"],
+        problems += backface_problems(objs, ground=(spec["minz"] is not None and spec["minz"] >= -0.01
+                                      and "maxz" not in spec["extra"]) or "portal" in spec["extra"],
                                       cutaway=spec["poi"] or any(o.name == "WallFront" for o in objs))
     if spec["poi"]:
         problems += cut_problems(by, objs)
@@ -1138,7 +1474,9 @@ def forest_budget(per):
     return 0 if ok else 1
 
 
-def main():
+def main(only=None):
+    """only = list of name prefixes (T2: `python3 verify_assets.py --only weapons/,world/`): verify just those assets
+    (no view budgets, no city part)."""
     failures = 0
     total = 0
     total_surf = 0
@@ -1146,6 +1484,8 @@ def main():
     godot_targets = {palette.target_godot_bytes(n) for n in palette.all_names()}
     per = {}
     for name, spec in ASSETS.items():
+        if only and not name.startswith(tuple(only)):
+            continue
         status, msg, tris, surfaces = verify(name, spec, allowed_bytes, godot_targets)
         total += tris
         total_surf += surfaces
@@ -1153,9 +1493,13 @@ def main():
         print(msg)
         if status == "FAIL":
             failures += 1
+    if only:
+        print("ALL OK" if failures == 0 else "%d FAILURES" % failures)
+        return 0 if failures == 0 else 1
     print("TOTAL tris=%d surfaces=%d (all %d assets once)" % (total, total_surf, len(ASSETS)))
     failures += view_budget(per)
     failures += forest_budget(per)
+    failures += mountain_budget(per)
     failures += city_problems()
     print("ALL OK" if failures == 0 else "%d FAILURES" % failures)
     return 0 if failures == 0 else 1
@@ -1175,4 +1519,6 @@ if __name__ == "__main__":
         n = city_problems([a for a in sys.argv[1:] if a != "--city"])
         print("ALL OK" if n == 0 else "%d FAILURES" % n)
         sys.exit(1 if n else 0)
+    if "--only" in sys.argv:
+        sys.exit(main(sys.argv[sys.argv.index("--only") + 1].split(",")))
     sys.exit(main())

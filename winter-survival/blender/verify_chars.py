@@ -26,6 +26,9 @@ G1 (v2.1, docs/research/05_graficos_arte.md §4): a character is `Body` + option
       evaluated 8x per frame with slerp, as Godot plays it) and, when `godot` is on PATH, on the clips IMPORTED by
       Godot 4.7 (throwaway project in $VENTISCA_GODOT_SCRATCH or a temp dir, retarget templates of lib/export.py,
       240 samples per cycle): every Loco_* / Crouch_* cycle keeps the ankle >= 0.08 m there too.
+T2: anims/humanoid_firearms.glb (anims/build_firearms.FIREARMS_TABLE: Pistol_*, LongGun_*, Bow_*, reloads, Act_Unjam*,
+      additive Shoot clips) under the same clip kinds, played in Godot on the survivor, and the survivor's back faces in
+      4 firearm / bow poses.
 M4 (zombies + combat): zombies/*.glb are checked with the rig parameters of their variant
       (zombies/build_zombie.VARIANTS: height / width -> rest = rig.joints(params)), the height range and feet rule of their
       kind (crawlers have no feet), meshes Body + Outfit_* + Ice (frozen shards), zombie budget 2 500 (doc 05 v2.1); the
@@ -86,8 +89,9 @@ def loco_table():
     from anims import build_loco
     from anims import build_zombie_anims
     from anims import build_combat
+    from anims import build_firearms
     return {"humanoid_loco": build_loco.LOCO_TABLE, "zombie_anims": build_zombie_anims.ZOMBIE_TABLE,
-            "humanoid_combat": build_combat.COMBAT_TABLE}
+            "humanoid_combat": build_combat.COMBAT_TABLE, "humanoid_firearms": build_firearms.FIREARMS_TABLE}
 
 
 def char_rules(name):
@@ -335,7 +339,10 @@ BF_POSES = {
                  ("humanoid_loco", "Crouch_Walk-loop", 10), ("humanoid_loco", "Loco_Idle_Cold-loop", 20),
                  ("humanoid_combat", "Melee2H_Swing_A", 13), ("humanoid_combat", "Melee1H_Light_A", 8),
                  ("humanoid_combat", "Melee_Charged", 24), ("humanoid_combat", "Act_Revive-loop", 20),
-                 ("humanoid_combat", "Down_Idle-loop", 10), ("humanoid_combat", "Down_Crawl-loop", 12)],
+                 ("humanoid_combat", "Down_Idle-loop", 10), ("humanoid_combat", "Down_Crawl-loop", 12),
+                 # T2: firearm / bow poses (arms raised, torso bladed / twisted)
+                 ("humanoid_firearms", "Pistol_Aim-loop", 0), ("humanoid_firearms", "LongGun_Aim-loop", 0),
+                 ("humanoid_firearms", "LongGun_Reload_Bolt", 50), ("humanoid_firearms", "Bow_Hold-loop", 0)],
 }
 
 
@@ -675,6 +682,7 @@ func _process(_delta: float) -> bool:
 """
 # (model, library) pairs measured in Godot; zombies of other proportions check the retarget (feet stay planted)
 GODOT_PAIRS = [("chars/survivor_red", "anims/humanoid_loco"), ("chars/survivor_red", "anims/humanoid_combat"),
+               ("chars/survivor_red", "anims/humanoid_firearms"),
                ("chars/survivor_red", "anims/zombie_anims"), ("zombies/zombie_walker_17", "anims/zombie_anims"),
                ("zombies/zombie_bloater_01", "anims/zombie_anims"), ("zombies/zombie_runner_01", "anims/zombie_anims")]
 

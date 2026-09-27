@@ -14,6 +14,13 @@ extends SceneTree
 ##   - weapons/*.glb (M4, §12): Weapon + Grip at the origin, Tip up the handle (+Y) and not behind (+Z >= 0),
 ##     SupportGrip (two-handed) below the grip, extras weapon_class; gore/*.glb (M4): the generic mesh contract +
 ##     head_fragments = 6 Frag_n meshes.
+##   - T2 (ASSET_SPEC v2 "T2"): firearms / bow (weapon_class Pistol | LongGun | Bow): Grip at the origin, Muzzle in front
+##     (+Z), SupportGrip, the moving / loose parts of FIREARM_PARTS, EjectPort on the shooter's right (-X), the documented
+##     part motions (Cylinder rotation.z = -swing swings to +X, Bolt rotation.z = -lift raises the handle); arrow (Tip +Z)
+##     and muzzle_flash (emissive, +Z); anims/humanoid_firearms (FIREARMS_TABLE); props/loot/*.glb: containers (root
+##     mesh, Loot anchor, every hinged part opens with rotate_object_local(hinge_axis, open_deg): lids up, doors toward
+##     +Z) and pickups (one mesh Item); world/*.glb (W1): MultiMesh props (one mesh + collision-proxy extras), tunnel
+##     portals (Portal, Col* StaticBody3D at the first level, RoadIn in front, Panel + TextPanel), km signs.
 ##   - city/<family>/*.glb (A1, ASSET_SPEC v2 "A1"): the generic mesh contract; root metadata copied by the
 ##     post-import script (city_import.gd); towers / buildings: Base, Shaft_<n> with floor_from, ShadowProxy above 12 m,
 ##     floor_h / ground_h / floors on the root and CityBuilding.validate() clean when that script exists; vehicles: Body
@@ -70,6 +77,26 @@ const COMBAT_TABLE := {
 	"Hit_Grabbed": [1.000, true], "Down_Fall": [0.800, false], "Down_Idle": [2.000, true],
 	"Down_Crawl": [1.200, true], "Down_Revived": [1.500, false], "Death_A": [0.500, false]
 }
+## T2 firearm library (blender/anims/build_firearms.py FIREARMS_TABLE).
+const FIREARMS_TABLE := {
+	"Pistol_Idle": [3.000, true], "Pistol_Aim": [2.000, true], "Pistol_Shoot": [0.200, false],
+	"Pistol_Reload": [1.600, false], "Pistol_Reload_Revolver": [3.000, false], "LongGun_Idle": [3.000, true],
+	"LongGun_Aim": [2.000, true], "LongGun_Shoot": [0.300, false], "LongGun_Shoot_Shotgun": [0.300, false],
+	"LongGun_Pump": [0.600, false], "LongGun_Bolt_Rack": [1.000, false], "LongGun_Reload_Shell": [0.700, true],
+	"LongGun_Reload_Bolt": [3.500, false], "LongGun_Reload_Mag": [2.200, false], "Act_Unjam": [1.500, false],
+	"Act_Unjam_LongGun": [1.500, false], "Bow_Aim": [2.000, true], "Bow_Draw": [1.400, false],
+	"Bow_Hold": [2.000, true], "Bow_Release": [0.300, false]
+}
+## T2 firearms: required part / anchor nodes per file (blender/lib/gunspec.py).
+const FIREARM_PARTS := {
+	"pistol": ["Slide", "Magazine", "EjectPort", "Sight"], "revolver": ["Cylinder", "Round", "Sight"],
+	"shotgun": ["Pump", "Round", "EjectPort", "LoadPort", "Sight"],
+	"rifle_hunting": ["Bolt", "Scope", "Round", "EjectPort", "Sight"],
+	"bow": ["String", "StringDrawn", "Arrow", "DrawPoint"]
+}
+const WEAPON_BUDGET := 900
+const LOOT_BUDGET := {"container": 1200, "pickup": 400}
+const WORLD_BUDGET := {"rock": 1200, "snow": 500, "pole": 250, "rail": 700, "portal": 14000, "sign": 400}
 const ZOMBIE_BUDGET := 2500
 const ZOMBIE_MESHES := ["Body", "Ice"]
 ## gore/*.glb triangle budgets (blender/props/build_gore.py GORE)
@@ -130,6 +157,8 @@ func _initialize() -> void:
 	checked += _check_zombies()
 	checked += _check_subfolder("weapons")
 	checked += _check_subfolder("gore")
+	checked += _check_loot()
+	checked += _check_world()
 	checked += _check_city()
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
@@ -226,6 +255,8 @@ func _check_anims() -> int:
 			table = ZOMBIE_TABLE
 		elif name.begins_with("humanoid_combat"):
 			table = COMBAT_TABLE
+		elif name.begins_with("humanoid_firearms"):
+			table = FIREARMS_TABLE
 		else:
 			problems.append("no clip table for %s" % name)
 		for an in table:
@@ -341,7 +372,16 @@ func _check_subfolder(folder: String) -> int:
 			_dump(inst, 1)
 		_check(asset, inst)
 		var problems: Array[String] = []
+		var wclass := ""
 		if folder == "weapons":
+			var wmain := inst.find_child("Weapon", true, false)
+			if wmain == null:
+				wmain = inst.find_child("Arrow", true, false) if inst.find_child("Flash", true, false) == null else inst.find_child("Flash", true, false)
+			if wmain != null and wmain.has_meta("extras"):
+				wclass = String((wmain.get_meta("extras") as Dictionary).get("weapon_class", ""))
+		if folder == "weapons" and wclass in ["Pistol", "LongGun", "Bow", "Ammo", "Fx"]:
+			problems.append_array(_firearm_problems(name.get_basename(), wclass, inst))
+		elif folder == "weapons":
 			var grip := inst.find_child("Grip", true, false) as Node3D
 			var tip := inst.find_child("Tip", true, false) as Node3D
 			var weapon := inst.find_child("Weapon", true, false)
@@ -378,6 +418,211 @@ func _check_subfolder(folder: String) -> int:
 						problems.append("Frag_%d missing" % k)
 			elif meshes != 1:
 				problems.append("%d meshes (expected 1)" % meshes)
+		for p in problems:
+			_fail(asset, p)
+		inst.free()
+		n += 1
+	return n
+
+
+## T2 firearms / bow / arrow / muzzle flash (ASSET_SPEC v2 "T2", blender/lib/gunspec.py).
+func _firearm_problems(base: String, wclass: String, inst: Node) -> Array[String]:
+	var problems: Array[String] = []
+	var tris := _tris(inst)
+	if tris > WEAPON_BUDGET:
+		problems.append("%d tris > %d" % [tris, WEAPON_BUDGET])
+	if wclass == "Ammo":
+		var tip := inst.find_child("Tip", true, false) as Node3D
+		var nock := inst.find_child("Nock", true, false) as Node3D
+		if tip == null or nock == null or _model_pos(tip, inst).z <= 0.0 or _model_pos(nock, inst).z >= 0.0:
+			problems.append("arrow: Tip must be at +Z (front), Nock at -Z")
+		return problems
+	if wclass == "Fx":
+		var flash := inst.find_child("Flash", true, false) as MeshInstance3D
+		if flash == null or flash.mesh == null:
+			problems.append("Flash mesh missing")
+		else:
+			var m := flash.mesh.surface_get_material(0)
+			if m == null or not String(m.resource_name).begins_with("emissive"):
+				problems.append("Flash must use emissive_lamp")
+			if flash.get_aabb().position.z < -0.01:
+				problems.append("Flash must extend toward +Z from the muzzle")
+		return problems
+	var grip := inst.find_child("Grip", true, false) as Node3D
+	var muzzle := inst.find_child("Muzzle", true, false) as Node3D
+	var support := inst.find_child("SupportGrip", true, false) as Node3D
+	if grip == null or muzzle == null or support == null:
+		problems.append("Grip / Muzzle / SupportGrip missing")
+		return problems
+	if _model_pos(grip, inst).length() > 0.005:
+		problems.append("Grip not at the origin")
+	if _model_pos(muzzle, inst).z <= 0.02:
+		problems.append("Muzzle at %s: expected in front (+Z)" % _model_pos(muzzle, inst))
+	for n in FIREARM_PARTS.get(base, []):
+		if inst.find_child(n, true, false) == null:
+			problems.append("%s missing" % n)
+	var eject := inst.find_child("EjectPort", true, false) as Node3D
+	if eject != null and _model_pos(eject, inst).x >= 0.0:
+		problems.append("EjectPort at %s: expected on the shooter's right (-X)" % _model_pos(eject, inst))
+	var cyl := inst.find_child("Cylinder", true, false) as MeshInstance3D
+	if cyl != null:
+		var sw := float((cyl.get_meta("extras", {}) as Dictionary).get("swing_deg", 0.0))
+		var c0 := (_model_xf(cyl, inst) * cyl.get_aabb().get_center())
+		cyl.rotation.z = deg_to_rad(-sw)
+		var c1 := (_model_xf(cyl, inst) * cyl.get_aabb().get_center())
+		cyl.rotation.z = 0.0
+		if sw < 45.0 or c1.x < c0.x + 0.02:
+			problems.append("Cylinder rotation.z = -swing_deg does not swing it out to +X (%.3f -> %.3f)" % [c0.x, c1.x])
+	var bolt := inst.find_child("Bolt", true, false) as MeshInstance3D
+	if bolt != null:
+		var lift := float((bolt.get_meta("extras", {}) as Dictionary).get("lift_deg", 0.0))
+		var y0 := (_model_xf(bolt, inst) * bolt.get_aabb()).end.y
+		bolt.rotation.z = deg_to_rad(-lift)
+		var y1 := (_model_xf(bolt, inst) * bolt.get_aabb()).end.y
+		bolt.rotation.z = 0.0
+		if lift < 30.0 or y1 < y0 + 0.01:
+			problems.append("Bolt rotation.z = -lift_deg does not raise the handle (%.3f -> %.3f)" % [y0, y1])
+	var draw := inst.find_child("DrawPoint", true, false) as Node3D
+	if draw != null and _model_pos(draw, inst).z > _model_pos(support, inst).z - 0.3:
+		problems.append("DrawPoint must be >= 0.3 m behind (-Z) the SupportGrip")
+	return problems
+
+
+func _tris(root: Node) -> int:
+	var tris := 0
+	for node in _all(root):
+		if node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			var mi := node as MeshInstance3D
+			for i in mi.mesh.get_surface_count():
+				var arrays := mi.mesh.surface_get_arrays(i)
+				var idx = arrays[Mesh.ARRAY_INDEX]
+				tris += (idx.size() if idx is PackedInt32Array and idx.size() > 0 else arrays[Mesh.ARRAY_VERTEX].size()) / 3
+	return tris
+
+
+func _load_scene(asset: String, path: String) -> Node:
+	var scene := load(path) as PackedScene
+	if scene == null:
+		_fail(asset, "cannot load (run godot --headless --import)")
+		return null
+	var inst := scene.instantiate()
+	if not _quiet:
+		print("== ", asset)
+		_dump(inst, 1)
+	_check(asset, inst)
+	return inst
+
+
+## props/loot/*.glb (T2): containers with hinged parts + Loot anchor, ground pickups (one mesh Item).
+func _check_loot() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/props/loot"):
+		var asset := "props/loot/" + name.get_basename()
+		var inst := _load_scene(asset, "res://assets/models/props/loot/" + name)
+		if inst == null:
+			continue
+		var problems: Array[String] = []
+		var tris := _tris(inst)
+		var item := inst.find_child("Item", true, false)
+		if item != null:
+			var meshes := 0
+			for node in _all(inst):
+				if node is MeshInstance3D:
+					meshes += 1
+			if meshes != 1:
+				problems.append("pickup: %d meshes (expected the single Item)" % meshes)
+			if not (item.get_meta("extras", {}) as Dictionary).has("col_size"):
+				problems.append("Item lacks the col_size extras")
+			if tris > int(LOOT_BUDGET["pickup"]):
+				problems.append("%d tris > %d" % [tris, LOOT_BUDGET["pickup"]])
+		else:
+			var loot := inst.find_child("Loot", true, false) as Node3D
+			if loot == null:
+				problems.append("Loot anchor missing")
+			if tris > int(LOOT_BUDGET["container"]):
+				problems.append("%d tris > %d" % [tris, LOOT_BUDGET["container"]])
+			var parts := 0
+			for node in _all(inst):
+				if not (node is MeshInstance3D):
+					continue
+				var ex: Dictionary = node.get_meta("extras", {})
+				if not ex.has("hinge_axis"):
+					continue
+				parts += 1
+				var mi := node as MeshInstance3D
+				var ax: Array = ex["hinge_axis"]
+				var axis := Vector3(float(ax[0]), float(ax[1]), float(ax[2]))
+				var c0 := _model_xf(mi, inst) * mi.get_aabb().get_center()
+				var keep := mi.transform
+				mi.rotate_object_local(axis, deg_to_rad(float(ex.get("open_deg", 0.0))))
+				var c1 := _model_xf(mi, inst) * mi.get_aabb().get_center()
+				mi.transform = keep
+				if absf(axis.y) > 0.9:
+					if c1.z < c0.z + 0.05:
+						problems.append("%s does not open toward the front (+Z): %.2f -> %.2f" % [mi.name, c0.z, c1.z])
+				elif c1.y < c0.y + 0.03:
+					problems.append("%s does not open upward: %.2f -> %.2f" % [mi.name, c0.y, c1.y])
+			if parts == 0:
+				problems.append("no hinged part (Lid / Door / Flap with hinge_axis extras)")
+		if problems.is_empty():
+			print("OK   %-30s tris=%d" % [asset, tris])
+		for p in problems:
+			_fail(asset, p)
+		inst.free()
+		n += 1
+	return n
+
+
+## world/*.glb (T2, W1 props): MultiMesh props, tunnel portals, kilometre signs.
+func _check_world() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/world"):
+		var asset := "world/" + name.get_basename()
+		var inst := _load_scene(asset, "res://assets/models/world/" + name)
+		if inst == null:
+			continue
+		var problems: Array[String] = []
+		var tris := _tris(inst)
+		var budget := 0
+		if inst.get_node_or_null("Portal") != null:
+			budget = int(WORLD_BUDGET["portal"])
+			var cols := 0
+			for c in inst.get_children():
+				if String(c.name).begins_with("Col") and c is StaticBody3D:
+					cols += 1
+			if cols < 10:
+				problems.append("%d Col* StaticBody3D at the first level (expected >= 10)" % cols)
+			var road := inst.find_child("RoadIn", true, false) as Node3D
+			if road == null or _model_pos(road, inst).z <= 0.0:
+				problems.append("RoadIn missing / not in front of the portal (+Z)")
+			for k in ["road_width", "clearance", "depth", "blocked", "carve"]:
+				if not (inst.get_node("Portal").get_meta("extras", {}) as Dictionary).has(k):
+					problems.append("Portal extras lack %s" % k)
+		elif inst.get_node_or_null("Prop") != null:
+			budget = int(WORLD_BUDGET["sign"])
+			var panel := inst.get_node_or_null("Panel") as MeshInstance3D
+			var text := inst.get_node_or_null("TextPanel") as Node3D
+			if panel == null or text == null:
+				problems.append("Panel / TextPanel missing")
+			elif _model_pos(text, inst).z <= (_model_xf(panel, inst) * panel.get_aabb()).end.z - 0.001:
+				problems.append("TextPanel not in front (+Z) of the Panel")
+		else:
+			var meshes: Array[Node] = []
+			for c in _all(inst):
+				if c is MeshInstance3D:
+					meshes.append(c)
+			if meshes.size() != 1 or inst.get_child_count() != 1 or meshes[0].get_child_count() != 0:
+				problems.append("MultiMesh prop must be exactly one mesh without children")
+			else:
+				var ex: Dictionary = meshes[0].get_meta("extras", {})
+				for k in ["family", "col", "col_center", "col_size", "height", "radius"]:
+					if not ex.has(k):
+						problems.append("extras lack %s" % k)
+				budget = int(WORLD_BUDGET.get(String(ex.get("family", "rock")), 1200))
+		if budget > 0 and tris > budget:
+			problems.append("%d tris > %d" % [tris, budget])
+		if problems.is_empty():
+			print("OK   %-30s tris=%d" % [asset, tris])
 		for p in problems:
 			_fail(asset, p)
 		inst.free()

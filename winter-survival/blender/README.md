@@ -49,6 +49,10 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
 | `anims/build_combat.py` (M4) | anims/humanoid_combat (18 melee / act / hit / down / death clips, `COMBAT_TABLE`) + data/anim_events.json | −Y |
 | `weapons/build_weapons.py` (M4) | weapons/{knife, machete, crowbar, bat, bat_nailed} (`Weapon`, `Grip`, `Tip`, `SupportGrip`) | weapon convention (§12) |
 | `props/build_gore.py` (M4) | gore/{corpse_covered, blood_splat_a/b/c, blood_trail, limb_arm, limb_leg, head_fragments} | — |
+| `weapons/build_firearms.py` (T2) | weapons/{pistol, revolver, shotgun, rifle_hunting, bow, arrow, muzzle_flash} (`Weapon` + moving parts `Slide` / `Pump` / `Bolt` / `Cylinder` / `Scope` / `String` / `StringDrawn`, loose parts `Magazine` / `Round` / `Arrow`, anchors from `lib/gunspec.py`) | weapon convention (§12) |
+| `anims/build_firearms.py` (T2) | anims/humanoid_firearms (20 Pistol_* / LongGun_* / Bow_* / Act_Unjam* clips, `FIREARMS_TABLE`) + data/anim_events.json | −Y |
+| `props/build_loot.py` (T2) | props/loot/{crate, footlocker, locker, fridge, kitchen_cabinet, backpack, body_bag} (hinged parts + `Loot`) and 13 pickups (`Item`) + props/loot/manifest.json | −Y |
+| `world/build_world_props.py` (T2, W1) | world/{crest_rock_a/b, crest_spire, scree_field, cliff_face, cairn, cornice, snow_pole(_tall), road_delineator, guardrail(_end/_bent), parapet_stone} (MultiMesh), world/{tunnel_portal(_collapsed), km_sign, km_post} + world/manifest.json | −Y |
 | `third_party/build_city.py` (A1) | city/{towers, buildings, vehicles, props, highway}/* — winterized CC0 sources (Kenney, Quaternius) + procedural street props; see "A1" below | −Y |
 | `icons/build_icons.py` | 256 px RGBA item icons → `../assets/icons/items/*.png` (Cycles; reuses the torch / campfire / stone_axe / tent / storage_box sources; skips icons whose hash is unchanged; `--sheet out.png` contact sheet) | — |
 
@@ -96,6 +100,9 @@ custom normals). Art guidelines v2.1 (milestone G1): `../docs/research/05_grafic
   contact-point locking and automatic pelvis drop (`LOCO_GAITS`), standing loops, key-pose actions, contact
   metrics, action-name rules. `python3 -m lib.anim --selftest`
 - `lib/gltf_anim.py` — reads exported `.glb` skeletons/animations and evaluates them (FK) for the verifiers.
+- `lib/gunspec.py` (T2) — the firearm / bow contract in numbers (support grips, left-fist frames, loose-part origins,
+  slide / pump / bolt / cylinder travels, anchors per weapon) shared by weapons/build_firearms.py, anims/build_firearms.py
+  and the verifiers.
 - `lib/keyanim.py` (M4) — key-pose clips (`Clip`: FK keys + planted feet / hand grips in the weapon-socket frame /
   two-handed grip / ground settle, per-segment easing), `procedural()` loops, `gait_cycle()` (the heel-toe generator
   with per-side limps / dragged feet), the "alive" layer (no track stays constant: Godot drops immutable tracks) and
@@ -176,3 +183,27 @@ only CC0 (or MIT/BSD with the notice copied). Re-fetch from scratch: delete the 
 `python3 build_all.py --only city`. Every mesh gets a canonical face order before the AO bake and before export, and set-ordered
 bmesh inputs are sorted, so a rebuild is byte-identical (107 of 108 files; `bldg_n` still differs in a few vertex
 attributes between runs) and leaves unchanged `.glb` files untouched.
+
+## T2 (M5 firearms and loot, W1 world props)
+
+`python3 build_all.py --only t2` rebuilds the firearms, the `humanoid_firearms` library (+ `data/anim_events.json`), the
+loot, the W1 world props and the icons, then runs the verifiers (`--no-verify` skips them). The contract for the code is
+the "T2" section of `../docs/v2/ASSET_SPEC_V2.md`.
+
+- **Weapons** mount with identity on `RightHandSocket` (like M4); with the muzzle forward, weapon +X is the shooter's
+  LEFT. The right hand never leaves the grip: `lib/keyanim.py` `follow` pins the LEFT fist to weapon-frame points
+  every frame (support grip, magazine / shell / cartridge insert points, slide, pump, bolt knob, cylinder, bow string).
+  Loose parts (`Magazine`, `Round`, `Arrow`) have their origin at the carrying left fist, so at `mag_in` / `shell_in`
+  the `LeftHandSocket` equals `RightHandSocket * part.transform` (measured in Godot: <= 7 mm).
+- **Shoot clips are additive** deltas measured against the Aim pose (identity at both ends): Add2 amount 1 on
+  `*_Aim` gives the authored recoil (measured in Godot: <= 5 mm). Clip names must not end with "loop" / "cycle" other
+  than the `-loop` suffix (Godot strips them and loops the clip; `lib/anim.check_action_name` rejects it).
+- **Loot containers**: root mesh + hinged child parts (`hinge_axis` / `open_deg` extras) + `Loot`; verify_assets checks
+  that each part opens (lids up, doors to the front) and that there is no visible back face in the OPEN state either.
+- **World props**: MultiMesh contract of M3 with the new families `pole` / `rail` (4 m rail sections along X, road side
+  toward -Y Blender = +Z Godot); tunnel portals with `Col*-convcolonly` boxes / wing prisms, a `carve` footprint for the
+  terrain and a 12 m walkable gallery (open) or a rockfall (collapsed); km signs follow the A1 sign contract
+  (`Prop` + `Panel` + `TextPanel`).
+- `verify_assets.py --only weapons/,props/loot/,world/` checks just these families; the full run adds the typical
+  **mountain-road view** budget (W1). `verify_chars.py` covers `humanoid_firearms` (clip kinds, Godot pair, survivor
+  back faces in 4 firearm / bow poses).

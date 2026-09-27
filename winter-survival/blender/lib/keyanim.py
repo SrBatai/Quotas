@@ -123,6 +123,40 @@ def default_pole(side):
     return Vector((s * 0.5, 0.35, -1.0))
 
 
+def weapon_axes(shaft, edge):
+    """World axes (ex, ey, ez) of a weapon held with socket frame (shaft, edge): +Z = shaft, -Y = edge."""
+    ez = Vector(shaft).normalized()
+    ey = -Vector(edge).normalized()
+    ey = (ey - ez * ey.dot(ez)).normalized()
+    return ey.cross(ez).normalized(), ey, ez
+
+
+def follow_grip(pose, side, f):
+    """T2: place `side`'s fist on a point of the weapon in the RIGHT hand. f = dict(offset, shaft, edge, pole): offset
+    in weapon axes (metres), shaft / edge = that fist's socket Y / Z written in weapon axes (default: the weapon's own
+    axes, i.e. a loose part carried with identity), pole = world elbow direction. Returns True when out of reach."""
+    grip, shaft, edge = socket_frame(pose, "Right")
+    ex, ey, ez = weapon_axes(shaft, edge)
+    ox, oy, oz = f["offset"]
+    target = grip + ex * ox + ey * oy + ez * oz
+    sx, sy, sz = f.get("shaft", (0.0, 0.0, 1.0))
+    dx, dy, dz = f.get("edge", (0.0, -1.0, 0.0))
+    return place_grip(pose, side, target, ex * sx + ey * sy + ez * sz, ex * dx + ey * dy + ez * dz,
+                      Vector(f.get("pole", default_pole(side))))
+
+
+def lerp_follow(a, b, u):
+    out = {"offset": Vector(a["offset"]).lerp(Vector(b["offset"]), u)}
+    for k, d in (("shaft", (0.0, 0.0, 1.0)), ("edge", (0.0, -1.0, 0.0)), ("pole", None)):
+        va, vb = a.get(k, d), b.get(k, d)
+        if va is None or vb is None:
+            continue
+        out[k] = Vector(va).lerp(Vector(vb), u)
+        if k != "pole":
+            out[k] = out[k].normalized()
+    return out
+
+
 # ------------------------------------------------------------------------------------------------
 # feet
 # ------------------------------------------------------------------------------------------------
@@ -154,9 +188,10 @@ def lerp_foot(a, b, u):
 # clip
 # ------------------------------------------------------------------------------------------------
 class Key:
-    def __init__(self, t, rel, hips, feet, hands, ease, ground, two_hand, support):
+    def __init__(self, t, rel, hips, feet, hands, ease, ground, two_hand, support, follow=None):
         self.t, self.rel, self.hips, self.feet, self.hands = t, rel, hips, feet, hands
         self.ease, self.ground, self.two_hand, self.support = ease, ground, two_hand, support
+        self.follow = follow
         self.pose = None
 
 
@@ -171,17 +206,23 @@ class Clip:
         self.pts = body_points(self.p)
         self.support = support          # left-hand distance below the right hand along the shaft (two_hand)
         self.clamped = 0
+        self.hand_clamped = 0           # hand IK targets out of reach (T2: counted when count_hands is set)
+        self.count_hands = False
 
     def key(self, t, rel=None, hips=(0.0, 0.0, 0.0), feet=None, hands=None, ease="ease", ground=False,
-            two_hand=False, support=None):
+            two_hand=False, support=None, follow=None):
+        """follow (T2) = {side: dict(offset=(x, y, z), shaft=(..), edge=(..), pole=(..))}: that fist is pinned to a
+        point of the weapon held by the RIGHT hand (offset / shaft / edge in weapon axes: +Z = handle, -Y = muzzle),
+        re-solved at every frame between two keys that both follow (offsets and axes interpolated)."""
         self.keys.append(Key(t, dict(rel or {}), Vector(hips), feet, hands, ease, ground, two_hand,
-                             self.support if support is None else support))
+                             self.support if support is None else support, follow))
         return self
 
     def close(self, t, ease="ease"):
         """Loop: a last key at `t` equal to the first."""
         k = self.keys[0]
-        self.keys.append(Key(t, dict(k.rel), k.hips.copy(), k.feet, k.hands, ease, k.ground, k.two_hand, k.support))
+        self.keys.append(Key(t, dict(k.rel), k.hips.copy(), k.feet, k.hands, ease, k.ground, k.two_hand, k.support,
+                             k.follow))
         return self
 
     # -- resolution ---------------------------------------------------------------------------------
@@ -201,18 +242,24 @@ class Clip:
             ankle, fw, tw = foot_target(pose, side, spec)
             self.clamped += anim.solve_leg(pose, side, ankle, fw, tw, pole=fw @ Vector((0, -1, 0)))
 
-    def _hands(self, pose, hands, two_hand, support):
+    def _hands(self, pose, hands, two_hand, support, follow=None, count=False):
+        bad = 0
         for side, spec in (hands or {}).items():
             if spec is None:
                 continue
             if "grip" in spec:
-                place_grip(pose, side, spec["grip"], spec["shaft"], spec["edge"], spec.get("pole", default_pole(side)))
+                bad += place_grip(pose, side, spec["grip"], spec["shaft"], spec["edge"],
+                                  spec.get("pole", default_pole(side)))
             else:
-                anim.solve_arm(pose, side, Vector(spec["pos"]), Vector(spec.get("pole", default_pole(side))),
-                               hand_w=spec.get("rot"))
+                bad += anim.solve_arm(pose, side, Vector(spec["pos"]), Vector(spec.get("pole", default_pole(side))),
+                                      hand_w=spec.get("rot"))
         if two_hand:
             grip, shaft, edge = socket_frame(pose, "Right")
             place_grip(pose, "Left", grip - shaft * support, shaft, edge, Vector((0.6, 0.2, -1.0)))
+        for side, f in (follow or {}).items():
+            bad += follow_grip(pose, side, f)
+        if count and bad and self.count_hands:
+            self.hand_clamped += 1
 
     def _settle(self, pose, feet, exact):
         skip = tuple(s + k for s in (feet or {}) if (feet or {}).get(s) is not None
@@ -225,7 +272,7 @@ class Clip:
 
     def _resolve(self, k):
         pose = self._base_pose(k.rel, k.hips)
-        self._hands(pose, k.hands, k.two_hand, k.support)
+        self._hands(pose, k.hands, k.two_hand, k.support, k.follow, count=True)
         self._feet(pose, k.feet)
         if k.ground:
             self._settle(pose, k.feet, True)
@@ -254,6 +301,10 @@ class Clip:
             self.post(t, pose)
         if k0.two_hand and k1.two_hand:
             self._hands(pose, None, True, k0.support + (k1.support - k0.support) * u)
+        if k0.follow and k1.follow:
+            fol = {s: lerp_follow(k0.follow[s], k1.follow[s], u) for s in k0.follow if s in k1.follow}
+            if fol:
+                self._hands(pose, None, False, 0.0, fol, count=True)
         feet = {}
         for side in anim.SIDES:
             a = (k0.feet or {}).get(side)
@@ -281,6 +332,8 @@ class Clip:
         act["period"] = length
         act["looping"] = looping
         act["ik_clamped_frames"] = self.clamped
+        if self.hand_clamped:                       # only set when non-zero (M4 libraries stay byte-identical)
+            act["hand_clamped_frames"] = self.hand_clamped
         return act
 
 

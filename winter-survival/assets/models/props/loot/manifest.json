@@ -1,0 +1,502 @@
+{
+ "ammo_box_308": {
+  "col_center": [
+   0.0,
+   0.036,
+   0.0
+  ],
+  "col_size": [
+   0.2,
+   0.071,
+   0.194
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/ammo_box_308.glb",
+  "pickup": "ammo_308",
+  "tris": 184
+ },
+ "ammo_box_357": {
+  "col_center": [
+   0.0,
+   0.029,
+   0.0
+  ],
+  "col_size": [
+   0.178,
+   0.058,
+   0.2
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/ammo_box_357.glb",
+  "pickup": "ammo_357",
+  "tris": 196
+ },
+ "ammo_box_9mm": {
+  "col_center": [
+   0.0,
+   0.029,
+   0.0
+  ],
+  "col_size": [
+   0.174,
+   0.058,
+   0.199
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/ammo_box_9mm.glb",
+  "pickup": "ammo_9mm",
+  "tris": 196
+ },
+ "ammo_box_shells": {
+  "col_center": [
+   0.0,
+   0.047,
+   0.0
+  ],
+  "col_size": [
+   0.174,
+   0.094,
+   0.214
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/ammo_box_shells.glb",
+  "pickup": "ammo_shells",
+  "tris": 244
+ },
+ "arrow_bundle": {
+  "col_center": [
+   0.0,
+   0.025,
+   0.0
+  ],
+  "col_size": [
+   0.951,
+   0.051,
+   0.114
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/arrow_bundle.glb",
+  "pickup": "arrows",
+  "tris": 384
+ },
+ "backpack": {
+  "col_center": [
+   0.0,
+   0.265,
+   -0.005
+  ],
+  "col_size": [
+   0.5,
+   0.53,
+   0.37
+  ],
+  "container": "backpack",
+  "kind": "container",
+  "loot": [
+   0.0,
+   0.3,
+   -0.02
+  ],
+  "node": "Backpack",
+  "parts": {
+   "Flap": {
+    "hinge": [
+     0.0,
+     0.46,
+     -0.16
+    ],
+    "hinge_axis": [
+     1,
+     0,
+     0
+    ],
+    "open_deg": -120.0
+   }
+  },
+  "path": "res://assets/models/props/loot/backpack.glb",
+  "slots": 12,
+  "tris": 232
+ },
+ "bandage": {
+  "col_center": [
+   0.0,
+   0.052,
+   0.0
+  ],
+  "col_size": [
+   0.137,
+   0.104,
+   0.312
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/bandage.glb",
+  "pickup": "bandage",
+  "tris": 60
+ },
+ "batteries": {
+  "col_center": [
+   0.0,
+   0.022,
+   0.0
+  ],
+  "col_size": [
+   0.195,
+   0.044,
+   0.143
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/batteries.glb",
+  "pickup": "batteries",
+  "tris": 316
+ },
+ "body_bag": {
+  "col_center": [
+   0.0,
+   0.115,
+   0.0
+  ],
+  "col_size": [
+   1.96,
+   0.23,
+   0.72
+  ],
+  "container": "body_bag",
+  "kind": "container",
+  "loot": [
+   0.1,
+   0.12,
+   0.0
+  ],
+  "node": "BodyBag",
+  "parts": {
+   "Flap": {
+    "hinge": [
+     0.0,
+     0.07,
+     -0.352
+    ],
+    "hinge_axis": [
+     1,
+     0,
+     0
+    ],
+    "open_deg": -150.0
+   }
+  },
+  "path": "res://assets/models/props/loot/body_bag.glb",
+  "slots": 10,
+  "tris": 220
+ },
+ "can_beans": {
+  "col_center": [
+   0.0,
+   0.072,
+   0.0
+  ],
+  "col_size": [
+   0.096,
+   0.143,
+   0.096
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/can_beans.glb",
+  "pickup": "food",
+  "tris": 140
+ },
+ "can_soup": {
+  "col_center": [
+   0.0,
+   0.072,
+   0.0
+  ],
+  "col_size": [
+   0.096,
+   0.143,
+   0.096
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/can_soup.glb",
+  "pickup": "food",
+  "tris": 140
+ },
+ "crate": {
+  "col_center": [
+   0.0,
+   0.275,
+   0.0
+  ],
+  "col_size": [
+   0.98,
+   0.55,
+   0.68
+  ],
+  "container": "crate",
+  "kind": "container",
+  "loot": [
+   0.0,
+   0.12,
+   0.0
+  ],
+  "node": "Crate",
+  "parts": {
+   "Lid": {
+    "hinge": [
+     0.0,
+     0.5,
+     -0.336
+    ],
+    "hinge_axis": [
+     1,
+     0,
+     0
+    ],
+    "open_deg": -105.0
+   }
+  },
+  "path": "res://assets/models/props/loot/crate.glb",
+  "slots": 8,
+  "tris": 312
+ },
+ "footlocker": {
+  "col_center": [
+   0.0,
+   0.22,
+   0.0
+  ],
+  "col_size": [
+   0.92,
+   0.44,
+   0.48
+  ],
+  "container": "footlocker",
+  "kind": "container",
+  "loot": [
+   0.0,
+   0.1,
+   0.0
+  ],
+  "node": "Footlocker",
+  "parts": {
+   "Lid": {
+    "hinge": [
+     0.0,
+     0.33,
+     -0.224
+    ],
+    "hinge_axis": [
+     1,
+     0,
+     0
+    ],
+    "open_deg": -100.0
+   }
+  },
+  "path": "res://assets/models/props/loot/footlocker.glb",
+  "slots": 8,
+  "tris": 376
+ },
+ "fridge": {
+  "col_center": [
+   0.0,
+   0.88,
+   0.025
+  ],
+  "col_size": [
+   0.7,
+   1.76,
+   0.71
+  ],
+  "container": "fridge",
+  "kind": "container",
+  "loot": [
+   0.0,
+   0.95,
+   0.0
+  ],
+  "node": "Fridge",
+  "parts": {
+   "Door": {
+    "hinge": [
+     0.35,
+     0.0,
+     0.355
+    ],
+    "hinge_axis": [
+     0,
+     1,
+     0
+    ],
+    "open_deg": 100.0
+   }
+  },
+  "path": "res://assets/models/props/loot/fridge.glb",
+  "slots": 8,
+  "tris": 196
+ },
+ "gun_oil": {
+  "col_center": [
+   0.0,
+   0.13,
+   0.0
+  ],
+  "col_size": [
+   0.083,
+   0.26,
+   0.079
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/gun_oil.glb",
+  "pickup": "gun_oil",
+  "tris": 116
+ },
+ "gun_parts": {
+  "col_center": [
+   0.0,
+   0.031,
+   0.0
+  ],
+  "col_size": [
+   0.36,
+   0.061,
+   0.178
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/gun_parts.glb",
+  "pickup": "gun_parts",
+  "tris": 156
+ },
+ "jerrycan": {
+  "col_center": [
+   0.0,
+   0.252,
+   0.0
+  ],
+  "col_size": [
+   0.178,
+   0.505,
+   0.363
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/jerrycan.glb",
+  "pickup": "fuel",
+  "tris": 212
+ },
+ "kitchen_cabinet": {
+  "col_center": [
+   0.0,
+   0.46,
+   0.015
+  ],
+  "col_size": [
+   0.82,
+   0.92,
+   0.63
+  ],
+  "container": "kitchen_cabinet",
+  "kind": "container",
+  "loot": [
+   0.0,
+   0.3,
+   0.0
+  ],
+  "node": "KitchenCabinet",
+  "parts": {
+   "Door_L": {
+    "hinge": [
+     -0.396,
+     0.0,
+     0.302
+    ],
+    "hinge_axis": [
+     0,
+     1,
+     0
+    ],
+    "open_deg": -100.0
+   },
+   "Door_R": {
+    "hinge": [
+     0.396,
+     0.0,
+     0.302
+    ],
+    "hinge_axis": [
+     0,
+     1,
+     0
+    ],
+    "open_deg": 100.0
+   }
+  },
+  "path": "res://assets/models/props/loot/kitchen_cabinet.glb",
+  "slots": 6,
+  "tris": 172
+ },
+ "locker": {
+  "col_center": [
+   0.0,
+   0.935,
+   0.01
+  ],
+  "col_size": [
+   0.5,
+   1.87,
+   0.52
+  ],
+  "container": "locker",
+  "kind": "container",
+  "loot": [
+   0.0,
+   1.1,
+   0.0
+  ],
+  "node": "Locker",
+  "parts": {
+   "Door": {
+    "hinge": [
+     -0.246,
+     0.0,
+     0.261
+    ],
+    "hinge_axis": [
+     0,
+     1,
+     0
+    ],
+    "open_deg": -100.0
+   }
+  },
+  "path": "res://assets/models/props/loot/locker.glb",
+  "slots": 10,
+  "tris": 252
+ },
+ "medkit": {
+  "col_center": [
+   0.0,
+   0.06,
+   0.0
+  ],
+  "col_size": [
+   0.343,
+   0.121,
+   0.237
+  ],
+  "kind": "pickup",
+  "node": "Item",
+  "path": "res://assets/models/props/loot/medkit.glb",
+  "pickup": "medkit",
+  "tris": 112
+ }
+}

@@ -1401,3 +1401,262 @@ faros en +Z / +X, `Prop` + `LightPool` en el suelo junto a su `LightAnchor` + un
 - Farolas: `LightAnchor` = posición de la luz real / halo; `LightPool` = centro del charco de luz en el suelo.
   Señales: `Panel*` es la malla sobre la que va el texto, `TextPanel*` su centro.
 - 6 rejillas (`ground_h`, `floor_h`) distintas → 6 duplicados por familia de material (A1.3).
+
+## T2 — armas de fuego, botín y props del mundo de 6 km (Opus)
+
+Arte de M5 (armas de fuego, arco, animaciones de disparo y recarga, munición, contenedores y botín) y de W1 (props de
+cresta y montaña, jalones, bocas de túnel, guardarraíles, hitos kilométricos). Todo se regenera con
+`cd blender && python3 build_all.py --only t2` (armas, librería `humanoid_firearms`, botín, props del mundo e iconos;
+`--no-verify` salta los verificadores). Scripts nuevos: `blender/weapons/build_firearms.py`,
+`blender/anims/build_firearms.py`, `blender/props/build_loot.py`, `blender/world/build_world_props.py`; librería
+compartida nueva `blender/lib/gunspec.py` (el contrato numérico de las armas que leen el constructor de armas, el de
+animaciones y los verificadores); `lib/keyanim.py` gana `follow` (el puño izquierdo clavado a un punto del arma de la
+mano derecha, resuelto en cada fotograma). Resultados de verificación en T2.6. **Coordenadas en Godot** (Y arriba,
++Z = frente del modelo) salvo que se diga.
+
+### T2.1 Armas de fuego y arco (`res://assets/models/weapons/<fichero>.glb` + `.import`)
+
+Convención §12 sin cambios: origen = centro del puño derecho en la empuñadura, mango +Y, boca hacia +Z; se monta con
+**identidad** en `RightHandSocket` (como las armas de M4) y **la mano derecha nunca suelta el arma**: la izquierda
+trabaja corredera, cargador, corredera de bombeo, cerrojo, tambor y cuerda. **Aclaración de lateralidad**: con la
+boca hacia delante, +X del arma es la **izquierda del tirador** (la izquierda del personaje es +X, §2.1); lo que va a
+la derecha del tirador (ventanas de expulsión, manilla del cerrojo) está en −X y el tambor del revólver sale hacia +X.
+(§12 "+X = lado derecho del arma" es el lado que se ve en la vista *Front* de Blender, mirando la boca.)
+
+Todos los nodos son de primer nivel. `Weapon` = malla fija (1 superficie `palette`, extras `weapon_class`, `length`,
+`caliber`, `capacity`); piezas móviles = mallas con el origen en su pivote; **piezas sueltas** (`Magazine`, `Round`,
+`Arrow`) = mallas con el origen en el **centro del puño izquierdo que las lleva** y sin rotación: el código las cuelga
+con identidad de `LeftHandSocket` mientras se transportan, y en el evento de inserción (`mag_in`, `shell_in_*`) el
+`LeftHandSocket` coincide con su transformación de reposo en el arma (medido en Godot, T2.6). En el `.glb` las piezas
+sueltas están en su pose de inserción: **el código debe ocultar `Round` al instanciar** (y `Magazine` / `Arrow`
+cuando el arma está descargada).
+
+| Fichero | Nombre §12 | Clase | Largo | Tris | Nodos | Qué es |
+|---|---|---|---|---|---|---|
+| `pistol` | `pistol_9mm` | Pistol | 0.24 (×1.2) | 508 | `Weapon`, `Slide`, `Magazine`, `Grip`, `Muzzle`, `SupportGrip`, `EjectPort`, `Sight` | pistola de polímero negra, corredera oscura con estrías, miras con puntos blancos, cargador de 15 |
+| `revolver` | `revolver_357` | Pistol | 0.32 (×1.2) | 636 | `Weapon`, `Cylinder`, `Round`, `Grip`, `Muzzle`, `SupportGrip`, `Sight` | revólver inox con cachas de madera, tambor estriado con culotes de latón, inserto rojo en la mira |
+| `shotgun` | `shotgun_pump` | LongGun | 1.00 | 756 | `Weapon`, `Pump`, `Round`, `Grip`, `Muzzle`, `SupportGrip`, `EjectPort`, `LoadPort`, `Sight` | escopeta de corredera: culata y guardamanos de madera, tubo de 6, cartucho rojo |
+| `rifle_hunting` | `rifle_308` | LongGun | 1.10 | 844 | `Weapon`, `Bolt`, `Scope`, `Round`, `Grip`, `Muzzle`, `SupportGrip`, `EjectPort`, `Sight` | rifle de cerrojo .308 con culata de nogal, visor con lentes `glass` (pieza aparte), cargador interno de 5 |
+| `bow` | `bow` | Bow | 1.26 | 430 | `Weapon`, `String`, `StringDrawn`, `Arrow`, `Grip`, `Muzzle`, `SupportGrip`, `DrawPoint` | arco plano de madera con empuñadura de cuero; se sostiene con la **mano derecha** (ver T2.7) |
+| `arrow` | `arrow` | Ammo | 0.70 | 82 | `Arrow`, `Tip` (0, 0, 0.35), `Nock` (0, 0, −0.35) | flecha proyectil: origen en el centro, punta hacia +Z (`look_at(objetivo, UP, true)`) |
+| `muzzle_flash` | `muzzle_flash` | Fx | 0.16 | 46 | `Flash` | fogonazo en estrella, material `emissive_lamp`, origen en la boca, hacia +Z: instanciar en `Muzzle` con identidad 1–2 fotogramas (escalar ×0.6 en pistolas) |
+
+Anclas y pivotes (m, Godot; mismos valores en `lib/gunspec.py`):
+
+| Arma | `Muzzle` | `SupportGrip` | otras |
+|---|---|---|---|
+| `pistol` | (0, 0.074, 0.153) | (0.040, −0.030, 0.012) | `EjectPort` (−0.016, 0.086, 0.020), `Sight` (0, 0.100, −0.072), `Slide` (0, 0.074, 0), `Magazine` (0, −0.116, −0.035) |
+| `revolver` | (0, 0.074, 0.252) | (0.040, −0.030, 0.012) | `Sight` (0, 0.104, −0.034), `Cylinder` (0.006, 0.024, 0.033) (eje de la grúa), `Round` (0.041, 0.037, −0.013) |
+| `shotgun` | (0, 0.088, 0.701) | (0, 0.036, 0.320) | `EjectPort` (−0.022, 0.098, 0.120), `LoadPort` (0, 0.050, 0.150), `Sight` (0, 0.110, 0.690), `Pump` (0, 0.060, 0.320), `Round` (0, −0.030, 0.150) |
+| `rifle_hunting` | (0, 0.084, 0.791) | (0, 0.036, 0.320) | `EjectPort` (−0.018, 0.096, 0.080), `Sight` (0, 0.142, −0.060) (ocular), `Bolt` (0, 0.084, 0.022), `Scope` (0, 0.142, 0.075), `Round` (−0.072, 0.096, 0.080) |
+| `bow` | (0, 0.030, 0.030) (reposaflechas) | (0, 0.008, −0.200) (cuerda en reposo) | `DrawPoint` (0, 0.008, −0.640) (cuerda a tensión completa), `Arrow` (0, 0.030, −0.180) (culatín) |
+
+Pistola y revólver comparten `Grip` / `SupportGrip` (todos los clips `Pistol_*` sirven para los dos); escopeta y rifle
+comparten `SupportGrip` (clips `LongGun_*`). `SupportGrip` = centro del puño izquierdo (objetivo del `TwoBoneIK3D`);
+los clips ya lo dejan ahí, el IK solo corrige.
+
+Movimiento de las piezas (también en los *extras* de cada pieza):
+
+| Pieza | Movimiento (Godot, espacio local del arma) | Cuándo |
+|---|---|---|
+| `Slide` | `position.z -= 0.036` y vuelta | cada disparo (1–2 fotogramas); abierta y bloqueada con el cargador vacío; `slide` en `Pistol_Reload` |
+| `Pump` | `position.z -= 0.085` y vuelta | `pump_back` → `pump_fwd` (`LongGun_Pump`, `Act_Unjam_LongGun`) |
+| `Bolt` | `rotation.z = −60°` (sube la manilla) y luego `position.z -= 0.080`; al revés para cerrar | `bolt_open` → `bolt_back` … `bolt_fwd` → `bolt_close` |
+| `Cylinder` | `rotation.z = −85°` (sale hacia +X, izquierda del tirador) | `cyl_open` … `cyl_close` |
+| `String` / `StringDrawn` | mostrar `StringDrawn` y ocultar `String` desde `draw_start` hasta `release` | arco |
+| `Arrow` (del arco) | `position.z -= 0.44 × tensión` (el culatín sigue a la cuerda: `SupportGrip` → `DrawPoint`) | `Bow_Draw` 0.55 → 1.20; ocultar en `release` y lanzar `arrow.glb` desde `Muzzle` |
+| `Magazine` / `Round` | ocultar / soltar en `mag_out`; mostrar en `LeftHandSocket` (identidad) en `mag_grab` / `shell_grab`; volver al arma (o desaparecer) en `mag_in` / `shell_in_*` | recargas |
+| `Scope` | pieza fija (mod §12: se puede ocultar si el rifle no lleva visor) | — |
+
+Iconos (`res://assets/icons/items/<nombre>.png`, mismo estilo que M4): `pistol`, `revolver`, `shotgun`,
+`rifle_hunting`, `bow`, `arrow`, `ammo_9mm`, `ammo_357`, `ammo_shells`, `ammo_308`, `arrows`, `medkit`, `bandage`,
+`batteries`, `jerrycan`, `gun_parts`, `gun_oil` (+ los existentes `can_beans`, `can_soup`).
+
+### T2.2 Librería `res://assets/models/anims/humanoid_firearms.glb` (importador `animation_library`, sin malla)
+
+Mismo armature y plantilla `.import` que M4 (pistas en `%GeneralSkeleton:<Hueso>`, ≥ 20 pistas de rotación + posición
+de `Hips` en cada clip, capa "viva"). **Compatibles con el filtro de torso** (§6.5): `Hips` nunca rota (solo la capa
+viva); el perfilado, la inclinación y el retroceso van en `Spine` / `Chest` / `Neck` / `Head` / brazos, así que el
+tren superior se lee igual sobre cualquier clip de locomoción. Las poses de apuntado llevan la boca hacia +Z (frente del
+modelo) a la altura del pecho / ojos (pistola: puño a 1.40 m; arma larga: puño a 1.375 m con la culata en el hombro).
+
+| Clip (Godot) | Bucle | Duración | Tipo | Armas | Qué es |
+|---|---|---|---|---|---|
+| `Pistol_Idle` | sí | 3.0 | de pie | pistola, revólver | *low ready*: dos manos, boca 48° abajo |
+| `Pistol_Aim` | sí | 2.0 | de pie | pistola, revólver | isósceles a dos manos, brazos extendidos, respiración |
+| `Pistol_Shoot` | no | **0.2** | aditiva | pistola, revólver | retroceso: boca +15°, manos 3 cm atrás / 2 cm arriba en 1 fotograma |
+| `Pistol_Reload` | no | 1.6 | acción | pistola | suelta el cargador, mano izq. a la cartuchera, inserta, acerroja |
+| `Pistol_Reload_Revolver` | no | 3.0 | acción | revólver | abre el tambor, boca arriba y expulsa, boca abajo, 6 cartuchos, cierra |
+| `LongGun_Idle` | sí | 3.0 | de pie | escopeta, rifle | *low ready*: culata bajo la axila, boca 36° abajo |
+| `LongGun_Aim` | sí | 2.0 | de pie | escopeta, rifle | encarado: perfilado 40° en el torso, mejilla en la culata |
+| `LongGun_Shoot` | no | 0.3 | aditiva | rifle | retroceso: hombro atrás 4.5 cm, boca +7° |
+| `LongGun_Shoot_Shotgun` | no | 0.3 | aditiva | escopeta | retroceso fuerte: 7.5 cm atrás, boca +13°, torso y cabeza atrás |
+| `LongGun_Pump` | no | 0.6 | acción | escopeta | bombeo tras el disparo (mano izq. 8.5 cm atrás y adelante) |
+| `LongGun_Bolt_Rack` | no | 1.0 | acción | rifle | cerrojo entre disparos con la mano izquierda por encima del cajón (el arma sigue encarada) |
+| `LongGun_Reload_Shell` | sí | **0.7** | de pie | escopeta | un cartucho por vuelta: cartuchera → ventana de carga (arma girada 62°) |
+| `LongGun_Reload_Bolt` | no | 3.5 | acción | rifle | abre el cerrojo, 5 cartuchos por la ventana, cierra |
+| `LongGun_Reload_Mag` | no | 2.2 | acción | (futura `carbine_556`) | cambio de cargador; `Magazine` de la carabina con origen en (0, −0.170, 0.090) |
+| `Act_Unjam` | no | 1.5 | acción | pistola, revólver | *tap-rack*: golpe al cargador, acerrojado por encima |
+| `Act_Unjam_LongGun` | no | 1.5 | acción | escopeta (rifle: vale) | golpe bajo el cajón y bombeo |
+| `Bow_Aim` | sí | 2.0 | de pie | arco | flecha montada, arco bajo e inclinado |
+| `Bow_Draw` | no | 1.4 | acción | arco | levanta el arco y tensa hasta la barbilla (la mano izq. sigue el culatín) |
+| `Bow_Hold` | sí | 2.0 | de pie | arco | tensión completa con temblor leve |
+| `Bow_Release` | no | **0.3** | acción | arco | suelta: la mano izq. salta atrás, el arco cae un poco |
+
+**Aditivas** (`*_Shoot`): delta local por hueso medido contra la pose de `*_Aim` (empiezan y acaban en el reposo T =
+identidad, máx. 22–25°). Para un `AnimationNodeAdd2` (o `OneShot` en modo *add*) con `add_amount = 1` sobre
+`Pistol_Aim` / `LongGun_Aim`: Aim + Shoot reproduce exactamente la pose de retroceso autorada (medido en Godot, T2.6).
+Las recargas y los ciclos empiezan y acaban en la pose de `*_Aim` de su clase (con arma en mano el personaje apunta al
+cursor, GDD §7). Tipos como en M4.2 (de pie = pies plantados, acción = ningún hueso bajo el suelo).
+
+### T2.3 Eventos (`res://data/anim_events.json`, claves = nombre de la acción en el `.glb`)
+
+| Clip | Eventos (s) |
+|---|---|
+| `Pistol_Shoot` | `fire` 0.0, `recovered` 0.13 · `LongGun_Shoot`: `fire` 0.0, `recovered` 0.20 · `LongGun_Shoot_Shotgun`: `fire` 0.0, `recovered` 0.22 |
+| `Pistol_Reload` | `mag_out` 0.35, `mag_grab` 0.55, `mag_in` 1.10, `slide` 1.40 |
+| `Pistol_Reload_Revolver` | `cyl_open` 0.30, `mag_out` 0.60 (vainas fuera), `shell_grab` 0.85, `shell_in_1..6` 1.00 / 1.25 / 1.50 / 1.75 / 2.00 / 2.25, `cyl_close` 2.45, `mag_in` 2.50 |
+| `LongGun_Pump` | `pump_back` 0.20, `eject` 0.21, `pump_fwd` 0.34 |
+| `LongGun_Bolt_Rack` | `bolt_open` 0.38, `bolt_back` 0.50, `eject` 0.50, `bolt_fwd` 0.62, `bolt_close` 0.70 |
+| `LongGun_Reload_Shell-loop` | `shell_grab` 0.08, `shell_in` 0.46 (uno por vuelta) |
+| `LongGun_Reload_Bolt` | `bolt_open` 0.40, `bolt_back` 0.55, `shell_grab` 0.72, `shell_in_1..5` 1.05 / 1.45 / 1.85 / 2.25 / 2.65, `bolt_fwd` 2.85, `bolt_close` 2.95, `mag_in` 2.95 |
+| `LongGun_Reload_Mag` | `mag_out` 0.40, `mag_grab` 0.75, `mag_in` 1.35, `bolt_back` 1.72, `bolt_close` 1.80 |
+| `Act_Unjam` | `tap` 0.35, `rack` 0.85, `clear` 1.00 · `Act_Unjam_LongGun`: `tap` 0.35, `rack` 0.75, `clear` 0.95 |
+| `Bow_Draw` | `nock` 0.30, `draw_start` 0.55, `draw_full` 1.20 · `Bow_Release`: `release` 0.03, `fire` 0.03 |
+
+Semántica: `fire` = fogonazo / proyectil; `mag_in` = la munición queda acreditada (recarga no cancelable desde aquí);
+`shell_in_k` = un cartucho más (recargas parciales si se cancela); `mag_out` = el cargador / las vainas caen;
+`*_grab` = aparece la pieza suelta en `LeftHandSocket`. Como en M4.3, el código quita `-loop` de las claves.
+
+### T2.4 Botín (`res://assets/models/props/loot/<fichero>.glb` + `.import` + `manifest.json`)
+
+**Contenedores** (estructura §9): malla raíz en PascalCase, las partes móviles como **hijas** con el origen en su
+bisagra y extras `hinge_axis` (Godot, local) + `open_deg` (abrir = `rotate_object_local(hinge_axis, deg_to_rad(open_deg))`),
+un `Empty` `Loot` hijo (donde aparece el botín / el marcador de interacción) y extras en la raíz `container`, `slots`,
+`col_center`, `col_size` (caja de colisión que pone el código). Exportados **cerrados**. Sin nodos `Col*`.
+
+| Fichero | Raíz | Partes (bisagra; eje; `open_deg`) | `Loot` | Caja (centro; tamaño) | Ranuras | Tris |
+|---|---|---|---|---|---|---|
+| `crate` | `Crate` | `Lid` (0, 0.50, −0.336); X; −105 | (0, 0.12, 0) | (0, 0.275, 0); 0.98 × 0.55 × 0.68 | 8 | 312 |
+| `footlocker` | `Footlocker` | `Lid` (0, 0.33, −0.224); X; −100 | (0, 0.10, 0) | (0, 0.22, 0); 0.92 × 0.44 × 0.48 | 8 | 376 |
+| `locker` | `Locker` | `Door` (−0.246, 0, 0.261); Y; −100 | (0, 1.10, 0) | (0, 0.935, 0.01); 0.50 × 1.87 × 0.52 | 10 | 252 |
+| `fridge` | `Fridge` | `Door` (0.35, 0, 0.355); Y; +100 | (0, 0.95, 0) | (0, 0.88, 0.025); 0.70 × 1.76 × 0.71 | 8 | 196 |
+| `kitchen_cabinet` | `KitchenCabinet` | `Door_L` (−0.396, 0, 0.302); Y; −100 · `Door_R` (0.396, 0, 0.302); Y; +100 | (0, 0.30, 0) | (0, 0.46, 0.015); 0.82 × 0.92 × 0.63 | 6 | 172 |
+| `backpack` | `Backpack` | `Flap` (0, 0.46, −0.16); X; −120 | (0, 0.30, −0.02) | (0, 0.265, 0); 0.50 × 0.53 × 0.37 | 12 | 232 |
+| `body_bag` | `BodyBag` | `Flap` (0, 0.07, −0.352); X; −150 | (0.1, 0.12, 0) | (0, 0.115, 0); 1.96 × 0.23 × 0.72 | 10 | 220 |
+
+`backpack` = mochila tirada (la de un jugador muerto o un saco de botín); `body_bag` = bolsa de cadáver con una figura
+tapada dentro (gore‑lite), cabeza hacia +X. **Maletero de coche**: no hay modelo aparte; el contenedor es el ancla
+`Loot` que ya llevan todos los vehículos de `city/vehicles/*` (A1.3, en el maletero / la caja) y `BedAnchor` en
+`pickup_truck`.
+
+**Recogibles** (una malla `Item`, 1 superficie, en el suelo, origen en el centro de la base, extras `pickup` = tipo y
+`col_center` / `col_size`; tamaño real ×1.3 para leerse desde la cámara, salvo latas y bidón a tamaño real):
+
+| Fichero | `pickup` | Tris | Qué es |
+|---|---|---|---|
+| `ammo_box_9mm` / `ammo_box_357` / `ammo_box_shells` / `ammo_box_308` | `ammo_9mm` / `ammo_357` / `ammo_shells` / `ammo_308` | 196 / 196 / 244 / 184 | caja azul, roja, amarilla con cartuchos rojos, verde militar con puntas de cobre; 3 cartuchos sueltos al lado |
+| `arrow_bundle` | `arrows` | 384 | 4 flechas atadas con dos correas |
+| `medkit` / `bandage` | `medkit` / `bandage` | 112 / 60 | botiquín rojo con cruz blanca y asa / venda en rollo con tira desenrollada |
+| `can_beans` / `can_soup` | `food` | 140 / 140 | las latas de los iconos existentes (roja / azul con banda) como modelo 3D |
+| `batteries` | `batteries` | 316 | blíster de 4 pilas D |
+| `jerrycan` | `fuel` | 212 | bidón rojo de 20 L con tres asas y tapón |
+| `gun_parts` / `gun_oil` | `gun_parts` / `gun_oil` | 156 / 116 | lata de piezas con muelle, pasador y extractor / bote de aceite negro con etiqueta amarilla |
+
+### T2.5 Props del mundo de 6 km (W1) (`res://assets/models/world/<fichero>.glb` + `.import` + `manifest.json`)
+
+**MultiMesh** (contrato M3.2 sin cambios: una malla, una superficie, sin hijos, proxy de colisión en los *extras* y en
+`world/manifest.json`; familias nuevas `pole` (nodo `Pole`) y `rail` (nodo `Rail`)):
+
+| Fichero | Nodo | Familia | Tris | Alto | Radio | Proxy (`col`, centro, tamaño) | Qué es |
+|---|---|---|---|---|---|---|---|
+| `crest_rock_a` | Rock | rock | 936 | 3.01 | 2.62 | box (0, 1.3, 0) 4.2 × 2.6 × 2.0 | cresta dentada de estratos inclinados, 5.1 × 2.9 m, con ventisquero |
+| `crest_rock_b` | Rock | rock | 786 | 1.79 | 1.80 | box (0, 0.7, 0) 3.3 × 1.4 × 2.1 | lanchas apiladas barridas por el viento |
+| `crest_spire` | Rock | rock | 553 | 4.26 | 1.15 | cylinder (0, 2.1, 0) r 0.7 h 4.2 | aguja / pináculo de 4.3 m |
+| `scree_field` | Rock | rock | 702 | 0.47 | 2.53 | box (0, 0.2, 0) 4.6 × 0.4 × 3.0 | canchal: 16 piedras sobre un parche de nieve |
+| `cliff_face` | Rock | rock | 500 | 6.00 | 4.11 | box (0, 3.0, 0) 7.6 × 6.0 × 2.4 | lienzo de roca de 8 × 6 m con repisas nevadas; **cara hacia +Z** (desfiladero) |
+| `cairn` | Rock | rock | 300 | 1.05 | 0.54 | cylinder (0, 0.5, 0) r 0.55 h 1.0 | hito de piedras de cumbre |
+| `cornice` | Snow | snow | 176 | 1.22 | 3.00 | box (0, 0.5, −0.3) 5.5 × 1.0 × 2.0 | cornisa de nieve de 6 m: barlovento hacia −Z, labio volado hacia **+Z** (sotavento) |
+| `snow_pole` | Pole | pole | 168 | 2.00 | 0.25 | cylinder (0, 1.0, 0) r 0.05 h 2.0 | jalón de vialidad invernal rojo / blanco de 2 m, catadióptrico hacia +Z |
+| `snow_pole_tall` | Pole | pole | 168 | 4.00 | 0.25 | cylinder (0, 2.0, 0) r 0.05 h 4.0 | jalón de puerto amarillo / negro de 4 m |
+| `road_delineator` | Pole | pole | 56 | 1.05 | 0.07 | box (0, 0.52, 0) 0.14 × 1.05 × 0.14 | hito de arista blanco con banda negra y catadióptrico ámbar hacia +Z |
+| `guardrail` | Rail | rail | 248 | 0.85 | 2.02 | box (0, 0.4, 0) 4.0 × 0.8 × 0.25 | bionda (doble onda) de 4 m, postes cada 2 m, nieve en la onda y los postes |
+| `guardrail_end` | Rail | rail | 268 | 0.78 | 2.02 | box (0, 0.4, 0) 4.0 × 0.8 × 0.3 | terminal: la onda baja y se entierra hacia +X |
+| `guardrail_bent` | Rail | rail | 268 | 0.78 | 2.02 | box (0, 0.4, −0.1) 4.0 × 0.8 × 0.45 | tramo golpeado: onda doblada hacia −Z con óxido, poste inclinado |
+| `parapet_stone` | Rail | rail | 626 | 0.81 | 2.02 | box (0, 0.38, 0) 4.0 × 0.76 × 0.5 | pretil de mampostería de puerto con albardilla de hormigón y nieve |
+
+Colocación: los `rail` son **tramos de 4 m a lo largo de X** (x −2 … +2, repetir cada 4 m; solape ≤ 4 cm) con el **lado
+de la calzada hacia +Z** (la onda está en +Z); `guardrail_end` termina el tramo en +X (girar 180° para el otro
+extremo). Jalones e hitos de arista miran con el catadióptrico hacia +Z (al tráfico que viene de +Z). Rocas, canchal,
+hito y cornisa admiten yaw libre (la cornisa se orienta con el viento: labio a sotavento). Todo se hunde 0.2 m bajo
+y = 0 (postes y pies enterrados) o se apoya con montículos de nieve.
+
+**Bocas de túnel** (`tunnel_portal`, `tunnel_portal_collapsed`; no MultiMesh): emboquille de hormigón de 13 × 7.8 m
+cortado en una ladera de roca y nieve (22 × 17 m, faldones de roca hasta y = −1), aletas inclinadas, arco de 8.5 m
+de luz (hastiales de 3.2 m, clave a 5.8 m), calzada de 7 m con aceras, luminarias apagadas y un fondo negro.
+
+| Nodo | Qué es |
+|---|---|
+| `Portal` | malla única (1 superficie): frente, aletas, revestimiento del túnel (12 m), suelo, ladera. Extras: `road_width` 7.0, `clearance` 3.2, `crown` 5.8, `depth` 12 (0 si derrumbado), `blocked`, `carve` = [−6.5, 6.5, −12.2, 0.3] (x0, x1, z0, z1 en Godot: dentro, el terreno debe quedar a la cota de la calzada, y ≤ 0, para no asomar en el túnel), `panels` |
+| `Rubble` | solo `tunnel_portal_collapsed`: masa de roca, losas del revestimiento y nieve que tapa la boca y se derrama 3.8 m hacia +Z |
+| `Panel` + `TextPanel` (0, 6.70, 0.16) | placa del nombre sobre el arco (malla aparte para un `Label3D`, contrato A1) |
+| `RoadIn` (0, 0, 0.5) | centro de la calzada delante de la boca (la carretera llega desde +Z) |
+| `Inside` (0, 0, −11) / (0, 0, −3) | fin de la galería transitable / pie del derrumbe |
+| `Col*-convcolonly` (12 / 14) | `ColHeadwallL/R/Top`, `ColWallL/R`, `ColRoof`, `ColEnd`, `ColFloor`, `ColHillL/R`, `ColWingL/R` (prismas inclinados de 8 vértices) + `ColRubble`, `ColRubbleFront` en la derrumbada |
+
+Tris: `tunnel_portal` 1 201, `tunnel_portal_collapsed` 2 549. **Hitos kilométricos** (contrato de señales A1: `Prop` +
+`Panel` + `TextPanel`, extras `col`, `col_center`, `col_size`, `panels`, `anchors`): `km_sign` (placa azul de autovía
+0.60 × 0.45 en poste galvanizado, `TextPanel` (0, 1.44, 0.075), 148 tris) y `km_post` (hito de carretera nacional
+blanco con capuchón rojo, cara 0.32 × 0.40, `TextPanel` (0, 0.50, 0.14), 120 tris).
+
+### T2.6 Verificación
+
+- `verify_assets.py`: familias T2 (`weapons/*` de fuego con `firearm_problems`: nodos en las posiciones exactas de
+  `gunspec` ±2 mm, extras, boca al frente del cañón, empuñadura en el origen, expulsión a la derecha del tirador,
+  piezas sueltas a ≤ 0.25 m de su puño; contenedores: bisagras en el contorno, cada parte **abre** (tapas arriba,
+  puertas hacia el frente) y **sin caras traseras visibles también abierta**; recogibles; `rail` / `pole`; bocas de
+  túnel: juego de `Col*` cerrado y convexo, galería libre 12 m / tapada, placa; hitos) + vista típica **de puerto de
+  montaña** (W1) ≤ 270 k. Resultado final: `verify_assets` completo, 225 activos **ALL OK** (los 45 `.glb` de T2
+  incluidos); vista de puerto de montaña 56 283 + reserva 110 000 = **166 283 / 270 000** (claro M2 235 515, bosque
+  M3 200 044, ciudad ALL OK); `verify_kits` ALL OK.
+- `verify_chars.py`: `humanoid_firearms` (20 clips, tipos, aditivas que empiezan / acaban en el reposo: deltas máx.
+  14.2° / 24.9° / 22.0°, extremos 0.00°), pares de Godot (`survivor_red × humanoid_firearms`: 20 clips, cadera ×1.000,
+  hueso más bajo +0.032 m) y caras traseras de los 4 supervivientes en reposo + 14 poses (4 de armas en `BF_POSES`):
+  ALL OK.
+- Godot 4.7.2 en un proyecto desechable: importación sin `ERROR`, `tests/inspect_models.gd` ampliado (tabla
+  `FIREARMS_TABLE`, armas por clase con los movimientos documentados de `Cylinder` / `Bolt`, contenedores que abren con
+  `rotate_object_local`, recogibles, props del mundo) y una sonda de contrato: en `mag_in` / `shell_in` el
+  `LeftHandSocket` coincide con `RightHandSocket * <pieza>.transform`, y `Add2(Aim, Shoot)` mueve la mano derecha lo
+  autorado. Resultado: importación 0 `ERROR`, `inspect_models` 249 activos **ALL OK**; sonda: `SupportGrip` de
+  pistola / escopeta / rifle / arco, `Magazine` en `mag_in`, `Round` del revólver, `Pump`, `DrawPoint` = 0.0000 m,
+  `Round` en `LongGun_Reload_Shell` 0.0016 m y en `LongGun_Reload_Bolt` 0.0072 m (peor caso); retroceso aditivo a
+  ≤ 5 mm de lo autorado (fusil 2.5 mm, pistola 4.3 mm, escopeta 4.7 mm).
+
+### T2.7 Desviaciones y notas
+
+1. **Nombres de fichero**: `pistol`, `revolver`, `shotgun`, `rifle_hunting` (encargo de T2) en vez de `pistol_9mm`,
+   `revolver_357`, `shotgun_pump`, `rifle_308` de §12; `Assets.ALIASES` puede mapear los de §12. Munición `ammo_box_*`
+   (§13) con icono `ammo_*`.
+2. **Lateralidad**: ver T2.1 (+X del arma = izquierda del tirador con montaje identidad).
+3. **Arco en la mano derecha**: todas las armas se montan en `RightHandSocket`, así que el arquero es zurdo (arco en la
+   derecha, tensa con la izquierda). A 24 m la silueta es la de un arquero; cambiarlo exigiría montar el arco en
+   `LeftHandSocket` y otros clips.
+4. **Clips añadidos** (no están en §6.2 pero los necesita la cadencia de M5): `Pistol_Idle`, `LongGun_Idle`,
+   `LongGun_Pump`, `LongGun_Bolt_Rack`, `Act_Unjam_LongGun`. `LongGun_Reload_Mag` (§6.2) se entrega para la futura
+   `carbine_556` con su contrato de cargador. `Pistol_Shoot` dura 0.2 s (cadencia de 0.25 s); `Bow_Release` 0.3 s.
+5. **Rifle con cargador interno**: sin malla `Magazine`; se carga cartucho a cartucho por la ventana (`shell_in_1..5`),
+   de ahí los 3.5 s de `LongGun_Reload_Bolt`.
+6. **El cerrojo lo mueve la mano izquierda** por encima del cajón (la derecha no suelta la empuñadura): así no hay que
+   cambiar el arma de mano en el código.
+7. **CC0 evaluado y descartado para armas**: el espejo de Quaternius (Zombie Apocalypse Kit) tiene `S_Pistol`,
+   `S_Shotgun`, `S_Rifle`, `S_SMG`, pero cada uno es una sola malla soldada con atlas de textura (sin cargador, corredera
+   ni cerrojo separables); las procedurales cumplen el contrato de piezas y la paleta v2.1. El guardarraíl de A1
+   (`city/props/guardrail`, 60 tris, nodo `Prop`, sin nieve) no encaja en el contrato MultiMesh: W1 usa
+   `world/guardrail*` (HD con nieve).
+8. **Presupuestos**: rocas grandes de W1 hasta 1 000 tris (las de M3 700) y `cliff_face` 1 200; recogibles ≤ 400;
+   contenedores ≤ 1 200 (entregados 172–376); armas ≤ 900 por fichero (todas las mallas).
+9. **No entregado en T2** (no estaba en el encargo): `Loco_*_L/R/B` (P1 de M5), `Act_Throw`, `Act_Light_Flare`,
+   arrojadizas (`molotov`, `flare`, `pipe_bomb`, `can`), ballesta, carabina, mochilas como ropa (M8), mods (M9b).
+10. **Iconos**: `icons/build_icons.py` incluye el propio script en el hash, así que en T2 se reescribieron los 37 PNG
+    (los 20 antiguos con los mismos píxeles; solo cambia el `tEXt` del hash). El arco del icono va montado, sin
+    flecha, con las palas en diagonal.
