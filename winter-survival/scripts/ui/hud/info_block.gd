@@ -2,7 +2,9 @@ class_name InfoBlock
 extends Control
 ## Time, temperature and the group, top right (docs/research/10_hud_ux.md §V.3 "Hora y temperatura", §V.4.8,
 ## mockup v2_f): "Día 9 · 15:20 · anochece 20:00" / "−19 °C · sentida −12 °C", a 300 px hairline and, with Info,
-## the group on one line ("● Ana 84 m · ● Leo 212 m"). Shows with Info, 4 s at dawn / dusk, and 4 s when the
+## the group on one line ("● Ana 84 m · ● Leo 212 m"); H2: with Info also where you are ("Las Torres · Altavega",
+## §V.4.4: the zone title fades with no handoff, the location is asked for with Info). Shows with Info, 4 s at dawn /
+## dusk, and 4 s when the
 ## feels-like temperature moves ≥ 5 °C (element `clock`; the "Completo" preset keeps it). Right-aligned to the
 ## safe edge; it moves down under the hazard line when both show.
 
@@ -12,6 +14,8 @@ var vis: HudVisibility
 var team: TeamTracker
 var vitals: Vitals
 var hazard: HazardLine
+## H2: the HUD's zone tracker (the current zone for the location line).
+var zones: ZoneTracker
 var _feels_ref: float = INF
 var _scrim: Scrim
 var _acc: float = 0.0
@@ -78,9 +82,21 @@ func _draw() -> void:
 	var w2b := UiStyle.text_width(&"text_num", l2b)
 	UiStyle.draw_text(self, &"text_num", Vector2(right - w2 - w2b, 46.0), l2, UiTokens.INK)
 	UiStyle.draw_text(self, &"text_num", Vector2(right - w2b, 46.0), l2b, UiTokens.INK_70)
-	if vis == null or not vis.info_active or team == null or team.mates.is_empty():
+	if vis == null or not vis.info_active:
 		return
-	Whisper.hair(self, Vector2(right - UiTokens.INFO_RULE, 64.0), Vector2(right, 64.0), UiTokens.HAIR, 2)
+	var gy := 0.0
+	if zones != null and not zones.current.is_empty():
+		var zn := str(zones.current.get("name", ""))
+		var ps := Locations.parents(zones.current)
+		var tail := (" · " + str(ps[0])) if not ps.is_empty() else ""
+		var wt := UiStyle.text_width(&"whisper", tail)
+		var wz := UiStyle.text_width(&"whisper", zn)
+		UiStyle.draw_text(self, &"whisper", Vector2(right - wz - wt, 74.0), zn, UiTokens.INK)
+		UiStyle.draw_text(self, &"whisper", Vector2(right - wt, 74.0), tail, UiTokens.INK_70)
+		gy = 28.0
+	if team == null or team.mates.is_empty():
+		return
+	Whisper.hair(self, Vector2(right - UiTokens.INFO_RULE, 64.0 + gy), Vector2(right, 64.0 + gy), UiTokens.HAIR, 2)
 	var x := right
 	var cb := bool(UiSettings.get_value("colorblind"))
 	for i in range(team.mates.size() - 1, -1, -1):
@@ -90,10 +106,10 @@ func _draw() -> void:
 		var wd := UiStyle.text_width(&"text_num", d)
 		var wn := UiStyle.text_width(&"whisper", nm + " ")
 		x -= wd
-		UiStyle.draw_text(self, &"text_num", Vector2(x, 94.0), d, UiTokens.INK_70)
+		UiStyle.draw_text(self, &"text_num", Vector2(x, 94.0 + gy), d, UiTokens.INK_70)
 		x -= wn
-		UiStyle.draw_text(self, &"whisper", Vector2(x, 94.0), nm + " ", UiTokens.INK)
+		UiStyle.draw_text(self, &"whisper", Vector2(x, 94.0 + gy), nm + " ", UiTokens.INK)
 		x -= 14.0
-		draw_circle(Vector2(x + 3.5, 88.0), UiTokens.PLAYER_DOT * 0.5 + 1.0, Color(0, 0, 0, 0.4))
-		draw_circle(Vector2(x + 3.5, 88.0), UiTokens.PLAYER_DOT * 0.5, UiTokens.player_color(int(m["color"]), cb))
+		draw_circle(Vector2(x + 3.5, 88.0 + gy), UiTokens.PLAYER_DOT * 0.5 + 1.0, Color(0, 0, 0, 0.4))
+		draw_circle(Vector2(x + 3.5, 88.0 + gy), UiTokens.PLAYER_DOT * 0.5, UiTokens.player_color(int(m["color"]), cb))
 		x -= 18.0

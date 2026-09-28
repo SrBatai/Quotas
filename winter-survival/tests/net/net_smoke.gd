@@ -33,8 +33,10 @@ func _initialize() -> void:
 				if a.begins_with("--name="):
 					opts["name"] = a.substr(7)
 		i += 1
-	# M5 scenarios (hitscan, restart) live in their own body, an extension of net_steps.gd
+	# M5 scenarios (hitscan, restart) and H2's (discovery) live in their own bodies, extensions of net_steps.gd
 	var body_path := "res://tests/net/net_steps_m5.gd" if str(opts["scenario"]) in ["hitscan", "restart"] else "res://tests/net/net_steps.gd"
+	if str(opts["scenario"]) == "discovery":
+		body_path = "res://tests/net/net_steps_h2.gd"
 	var script: GDScript = load(body_path)
 	if script == null or not script.can_instantiate():
 		print("FAIL: cannot load %s" % body_path)

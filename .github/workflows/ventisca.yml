@@ -153,7 +153,7 @@ jobs:
       - name: Import project
         run: godot --headless --path . --import || true
 
-      - name: Unit tests (SqliteBackend, schema 2 + migrations, crash mid-batch; loot, firearms)
+      - name: Unit tests (SqliteBackend, schema 3 + migrations, crash mid-batch; loot, firearms)
         run: |
           for t in persistence_m5_test m5_units_test; do
             godot --headless --path . -s tests/unit/$t.gd 2>&1 | tee /tmp/$t.log
@@ -217,6 +217,52 @@ jobs:
           name: ventisca-server-linux
           path: winter-survival/export/server/
           retention-days: 30
+
+  h2:
+    name: H2 zones (zone tracker, names, group discovery across a restart)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Cache godot-sqlite
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ventisca
+          key: godot-sqlite-${{ hashFiles('winter-survival/tools/fetch_godot_sqlite.sh') }}
+
+      - name: Fetch godot-sqlite (pinned + SHA-256)
+        run: tools/fetch_godot_sqlite.sh
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # hysteresis (zigzag = 0 changes, 12 m / 1.5 s = 1), district over city, cooldowns and the queue of 1, combat /
+      # P0 deferral, exit line, highway sign for a scripted fast mover, zone_entered → camera profile, W1's 20 points,
+      # discovery store (schema 3 on memory / JSON / SQLite + migration from 2), names test (C36)
+      - name: Zone tracker unit test
+        run: |
+          godot --headless --path . -s tests/unit/zone_tracker_test.gd 2>&1 | tee /tmp/zone_tracker.log
+          grep -q "ALL PASSED" /tmp/zone_tracker.log
+
+      - name: Discovery scenario (SQLite store; A discovers, B sees the feed + compact title, C after a restart)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_discovery_sqlite
+        run: tests/net/run_discovery_test.sh --backend sqlite --port 7857
+
+      - name: Discovery scenario (JSON file store)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_discovery_file
+        run: tests/net/run_discovery_test.sh --backend file --port 7867
 
   export:
     name: Desktop builds

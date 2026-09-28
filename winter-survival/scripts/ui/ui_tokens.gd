@@ -102,6 +102,14 @@ const HOTBAR_LIFT := 6.0
 const HOLD_RING := 40.0
 const OBJECTIVE_RULE := 300.0
 const ZONE_RULE := 520.0
+## Highway sign (H2, §V.4.4: "placa azul de 420 px con borde blanco", 3 s, top right, a line of facts below). The only
+## box of the HUD: it imitates a real Spanish road sign (blue autovía, white conventional road with the red N plate).
+const SIGN_W := 420.0
+const SIGN_H := 100.0
+const SIGN_BLUE := Color("#1B5DAA")
+const SIGN_WHITE := Color("#F4F5F1")
+const SIGN_INK := Color("#16191D")
+const SIGN_RED := Color("#C3262F")
 const HAZARD_RULE := 260.0
 const INFO_RULE := 300.0
 const PLAYER_DOT := 7.0
@@ -120,6 +128,7 @@ const T_PICKUP_MAX := 5.0
 const T_HAZARD := [0.3, 5.0, 0.8]
 const T_ZONE_FIRST := [1.4, 4.0, 1.6]     # read = until t = 4.0 s; 5.6 s in total
 const T_ZONE_REENTRY := [0.6, 1.4, 0.5]
+const T_SIGN := [0.24, 2.26, 0.5]         # 3 s in total (C35 "cartel de autovía 3 s")
 const T_EDGE := [0.24, 5.0, 0.6]
 const T_INFO := [0.16, 0.0, 0.3]
 const T_CLOCK := [0.24, 4.0, 0.8]

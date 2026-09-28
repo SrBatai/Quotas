@@ -11,6 +11,7 @@ var chunks: Dictionary = {}         # key -> Dictionary (ChunkDelta.to_dict form
 var hordes: Array = []
 var bans: Dictionary = {}           # token_hash / "ip:<addr>" -> {ip, reason, ts}
 var nominal: Dictionary = {}        # "region|category" -> spawned (loot nominal counters, GDD §9.3)
+var discoveries: Dictionary = {}    # scope -> {zone_id -> {by, token, day, ts}} (H2, schema 3)
 var _events: Array = []
 
 
@@ -108,13 +109,28 @@ func save_nominal(d: Dictionary) -> void:
 	nominal.merge(d, true)
 
 
+func load_discoveries() -> Dictionary:
+	return discoveries.duplicate(true)
+
+
+func save_discovery(scope: String, zone_id: String, rec: Dictionary) -> void:
+	if scope == "" or zone_id == "":
+		return
+	if not discoveries.has(scope):
+		discoveries[scope] = {}
+	var d: Dictionary = discoveries[scope]
+	if not d.has(zone_id):
+		d[zone_id] = rec.duplicate(true)
+
+
 ## Whole store as one JSON-friendly dictionary (FileBackend writes it; tests compare it).
 func to_document() -> Dictionary:
 	var ch := {}
 	for k in chunks:
 		ch[str(k)] = chunks[k]
 	return {"version": Net.GAME_VERSION, "schema_version": PersistenceSchema.VERSION, "world": world_meta,
-		"players": players, "chunks": ch, "hordes": hordes, "events": _events, "bans": bans, "nominal": nominal}
+		"players": players, "chunks": ch, "hordes": hordes, "events": _events, "bans": bans, "nominal": nominal,
+		"discoveries": discoveries}
 
 
 func from_document(doc: Dictionary) -> void:
@@ -128,3 +144,4 @@ func from_document(doc: Dictionary) -> void:
 	_events = doc.get("events", [])
 	bans = doc.get("bans", {})
 	nominal = doc.get("nominal", {})
+	discoveries = doc.get("discoveries", {})

@@ -70,6 +70,9 @@ tests/run_multi_shot.sh /tmp/shots/multi.png         # captura con 2 jugadores r
 tests/run_hud_coverage.sh --moments=idle,action,zone,blizzard,info   # H1: el HUD en reposo ocupa ≤ 3 % de 1080p (solo la capa del HUD)
 godot --headless --path . -s tests/hud_test.gd       # H1: las comprobaciones del HUD sin el resto del humo
 RENDER=forward tests/run_screenshots.sh /tmp/shots hud_idle hud_action hud_zone hud_blizzard hud_info   # H1, a 1080p
+godot --headless --path . -s tests/unit/zone_tracker_test.gd   # H2: zonas (histéresis, jerarquía, enfriamientos, cartel, 20 puntos W1, nombres)
+tests/net/run_discovery_test.sh --backend sqlite     # H2: descubrimiento del grupo y reinicio del servidor
+RENDER=forward tests/run_screenshots.sh /tmp/shots zone_card zone_sign_vehicle   # H2, a 1080p
 ```
 
 ## Reconstruir los modelos 3D (Blender)
@@ -365,8 +368,8 @@ sobre blanco; el límite es 3 %). Todo lo demás aparece cuando cambia y se fund
 - **Título de zona** cinematográfico sin caja (Barlow Condensed ExtraLight 76 px, el espaciado se cierra de .78 a .42
   em): «zona descubierta», el nombre y una línea de datos («Altavega · sin electricidad · −18 °C · peligro alto»,
   según lo que se sepa del lugar). Se entra estando 12 m dentro durante 1,5 s y se sale 12 m fuera: ya no parpadea al
-  cruzar un borde de chunk. La re‑entrada muestra solo el nombre al 60 %. En combate espera. La ciudad y sus distritos
-  están preparados en `scripts/data/locations.gd` (`Locations.enable_city()` / `register()`).
+  cruzar un borde de chunk. La re‑entrada muestra solo el nombre al 60 %. En combate espera. Desde H2 los lugares son
+  los de W1 (Altavega y sus distritos incluidos): ver «Zonas: entrar y salir (H2)».
 - **Avisos**: un aviso central con prioridad y cola (P0 interrumpe, «2 avisos en espera»), una columna lateral para
   lo recogido y fabricado con contadores que se suman («Madera +3 (5)»), y los peligros en una línea: prevista →
   se acerca → «❄ VENTISCA · visibilidad 6 m · 2:40» → a los 5 s solo el icono y el tiempo.
@@ -583,11 +586,79 @@ Pruebas de M5:
 
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §15.5.
 
+## Zonas: entrar y salir (H2)
+
+| Título de zona, 1.ª visita (maqueta v2 c, fotograma 2) | Cartel de autovía (móvil rápido en la A‑14) |
+|---|---|
+| ![Título de zona](docs/screenshots/h2/zone_card.jpg) | ![Cartel de autovía](docs/screenshots/h2/zone_sign_vehicle.jpg) |
+
+Capturas Forward+ a 1920 × 1080; la comparación con la maqueta v2 c (con sus tres fotogramas: 0,5 s, 1,8 s y 4,6 s, y el
+cartel en vehículo) está en `docs/screenshots/h2/maqueta_vs_h2.jpg`. El título de Las Torres se muestra sobre el claro de
+noche, como en la maqueta, porque Altavega aún no tiene edificios (C1).
+
+Al entrar en un lugar aparece su nombre como en un AAA, sin cajas y sin parpadeos (PLAN C35, nombres definitivos C36):
+
+- **Primera visita**: «zona descubierta», el nombre en Barlow Condensed ExtraLight de 76 px cuyo espaciado se cierra de
+  .78 a .42 em (`FontVariation.spacing_glyph` animado), un filete y **una** línea de datos: «Altavega · sin
+  electricidad · −18 °C · peligro alto» (zona padre · electricidad · temperatura · peligro, +1 de noche). 5,6 s y el
+  sonido `ui_zone_discover`. **Re‑entrada**: solo el nombre al 60 % durante 2,5 s, sin sonido; nada en zonas naturales
+  y carreteras.
+- **Cuándo**: se entra estando **12 m dentro durante 1,5 s** (medido en la posición del jugador) y se sale 12 m fuera:
+  ir y venir sobre un borde no cambia nada. Manda la zona más profunda: PDI ⊂ distrito ⊂ ciudad (en Las Torres sale
+  «Las Torres» con «Altavega» de dato), después el agua, las carreteras con nombre, las áreas amplias (sierras, La
+  Vega), Las Cumbres, Pinos Altos y el Bosque profundo. **90 s** por zona y **20 s** entre títulos; si se cruzan varias
+  zonas en ese margen solo queda en cola la última. **En combate** (un golpe, un golpe dado o un zombi persiguiendo en
+  los últimos 5 s) y **con un P0** (derribado, congelación, un aviso P0 en pantalla) el título espera; con P0 pasa a
+  compacto. Si ya te has ido, se descarta.
+- **Cartel de autovía**: a más de **40 km/h sobre una carretera** (el vehículo de M7; hoy cualquier móvil rápido) el
+  título se sustituye por un cartel de 3 s arriba a la derecha, con el estilo español: azul en la autovía, blanco con la
+  placa roja «N‑140» en la nacional, blanco en las avenidas. Fila 1: el destino por delante y su distancia («Altavega
+  2 km»); fila 2: «SALIDA n» (punto kilométrico) y adónde lleva («Gran Vía →», o el distrito en el que entras); debajo,
+  una línea de datos («A‑14 · sin electricidad · −8 °C»). Las carreteras con nombre dan su cartel la primera vez también
+  a pie.
+- **Al salir** no hay título: una línea P3 en la columna lateral solo si la situación mejora («Has salido del Control
+  militar km 12»: el peligro baja de alto o extremo y no entras en algo que está dentro de lo que dejas).
+- **Descubrimiento del grupo**: lo decide el servidor (comprueba que de verdad estás allí) y, con la regla
+  `shared_discovery = true` (por defecto, `server.cfg` `[rules]`), vale para todo el grupo: los demás ven en la columna
+  lateral «Ana descubrió: Granja del Molino» y, cuando llegan, el título compacto. Se guarda en el almacén del servidor
+  (tabla `discoveries`, esquema 3: SQLite y JSON) y sobrevive a reiniciarlo; en solitario sin servidor, en
+  `user://hud_discovered.cfg` por semilla. Con `shared_discovery = false` cada jugador descubre lo suyo.
+- **Info** (mantener Tab / D‑pad ↑) dice dónde estás («Las Torres · Altavega») junto a la hora y la temperatura.
+- **Cámara**: la señal `Events.zone_entered` (la zona confirmada, fuera de combate) elige el perfil de cámara urbano
+  (C28) en los distritos, avenidas y PDI de Altavega; una `CameraZone` (azoteas, banco de ciudad) sigue mandando.
+- Se retiró lo que quedaba del banner permanente del slice: el `RegionBanner` ya no existía desde H1 y ningún elemento
+  de interfaz escucha `region_changed` (el `RegionTracker` del mundo sigue emitiéndolo como dato).
+
+Datos: **`LocationInfo`** (`scripts/data/location_info.gd`: tipo, zona padre, círculo / rectángulo / polígono / varias
+partes, peligro, temperatura, electricidad, perfil de cámara, artículo) y **`Locations`** (`scripts/data/locations.gd`,
+70 zonas migradas de `PoiRegistry`: las 16 del valle, las 43 de W1 —37 reservadas para C1–C3—, el agua, las 7 carreteras
+con nombre sobre sus propias trazas y las naturales). Código: `scripts/ui/hud/zone_tracker.gd`, `zone_title.gd`,
+`zone_sign.gd`, `scripts/net/shared/zone_discovery.gd`, `scripts/persistence/migrations/003_discoveries.gd`. Sonido
+provisional: `assets/audio/ui/ui_zone_discover.wav`, sintetizado por `tools/gen_ui_sounds.py` (obra propia, CC0,
+`assets/audio/ui/LICENSE.txt`).
+
+Pruebas:
+
+- `godot --headless --path . -s tests/unit/zone_tracker_test.gd`: 38 comprobaciones — zigzag sobre un borde (0
+  cambios), 12 m durante 1,5 s (1 cambio), distrito sobre ciudad, enfriamientos y cola de 1, combate y P0, línea de
+  salida, cartel para un móvil rápido en la A‑14, `zone_entered` → perfil de cámara, **títulos correctos en los 20
+  puntos de prueba de W1**, tiempos del título y del cartel, almacén de descubrimientos (memoria, JSON y SQLite, y
+  migración desde el esquema 2), el sonido y el **test de nombres** (C36: ninguna palabra «Albarr» / «Albar» en
+  `data/`, `scripts/` ni `scenes/`).
+- `tests/run_smoke.sh` (paso 19, `tests/h2_smoke_steps.gd`): entra en 2 zonas reales tras un `/tp`, sale del control
+  militar (línea P3) y lleva al jugador a 90 km/h por la N‑140 hasta el Área de descanso (cartel), sin `SCRIPT ERROR`.
+- `tests/net/run_discovery_test.sh [--backend sqlite|file]`: A descubre la Granja del Molino, B ve «A descubrió: …» y
+  al llegar el título compacto; tras `save-and-quit` y un servidor nuevo, C (un jugador nuevo) ya la conoce.
+- Capturas: `RENDER=forward tests/run_screenshots.sh carpeta zone_card zone_sign_vehicle` (1920 × 1080; también
+  `zone_card_t05` y `zone_card_t46`, los otros dos fotogramas de la maqueta), en `docs/screenshots/h2/`.
+
+Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.6.
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1: godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1 + H2 (zone_tracker_test, discovery sqlite + file): godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
 ./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak

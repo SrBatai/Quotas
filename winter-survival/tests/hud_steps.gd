@@ -293,14 +293,14 @@ func _missions(hud: Hud, player: Player) -> void:
 
 
 # ------------------------------------------------------------------ zones: hysteresis, hierarchy, deferral
+## (H2 moved the full zone gate to tests/unit/zone_tracker_test.gd; these stay as the in-game sanity checks.)
 func _zones(hud: Hud) -> void:
-	var zt := ZoneTracker.new()
+	var zt := ZoneTracker.new()   # a bare tracker: its own signals only (publish = false)
 	hud.add_child(zt)
 	zt.enabled = false
 	zt.forget_all()
 	var entered: Array = []
-	var cb := func(i: Dictionary) -> void: entered.append(i)
-	Events.location_entered.connect(cb)
+	zt.entered.connect(func(i: Dictionary) -> void: entered.append(i))
 	# start deep inside the clearing (r 100)
 	for i in 8:
 		zt.step(Vector3(0, 0, 40), 0.25)
@@ -325,32 +325,28 @@ func _zones(hud: Hud) -> void:
 		zt.step(Vector3(0, 0, 40), 0.25)
 	var re: Dictionary = entered[-1] if not entered.is_empty() else {}
 	check(first_card and str(re.get("card", "")) == "none", "first visit → full card; re-entry within 90 s → no card")
-	# hierarchy with the Altavega data hook: the district wins, the city is its first fact
-	Locations.enable_city(true, Vector2(0, 0))
+	# hierarchy with the W1 data (H2): in Las Torres the district wins, Altavega is its first fact
 	entered.clear()
 	zt.clock += 30.0
 	for i in 8:
-		zt.step(Vector3(0, 0, -2700), 0.25)
+		zt.step(Vector3(2688, 0, -640), 0.25)
 	var d: Dictionary = entered[-1] if not entered.is_empty() else {}
 	var facts: Array = d.get("facts", [])
-	check(str(d.get("name", "")) == "Distrito Financiero" and not facts.is_empty() and str(facts[0]) == "Altavega" and facts.has("sin electricidad") and str(facts[-1]).begins_with("peligro"),
-		"city hook: district over city, facts «%s»" % " · ".join(facts))
+	check(str(d.get("name", "")) == "Las Torres" and not facts.is_empty() and str(facts[0]) == "Altavega" and facts.has("sin electricidad") and str(facts[-1]).begins_with("peligro"),
+		"W1 hierarchy: district over city, facts «%s»" % " · ".join(facts))
 	# combat defers the card; it is shown once the fight is over (20 s after the last card)
 	entered.clear()
 	var fighting := [true]
 	zt.in_combat = func() -> bool: return fighting[0]
 	zt.clock += 30.0
 	for i in 10:
-		zt.step(Vector3(-600, 0, -2500), 0.25)
+		zt.step(Vector3(1900, 0, -700), 0.25)
 	var deferred := entered.filter(func(e: Dictionary) -> bool: return str(e["card"]) != "none").is_empty() and not zt.queued.is_empty()
 	fighting[0] = false
 	zt.clock += 25.0
-	zt.step(Vector3(-600, 0, -2500), 0.25)
+	zt.step(Vector3(1900, 0, -700), 0.25)
 	var shown := not entered.filter(func(e: Dictionary) -> bool: return str(e["card"]) == "full").is_empty()
 	check(deferred and shown, "zone card deferred during combat, shown after (%s)" % zt.current.get("name", "-"))
-	Locations.reset()
-	Events.location_entered.disconnect(cb)
-	zt.forget_all()
 	zt.queue_free()
 	# the card itself: 5.6 s first visit, name at 60 % on re-entry
 	var zc := hud.zone_title

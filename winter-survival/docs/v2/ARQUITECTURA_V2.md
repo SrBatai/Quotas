@@ -1534,3 +1534,165 @@ C1: lotes, edificios, puentes, Control del Puerto); hielo fino, aludes y peligro
 con `world_version = 2` es de M5 (`WorldConst.WORLD_VERSION`, claves por `WorldConst.key`).
 
 ---
+
+## §17.6 Nota de implementación H2 (zonas: entrar y salir)
+
+Vinculante hasta que se revise. Implementa la tarjeta H2 del PLAN (v3.8.1; C35, C36) con la dirección «Susurro» de
+`docs/research/10_hud_ux.md` §V.3–V.4.4 y las reglas del apéndice §6.1 y §6.5. Sustituye lo que §17.5 dice de
+«Lugares», «Zonas» y del descubrimiento local (`Locations.CITY` / `enable_city()` ya no existen: la ciudad es la de W1).
+
+#### Datos: `LocationInfo` y `Locations`
+
+- **`LocationInfo`** (`scripts/data/location_info.gd`) es el esquema de un registro (un `Dictionary`: se copia barato,
+  viaja por red y se serializa): `id`, `name` (español, mayúsculas y minúsculas), `banner` (el nombre en mayúsculas de
+  `PoiRegistry`), `kind` (city | district | town | village | farm | poi | natural | road), `parent` (id), `shape`
+  (`circle` [centro, radio] | `rect` [centro, tamaño] | `poly` (`PackedVector2Array`) | `multi` [formas] | `fn`),
+  `danger` 0–3, `power` ("" | off | generator | on), `temp` (°C sobre el aire), `zombies`, `milestone`, `reserved`,
+  `tier`, `camera`, `article` y, en carreteras, `road` {kind, plate, style}. `validate()` lo comprueba;
+  `shape_depth()` da la profundidad con signo (círculo, rectángulo, polígono, varias partes) y `shape_center()` el punto
+  representativo (etiqueta del mapa, ancla de misión, distancia del cartel). Barlow no tiene U+2011 (guion que no
+  corta) ni U+2192 (→): `make()` cambia U+2011 por U+2010 en los nombres («N‐140», «Autovía A‐14») y la flecha del
+  cartel se dibuja; la prueba comprueba que todo nombre y placa se puede dibujar con las fuentes del HUD.
+- **`Locations`** (`scripts/data/locations.gd`) construye una vez las **70 zonas** migradas de `PoiRegistry`: las 2 zonas
+  pequeñas del claro (`Regions.ZONES`), las 16 regiones del valle (datos en `KNOWN`), las **43 de W1 con sus campos**
+  (37 reservadas para C1–C3), el Lago de las Ánimas, las **7 carreteras con nombre** de `ROAD_REGIONS` (lecho + 32 m,
+  medidos sobre **sus propias trazas**: la N‑140 ya no toma a la A‑14 por ella), Las Cumbres, Pinos Altos y el Bosque
+  profundo por defecto. Dos registros con el mismo *banner* son una zona en varias partes (`Urbanizaciones del norte`:
+  el id del rectángulo este queda como alias).
+- **Orden** (el del *banner*, `PoiRegistry.region_at`): lugares → agua → carreteras con nombre → áreas amplias
+  (Altavega, las sierras, La Vega) → Las Cumbres → Pinos Altos → Bosque profundo. Dentro de los lugares manda el
+  **nivel en la jerarquía** (número de antepasados: la Catedral ⊂ Casco viejo ⊂ Altavega va antes que el distrito) y
+  luego el tipo (PDI antes que distrito). H1 ordenaba solo por tipo y el Lago helado (natural, dentro del claro) no salía
+  nunca: ahora sale.
+- `camera = &"city"` en Altavega, sus distritos, sus PDI y sus avenidas; `article` («del Hospital Provincial», «de la
+  Catedral de Altavega», «de Las Torres») para las frases. `Locations.road_at()` (la carretera transitable bajo un punto:
+  distancia al borde del lecho, nombre, dirección y punto kilométrico), `road_km()`, `next_junction()` (el siguiente
+  enlace con otra carretera con nombre por delante) y `road_style()` sirven al cartel. `Locations.hf_override` deja
+  usar las carreteras sin mundo (pruebas). Nota GDScript: los `Packed*Array` dentro de un `Array` son valores; se
+  rellenan en una copia local y se vuelven a guardar.
+
+#### `ZoneTracker` (`scripts/ui/hud/zone_tracker.gd`, cliente, 4 Hz)
+
+- Posición del jugador, no el centro del chunk. **Histéresis**: una zona entra estando `inset` dentro (12 m; un cuarto
+  del lado menor en lugares pequeños) durante **1.5 s**; la actual se mantiene hasta estar `inset` fuera durante 1.5 s.
+- **Tarjetas** (`Locations.cards_of`): primera visita → `full`; re‑entrada → `compact` (ciudad, distrito, pueblo, aldea,
+  granja, PDI) o nada (natural, carretera); **90 s** por zona; **20 s** entre tarjetas con **cola de 1** (la última
+  gana; las demás solo actualizan `location_entered` con `card = none`). Las carreteras con nombre dan `sign` la primera
+  vez. **Rápido sobre carretera** (> 40 km/h medidos en los últimos 1.5 s de posiciones, a ≤ 4 m del borde de un lecho
+  transitable; un salto > 60 m en un paso es un teletransporte y borra velocidad y rumbo): cualquier tarjeta pasa a
+  `sign` con su contenido (`ZoneSign.compose`).
+- **Aplazar**: en combate (golpe, golpe dado o zombi persiguiendo a < 25 m en los últimos 5 s, `Hud.in_combat`) la
+  tarjeta espera; con un P0 (derribado, Calor < 15 o un aviso P0 del `NotifyRouter` en pantalla, `Hud.p0_active`) la
+  tarjeta completa pasa a compacta y espera; si el jugador ya no está en la zona, se descarta.
+- **`zone_entered`** (señal propia y `Events.zone_entered`): cada zona confirmada, una vez fuera de combate (la última
+  gana), con `{id, name, kind, camera, first_visit, chain, facts, danger}`.
+- **Salir**: sin tarjeta; una línea P3 (`Events.notify_ex` prioridad 3 → columna lateral) solo si mejora: el peligro de
+  ahora (+1 de noche) baja desde alto o extremo y la zona nueva no está dentro de la que se deja («Has salido del
+  Control militar km 12»).
+- Un `ZoneTracker` suelto (pruebas) solo emite sus señales (`entered`, `card_shown`, `zone_changed`, `left`,
+  `exit_line`) y guarda sus descubrimientos en `discovered`; el del HUD tiene `publish = true` (espeja en `Events` y pide
+  los descubrimientos a `ZoneDiscovery`, al que se engancha en cuanto existe: `discovered` es entonces su `known`).
+  `step(pos, dt)` es la entrada pública: las pruebas y las capturas son un «móvil guionizado» que le da posiciones.
+
+#### Título, cartel e Info
+
+- `ZoneTitle` (H1) se queda con `full` / `compact`; `ui_zone_discover` solo en la primera visita (la re‑entrada no
+  suena). Espaciado animado con `FontVariation.spacing_glyph` (52 → 32 px a 76 px: .78 → .42 em), 5.6 s; re‑entrada 2.5
+  s al 60 %.
+- **`ZoneSign`** (`scripts/ui/hud/zone_sign.gd`, en el `Safe` del HUD, arriba a la derecha, debajo de la línea de
+  peligro si la hay): placa de 420 px, 3 s (entra en 240 ms con 6 px de desplazamiento, sale en 500 ms). Estilos: azul
+  con texto blanco (autovía), blanco con texto negro y la placa roja «N‑140» (nacional), blanco (avenidas y el resto).
+  Contenido: si la zona es una carretera, el destino por delante (ciudad, pueblo o aldea en ±60° del rumbo, ≤ 8 km, en
+  la que no se está) con su distancia en km enteros, y «SALIDA n» con el siguiente enlace por delante («Gran Vía»; si no
+  hay, el distrito o PDI de ese destino más cercano a la carretera); si no, la zona de más arriba de la jerarquía y la
+  zona en la que se entra. Línea de datos: placa o carretera · electricidad del destino · temperatura. Es la única caja
+  del HUD (§V.1 regla 6); un `StyleBoxFlat` reutilizado, sin reservas por frame.
+- `InfoBlock`: con Info, una línea con la zona y su padre («Las Torres · Altavega») bajo la temperatura (§V.4.4: la
+  ubicación se consulta con Info).
+
+#### Descubrimiento del grupo (`ZoneDiscovery`, `scripts/net/shared/zone_discovery.gd`)
+
+- Nodo con RPC en `/root/Game/ZoneDiscovery` en los dos sabores (lo añade `game.gd` después de `PlayerManager`):
+  cliente → servidor `request_sync()` (al aparecer el jugador local) y `request_discover(zone_id)`; servidor → cliente
+  `_sync([[id, por], …])` y `_discovered(id, por, peer)`. Canal 1 fiable, como `NetWorld`. `NET_PROTOCOL` pasa a **5**.
+- El servidor comprueba que la zona existe y que el jugador está como mucho 40 m fuera de ella con **su** posición
+  autoritativa, limita a 12 peticiones cada 2 s y guarda el **primero** por zona y ámbito: `"group"` con la regla
+  **`shared_discovery`** (por defecto `true`, `[rules]` de `server.cfg`, replicada en `WorldState.rules`) o el *hash*
+  del token del jugador si está a `false`. Avisa a los pares sincronizados de ese ámbito (nunca a uno que aún carga la
+  escena: se evita el «Node not found»). El cliente guarda `known` (id → quién) y `pending`; un compañero que descubre
+  algo que el jugador no conocía produce la línea P3 «Ana descubrió: Granja del Molino». El `ZoneTracker` da el título
+  compacto a lo que el grupo ya conoce.
+- **Persistencia** (esquema **3**, `migrations/003_discoveries.gd`): tabla `discoveries(scope, zone_id, by_token,
+  by_name, day, ts, PRIMARY KEY(scope, zone_id))`; en el documento JSON, la clave `discoveries` {scope → {zone_id →
+  {by, token, day, ts}}}. `PersistenceBackend.load_discoveries()` / `save_discovery()` en memoria, JSON y SQLite
+  (`INSERT OR IGNORE`: el primero gana). SQLite escribe al momento (transacción propia o dentro del lote); JSON, en el
+  siguiente `flush` (autoguardado, `save`, `save-and-quit`). Al arrancar: «[EVT] discovery: N zones restored». Sin
+  servidor dedicado (offline, `MemoryBackend`) el almacén es `user://hud_discovered.cfg` por semilla, el fichero de H1.
+
+#### Cámara (C28)
+
+`CameraRig.zone_profile` sigue a `Events.zone_entered` (`info.camera`): si ninguna `CameraZone` contiene al jugador, se
+usa ese perfil; la transición es la mezcla de W0 (`BLEND_TAU` 0.45 s) y nunca empieza en combate, porque
+`zone_entered` se aplaza. Hoy solo existe el perfil `city` de W0.
+
+#### Sonido
+
+`AudioManager.STREAM_FILES` carga `assets/audio/ui/ui_zone_discover.wav` (1.8 s, soplo de viento y campana de cristal
+grave en La3 con parciales inarmónicos) sintetizado por `tools/gen_ui_sounds.py` (determinista, solo biblioteca
+estándar; obra propia, **CC0 1.0**, `assets/audio/ui/LICENSE.txt`). `AudioManager.register()` para los que vengan.
+
+#### Pruebas y números (VM compartida de 4 vCPU, `taskset -c 0,1`)
+
+- `tests/unit/zone_tracker_test.gd` (+ `_steps`): **38/38** en ≈ 1 s: datos (70 zonas válidas y dibujables con Barlow, 43 de W1 con 37
+  reservadas, 7 carreteras, padres, partes múltiples, artículos, polígonos); zigzag ±8 m durante 30 s y 20 m fuera
+  1.25 s cada vez → **0 cambios**; 11 m dentro 10 s → 0, 13 m durante 1.25 s → 0, 13 m durante 1.5 s → **1 cambio**;
+  Altavega → Barriada de San Lázaro (**distrito sobre ciudad**), Catedral ⊂ Casco viejo, Las Torres sobre Ensanche,
+  Lago helado ⊂ claro; 90 s por zona, compacta después, 20 s exactos entre tarjetas y cola de 1 (La Herrería sustituida
+  por Valdenieve); combate aplaza título y `zone_entered`, lo descarta si te fuiste; P0 → compacta y espera; línea de
+  salida (sí al dejar el control militar y el hospital, no al dejar una granja ni al entrar en un PDI del distrito);
+  móvil guionizado a 90 km/h por la A‑14 → cartel «Altavega 2 km / SALIDA 1 · Gran Vía →» · «A‑14 · sin electricidad ·
+  −9 °C»; por la Gran Vía hacia Las Torres → cartel urbano en vez del título; a pie, títulos y el cartel propio de la
+  N‑140, un `/tp` no es velocidad; `zone_entered` → `CameraRig` pasa a `city` en Las Torres (nunca durante la pelea) y
+  vuelve a `default` en el valle; **los 20 puntos de W1** dan el título esperado; tiempos del título y del cartel;
+  almacén de descubrimientos en memoria, JSON y SQLite (y migración 2 → 3 de los dos); el sonido; **nombres (C36)**: 0
+  apariciones de «Albarr» o de la palabra «Albar» en 240+ ficheros de `data/`, `scripts/` y `scenes/`.
+- `tests/run_smoke.sh`, paso 19 (`tests/h2_smoke_steps.gd`): **288/288** en ≈ 1 min 50 s. Entra por `/tp` en la Granja del
+  Molino y en Valdenieve (título completo; el segundo tras los 20 s), las dos descubiertas por el servidor en proceso y
+  en `user://hud_discovered.cfg`, línea P3 al dejar el control militar, el cuerpo real del jugador a 25 m/s por la N‑140
+  hasta el Área de descanso → cartel nacional (placa N‑140) en vez del título, perfil de cámara `default`, sin
+  `SCRIPT ERROR`.
+- `tests/net/run_discovery_test.sh --backend sqlite|file` (escenario `discovery`, `tests/net/net_steps_h2.gd`):
+  **PASSED en los dos**: A descubre la granja (título completo; «zone discovered: granja_del_molino by A»), B recibe
+  «A descubrió: Granja del Molino» (la espera por evento: con carga los dos clientes se desfasan segundos) y al llegar
+  ve el título compacto sin pedir otro descubrimiento;
+  `save-and-quit`, servidor nuevo: «discovery: 2 zones restored», `dbinfo` con `schema=3`, y C (jugador nuevo) ya la
+  conoce y ve el compacto. `run_restart_test.sh` espera ahora `schema=3`.
+  Pasa también con carga media 6–7 de otros carriles en la VM. Los `/tp` del guion van separados 1.2 s y se repiten si
+  el jugador no llegó (el chat admite 2 líneas por segundo y con carga el cliente las agrupa).
+- HUD: el `ZoneTracker` cuesta 12–15 µs/frame en el momento cargado del humo (lógica del HUD 0.17–0.21 ms, presupuesto
+  0.5); `tests/hud_test.gd` 59/59.
+- Capturas Forward+ a 1080p (`tests/h2_shots.gd`): `zone_card` (fotograma 2 de la maqueta v2 c, más `zone_card_t05` y
+  `zone_card_t46`) y `zone_sign_vehicle`, en `docs/screenshots/h2/`.
+
+#### Desviaciones
+
+1. `zone_card` pone el título real de Las Torres sobre el claro de noche, como la maqueta (Altavega no tiene edificios
+   hasta C1); `zone_sign_vehicle` pone al jugador de pie en la A‑14 donde está el móvil guionizado (no hay vehículos
+   hasta M7).
+2. Las zonas naturales conservan el título completo en la primera visita (C35 da un solo tipo de primera visita; el
+   apéndice v1 las ponía compactas); las carreteras con nombre dan el cartel.
+3. «SALIDA n» es el punto kilométrico sobre la traza de la carretera y el destino se mide a su centro; el nombre de la
+   salida es la carretera del enlace, no un rótulo de V1.
+4. Sin la bajada del ambiente de −4 dB del apéndice §5.6: no hay bus de ambiente todavía.
+5. Solo el perfil de cámara `city` de W0; «Urbano bajo» / «Torres» de C28 y conservar el zoom relativo son de C0/C1
+   (`scripts/world/city/camera_profile.gd`).
+6. El «banner permanente del slice» ya no tenía interfaz desde H1; `RegionTracker` y `Events.region_changed` se quedan
+   como dato (los usa el humo de M3), sin nadie que los dibuje.
+
+#### Diferido
+
+XP por descubrir (D2); revelar el mapa alrededor de lo descubierto y la niebla compartida (`shared_map`, H5); entrada
+del diario; datos de territorio y facción, y «Saqueado 60 %» en la re‑entrada; zonas especiales como peligros (H3); el
+vehículo real (M7: el umbral de velocidad ya lo cubre); el sonido definitivo y el bus de UI; `tr()` de las cadenas (H6).
+
+---

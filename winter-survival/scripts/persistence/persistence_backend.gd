@@ -112,5 +112,16 @@ func save_nominal(_d: Dictionary) -> void:
 	pass
 
 
+## Zone discoveries (H2, schema 3): scope ("group" with `shared_discovery`, else a token hash) -> {zone_id -> {by,
+## token, day, ts}}.
+func load_discoveries() -> Dictionary:
+	return {}
+
+
+## Stores one discovery (the first one of a zone in a scope wins; later calls for it change nothing).
+func save_discovery(_scope: String, _zone_id: String, _rec: Dictionary) -> void:
+	pass
+
+
 func backup(_path: String) -> Error:
 	return ERR_UNAVAILABLE

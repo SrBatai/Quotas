@@ -1,50 +1,50 @@
 class_name Locations
-## Named places for the zone title card (docs/research/10_hud_ux.md §V.4.4, appendix §6.1 and §8.6). One entry
-## per place, most specific first (the first entry the player is ≥ inset metres inside wins):
-##   {id, name (display case), kind, parent, shape, danger 0–3, power, temp (°C offset), enabled}
-## kind: city | district | town | village | farm | poi | natural | road.
-## shape: {"circle": [center, radius]} | {"rect": [center, size]} | {"fn": &"lake"|&"road"|&"border"|&"high_forest"}
-## power: "" (unknown: no fact) | "off" (sin electricidad) | "generator" (con generador) | "on" (con electricidad).
-## Sources: the slice's small zones (Regions.ZONES), PoiRegistry.REGIONS (macro map) and the natural regions of
-## PoiRegistry.region_at, evaluated at the player's position (not the chunk centre: no per-chunk flicker).
-##
-## Data hook for the city (PLAN: «Altavega» and its districts are not in the world yet): `CITY` below is disabled;
-## when the world has it, set the real shapes and call `Locations.enable_city()` (or `register()` any entry at
-## runtime, e.g. from the chunk that builds a district). Districts come before the city, so the card shows the
-## district with the city as its first fact ("Altavega · sin electricidad · −18 °C · peligro alto").
+## Every named zone of the world as LocationInfo records (H2, PLAN C35/C36; docs/research/10_hud_ux.md appendix
+## §6.1 and §8.6), most specific first — the zone title, the highway sign, the paper map, the mission anchors, the
+## camera profile and the group discovery all read this list. Migrated from PoiRegistry (W1):
+##   - the slice's small zones inside the clearing (Regions.ZONES; «CLARO» folds into the Claro del cazador);
+##   - PoiRegistry.REGIONS: the 16 valley places (display data in KNOWN below) and the 43 W1 records with their
+##     LocationInfo fields (id, display, kind, parent, danger, power, temp, zombies, milestone, reserved), including
+##     the reserved ones of C1–C3 (terrain + pad only for now); two records with the same banner become one zone;
+##   - the water bodies (exact shapes), the named roads (PoiRegistry.ROAD_REGIONS: the road bed + 32 m, measured on
+##     that road's own splines), the border ring (LAS CUMBRES), the valley's high forest and the forest (default).
+## Order = the region banner's (PoiRegistry.region_at): places → water → named roads → broad areas → border → high
+## forest → forest; inside the places the deeper level of the hierarchy wins (POI ⊂ district ⊂ city), so standing in
+## Las Torres gives «Las Torres» with «Altavega» as its first fact. `register()` adds zones at runtime (C1+).
 
 const DANGER_NAMES := ["peligro bajo", "peligro moderado", "peligro alto", "peligro extremo"]
 const POWER_NAMES := {"off": "sin electricidad", "generator": "con generador", "on": "con electricidad"}
-## Card on the first visit / on re-entry per kind (§V.3: full card 5.6 s, re-entry = the name at 60 % 2.5 s).
+## Card on the first visit / on a re-entry per kind (C35: first visit = the 5.6 s title, re-entry = the name at 60 %
+## for 2.5 s; natural areas say nothing on a re-entry; roads get the highway sign once). A player moving faster than
+## 40 km/h on a road gets the highway sign instead of any title (ZoneTracker).
 const CARD := {
 	"city": ["full", "compact"], "district": ["full", "compact"], "town": ["full", "compact"],
 	"village": ["full", "compact"], "farm": ["full", "compact"], "poi": ["full", "compact"],
-	"natural": ["full", "none"], "road": ["full", "none"],
+	"natural": ["full", "none"], "road": ["sign", "none"],
 }
-## Specificity (lower = deeper in the hierarchy city → district → POI); ties keep the list order.
-const RANK := {"poi": 0, "farm": 1, "village": 2, "town": 2, "district": 3, "city": 4, "natural": 5, "road": 6}
-
-## The city of the PLAN (not built yet). Shapes are placeholders until the world agent places it.
-const CITY := {
-	"id": "altavega", "name": "Altavega", "kind": "city", "parent": "", "danger": 2, "power": "off", "temp": -2.0,
-	"shape": {"rect": [Vector2(0, -2600), Vector2(1800, 1200)]}, "enabled": false,
-	"districts": [
-		{"id": "altavega_financiero", "name": "Distrito Financiero", "danger": 2, "power": "off",
-			"shape": {"rect": [Vector2(0, -2700), Vector2(600, 500)]}},
-		{"id": "altavega_casco", "name": "Casco Antiguo", "danger": 1, "power": "off",
-			"shape": {"rect": [Vector2(-600, -2500), Vector2(500, 500)]}},
-		{"id": "altavega_estacion", "name": "Estación", "danger": 2, "power": "off",
-			"shape": {"rect": [Vector2(600, -2450), Vector2(500, 400)]}},
-		{"id": "altavega_poligono", "name": "Polígono Industrial", "danger": 1, "power": "generator",
-			"shape": {"rect": [Vector2(0, -2150), Vector2(900, 300)]}},
-	],
+## A named road zone reaches this far (m) from the edge of its bed (M3: the N‑140 banner within 32 m).
+const ROAD_REACH := 32.0
+## Road kinds a vehicle drives on (the rail is not one).
+const DRIVABLE := ["highway", "avenue", "road", "track"]
+## Road plates and sign styles (Spanish signage, doc 10 §7.1): blue autovía, white conventional road with the red
+## N plate, white urban avenue.
+const ROAD_STYLE := {
+	"AUTOVÍA A-14": {"kind": "highway", "plate": "A‐14", "style": "autovia"},
+	"N-140": {"kind": "highway", "plate": "N‐140", "style": "nacional"},
+	"CARRETERA DEL PUERTO": {"kind": "road", "plate": "", "style": "convencional"},
+	"GRAN VÍA": {"kind": "avenue", "plate": "", "style": "urbana"},
+	"RONDA NORTE": {"kind": "avenue", "plate": "", "style": "urbana"},
+	"RONDA SUR": {"kind": "avenue", "plate": "", "style": "urbana"},
+	"FERROCARRIL DEL ALBO": {"kind": "rail", "plate": "", "style": "convencional"},
 }
+## The city whose zones use the urban camera profile (C28).
+const CITY_ID := "altavega"
 
-## Display names and per-place data of the existing regions (PoiRegistry keeps upper-case names).
+## Display names and data of the valley places (PoiRegistry keeps their upper-case banner names only).
 const KNOWN := {
 	"CLARO DEL CAZADOR": {"name": "Claro del cazador", "kind": "poi", "danger": 0},
-	"CABAÑA DEL PESCADOR": {"name": "Cabaña del pescador", "kind": "poi", "danger": 0, "parent": "claro"},
-	"LAGO HELADO": {"name": "Lago helado", "kind": "natural", "danger": 0, "parent": "claro", "temp": -2.0},
+	"CABAÑA DEL PESCADOR": {"name": "Cabaña del pescador", "kind": "poi", "danger": 0, "parent": "claro_del_cazador"},
+	"LAGO HELADO": {"name": "Lago helado", "kind": "natural", "danger": 0, "parent": "claro_del_cazador", "temp": -2.0},
 	"PUNTO DE EVACUACIÓN": {"name": "Punto de evacuación", "kind": "poi", "danger": 2, "power": "generator"},
 	"CONTROL MILITAR KM 12": {"name": "Control militar km 12", "kind": "poi", "danger": 3, "power": "generator"},
 	"GASOLINERA NORTE": {"name": "Gasolinera norte", "kind": "poi", "danger": 1, "power": "off"},
@@ -61,36 +61,46 @@ const KNOWN := {
 	"TORRE DE VIGILANCIA": {"name": "Torre de vigilancia", "kind": "poi", "danger": 1},
 	"VALDENIEVE": {"name": "Valdenieve", "kind": "town", "danger": 2, "power": "off"},
 }
-## Natural regions of PoiRegistry.region_at, most specific first; Bosque profundo is the default.
-const NATURAL := [
-	{"id": "lago_animas", "name": "Lago de las Ánimas", "kind": "natural", "danger": 1, "temp": -3.0, "shape": {"fn": &"lake"}},
-	{"id": "n140", "name": "N‑140", "kind": "road", "danger": 1, "temp": 0.0, "shape": {"fn": &"road"}},
-	{"id": "las_cumbres", "name": "Las Cumbres", "kind": "natural", "danger": 1, "temp": -8.0, "shape": {"fn": &"border"}},
-	{"id": "pinos_altos", "name": "Pinos Altos", "kind": "natural", "danger": 1, "temp": -3.0, "shape": {"fn": &"high_forest"}},
-]
-const DEFAULT := {"id": "bosque_profundo", "name": "Bosque profundo", "kind": "natural", "danger": 1, "temp": 0.0,
-	"shape": {"fn": &"default"}}
+## Natural areas of the banner computed by function (after the water and the roads).
+const LAKE := {"id": "lago_animas", "name": "Lago de las Ánimas", "banner": "LAGO DE LAS ÁNIMAS", "kind": "natural", "danger": 1, "temp": -3.0}
+const BORDER := {"id": "las_cumbres", "name": "Las Cumbres", "banner": "LAS CUMBRES", "kind": "natural", "danger": 1, "temp": -8.0}
+const HIGH_FOREST := {"id": "pinos_altos", "name": "Pinos Altos", "banner": "PINOS ALTOS", "kind": "natural", "danger": 1, "temp": -3.0}
+static var DEFAULT: Dictionary = LocationInfo.make("bosque_profundo", "Bosque profundo", "natural", {"fn": &"default"},
+	{"banner": "BOSQUE PROFUNDO", "danger": 1, "tier": LocationInfo.Tier.DEFAULT})
+
+## Height function for the road zones when no World is running (tests, tools).
+static var hf_override: HeightFunction = null
 
 static var _list: Array = []
+static var _by_id: Dictionary = {}
 static var _extra: Array = []
-static var _city_enabled: bool = false
+static var _roads_hf: HeightFunction = null
+## banner name -> [PackedVector2Array segment ends (a0, b0, a1, b1…), PackedFloat32Array half widths, PackedFloat32Array
+## cumulative metres at each segment start]
+static var _roads: Dictionary = {}
+## Every drivable road: [PackedVector2Array points, half width, banner name, kind]
+static var _drive: Array = []
+## Ends of the named roads (junction candidates): [point, banner]
+static var _ends: Array = []
 
 
-## All entries, most specific first (built once; `register` / `enable_city` rebuild it).
+## All zones, most specific first (built once; `register` / `reset` rebuild it).
 static func all() -> Array:
 	if _list.is_empty():
 		_build()
 	return _list
 
 
+## A zone by id (or by one of its aliases); {} when unknown.
 static func by_id(id: String) -> Dictionary:
-	for e: Dictionary in all():
-		if str(e["id"]) == id:
-			return e
+	if _list.is_empty():
+		_build()
+	if _by_id.has(id):
+		return _by_id[id]
 	return DEFAULT if id == str(DEFAULT["id"]) else {}
 
 
-## Adds (or replaces, same id) a place at runtime.
+## Adds (or replaces, same id) a zone at runtime (a LocationInfo record: LocationInfo.make).
 static func register(entry: Dictionary) -> void:
 	var e := entry.duplicate(true)
 	e["enabled"] = true
@@ -103,164 +113,212 @@ static func register(entry: Dictionary) -> void:
 	_list.clear()
 
 
-## Turns the Altavega city and its districts on (optionally moving the whole city by `offset`).
-static func enable_city(on: bool = true, offset: Vector2 = Vector2.ZERO) -> void:
-	_city_enabled = on
-	_city_offset = offset
-	_list.clear()
-
-
-static var _city_offset: Vector2 = Vector2.ZERO
-
-
 ## Test hook: back to the static data.
 static func reset() -> void:
 	_extra.clear()
-	_city_enabled = false
-	_city_offset = Vector2.ZERO
 	_list.clear()
+	hf_override = null
 
 
 static func _build() -> void:
 	var out: Array = []
-	# the slice's small zones inside the clearing (Regions.ZONES; "CLARO" folds into the clearing below)
+	# 1. the slice's small zones inside the clearing ("CLARO" is the Claro del cazador below)
 	for z: Dictionary in Regions.ZONES:
 		var n := str(z["name"])
-		if not KNOWN.has(n):
-			continue
-		out.append(_entry(n, {"circle": [z["center"], float(z["radius"])]}))
+		if KNOWN.has(n):
+			out.append(_known(n, {"circle": [z["center"], float(z["radius"])]}))
+	# 2. PoiRegistry.REGIONS (valley places + W1 records); same banner = one zone in several parts
+	var merged := {}
 	for r: Dictionary in PoiRegistry.REGIONS:
 		var n := str(r["name"])
 		var shape := {"rect": [r["center"], r["size"]]} if r.has("size") else {"circle": [r["center"], float(r["radius"])]}
 		if r.has("water"):
-			shape = {"fn": StringName("water:" + str(r["water"]))}   # W1 water: exact shape (PoiRegistry.natural_depth)
-		out.append(_entry(n, shape, r))
-	if _city_enabled or bool(CITY.get("enabled", false)):
-		for d: Dictionary in CITY["districts"]:
-			var e := d.duplicate(true)
-			e["kind"] = "district"
-			e["parent"] = CITY["id"]
-			e["temp"] = float(d.get("temp", CITY["temp"]))
-			e["shape"] = _offset_shape(d["shape"], _city_offset)
-			e["enabled"] = true
-			out.append(e)
-		var c := CITY.duplicate(true)
-		c.erase("districts")
-		c["shape"] = _offset_shape(CITY["shape"], _city_offset)
-		c["enabled"] = true
-		out.append(c)
+			shape = {"fn": StringName("water:" + str(r["water"]))}   # exact shape (PoiRegistry.natural_depth)
+		if merged.has(n):
+			var e0: Dictionary = merged[n]
+			var parts: Array = (e0["shape"] as Dictionary).get("multi", [e0["shape"]])
+			parts.append(shape)
+			e0["shape"] = {"multi": parts}
+			e0["aliases"] = (e0.get("aliases", []) as Array) + [str(r.get("id", ""))]
+			continue
+		var e: Dictionary
+		if not r.has("display"):
+			e = _known(n, shape)
+		else:
+			var tier := LocationInfo.Tier.PLACE
+			if r.has("water"):
+				tier = LocationInfo.Tier.WATER
+			elif int(r.get("tier", 0)) == 1:
+				tier = LocationInfo.Tier.BROAD
+			var data := r.duplicate()
+			data["banner"] = n
+			data["tier"] = tier
+			e = LocationInfo.make(str(r["id"]), str(r["display"]), str(r.get("kind", "poi")), shape, data)
+		merged[n] = e
+		out.append(e)
+	# 3. water by function, the named roads, the border ring, the valley's high forest
+	out.append(LocationInfo.make(LAKE["id"], LAKE["name"], "natural", {"fn": &"lake"}, _with(LAKE, {"tier": LocationInfo.Tier.WATER})))
+	for rn: String in PoiRegistry.ROAD_REGIONS:
+		var rr: Dictionary = PoiRegistry.ROAD_REGIONS[rn]
+		var st: Dictionary = ROAD_STYLE.get(rn, {"kind": "road", "plate": "", "style": "convencional"})
+		var data := _with(rr, {"banner": rn, "tier": LocationInfo.Tier.ROAD, "road": st})
+		if str(st["kind"]) == "avenue":
+			data["parent"] = CITY_ID
+		out.append(LocationInfo.make(str(rr["id"]), str(rr["display"]), "road", {"fn": StringName("road:" + rn)}, data))
+	out.append(LocationInfo.make(BORDER["id"], BORDER["name"], "natural", {"fn": &"border"}, _with(BORDER, {"tier": LocationInfo.Tier.BORDER})))
+	out.append(LocationInfo.make(HIGH_FOREST["id"], HIGH_FOREST["name"], "natural", {"fn": &"high_forest"},
+		_with(HIGH_FOREST, {"tier": LocationInfo.Tier.HIGH_FOREST})))
 	for e: Dictionary in _extra:
 		out.append(e)
-	for n: Dictionary in NATURAL:
-		out.append(n.duplicate(true))
-	# stable sort by specificity (districts before their city, POIs before villages…)
+	# index, levels, camera profile
+	_by_id.clear()
+	for e: Dictionary in out:
+		_by_id[str(e["id"])] = e
+		for a in e.get("aliases", []):
+			_by_id[str(a)] = e
+	_by_id[str(DEFAULT["id"])] = DEFAULT
 	var ranked: Array = []
 	for i in out.size():
-		ranked.append([int(RANK.get(str((out[i] as Dictionary).get("kind", "poi")), 5)), i, out[i]])
+		var e: Dictionary = out[i]
+		var chain := chain_ids(e)
+		if e.get("camera", &"") == &"" and (str(e["id"]) == CITY_ID or chain.has(CITY_ID)):
+			e["camera"] = &"city"   # C28: the urban camera profile in Altavega (its districts, POIs and avenues)
+		ranked.append([LocationInfo.order_key(e, chain.size()), i, e])
 	ranked.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
 	_list = []
 	for r: Array in ranked:
 		_list.append(r[2])
 
 
-static func _entry(region_name: String, shape: Dictionary, rec: Dictionary = {}) -> Dictionary:
-	var k: Dictionary = KNOWN.get(region_name, {})
-	if k.is_empty() and rec.has("display"):
-		# W1 regions carry their LocationInfo data in PoiRegistry.REGIONS (display, kind, parent, danger, power, temp)
-		k = {"name": rec["display"], "kind": rec.get("kind", "poi"), "parent": rec.get("parent", ""), "danger": rec.get("danger", 1),
-			"power": rec.get("power", ""), "temp": rec.get("temp", 0.0)}
-		var e := _entry(region_name, shape)
-		for f in ["name", "kind", "parent", "power"]:
-			e[f] = str(k[f])
-		e["danger"] = int(k["danger"])
-		e["temp"] = float(k["temp"])
-		e["id"] = str(rec.get("id", e["id"]))
-		return e
-	var parent := str(k.get("parent", ""))
-	if parent == "claro":
-		parent = "claro_del_cazador"
-	return {
-		"id": _slug(str(k.get("name", region_name))), "name": str(k.get("name", region_name.capitalize())),
-		"kind": str(k.get("kind", "poi")), "parent": parent, "danger": int(k.get("danger", 1)),
-		"power": str(k.get("power", "")), "temp": float(k.get("temp", 0.0)), "shape": shape, "enabled": true,
-	}
+static func _known(banner: String, shape: Dictionary) -> Dictionary:
+	var k: Dictionary = KNOWN.get(banner, {})
+	var display := str(k.get("name", banner.capitalize()))
+	var data := k.duplicate()
+	data["banner"] = banner
+	data["tier"] = LocationInfo.Tier.PLACE
+	return LocationInfo.make(slug(display), display, str(k.get("kind", "poi")), shape, data)
 
 
-static func _offset_shape(shape: Dictionary, off: Vector2) -> Dictionary:
-	var s := shape.duplicate(true)
-	if s.has("rect"):
-		s["rect"] = [(s["rect"][0] as Vector2) + off, s["rect"][1]]
-	elif s.has("circle"):
-		s["circle"] = [(s["circle"][0] as Vector2) + off, s["circle"][1]]
-	return s
+static func _with(d: Dictionary, extra: Dictionary) -> Dictionary:
+	var o := d.duplicate()
+	o.merge(extra, true)
+	return o
 
 
-static func _slug(s: String) -> String:
+static func slug(s: String) -> String:
 	var t := s.to_lower()
 	for pair in [["á", "a"], ["é", "e"], ["í", "i"], ["ó", "o"], ["ú", "u"], ["ñ", "n"], ["‑", "-"]]:
 		t = t.replace(pair[0], pair[1])
 	return t.replace(" ", "_").replace("-", "")
 
 
-## Signed depth (m) of a point inside an entry: > 0 inside (distance to the border), < 0 outside.
+# ------------------------------------------------------------------ geometry
+static func hf() -> HeightFunction:
+	if hf_override != null:
+		return hf_override
+	var w := World.instance
+	if w != null and w.is_configured:
+		return w.hf
+	return null
+
+
+## Signed depth (m) of a point inside a zone: > 0 inside (distance to the border), < 0 outside.
 static func depth(e: Dictionary, x: float, z: float) -> float:
 	var shape: Dictionary = e["shape"]
-	var p := Vector2(x, z)
-	if shape.has("circle"):
-		return float(shape["circle"][1]) - p.distance_to(shape["circle"][0])
-	if shape.has("rect"):
-		var c: Vector2 = shape["rect"][0]
-		var h: Vector2 = (shape["rect"][1] as Vector2) * 0.5
-		var d := (p - c).abs() - h
-		if d.x <= 0.0 and d.y <= 0.0:
-			return -maxf(d.x, d.y)
-		return -Vector2(maxf(d.x, 0.0), maxf(d.y, 0.0)).length()
-	match StringName(shape.get("fn", &"")):
-		&"lake":
+	var d := LocationInfo.shape_depth(shape, x, z)
+	if not is_nan(d):
+		return d
+	var fn := String(shape.get("fn", ""))
+	match fn:
+		"lake":
 			return 40.0 - PoiRegistry.lake_sdf(x, z)
-		&"road":
-			var w := World.instance
-			if w == null or not w.is_configured or w.hf == null:
-				return -INF
-			if w.hf.named_road_at(x, z, 32.0) != PoiRegistry.REGION_ROAD:
-				return -INF   # W1: the A‑14 and the other named roads are not the N‑140
-			return 32.0 - w.hf.road_distance(x, z, 40.0, "highway")
-		&"border", &"high_forest":
-			return PoiRegistry.natural_depth(String(shape["fn"]), x, z)   # W1: per-side border, valley-only high forest
-		&"default":
+		"border", "high_forest":
+			return PoiRegistry.natural_depth(fn, x, z)   # W1: per-side border, valley-only high forest
+		"default":
 			return INF
-	if String(shape.get("fn", "")).begins_with("water:"):
-		return PoiRegistry.natural_depth(String(shape["fn"]), x, z)
+	if fn.begins_with("water:"):
+		return PoiRegistry.natural_depth(fn, x, z)
+	if fn.begins_with("road:"):
+		return ROAD_REACH - road_edge_distance(fn.substr(5), x, z)
 	return -INF
 
 
-## Inset (m) the player must be inside before the place counts (12 m; half the size for small places).
+## Inset (m) the player must be inside before a zone counts (12 m; a quarter of the smallest side / half the radius
+## in small places).
 static func inset(e: Dictionary) -> float:
-	var shape: Dictionary = e["shape"]
-	if shape.has("circle"):
-		return minf(UiTokens.ZONE_INSET, float(shape["circle"][1]) * 0.5)
-	if shape.has("rect"):
-		var s: Vector2 = shape["rect"][1]
-		return minf(UiTokens.ZONE_INSET, minf(s.x, s.y) * 0.25)
-	return UiTokens.ZONE_INSET
+	var m := LocationInfo.shape_min_size(e["shape"])
+	return minf(UiTokens.ZONE_INSET, m * 0.25) if m < INF else UiTokens.ZONE_INSET
 
 
-## Chain of parents (display names), nearest first.
-static func parents(e: Dictionary) -> Array:
+## Representative point of a zone (map label, mission anchor, sign distance); Vector2.INF for function shapes.
+static func center(e: Dictionary) -> Vector2:
+	return LocationInfo.shape_center(e["shape"])
+
+
+## Every zone containing the point (depth ≥ `margin`), most specific first.
+static func containing(x: float, z: float, margin: float = 0.0) -> Array:
+	var out: Array = []
+	for e: Dictionary in all():
+		if depth(e, x, z) >= margin:
+			out.append(e)
+	return out
+
+
+## Ids of the ancestors, nearest first.
+static func chain_ids(e: Dictionary) -> Array:
 	var out: Array = []
 	var p := str(e.get("parent", ""))
 	var guard := 0
-	while p != "" and guard < 4:
-		var pe := by_id(p)
+	while p != "" and guard < 6:
+		out.append(p)
+		var pe := _record_of(p)
 		if pe.is_empty():
 			break
-		out.append(str(pe["name"]))
 		p = str(pe.get("parent", ""))
 		guard += 1
 	return out
 
 
-## Danger right now (0–3): the place's base, +1 at night.
+## A record by id during the build (the index may not be ready yet).
+static func _record_of(id: String) -> Dictionary:
+	if _by_id.has(id):
+		return _by_id[id]
+	var r := PoiRegistry.region_by_id(id)
+	if not r.is_empty():
+		return {"id": id, "parent": str(r.get("parent", ""))}
+	for k: String in KNOWN:
+		if slug(str(KNOWN[k]["name"])) == id:
+			return {"id": id, "parent": str(KNOWN[k].get("parent", ""))}
+	return {}
+
+
+## Chain of parents (display names), nearest first.
+static func parents(e: Dictionary) -> Array:
+	var out: Array = []
+	for id: String in chain_ids(e):
+		var pe := by_id(id)
+		if pe.is_empty():
+			break
+		out.append(str(pe["name"]))
+	return out
+
+
+## True when `e` is `anc` or lies inside it in the hierarchy.
+static func is_within(e: Dictionary, anc: Dictionary) -> bool:
+	if e.is_empty() or anc.is_empty():
+		return false
+	return str(e["id"]) == str(anc["id"]) or chain_ids(e).has(str(anc["id"]))
+
+
+## Card kinds [first visit, re-entry] of a zone. Places (even a road-kind place such as El Gran Atasco) get titles.
+static func cards_of(e: Dictionary) -> Array:
+	var kind := str(e.get("kind", "poi"))
+	if kind == "road" and int(e.get("tier", 0)) == LocationInfo.Tier.PLACE:
+		return CARD["poi"]
+	return CARD.get(kind, CARD["poi"])
+
+
+## Danger right now (0–3): the zone's base, +1 at night.
 static func danger_now(e: Dictionary, night: bool) -> int:
 	return clampi(int(e.get("danger", 1)) + (1 if night else 0), 0, 3)
 
@@ -279,3 +337,146 @@ static func facts(e: Dictionary, air_c: float, night: bool) -> Array:
 	if kind != "natural" and kind != "road":
 		out.append(DANGER_NAMES[danger_now(e, night)])
 	return out
+
+
+# ------------------------------------------------------------------ roads (own splines per banner name)
+static func _ensure_roads() -> bool:
+	var h := hf()
+	if h == null:
+		return false
+	if h == _roads_hf:
+		return true
+	_roads_hf = h
+	_roads.clear()
+	_drive.clear()
+	_ends.clear()
+	for ri in h.road_count():
+		var info := h.road_info(ri)
+		var pts: PackedVector2Array = info["points"]
+		var hw := float(info["hw"])
+		var rname := str(info["name"])
+		if DRIVABLE.has(str(info["kind"])):
+			_drive.append([pts, hw, rname, str(info["kind"])])
+		if rname == "":
+			continue
+		_ends.append([pts[0], rname])
+		_ends.append([pts[pts.size() - 1], rname])
+		if not _roads.has(rname):
+			_roads[rname] = [PackedVector2Array(), PackedFloat32Array(), PackedFloat32Array()]
+		var rec: Array = _roads[rname]
+		# packed arrays are values: fill local copies and store them back
+		var segs: PackedVector2Array = rec[0]
+		var hws: PackedFloat32Array = rec[1]
+		var starts: PackedFloat32Array = rec[2]
+		var acc := 0.0
+		for i in pts.size() - 1:
+			segs.append(pts[i])
+			segs.append(pts[i + 1])
+			hws.append(hw)
+			starts.append(acc)
+			acc += pts[i].distance_to(pts[i + 1])
+		_roads[rname] = [segs, hws, starts]
+	return true
+
+
+## Distance (m) from a point to the edge of the bed of the named road `banner` (< 0 on the bed); INF when unknown.
+static func road_edge_distance(banner: String, x: float, z: float) -> float:
+	if not _ensure_roads() or not _roads.has(banner):
+		return INF
+	var rec: Array = _roads[banner]
+	var segs: PackedVector2Array = rec[0]
+	var hws: PackedFloat32Array = rec[1]
+	var p := Vector2(x, z)
+	var best := INF
+	for i in hws.size():
+		var a := segs[i * 2]
+		var b := segs[i * 2 + 1]
+		# cheap reject: the segment's box grown by the reach
+		if p.x < minf(a.x, b.x) - 80.0 or p.x > maxf(a.x, b.x) + 80.0 or p.y < minf(a.y, b.y) - 80.0 or p.y > maxf(a.y, b.y) + 80.0:
+			continue
+		best = minf(best, Geometry2D.get_closest_point_to_segment(p, a, b).distance_to(p) - hws[i])
+	return best
+
+
+## The drivable road under a point: {d (m to the bed edge, < 0 on it), name (banner, "" unnamed), kind, dir (unit,
+## along the road), km (kilometre point along a named road)}; {} when none within `reach` m.
+static func road_at(x: float, z: float, reach: float = 12.0) -> Dictionary:
+	if not _ensure_roads():
+		return {}
+	var p := Vector2(x, z)
+	var best := {}
+	var best_d := reach
+	for r: Array in _drive:
+		var pts: PackedVector2Array = r[0]
+		var hw := float(r[1])
+		var acc := 0.0
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var b := pts[i + 1]
+			var l := a.distance_to(b)
+			if p.x < minf(a.x, b.x) - hw - reach or p.x > maxf(a.x, b.x) + hw + reach or p.y < minf(a.y, b.y) - hw - reach or p.y > maxf(a.y, b.y) + hw + reach:
+				acc += l
+				continue
+			var q := Geometry2D.get_closest_point_to_segment(p, a, b)
+			var d := q.distance_to(p) - hw
+			if d < best_d:
+				best_d = d
+				best = {"d": d, "name": str(r[2]), "kind": str(r[3]), "dir": (b - a) / maxf(l, 0.001), "km": (acc + a.distance_to(q)) / 1000.0}
+			acc += l
+	return best
+
+
+## Kilometre point (km) of the named road `banner` nearest to a point; -1 when unknown.
+static func road_km(banner: String, x: float, z: float) -> float:
+	if not _ensure_roads() or not _roads.has(banner):
+		return -1.0
+	var rec: Array = _roads[banner]
+	var segs: PackedVector2Array = rec[0]
+	var starts: PackedFloat32Array = rec[2]
+	var p := Vector2(x, z)
+	var best := INF
+	var km := -1.0
+	for i in starts.size():
+		var a := segs[i * 2]
+		var q := Geometry2D.get_closest_point_to_segment(p, a, segs[i * 2 + 1])
+		var d := q.distance_to(p)
+		if d < best:
+			best = d
+			km = (starts[i] + a.distance_to(q)) / 1000.0
+	return km
+
+
+## The next junction ahead on the named road `banner` (another named road ending on it), travelling along `heading`
+## from (x, z): {banner, km (its kilometre point on this road), ahead (m)}; {} when none between `min_ahead` and
+## `max_ahead` metres.
+static func next_junction(banner: String, x: float, z: float, heading: Vector2, min_ahead: float = 150.0, max_ahead: float = 4000.0) -> Dictionary:
+	if not _ensure_roads() or not _roads.has(banner):
+		return {}
+	var here := road_km(banner, x, z)
+	var r := road_at(x, z, 16.0)
+	var sgn := 1.0
+	if r.has("dir") and heading != Vector2.ZERO:
+		sgn = 1.0 if (r["dir"] as Vector2).dot(heading) >= 0.0 else -1.0
+	var best := {}
+	var best_ahead := max_ahead
+	for en: Array in _ends:
+		var other := str(en[1])
+		if other == banner:
+			continue
+		var q: Vector2 = en[0]
+		if road_edge_distance(banner, q.x, q.y) > 40.0:
+			continue
+		var km := road_km(banner, q.x, q.y)
+		var ahead := (km - here) * 1000.0 * sgn
+		if ahead >= min_ahead and ahead <= best_ahead:
+			best_ahead = ahead
+			best = {"banner": other, "km": km, "ahead": ahead}
+	return best
+
+
+## The style of a named road's sign: {kind, plate, style (autovia | nacional | convencional | urbana), display}.
+static func road_style(banner: String) -> Dictionary:
+	var st: Dictionary = ROAD_STYLE.get(banner, {"kind": "road", "plate": "", "style": "convencional"}).duplicate()
+	var rr: Dictionary = PoiRegistry.ROAD_REGIONS.get(banner, {})
+	st["display"] = str(rr.get("display", banner.capitalize())).replace("\u2011", "\u2010")
+	return st

@@ -286,18 +286,13 @@ func _draw_map(ci: CanvasItem) -> void:
 	# places you know (discovered by the zone tracker, or ground you have seen)
 	var known: Dictionary = hud.zones.discovered if hud != null else {}
 	for e: Dictionary in Locations.all():
-		var shape: Dictionary = e["shape"]
-		var c2 := Vector2.INF
-		if shape.has("circle"):
-			c2 = shape["circle"][0]
-		elif shape.has("rect"):
-			c2 = shape["rect"][0]
+		var c2 := Locations.center(e)   # H2: LocationInfo shapes (circle, rect, polygon, several parts)
 		if c2 == Vector2.INF:
 			continue
 		if not known.has(str(e["id"])) and not fog.is_revealed(c2.x, c2.y):
 			continue
 		# small places only when zoomed in (they crowd the clearing otherwise)
-		if shape.has("circle") and float(shape["circle"][1]) < 40.0 and zoom < 2:
+		if LocationInfo.shape_min_size(e["shape"]) < 80.0 and zoom < 2:
 			continue
 		var sp := world_to_screen(Vector3(c2.x, 0, c2.y))
 		if not r.has_point(sp):

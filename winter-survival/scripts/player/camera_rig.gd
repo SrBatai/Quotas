@@ -27,6 +27,9 @@ var profile: CameraProfile = CameraProfile.preset(&"default")
 var pitch_deg: float = Balance.CAMERA_PITCH_DEG
 ## Tests / bench / miradores: force a profile id (&"" = follow the CameraZones).
 var profile_override: StringName = &""
+## H2 (C28): the profile of the zone the ZoneTracker confirmed (Events.zone_entered: 12 m / 1.5 s hysteresis, never
+## in combat); a CameraZone box under the player (city bench, roofs) still wins over it.
+var zone_profile: StringName = &""
 var _zone_t: float = 0.0
 ## M5 (GDD §3.1): lean toward the cursor with a firearm in hand (FirearmClient sets it: ≤ 3 m, rifle 6 m), eased at 6/s.
 var lean: Vector3 = Vector3.ZERO
@@ -56,6 +59,9 @@ func _ready() -> void:
 	camera.far = Balance.CAMERA_FAR
 	camera.current = true
 	Events.camera_shake.connect(shake)
+	Events.zone_entered.connect(func(info: Dictionary) -> void:
+		zone_profile = StringName(info.get("camera", &""))
+		_zone_t = 0.0)
 	if player != null:
 		global_position = player.global_position
 
@@ -132,6 +138,8 @@ func _update_profile(delta: float) -> void:
 		var want := profile_override
 		if want == &"" and is_inside_tree():
 			want = CameraZone.pick(get_tree(), player.global_position)
+			if want == &"default" and zone_profile != &"":
+				want = zone_profile
 		if want != profile.id:
 			set_profile(want)
 	var k := 1.0 - exp(-delta / CameraProfile.BLEND_TAU)

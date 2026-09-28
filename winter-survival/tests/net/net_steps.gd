@@ -299,7 +299,7 @@ func _client_frame() -> void:
 			tree.create_timer(4.0).timeout.connect(_join)
 		elif _step == 2 and ct > 9.0:
 			_step = 3
-	elif scenario in ["shared_world", "far", "zombies", "hitscan", "restart"]:
+	elif scenario in ["shared_world", "far", "zombies", "hitscan", "restart", "discovery"]:
 		while not _timeline.is_empty() and ct >= float(_timeline[0][0]):
 			var entry: Array = _timeline.pop_front()
 			(entry[1] as Callable).call(lp, world)

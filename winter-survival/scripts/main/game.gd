@@ -55,6 +55,10 @@ func _ready() -> void:
 	loot_spawns.name = "LootSpawns"
 	add_child(loot_spawns)
 	loot_spawns.setup(world)
+	# H2: group zone discovery (RPC node, same path in both flavours; after PlayerManager opened the store)
+	var discovery := ZoneDiscovery.new()
+	discovery.name = "ZoneDiscovery"
+	add_child(discovery)
 	Events.world_ready.connect(_on_world_ready)
 	if world.is_ready:
 		_on_world_ready()

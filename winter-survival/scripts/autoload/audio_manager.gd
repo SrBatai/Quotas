@@ -1,6 +1,12 @@
 extends Node
 ## Audio hooks by event name (GDD §18). v1 has no audio files: every call is a silent no-op
 ## that keeps the player pool ready, so real streams can be plugged in via _streams later.
+## H2: the first shipped streams are STREAM_FILES (placeholders, assets/audio/ui/, CC0; `register()` adds more).
+
+## Event -> stream file loaded at start (missing files are skipped: the event stays silent).
+const STREAM_FILES := {
+	&"ui_zone_discover": "res://assets/audio/ui/ui_zone_discover.wav",
+}
 
 var _streams: Dictionary = {}
 var _loops: Dictionary = {}
@@ -18,6 +24,19 @@ func _ready() -> void:
 		var p3 := AudioStreamPlayer3D.new()
 		add_child(p3)
 		_pool_3d.append(p3)
+	for ev: StringName in STREAM_FILES:
+		if ResourceLoader.exists(STREAM_FILES[ev]):
+			register(ev, load(STREAM_FILES[ev]) as AudioStream)
+
+
+## Plugs (or replaces) the stream of an event.
+func register(event: StringName, stream: AudioStream) -> void:
+	if stream != null:
+		_streams[event] = stream
+
+
+func has_stream(event: StringName) -> bool:
+	return _streams.has(event)
 
 
 func play(event: StringName, at: Vector3 = Vector3.INF) -> void:

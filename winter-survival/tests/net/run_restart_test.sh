@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PLAN M5 + v3.8.4 acceptance, scenario `restart`: the world survives a server restart.
 #   tests/net/run_restart_test.sh [--backend sqlite|file] [--port 7827]
-#   1. dedicated server #1 (project) with `[world] backend` on a fresh store; admin `dbinfo` must say schema 2 and
+#   1. dedicated server #1 (project) with `[world] backend` on a fresh store; admin `dbinfo` must say schema 3 (H2) and
 #      world_version 2 (the 96² world of W1);
 #   2. client A phase 1 (tests/net/net_steps_m5.gd): fells a pine, places a campfire, loots the campsite container
 #      of camp_1, loads and fires a pistol, goes to the SE quadrant (x, z > 3000) and places a second campfire there,
@@ -85,7 +85,7 @@ check_db() {       # $1 = label, $2 = minimum players, $3 = minimum chunks
   local info; info=$(admin dbinfo)
   echo "admin dbinfo ($1) -> ${info%%$'\n'*}"
   echo "$info" | grep -q "backend=$BACKEND" || { echo "!! $1: backend is not $BACKEND"; FAIL=1; }
-  echo "$info" | grep -q "schema=2" || { echo "!! $1: schema is not 2"; FAIL=1; }
+  echo "$info" | grep -q "schema=3" || { echo "!! $1: schema is not 3"; FAIL=1; }   # H2: 3 (discoveries)
   echo "$info" | grep -q "world_version=2" || { echo "!! $1: world_meta.world_version is not 2"; FAIL=1; }
   local players chunks
   players=$(echo "$info" | sed -n 's/.* players=\([0-9]*\).*/\1/p'); chunks=$(echo "$info" | sed -n 's/.* chunks=\([0-9]*\).*/\1/p')

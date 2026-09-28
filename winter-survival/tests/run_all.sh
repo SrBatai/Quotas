@@ -10,7 +10,10 @@
 # shadows, draw-call budgets), the H1 HUD coverage gate (idle HUD ≤ 3 % of 1080p, rendered; the HUD logic checks
 # run inside the smoke test) and, with --shots, the screenshots (+ city presets). --no-walk-render skips the (slow)
 # render walk. M5: godot-sqlite fetched first (pinned + SHA-256), SQLite / loot / firearms unit tests, the `hitscan`
-# scenario behind tests/net/net_sim.gd (150 ms, ±20, 2 % loss) and the `restart` scenario on both stores.
+# scenario behind tests/net/net_sim.gd (150 ms, ±20, 2 % loss) and the `restart` scenario on both stores. H2: the zone
+# tracker unit test (hysteresis, hierarchy, cooldowns, highway sign, W1's 20 points, discovery store, names C36; the
+# in-game zone steps run inside the smoke test) and the `discovery` scenario (group discovery across a restart) on both
+# stores.
 # On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
@@ -39,11 +42,15 @@ step "unit tests (persistence backends)"
 godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|ERROR: |== " | tail -n 5
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "PERSISTENCE TEST FAILED"; status=1; }
 
-step "unit tests (M5: SqliteBackend, schema 2 + migrations, crash mid-batch; loot rolls, nominal caps, firearms maths)"
+step "unit tests (M5: SqliteBackend, schema 3 + migrations, crash mid-batch; loot rolls, nominal caps, firearms maths)"
 for t in persistence_m5_test m5_units_test; do
   godot --headless --path . -s tests/unit/$t.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|ERROR: |== " | tail -n 5
   [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "$t FAILED"; status=1; }
 done
+
+step "unit tests (H2: zone tracker — zigzag 0 changes, 12 m / 1.5 s, district over city, cooldowns, combat / P0, exit line, highway sign, camera profile, W1's 20 points, discovery store schema 3, names C36)"
+godot --headless --path . -s tests/unit/zone_tracker_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "ZONE TRACKER TEST FAILED"; status=1; }
 
 step "smoke test"
 if tests/run_smoke.sh > /tmp/ventisca_smoke_all.log 2>&1; then grep -E "== [0-9]+ checks|SMOKE TEST" /tmp/ventisca_smoke_all.log; else grep -E "FAIL|SCRIPT ERROR|ERROR: |SMOKE TEST" /tmp/ventisca_smoke_all.log | head -n 20; status=1; fi
@@ -127,6 +134,15 @@ for b in sqlite file; do
     grep -E "dbinfo \(after restart\)|RESULT|RESTART TEST" /tmp/ventisca_restart_${b}_all.log | cut -c1-220
   else
     grep -E "dbinfo|RESULT|!!|RESTART TEST" /tmp/ventisca_restart_${b}_all.log | cut -c1-220 | head -n 30; status=1
+  fi
+done
+
+step "discovery (H2: A discovers the Granja del Molino, B gets the feed line and the compact title, C after a save-and-quit restart; sqlite + file)"
+for b in sqlite file; do
+  if NET_TEST_OUT=/tmp/ventisca_discovery_$b tests/net/run_discovery_test.sh --backend $b --port $([ $b = sqlite ] && echo 7857 || echo 7867) > /tmp/ventisca_discovery_${b}_all.log 2>&1; then
+    grep -E "RESULT|zone discovered|discovery:|DISCOVERY TEST" /tmp/ventisca_discovery_${b}_all.log | cut -c1-220
+  else
+    grep -E "dbinfo|RESULT|!!|DISCOVERY TEST" /tmp/ventisca_discovery_${b}_all.log | cut -c1-220 | head -n 30; status=1
   fi
 done
 

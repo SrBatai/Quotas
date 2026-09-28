@@ -383,6 +383,26 @@ func save_nominal(d: Dictionary) -> void:
 				_run("INSERT OR REPLACE INTO nominal(region, category, spawned) VALUES (?, ?, ?);", [parts[0], parts[1], int(d[k])]))
 
 
+# ------------------------------------------------------------------ zone discovery (H2, schema 3)
+func load_discoveries() -> Dictionary:
+	var out := {}
+	for row in _select("SELECT scope, zone_id, by_token, by_name, day, ts FROM discoveries;"):
+		var scope := str(row["scope"])
+		if not out.has(scope):
+			out[scope] = {}
+		(out[scope] as Dictionary)[str(row["zone_id"])] = {"by": str(row["by_name"]), "token": str(row["by_token"]),
+			"day": int(row["day"]), "ts": int(row["ts"])}
+	return out
+
+
+func save_discovery(scope: String, zone_id: String, rec: Dictionary) -> void:
+	if db == null or scope == "" or zone_id == "":
+		return
+	_tx(func() -> void:
+		_run("INSERT OR IGNORE INTO discoveries(scope, zone_id, by_token, by_name, day, ts) VALUES (?, ?, ?, ?, ?, ?);",
+			[scope, zone_id, str(rec.get("token", "")), str(rec.get("by", "")), int(rec.get("day", 0)), int(rec.get("ts", _now()))]))
+
+
 # ------------------------------------------------------------------ backup
 ## `VACUUM INTO` a consistent copy (works while the server runs; the target must not exist).
 func backup(to_path: String) -> Error:

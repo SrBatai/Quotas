@@ -5,7 +5,8 @@ extends Control
 ## tracking closes from .78 em to .42 em while it fades in, ONE 520 px hairline and ONE line of facts
 ## ("Altavega · sin electricidad · −18 °C · peligro alto"). First visit: 1.4 s in, read until t = 4.0 s, 1.6 s
 ## out (5.6 s). Re-entry: only the name at 60 % for 2.5 s. Reduced motion: 200 ms fades, no tracking animation.
-## Listens to `Events.location_entered` (card = full | compact); `is_showing()` makes banners wait.
+## Listens to `Events.location_entered` (card = full | compact; H2: "sign" is ZoneSign's); `is_showing()` makes
+## banners wait. Sound (appendix §5.6): `ui_zone_discover` on a first visit only — a re-entry is silent.
 
 const TOP := 268.0
 const TITLE_COLOR := Color("#F6FAFE")
@@ -32,7 +33,7 @@ func _ready() -> void:
 
 func _on_location(i: Dictionary) -> void:
 	var card := str(i.get("card", "none"))
-	if card == "none":
+	if card != "full" and card != "compact":
 		return
 	show_card(i)
 
@@ -45,7 +46,8 @@ func show_card(i: Dictionary, at: float = 0.0) -> void:
 	_duration = _total()
 	visible = true
 	_update_veil()
-	AudioManager.play(&"ui_zone_discover" if bool(i.get("first_visit", false)) else &"ui_zone_enter")
+	if bool(i.get("first_visit", false)) and at == 0.0:
+		AudioManager.play(&"ui_zone_discover")
 	queue_redraw()
 
 

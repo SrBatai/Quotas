@@ -26,9 +26,9 @@ for preset in "${PRESETS[@]}"; do
     RENDER="$RENDER" tests/run_city_bench.sh shots "$OUT" "$preset" | grep -E "screenshot|FAIL" || true
     continue
   fi
-  # H1: the HUD presets (hud_*) are judged at 1920 × 1080 like the mockups; RES overrides any preset
+  # H1 / H2: the HUD presets (hud_*, zone_*) are judged at 1920 × 1080 like the mockups; RES overrides any preset
   RES_P="${RES:-1280x720}"
-  [ -z "${RES:-}" ] && [[ "$preset" == hud_* ]] && RES_P="1920x1080"
+  [ -z "${RES:-}" ] && [[ "$preset" == hud_* || "$preset" == zone_* ]] && RES_P="1920x1080"
   echo "== $preset ($RENDER, $RES_P)"
   xvfb-run -a -s "-screen 0 ${RES_P}x24" \
     godot --path . "${GODOT_ARGS[@]}" --audio-driver Dummy --resolution "$RES_P" \

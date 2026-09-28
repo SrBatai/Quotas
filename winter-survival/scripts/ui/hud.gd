@@ -30,6 +30,7 @@ var mission_list: MissionList
 var info_block: InfoBlock
 var hazard: HazardLine
 var zone_title: ZoneTitle
+var zone_sign: ZoneSign
 var banner: NotifyBanner
 var feed: PickupStack
 var downed: DownedOverlay
@@ -117,6 +118,9 @@ func _ready() -> void:
 	zone_title = ZoneTitle.new()
 	zone_title.name = "ZoneTitle"
 	root.add_child(zone_title)
+	zone_sign = ZoneSign.new()
+	zone_sign.name = "ZoneSign"
+	safe.add_child(zone_sign)
 	banner = NotifyBanner.new()
 	banner.name = "Banner"
 	root.add_child(banner)
@@ -142,7 +146,9 @@ func _ready() -> void:
 	zones.name = "ZoneTracker"
 	zones.in_combat = in_combat
 	zones.p0_active = p0_active
+	zones.publish = true   # H2: Events.location_entered / zone_entered, exit lines, group discovery (ZoneDiscovery)
 	add_child(zones)
+	info_block.zones = zones
 	# the paper map and the journal (M / Back): a full screen on demand, not part of the HUD
 	map_screen = MapScreen.new()
 	map_screen.name = "Map"
@@ -253,6 +259,8 @@ func _layout(vp_override: Vector2 = Vector2.ZERO) -> void:
 	feed.size = Vector2(560.0, 200.0)
 	zone_title.position = Vector2.ZERO
 	zone_title.size = ref
+	zone_sign.position = Vector2(0.0, 6.0)
+	zone_sign.size = Vector2(sw.x, 220.0)
 	banner.position = Vector2.ZERO
 	banner.size = Vector2(ref.x, 260.0)
 	var hw := hotbar.custom_minimum_size.x
@@ -300,8 +308,10 @@ func in_combat() -> bool:
 	return false
 
 
-## A P0 condition is on (downed, freezing): zone cards turn compact and wait.
+## A P0 condition is on (downed, freezing, a P0 notice on screen): zone cards turn compact and wait.
 func p0_active() -> bool:
+	if router != null and not router.current.is_empty() and int(router.current.get("priority", 2)) == 0:
+		return true
 	var p := GameFlow.local_player() as Player
 	return p != null and (p.downed or (p.state != null and p.state.warmth < Balance.FREEZING_SLOW_BELOW))
 
@@ -345,6 +355,8 @@ func _process(delta: float) -> void:
 			a = maxf(a, beat)
 	damage.modulate.a = a
 	damage.visible = a > 0.002 and not measure_mode
+	# the highway sign moves below the hazard line when both show
+	zone_sign.top_offset = 52.0 * hazard.shown_alpha if hazard.visible else 0.0
 	if measure_mode:
 		frost.visible = false
 	# background luma estimate → scrim α (4 Hz)
@@ -386,6 +398,8 @@ func settle_to_rest() -> void:
 	vis.set_info(false)
 	zone_title.t = -1.0
 	zone_title.visible = false
+	zone_sign.t = -1.0
+	zone_sign.visible = false
 	router.queue.clear()
 	router.current = {}
 	banner.show_notice({}, 0)

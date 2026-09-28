@@ -33,9 +33,9 @@ static func resolve(t: Dictionary, from: Vector3, tree: SceneTree) -> Array:
 		"zone":
 			var e := Locations.by_id(arg)
 			if not e.is_empty():
-				var shape: Dictionary = e["shape"]
-				var c: Vector2 = shape["circle"][0] if shape.has("circle") else (shape["rect"][0] if shape.has("rect") else Vector2.ZERO)
-				out.append(Vector3(c.x, from.y, c.y))
+				var c := Locations.center(e)
+				if c != Vector2.INF:
+					out.append(Vector3(c.x, from.y, c.y))
 	return out
 
 

@@ -10,7 +10,8 @@ const GAME_VERSION := "0.7.0-m5"
 ## 2 (M3): the auth nonce carries the world seed (8 bytes after the 16 random ones).
 ## 3 (M4): zombie packets (ZSNAP / ZREL), 4-byte inventory slots (durability), downed / swing player properties.
 ## 4 (M5): firearms (request_fire / reload / unjam / throw, shot events, weapon mirror), loot containers, bans.
-const NET_PROTOCOL := 4
+## 5 (H2): zone discovery (ZoneDiscovery request_sync / request_discover / _sync / _discovered), rule shared_discovery.
+const NET_PROTOCOL := 5
 const GAME_SCENE := "res://scenes/main/game.tscn"
 const DEFAULT_PORT := 7777
 const DEFAULT_ADMIN_PORT := 7778
@@ -182,6 +183,7 @@ static func rules_from_cfg(c: ConfigFile) -> Dictionary:
 		"vehicle_theft": str(c.get_value("rules", "vehicle_theft", "faction")),
 		"safety_system": bool(c.get_value("rules", "safety_system", true)),
 		"sleep_vote": str(c.get_value("rules", "sleep_vote", "majority")),
+		"shared_discovery": bool(c.get_value("rules", "shared_discovery", true)),
 	}
 
 

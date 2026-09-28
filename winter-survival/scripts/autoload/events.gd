@@ -57,7 +57,7 @@ signal deer_died(deer: Node)
 signal melee_result(mode: int, ok: bool, hits: int, kills: int, reason: String)
 signal local_swing(clip: StringName)
 # H1 HUD «Susurro» (docs/research/10_hud_ux.md §8.5 / §V.8; presentation, owner client)
-signal location_entered(info: Dictionary)   # ZoneTracker: {id, name, kind, parent, facts, first_visit, compact}
+signal location_entered(info: Dictionary)   # ZoneTracker: {id, name, kind, parent, facts, first_visit, card: none|full|compact|sign}
 signal location_left(id: StringName)
 signal notify_ex(n: Dictionary)   # NotifyRouter: {priority 0–3, key, title, body, seconds, channel &"banner"|&"feed"}
 signal mission_state(missions: Array)   # MissionLog: the mission list after a change (Missions model)
@@ -66,6 +66,9 @@ signal hazard_changed(kind: StringName, state: StringName, data: Dictionary)   #
 signal status_changed(status: StringName, severity: float)   # bleeding / wet / … for the vitals (0 = gone)
 signal player_hit_from(dir: Vector3, amount: float)   # local player hit; world direction toward the attacker
 signal hud_info(active: bool)   # Info (hud_info: Tab / D-pad up held, or toggled)
+# H2 zones (docs/research/10_hud_ux.md appendix §6.1, PLAN C35 / C28; presentation, owner client)
+signal zone_entered(info: Dictionary)   # ZoneTracker: a zone confirmed (12 m / 1.5 s), outside combat: {id, name, kind, camera, first_visit, chain}; CameraRig picks its profile
+signal zone_discovered(zone_id: StringName, by_name: String, own: bool)   # ZoneDiscovery: the server recorded a discovery (own = by the local player)
 # M5 firearms / loot (presentation; the reticle and ammo HUD of H3 read these — ARQ v2 §15.5 note)
 signal weapon_state_changed(data: Dictionary)   # owner: {w, ammo, mag, reserve, jammed, reload_left, reload_total, unjam_left, spread, weight}
 signal reticle_changed(spread_deg: float, band: StringName, aim_point: Vector3, radius_m: float)   # owner, ≤ 30 Hz; spread < 0 = no firearm

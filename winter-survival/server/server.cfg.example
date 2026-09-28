@@ -45,6 +45,7 @@ cold_scale=1.0
 ammo_crafting=true
 safety_system=true
 sleep_vote="majority"
+shared_discovery=true       ; H2: a zone one player discovers is discovered for the whole group (feed «Ana descubrió: …»)
 
 [net]
 send_rate=30

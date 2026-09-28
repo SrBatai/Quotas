@@ -8,11 +8,14 @@ class_name PersistenceSchema
 ##      the game adds later round-trips without a migration; the typed columns are for queries and admins)
 ##   2  v3 world (PLAN v3.8.4 M5): `world_meta.world_version` / `city_version`, loot nominal counters, container
 ##      loot table + personal bags. The valley keeps its chunk indices in the 96² grid (C25), so no key remap.
+##   3  zone discovery (H2, C35): `discoveries(scope, zone_id, by_token, by_name, day, ts)`, scope "group" when the
+##      `shared_discovery` rule is on, else the discoverer's token hash.
 
-const VERSION := 2
+const VERSION := 3
 const MIGRATIONS := [
 	"res://scripts/persistence/migrations/001_initial.gd",
 	"res://scripts/persistence/migrations/002_world_v2.gd",
+	"res://scripts/persistence/migrations/003_discoveries.gd",
 ]
 ## world_meta keys every save carries (stamped by the backends).
 const META_WORLD_VERSION := "world_version"
