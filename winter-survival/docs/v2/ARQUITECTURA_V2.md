@@ -1923,6 +1923,10 @@ manzana LT‑01 y las siluetas detrás. `World.menu_skyline = false` vuelve al c
   lotes; 132 kB en base64). `tools/web_demo/build_web_demo.sh` (27‑09, 23:31) da `index.pck.txt` = **22,34 MB**, por
   encima del límite **por otros carriles**: el kit de M6a (`assets/models/buildings/**`, 4,35 MB sin codificar) y
   ≈ 1,07 MB más desde la compilación de las 19:38 (14,99 MB); queda para el integrador.
+- **Web** (actualizado tras S1): la demo parte `index.pck` en trozos base64 (`index.pck.0.txt` …, ≤ 14 MB cada
+  uno; `tools/web_demo/build_web_demo.sh` y `ventisca.html` los unen), así que el límite de 16 MB por fichero ya no
+  obliga a recortar: `assets/models/city/*` vuelve al preset Web (el `.pck` pasa de 24,9 a 33,5 MB; descarga total
+  ≈ 58 MB con el motor). Los sustitutos procedurales quedan como respaldo sin arte (`tests/c0_city.gd`).
 
 **Desviaciones**: (1) la ciudad del fichero v0 no es la del generador (C1 lo sustituye por `tools/gen_city.gd`, sube
 `city_version` y migra); (2) la torre se apoya en el tejado de su zócalo (un zócalo por parcela, como una plaza

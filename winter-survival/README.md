@@ -471,8 +471,9 @@ Cómo está hecho (detalles en `docs/v2/ARQUITECTURA_V2.md` §9.8):
   edificios con `CityBuilding.attach`, `CityHlod.build_for`, coches y props en `MultiMesh`, colisiones, farolas en
   `CityLights`), `CitySilhouettes` (siluetas v0 + terreno lejano), `Mirador` y `CityWorld` (zonas de cámara, potencia,
   siluetas y el fondo del menú).
-- **Web**: la demo web sigue sin los modelos de ciudad (`assets/models/city/*` excluido: no caben bajo el límite de
-  hospedaje); allí la ciudad sale de los sustitutos procedurales (misma colocación y colisiones).
+- **Web**: desde que la demo parte los datos en trozos (`index.pck.N.txt`, cada uno bajo el límite de 16 MB del
+  hospedaje) los modelos de ciudad van también en el preset Web; los sustitutos procedurales siguen como respaldo si
+  falta el arte (misma colocación, colisiones y corte).
 
 Pruebas de C0: `godot --headless --path . -s tests/c0_city.gd` (fichero de lotes, ensamblador y contrato, atasco,
 puente, *streaming* → `CityBuilding` / `CityHlod`, escalera, siluetas), `tests/run_citycut_probe.sh` (corte urbano en 5
