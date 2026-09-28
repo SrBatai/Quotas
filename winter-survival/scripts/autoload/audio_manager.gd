@@ -14,9 +14,13 @@ var _pool_2d: Array[AudioStreamPlayer] = []
 var _pool_3d: Array[AudioStreamPlayer3D] = []
 var _wind: float = 0.0
 var _generator_player: AudioStreamPlayer
+## Headless (dedicated server, tests): events resolve but nothing plays. A voice still playing when the process quits
+## leaves its AudioStreamPlayback in the AudioServer — "resources still in use at exit", which the test gates reject.
+var silent: bool = false
 
 
 func _ready() -> void:
+	silent = DisplayServer.get_name() == "headless"
 	for i in 8:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -41,7 +45,7 @@ func has_stream(event: StringName) -> bool:
 
 func play(event: StringName, at: Vector3 = Vector3.INF) -> void:
 	var stream: AudioStream = _streams.get(event)
-	if stream == null:
+	if stream == null or silent:
 		return
 	if at == Vector3.INF:
 		for p in _pool_2d:
@@ -73,7 +77,7 @@ func set_wind(intensity: float) -> void:
 
 
 func _ensure_generator() -> void:
-	if _generator_player != null:
+	if _generator_player != null or silent:
 		return
 	var gen := AudioStreamGenerator.new()
 	gen.mix_rate = 44100.0
