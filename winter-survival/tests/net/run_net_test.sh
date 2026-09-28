@@ -153,7 +153,8 @@ fi
 # --net-sim: with 75+ ms per direction SceneMultiplayer may receive the first game packets of a freshly authenticated
 # peer before it processes its own auth completion (an engine-side race across ENet channels): benign, filtered.
 [ -n "$NET_SIM" ] && NOISE="$NOISE|SYS_COMMAND_AUTH|scene_multiplayer.cpp"
-if grep -v -E "$NOISE" "$OUT"/*.log | grep -qE "SCRIPT ERROR|ERROR:"; then
+# no `grep -q`: its early exit would SIGPIPE the first grep and, with pipefail, hide the errors it had found
+if grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" > /dev/null; then
   echo "!! errors found in logs"; grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" | sort | uniq -c | head -n 20; FAIL=1
 fi
 # an id collision means a chunk was rebuilt while its old nodes were alive (WorldStreamer / WorldRegistry, M3)

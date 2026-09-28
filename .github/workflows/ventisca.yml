@@ -66,6 +66,11 @@ jobs:
           NET_TEST_OUT: /tmp/ventisca_net_far
         run: tests/net/run_net_test.sh --clients 4 --duration 40 --soak 55 --scenario far --port 7797
 
+      # A late joiner, jumps in and out of another peer's chunk interest and a wolf on one side only: the runner fails
+      # on any ERROR:, e.g. "Ignoring delta for non-authority or invalid synchronizer" from a filter installed too late
+      - name: Net test interest (spawns and moves outside a peer's chunk interest)
+        run: tests/net/run_net_test.sh --clients 2 --duration 40 --soak 60 --scenario interest --port 7887
+
       - name: Net test zombies (M4, 4 clients, combat, downed/revive, ff, pvp, bandwidth)
         env:
           NET_TEST_OUT: /tmp/ventisca_net_zombies

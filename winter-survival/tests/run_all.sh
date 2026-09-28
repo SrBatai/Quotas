@@ -206,6 +206,13 @@ else
   grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_street_all.log | cut -c1-220 | head -n 30; status=1
 fi
 
+step "net test interest (replicated nodes spawned / moved outside a peer's chunk interest — late joiner, 3 jumps in and out, a wolf on one side only: no 'Ignoring delta' on any client)"
+if NET_TEST_OUT=/tmp/ventisca_net_interest tests/net/run_net_test.sh --clients 2 --duration 40 --soak 60 --scenario interest --port 7887 > /tmp/ventisca_net_interest_all.log 2>&1; then
+  grep -E "RESULT|NET TEST" /tmp/ventisca_net_interest_all.log | cut -c1-220
+else
+  grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_interest_all.log | cut -c1-220 | head -n 30; status=1
+fi
+
 step "determinism (M3 + W1: 60 chunks in the 4 quadrants, server path vs client path, two processes)"
 if tests/run_determinism.sh > /tmp/ventisca_det_all.log 2>&1; then
   grep -E "determinism|DETERMINISM" /tmp/ventisca_det_all.log | tail -n 3

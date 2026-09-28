@@ -115,7 +115,8 @@ check_schema "after restart"
 run_clients 2 28 C
 if grep -q "zone discovered: granja_del_molino" "$OUT/server2.log"; then echo "!! the farm was discovered again after the restart"; FAIL=1; fi
 stop_server server2
-if grep -v -E "$NOISE" "$OUT"/*.log | grep -qE "SCRIPT ERROR|ERROR:"; then
+# no `grep -q`: its early exit would SIGPIPE the first grep and, with pipefail, hide the errors it had found
+if grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" > /dev/null; then
   echo "!! errors found in logs"; grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" | sort | uniq -c | head -n 20; FAIL=1
 fi
 [ "$FAIL" -eq 0 ] && echo "DISCOVERY TEST PASSED" || echo "DISCOVERY TEST FAILED"

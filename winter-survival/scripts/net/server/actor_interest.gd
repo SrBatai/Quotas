@@ -24,3 +24,6 @@ static func install(sync: MultiplayerSynchronizer, actor: Node3D, radius: float 
 			return false
 		var d := Vector2(p.global_position.x - actor.global_position.x, p.global_position.z - actor.global_position.z).length()
 		return d <= radius)
+	# called from the actor's _ready: the synchronizer entered the tree public (every peer queued for its deltas),
+	# filter now, before the spawner sends the spawn on `ready`, or a far peer gets a delta for a node it never got
+	sync.update_visibility()

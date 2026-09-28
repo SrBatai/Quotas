@@ -144,6 +144,11 @@ func _ready() -> void:
 				if for_peer == 0:
 					return false
 				return for_peer == peer_id or for_peer == 1 or NetWorld.instance == null or NetWorld.instance.sees(for_peer, global_position))
+			# ServerSync entered the tree still public, so every peer got queued for its deltas, but the spawn (sent
+			# on `ready`, right after this) only reaches the peers the filter lets through: a far peer would get a
+			# delta for a node it never received ("Ignoring delta for non-authority or invalid synchronizer").
+			# Apply the filter now, before the spawn.
+			sync.update_visibility()
 	# M3: the chunks under a simulated body must exist before it moves (spawn / restored profile far away)
 	if (Net.is_server or is_local) and World.instance != null:
 		World.instance.ensure_area(position, 1)

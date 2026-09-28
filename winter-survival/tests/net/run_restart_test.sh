@@ -105,7 +105,8 @@ grep -h "\[EVT\] persistence\|restored" "$OUT/server2.log" | head -n 4
 check_db "after restart" 1 3
 run_client 2 16
 stop_server server2
-if grep -v -E "$NOISE" "$OUT"/*.log | grep -qE "SCRIPT ERROR|ERROR:"; then
+# no `grep -q`: its early exit would SIGPIPE the first grep and, with pipefail, hide the errors it had found
+if grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" > /dev/null; then
   echo "!! errors found in logs"; grep -v -E "$NOISE" "$OUT"/*.log | grep -E "SCRIPT ERROR|ERROR:" | sort | uniq -c | head -n 20; FAIL=1
 fi
 if grep -q "wid collision" "$OUT"/*.log; then echo "!! WorldRegistry wid collisions"; FAIL=1; fi
