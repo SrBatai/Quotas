@@ -56,10 +56,18 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	var spawn: Vector3 = world.get_spawn_point()
 	player.global_position = spawn + Vector3(0, 0.15, 0)
 	player.set("input_enabled", false)
+	var city := str(opts.get("scene", "clearing")) == "altavega_c0"
+	if city:
+		await _city_view(world, player)
 	WorldState.instance.running = false
 	var rig := CameraRig.active()
 	if rig != null:
 		rig.snap_to_player()
+		if city:
+			rig.snap_profile()
+			if float(opts.get("zoom", 0.0)) > 0.0:
+				rig.dist = clampf(float(opts["zoom"]), rig.profile.dist_min, rig.profile.dist_max)
+				rig.camera.position = Vector3(0, 0, rig.dist)
 	for i in WARMUP_FRAMES:
 		await tree.process_frame
 	var draw_calls: Array[float] = []
@@ -75,6 +83,9 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
 		objects.append(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
 		prims.append(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))
+	if city:
+		print("  altavega_c0 view: player %s, %.1f h, profile %s, zoom %.0f m, %d city buildings, %d chunks" % [player.global_position.snapped(Vector3(0.1, 0.1, 0.1)),
+			float(opts["hour"]), rig.profile.id if rig != null else &"-", rig.dist if rig != null else 0.0, CityCut.buildings().size(), world.streamer.loaded_keys().size()])
 	var cam_pos := Vector3.ZERO
 	var cam_far := 0.0
 	if rig != null:
@@ -88,7 +99,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		"rendering_driver": RenderingServer.get_current_rendering_driver_name(),
 		"physics_engine": str(ProjectSettings.get_setting("physics/3d/physics_engine", "DEFAULT")),
 		"placeholders": bool(opts["placeholders"]),
-		"scene": "res://scenes/main/game.tscn",
+		"scene": "res://scenes/main/game.tscn" if not city else "altavega_c0 %.1f h" % float(opts["hour"]),
 		"camera": {"position": _v3(cam_pos), "yaw_deg": Balance.CAMERA_YAW_DEG, "pitch_deg": Balance.CAMERA_PITCH_DEG,
 			"dist": Balance.CAMERA_DIST, "far": cam_far},
 		"frames": SAMPLE_FRAMES,
@@ -117,6 +128,30 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	tree.quit(0 if ok else 1)
 
 
+## C0: the superblock LT-01 of Las Torres — the survivor on the Gran Vía sidewalk in front of it (the jam behind,
+## the towers beyond), the chunks around loaded, the given hour, the city camera profile (its CameraZone).
+func _city_view(world: World, player: Node3D) -> void:
+	const SPOT := Vector3(2667.0, 0.0, -390.0)   # in the jam, between its two northern lanes
+	WorldState.instance.set_time(1, float(opts.get("hour", 11.0)))
+	world.get_node("DeerSpawner").enabled = false
+	if Director.instance != null:
+		Director.instance.enabled = false
+	if PopulationManager.instance != null:
+		PopulationManager.instance.enabled = false
+	if ZombieSystem.instance != null:
+		ZombieSystem.instance.clear_all()
+	world.streamer.ensure_loaded(SPOT, 2)
+	player.position = Vector3(SPOT.x, world.get_height(SPOT.x, SPOT.z) + 0.05, SPOT.z)
+	player.set("net_position", player.position)
+	player.set("aim_yaw", deg_to_rad(-135.0))
+	var waited := 0
+	while not world.streamer.is_idle() and waited < 1200:
+		await tree.process_frame
+		waited += 1
+	for i in 30:
+		await tree.physics_frame
+
+
 func _check_budgets(report: Dictionary) -> bool:
 	var path := String(opts["budgets"])
 	if not FileAccess.file_exists(path):
@@ -127,6 +162,10 @@ func _check_budgets(report: Dictionary) -> bool:
 		print("  (budgets file has no perf_probe section)")
 		return true
 	var b: Dictionary = data["perf_probe"]
+	if str(opts.get("scene", "clearing")) == "altavega_c0":
+		# C0: the city block has its own budgets per renderer (≤ 1 000 draw calls typical in Forward+, ≤ 700 in compat)
+		var cb: Dictionary = data.get("perf_probe_altavega_c0", {})
+		b = cb.get("compat" if Quality.is_compat_renderer() else "forward", {})
 	var ok := true
 	var checks := [
 		["draw_calls_max", report["draw_calls"]["median"]],

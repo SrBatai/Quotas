@@ -10,7 +10,9 @@
 # shadows, draw-call budgets), the H1 HUD coverage gate (idle HUD ≤ 3 % of 1080p, rendered; the HUD logic checks
 # run inside the smoke test) and, with --shots, the screenshots (+ city presets). --no-walk-render skips the (slow)
 # render walk. M5: godot-sqlite fetched first (pinned + SHA-256), SQLite / loot / firearms unit tests, the `hitscan`
-# scenario behind tests/net/net_sim.gd (150 ms, ±20, 2 % loss) and the `restart` scenario on both stores. H2: the zone
+# scenario behind tests/net/net_sim.gd (150 ms, ±20, 2 % loss) and the `restart` scenario on both stores. C0: the city
+# checks (headless), the corte urbano probe and the draw calls of the Las Torres block (xvfb), PCSS far from the origin
+# (Forward+ on lavapipe) and the perf walk into the city (the lot file hash is in the determinism gate). H2: the zone
 # tracker unit test (hysteresis, hierarchy, cooldowns, highway sign, W1's 20 points, discovery store, names C36; the
 # in-game zone steps run inside the smoke test) and the `discovery` scenario (group discovery across a restart) on both
 # stores. M6a: the kit street checks (headless), the street bench (citycut_probe + interior shadow, xvfb) and the
@@ -98,6 +100,35 @@ if command -v xvfb-run > /dev/null; then
   fi
 else
   echo "xvfb-run not found: city bench skipped"
+fi
+
+step "C0 city (Escaparate de Altavega: lot file v0 + hashes, tower assembler, city chunks → CityBuilding / CityHlod, jam, bridge, mirador stair, silhouettes; headless)"
+godot --headless --path . -s tests/c0_city.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== [0-9]+ checks|info city step" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "C0 CITY FAILED"; status=1; }
+
+step "C0 corte urbano probe (5 fixed points of the superblock LT-01 at 24 / 38 m: player ≥ 99 %, all ≥ 95 % readable; xvfb + Compatibility)"
+if command -v xvfb-run > /dev/null; then
+  if tests/run_citycut_probe.sh > /tmp/ventisca_citycut_all.log 2>&1; then
+    grep -E "^  (gran_via|west_street|back_street|plaza|mirador|overall)|CITYCUT" /tmp/ventisca_citycut_all.log
+  else
+    grep -E "FAIL|SCRIPT ERROR|CITYCUT|^  (gran_via|west_street|back_street|plaza|mirador|overall)" /tmp/ventisca_citycut_all.log | head -n 20; status=1
+  fi
+  step "C0 perf probe altavega_c0 (day + night: ≤ 700 draw calls in Compatibility; RENDER=forward: ≤ 1 000)"
+  for h in 11 22.5; do
+    if tests/run_perf.sh --scene=altavega_c0 --hour=$h --label=altavega_c0 --out=tests/perf/altavega_c0_$h.json > /tmp/ventisca_perf_c0_all.log 2>&1; then
+      grep -E "altavega_c0 view|draw calls|ok   " /tmp/ventisca_perf_c0_all.log
+    else
+      grep -E "altavega_c0 view|draw calls|FAIL|SCRIPT ERROR|PERF" /tmp/ventisca_perf_c0_all.log | head -n 10; status=1
+    fi
+  done
+  step "C0 PCSS far from the origin (R23: the same tower at the origin and at 2.7 km, mean penumbra difference ≤ 3 %; Forward+ on lavapipe)"
+  if tests/run_pcss_probe.sh > /tmp/ventisca_pcss_all.log 2>&1; then
+    grep -E "penumbra|info|PCSS PROBE" /tmp/ventisca_pcss_all.log
+  else
+    grep -E "penumbra|FAIL|SCRIPT ERROR|PCSS PROBE" /tmp/ventisca_pcss_all.log | head -n 10; status=1
+  fi
+else
+  echo "xvfb-run not found: C0 probes skipped"
 fi
 
 step "M6a checks (kit street: buildings, CutawayManager storeys / stubs / shadow-preserving, doors, signs, wids; headless)"
@@ -199,6 +230,13 @@ if tests/run_perf_walk.sh --cpu > /tmp/ventisca_walk_cpu_all.log 2>&1; then
   grep -E "streaming ms|streaming work|frames over|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_cpu_all.log
 else
   grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_cpu_all.log | head -n 20; status=1
+fi
+
+step "perf walk --cpu C0 (Carretera del Puerto → Gran Vía → Puente de Hierro → round the superblock of Las Torres, 25 m/s; streaming work p99 ≤ 2 ms, 0 hitches)"
+if tests/run_perf_walk.sh --cpu --route=c0 --out=tests/perf/walk_cpu_c0.json > /tmp/ventisca_walk_c0_all.log 2>&1; then
+  grep -E "streaming work|frames over|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_c0_all.log
+else
+  grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_c0_all.log | head -n 20; status=1
 fi
 
 step "perf horde (M4: dedicated server, 4 bots, 200 zombies: median busy tick ≤ 8 ms, p99 reported)"

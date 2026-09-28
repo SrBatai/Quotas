@@ -76,6 +76,10 @@ var menu_hour: float = 17.75
 ## clearing's fog look). 1 / 0 at the clearing.
 var fog_density_scale: float = 1.0
 var fog_height_offset: float = 0.0
+## C0: fog colour forced by a mirador / the menu skyline at night (alpha 0 = the hour's colour). The night fog is
+## lighter than the snow (G1), which washes a distant skyline into pale blocks; a darker fog keeps the towers dark
+## against the sky and the lit windows reading.
+var fog_color_override := Color(0, 0, 0, 0)
 ## G2a: last `snow_wind` global (xy where the wind blows to, z strength) and the city night factor (0..1).
 var snow_wind := Vector4(1, 0, 0.3, 0)
 var city_night: float = 0.0
@@ -260,7 +264,7 @@ func apply(hour: float) -> void:
 	sky_mat.sky_energy_multiplier = k[K_SKY_ENERGY]
 	e.ambient_light_color = k[K_AMBIENT]
 	e.ambient_light_energy = k[K_AMBIENT_ENERGY] * ambient_scale
-	e.fog_light_color = k[K_FOG]
+	e.fog_light_color = k[K_FOG] if fog_color_override.a <= 0.0 else fog_color_override
 	e.fog_density = k[K_FOG_DENSITY] * fog_density_scale
 	e.fog_height = k[K_FOG_HEIGHT] + fog_height_offset + CITY_HAZE_TOP * city_haze
 	e.fog_height_density = k[K_FOG_HEIGHT_DENSITY] + city_haze * lerpf(CITY_HAZE_DAY, CITY_HAZE_NIGHT, night_amount)

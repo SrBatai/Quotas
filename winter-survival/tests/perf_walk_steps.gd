@@ -11,6 +11,11 @@ const ROUTE_W1 := [Vector2(0, 30), Vector2(632, -392), Vector2(1792, -384), Vect
 ## past the Embarcadero road ≈ 2.26 km.
 const ROUTE_M3 := [Vector2(0, 30), Vector2(160, -60), Vector2(420, -200), Vector2(640, -250), Vector2(650, 120),
 	Vector2(630, 360), Vector2(380, 380), Vector2(120, 330), Vector2(-150, 300), Vector2(-296, 240)]
+## C0 route (--route=c0, PLAN C0 acceptance): down the Carretera del Puerto, along the Gran Vía, over the Puente de
+## Hierro (on the ice under it: the walk follows the terrain) into Las Torres and round the superblock LT-01 by its
+## west, back and east streets ≈ 2.4 km.
+const ROUTE_C0 := [Vector2(640, -392), Vector2(1792, -384), Vector2(2250, -384), Vector2(2614, -384), Vector2(2614, -496),
+	Vector2(2746, -496), Vector2(2746, -392), Vector2(2800, -384)]
 var ROUTE: Array = ROUTE_W1
 const WARMUP_FRAMES := 60
 const HITCH_MS := 33.3
@@ -22,7 +27,7 @@ var opts: Dictionary = {}
 func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	tree = p_tree
 	opts = p_opts
-	ROUTE = ROUTE_M3 if str(opts.get("route", "w1")) == "m3" else ROUTE_W1
+	ROUTE = ROUTE_M3 if str(opts.get("route", "w1")) == "m3" else (ROUTE_C0 if str(opts.get("route", "w1")) == "c0" else ROUTE_W1)
 	await tree.process_frame
 	if bool(opts.get("cpu", false)):
 		WorldStreamer.force_visual = true
@@ -67,6 +72,12 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	player.set_physics_process(false)
 	player.net.set_physics_process(false)
 	var st := world.streamer
+	# C0: a route that does not start at the spawn (--route=c0) begins where it starts, its ring loaded (the W1 / M3
+	# routes start at the porch: nothing changes for them)
+	var r0: Vector2 = ROUTE[0]
+	if Vector2(player.global_position.x, player.global_position.z).distance_to(r0) > 64.0:
+		player.global_position = Vector3(r0.x, world.get_height(r0.x, r0.y) + 0.05, r0.y)
+		st.ensure_loaded(player.global_position, WorldConst.RING_PREFETCH)
 	for i in WARMUP_FRAMES:
 		await tree.process_frame
 	var speed := float(opts["speed"])
@@ -181,6 +192,11 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 			var sh := wms if probe else sms
 			if stolen:
 				sh = minf(sh, float(st.frame_cpu_usec) / 1000.0 + float(SchedProbe.TICK_USEC) / 1000.0)
+			# C0: a main thread that blocked inside the streaming window (voluntary switch: the WorkerThreadPool mutex
+			# held by a preempted worker, ARQ v2 §8.10) did no streaming work while off the CPU: like a stolen frame, its
+			# streaming share is its measured on-CPU time (+1 tick). The single-frame max already excluded these frames.
+			if probe and st.frame_blocks > 0:
+				sh = minf(sh, float(st.frame_cpu_usec) / 1000.0 + float(SchedProbe.TICK_USEC) / 1000.0)
 			var own := fms - fq if probe else fms
 			var over := sh > WorldConst.STREAM_BUDGET_USEC / 1000.0 if probe else true
 			if own > HITCH_MS and over and (own - sh <= HITCH_MS or sh > own * 0.25):
@@ -212,6 +228,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	var s1: Dictionary = st.stats
 	var report := {
 		"label": "perf_walk_cpu" if bool(opts.get("cpu", false)) else "perf_walk",
+		"route": str(opts.get("route", "w1")),
 		"timestamp": Time.get_datetime_string_from_system(true),
 		"rendering_method": RenderingServer.get_current_rendering_method(),
 		"rendering_driver": RenderingServer.get_current_rendering_driver_name(),

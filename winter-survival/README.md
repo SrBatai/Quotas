@@ -437,6 +437,52 @@ RSS del servidor ≤ 400 MB). Capturas: `RENDER=forward tests/run_screenshots.sh
 overview_port overview_sw overview_se` (en `docs/screenshots/w1/`). Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md`
 §8.10.
 
+## Escaparate de Altavega (C0)
+
+La primera manzana de Altavega ya está en su sitio: la **supermanzana LT‑01 de Las Torres** (112 × 80 m, al norte de
+la Gran Vía y justo al este del río Albo, x 2 624–2 736, z −486…−406). Cuatro **zócalos** no enterables de 2–3 plantas
+con **cinco torres** CC0 de A1 encima (20, 26, 26, 34 y 40 plantas, de 78 a 156 m), la **Gran Vía** con un **atasco**
+de coches de A1 que se quedó mirando al oeste, farolas, semáforos, una marquesina, el **control militar** al final del
+puente y un **Puente de Hierro** provisional (un bloque: terraplenes de piedra y una celosía sobre el hielo). En la
+azotea del zócalo suroeste hay un **mirador** provisional (se sube por la escalera de su fachada oeste): quédate junto
+al poste naranja y **mantén V 1 s** — la cámara se levanta a −7°, ve a 1,5 km y enseña el *skyline* de la ciudad
+(las siluetas de distrito v0); Q / E giran la vista y cualquier otra tecla la devuelve. El **menú principal** tiene ahora
+de fondo el *skyline* de Altavega de noche visto desde el Puente de Hierro.
+
+Llegar con `debug_commands`: `/tp 2650 -402` (la acera de la Gran Vía delante de la manzana), `/tp 2432 -384` (el puente),
+`/tp 2626 -446` (el pie de la escalera del mirador).
+
+| Día (Forward+) | Noche | Mirador | Vista aérea | Menú |
+|---|---|---|---|---|
+| ![Día](docs/screenshots/c0/altavega_c0_day.jpg) | ![Noche](docs/screenshots/c0/altavega_c0_night.jpg) | ![Mirador](docs/screenshots/c0/mirador.jpg) | ![Aérea](docs/screenshots/c0/altavega_c0_aerial.jpg) | ![Menú](docs/screenshots/c0/menu_skyline.jpg) |
+
+Cómo está hecho (detalles en `docs/v2/ARQUITECTURA_V2.md` §9.8):
+
+- **Datos**: `data/world/city/altavega_lots.json` v0, escrito a mano, `city_version = 0` (= `WorldConst.CITY_VERSION`,
+  lo que M5 guarda en `world_meta`). Coordenadas en cm enteros: zócalos, torres (familia A1 + número de grupos de
+  plantas), puente, atascos (el vestido sale de `hash64(semilla, GEN_CITY, atasco, carril, hueco)`), coches y props
+  fijos, filas de farolas, calles y aceras (se pintan en la máscara del terreno), zonas de cámara, el mirador, la
+  potencia (apagón con dos lotes con generador) y las reglas de las siluetas de distrito. El trazado es el mismo en
+  todos los servidores; el cliente y el servidor calculan los mismos objetos (la puerta de determinismo lo compara).
+- **Código** (`scripts/world/city/`): `CityLots` (carga, valida, hashes, objetos por chunk), `TowerAssembler` (torre =
+  `Base` + N `Shaft_<n>` de 4 plantas + `Roof` + `ShadowProxy`, los grupos extra son copias desplazadas del último
+  grupo del modelo), `CityProcedural` (zócalos listos para el corte, escalera, puente, sustitutos sin arte),
+  `CityChunk` (lo que el `ChunkJob` prepara en el hilo y el `WorldChunk` monta por pasos dentro de los 2 ms:
+  edificios con `CityBuilding.attach`, `CityHlod.build_for`, coches y props en `MultiMesh`, colisiones, farolas en
+  `CityLights`), `CitySilhouettes` (siluetas v0 + terreno lejano), `Mirador` y `CityWorld` (zonas de cámara, potencia,
+  siluetas y el fondo del menú).
+- **Web**: la demo web sigue sin los modelos de ciudad (`assets/models/city/*` excluido: no caben bajo el límite de
+  hospedaje); allí la ciudad sale de los sustitutos procedurales (misma colocación y colisiones).
+
+Pruebas de C0: `godot --headless --path . -s tests/c0_city.gd` (fichero de lotes, ensamblador y contrato, atasco,
+puente, *streaming* → `CityBuilding` / `CityHlod`, escalera, siluetas), `tests/run_citycut_probe.sh` (corte urbano en 5
+puntos fijos de la manzana a 24 y 38 m), `tests/run_perf.sh --scene=altavega_c0 --hour=11` (y `--hour=22.5`;
+`RENDER=forward` para Forward+; `--zoom=44` para el zoom máximo), `tests/run_pcss_probe.sh` (R23: la misma torre en el
+origen y a 2,7 km, Forward+), `tests/run_perf_walk.sh --cpu --route=c0` (Carretera del Puerto → Las Torres a 25 m/s) y
+`tests/run_determinism.sh` (ahora incluye los objetos de la ciudad y el hash del fichero). Capturas:
+`RENDER=forward tests/run_screenshots.sh docs/screenshots/c0 altavega_c0_day altavega_c0_night mirador
+altavega_c0_aerial menu_skyline`.
+
 ## Armas de fuego, botín y servidor (M5)
 
 ![Escopeta en el campamento al caer la tarde (Forward+)](docs/screenshots/m5/firearms_forward.png)

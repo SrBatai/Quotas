@@ -9,6 +9,11 @@
     "enforce_gpu": false,
     "_primitives_note": "G1: raised from 120000 to 270000 = the v2.1 art budget for a typical clearing view (docs/research/05_graficos_arte.md §4.5, ASSET_SPEC_V2 G1: HD hero assets). Draw calls, the real cost driver here, stay far below budget."
   },
+  "perf_probe_altavega_c0": {
+    "_doc": "C0 (PLAN v3.8.2 C0): tests/perf_probe.gd --scene=altavega_c0 --hour=11|22.5 — the survivor on the Gran Vía sidewalk in front of the superblock LT-01 of Las Torres (5 towers on podiums, the jam, lamps), ring 2 loaded, city camera profile. Medians over 180 frames. Typical budget of doc 09 §4.6 / PLAN C31: ≤ 1 000 draw calls in Forward+, ≤ 700 in Compatibility.",
+    "forward": {"draw_calls_max": 1000, "primitives_max": 1500000},
+    "compat": {"draw_calls_max": 700, "primitives_max": 1500000}
+  },
   "baseline": {
     "before_m0": {
       "note": "Committed pre-M0 slice (GodotPhysics, v1 assets with one StandardMaterial3D per palette colour, camera far 260, CPUParticles3D). Measured with tests/perf_probe.gd on the untouched copy.",

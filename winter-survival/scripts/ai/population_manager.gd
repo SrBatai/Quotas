@@ -151,6 +151,8 @@ func _spawn_chunk(key: int, e: Dictionary, ch: WorldChunk) -> void:
 		var x := o.x + 4.0 + WorldConst.rand01(seed_v, GEN, ch.cx, ch.cz, 10 + attempt * 3) * (WorldConst.CHUNK_SIZE - 8.0)
 		var z := o.y + 4.0 + WorldConst.rand01(seed_v, GEN, ch.cx, ch.cz, 11 + attempt * 3) * (WorldConst.CHUNK_SIZE - 8.0)
 		var u := WorldConst.rand01(seed_v, GEN, ch.cx, ch.cz, 12 + attempt * 3)
+		if CityLots.occupied(x, z, 1.0):
+			continue   # C0: not inside a city building (podium, tower) or a static wreck
 		var lake := world.terrain.is_lake(x, z)
 		var frozen := lake or u < FROZEN_SHARE
 		var k := ZombieKinds.Kind.WALKER if frozen else ZombieKinds.pick(u, WorldState.day_now(), false)

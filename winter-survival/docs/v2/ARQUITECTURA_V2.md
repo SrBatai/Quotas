@@ -1797,6 +1797,147 @@ plano, y se ve una franja clara a lo largo del muñón del lado de la cámara (`
 
 ---
 
+### 9.8 Nota de implementación C0 (vinculante hasta que se revise)
+
+«Escaparate de Altavega» (PLAN v3.8.2 C0, doc 09 §4.2–4.6): la primera manzana de la ciudad en su sitio real, leída por
+el *streaming* como el resto del mundo, para ver la ciudad pronto y medir R14, R18 y R23 antes de C1. Cierra el
+«Diferido» de §9.7 (`ChunkJob` → `CityBuilding.attach` + `CityHlod.build_for`). Código en `scripts/world/city/`.
+
+**Datos** (`data/world/city/altavega_lots.json` v0, a mano, `city_version = 0` = `WorldConst.CITY_VERSION`, la fila
+`world_meta.city_version` de M5). Coordenadas de mundo en **cm enteros**, ángulos en grados:
+- `block` LT‑01 (Las Torres, 112 × 80 m: x 2 624–2 736, z −486…−406, frente a la Gran Vía, 22 m del eje); `podiums`
+  (4 zócalos no enterables 50 × 32 m, 2–3 plantas, `ground_h` 4,3 / `floor_h` 3,8, estilo, generador, `stair` = la
+  escalera exterior del mirador); `towers` (5: familia A1 `tower_a…e` + `groups` de 4 plantas: 20–40 plantas, 78–156 m,
+  sobre el tejado de su zócalo); `families` (lo que el servidor necesita sin arte: plantas, grupos completos, planta
+  parcial, cota de la base, huellas de base y de proxy, altura, `roof_z`);
+- `bridge` (Puente de Hierro provisional: eje z −384, x 2 262–2 612, tablero a 3,10 m, rampas de 32 m que acaban en el
+  terreno de cada orilla, celosía 2 360–2 508 sobre el hielo, dos pilas); `jams` (atasco de la Gran Vía 2 610–2 784 y
+  coches abandonados en el puente: carriles, huecos, modelos y variantes con pesos); `vehicles`, `props`, `rows`
+  (farolas, semáforos, control militar, marquesina, mobiliario); `models` (tamaño y colisión de cada modelo A1: el
+  servidor y la Web no cargan `.glb` de ciudad);
+- `streets` (calzadas y aceras que se pintan en la máscara del terreno), `clear` (sin *scatter*), `camera_zones`,
+  `miradores`, `power` (red a 0 = apagón; los lotes 12 / 22 —su generador también enciende las farolas a 14 m— y el
+  control militar con generador) y `silhouettes` (reglas de las siluetas de distrito v0).
+- **Hash**: `CityLots.file_hash()` (SHA‑256 de los bytes) y `CityLots.content_hash()` (SHA‑256 del JSON re‑serializado
+  con claves ordenadas: un *checkout* con CRLF da lo mismo). `tests/run_determinism.sh` añade la línea
+  `city lots <content> city_version 0 items <digest>` y las líneas de los objetos de cada chunk al hash de servidor y
+  cliente en dos procesos: idénticos (`f95fdf3e…`, 183 objetos con la semilla 1337).
+
+**Objetos por chunk** (`CityLots.chunk_items(hf, cx, cz, altura)`, puro, en el `ChunkJob` del hilo): cada objeto es
+del chunk que contiene su centro (un zócalo mide ≤ 52 m: su chunk está siempre en el anillo 1 de cualquier punto suyo);
+el puente se parte por chunks. El trazado no depende de la semilla; el **vestido** sí (C26): coche de cada hueco de un
+atasco = `hash64(semilla, GEN_CITY = "CITY", atasco, carril, hueco)` (modelo, variante, hueco, desvío, giro; nunca
+encima de un coche o una barrera fijos). `wid` de ciudad = `hash64(GEN_CITY, CITY_VERSION, lote, índice)` (el vestido,
+con la semilla). Alturas: la base de un zócalo es la cota mínima de sus esquinas y su centro (nunca flota; el zócalo
+baja 1,2 m bajo cero), la torre se apoya en su tejado; lo que está sobre el tablero usa el perfil del puente.
+
+**`ChunkJob`** (cambios pequeños, los chunks sin ciudad no cambian nada): pinta `streets` en su máscara de superficie
+(calzada `r` 230 + rodadas por el desvío al eje; acera `b` 204 donde no hay ya calzada), descarta el *scatter* dentro de
+`clear` (determinista: servidor y cliente igual), añade la AO de contacto de zócalos, coches y props que alcanzan el
+chunk y, si el chunk tiene ciudad, `city` (objetos) + `city_plan` (`CityChunk.make_plan`: búferes de `MultiMesh` por
+(modelo, variante), cajas de colisión, farolas, *arrays* de malla del tramo de puente).
+
+**`WorldChunk._step_city`** (tras la AO/MultiMesh del terreno, antes de los nodos): un `CityChunk` (nodo `City`) hace
+**una pieza por paso** dentro de los 2 ms: colisiones de coches y props (un `StaticBody3D` con `CollisionShape3D`
+fuera del árbol), **un edificio** (raíz + piezas + `ColBody` propio + `CityBuilding.attach`), un tramo de puente, un
+`MultiMesh`, las farolas (`CityLights.add_lamps(chunk)`) y **`CityHlod.build_for`**. `step_kind()` devuelve
+`_step_city:<pieza>`, así el *streamer* estima cada pieza por separado. Descarga: `CityChunk.release()` (farolas fuera,
+HLOD fuera, edificios fuera de `CityCut`) y los hijos de `City` se liberan de uno en uno. En el servidor: raíces vacías
++ colisiones (sin mallas ni `CityBuilding`). Colisiones en la capa `world` + `placement_blocker` y en el grupo
+`nav_static` (el `NavBaker` las talla); las de cada edificio cuelgan de su raíz, así `CityCut.is_hit_cut` deja pasar el
+rayo del cursor por un edificio cortado. `PopulationManager` no pone zombis dentro de un edificio (`CityLots.occupied`).
+
+**`TowerAssembler`** (C26, enmienda a C8): `Base` (plantas 0–3 del modelo A1) + los `Shaft_<n>` completos del modelo +
+N copias de su último grupo completo **con los vértices subidos 4 plantas cada una** (las piezas siguen en y = 0: el
+*shader* toma la base del edificio de la matriz de modelo) + el grupo parcial y el `Roof` subidos lo mismo + el
+`ShadowProxy` estirado (vértices por encima de la base). Caché por (familia, grupos): 5 variantes. Todas pasan
+`CityBuilding.validate(raíz, true)`. **Sin arte** (Web) la torre es un edificio procedural de la familia
+(`CityProcedural.building`: volúmenes cerrados, una losa por planta, tabique y núcleo, `Roof`, `ShadowProxy`), con la
+misma colocación y colisión. Zócalos: `CityProcedural.building` (contrato de §9.7) con el hueco del peto donde llega la
+escalera; escalera exterior (27 peldaños, 28°, rampa de colisión, rellano, barandilla).
+
+**Coches y props**: `MultiMesh` por chunk × (modelo, variante) con la malla del arte fundida en ≤ 2 superficies (color
+de vértice con `world_vcol_capsule` + vidrio): 167 instancias en 17 chunks; sombra solo si miden ≥ 1 m (C31);
+`visibility_range` 160 / 200 m. `CityChunk.warm()` construye en `World.configure` (cliente visual) las 5 torres, los 4
+zócalos, las ~70 mallas de `MultiMesh` y los materiales de ciudad de cada rejilla de plantas (≈ 190–260 ms una vez; el
+primer duplicado de material costaba hasta 18 ms dentro de un paso). `CityLights.add_lamps / remove_lamps` por chunk
+(45 farolas; charcos y halos se reconstruyen con una subida de búfer).
+
+**Mirador provisional** (`Mirador`, en `CityWorld`): poste naranja en la azotea del zócalo 11 (x 2 633, z −415, a
+11 m); mantener V (acción `shove` hasta que C1 dé a los miradores su propio aviso) 1 s dentro de 2,6 m y fuera de
+combate: cámara propia a −7°, FOV 46°, `far` 1 500 m, mirando a 112° (este‑sureste, por la Gran Vía), siluetas de
+distrito encendidas, niebla × 0,14 (oscura de noche), `CityCut` apagado (solo escribe sus globales para la cámara de
+juego) y el jugador sin control 6 s; Q / E giran 45°, cualquier otra tecla la devuelve. Sobre los tejados de la
+manzana la `CameraZone` de la manzana da el perfil `rooftop` (−40°, 20–50 m, `far` 130).
+
+**Siluetas de distrito v0** (`CitySilhouettes`): Las Torres (11 supermanzanas generadas, 2–4 torres de 12–42 plantas
+con zócalo; fuera LT‑01, que es real), ensanche (manzanas cerradas de 96 m y 5–8 plantas, también al norte y al sur de
+Las Torres), casco viejo (celdas de 26 m, 3–4 plantas, siguiendo la ladera de Monte Cierzo), barriada (bloques de
+8–14 plantas) y los hitos (Torre Albo 45 plantas con helipuerto, catedral, torre de telecomunicaciones, hospital,
+centro comercial, estadio, jefatura, universidad, presa). Semilla propia del fichero (el mismo *skyline* en todos los
+mundos), alturas de una rejilla de 64 m de la función de altura y una **sábana de terreno lejano** (1,2 m bajo el
+terreno real) para que el *skyline* se apoye más allá del anillo cargado. 875 cajas, ≈ 23 k triángulos, 8 mallas
+(2 *draw calls* por distrito: muros y tejados con color de vértice + fachada con `window_city`); se construyen en un
+hilo (≈ 150 ms) y solo las enciende un mirador o el menú.
+
+**Menú principal**: el mundo decorativo del menú enfoca el extremo este del Puente de Hierro y `CityWorld.setup_menu`
+pone la noche (21:36), niebla × 0,08 de color oscuro (`DayNight.fog_color_override`), red al 22 % (algunas ventanas
+encendidas), `CityLights` y la cámara en la orilla oeste mirando al este‑noreste: celosía del puente, atasco, la
+manzana LT‑01 y las siluetas detrás. `World.menu_skyline = false` vuelve al claro al atardecer. Preset de captura
+`menu_skyline`.
+
+**Aceptación** (fijado a 2 núcleos con `taskset`, VM compartida de 4 núcleos con otros carriles):
+- `tests/c0_city.gd` (*headless*, 34 comprobaciones): fichero y hashes, LT‑01 en Las Torres frente a la Gran Vía,
+  zócalos llanos fuera del hielo, 5 torres de 20–40 plantas que pasan el contrato, alternativa procedural válida,
+  zócalos válidos, 66 coches del atasco en la calzada sin solaparse, vestido distinto con otra semilla, puente a
+  3,10 m con rampas que tocan el terreno, 17 chunks por el camino del *streaming* (0 *scatter* en calles, 9 edificios
+  en `CityCut`, HLOD, 224 colisiones, 45 farolas, 167 instancias de `MultiMesh`), escalera y mirador por rayos, descarga
+  limpia, el mismo chunk por el camino del servidor (raíces y colisiones, sin mallas) y sin arte (Web), siluetas.
+  Trabajo por paso de ciudad con cachés calientes (sin pantalla): edificio 0,5–1,2 ms, HLOD 0,4–0,8 ms, puente
+  0,2 ms, `MultiMesh` < 0,1 ms, farolas 0,2 ms.
+- `tests/run_perf_walk.sh --cpu --route=c0` (Carretera del Puerto → Gran Vía → puente → vuelta a la manzana, 2,38 km a
+  25 m/s, sin carga de otros carriles): trabajo de *streaming* **p99 1,68 ms**, p99.9 1,91, máx. 4,00 (la liberación
+  de un chunk), 0,04 % de frames sobre 2 ms, **0 tirones**, suelo siempre presente, RSS 298 MB. (Con carga 4–5 de
+  otros carriles: p99 1,53, p99.9 1,91; un frame en que el hilo principal se bloqueó 57 ms en el *mutex* del
+  `WorkerThreadPool` con un trabajador expropiado — cambio voluntario de contexto — ahora solo cuenta su tiempo de CPU
+  medido, como los frames con *steal*.)
+- `tests/run_perf.sh --scene=altavega_c0` (el superviviente en el atasco frente a la manzana, anillo 2 cargado, perfil
+  `city`): Compatibility **80 / 38 *draw calls*** (día / noche, 24 m) y 111 / 71 a 44 m (≤ 700); Forward+ **105 / 89**
+  (24 m) y 125 / 124 a 44 m (≤ 1 000). El banco de ciudad de W0 sigue en 117 / 53 (Compatibility).
+- `tests/run_citycut_probe.sh` (5 puntos fijos: acera de la Gran Vía, pasillo junto al zócalo NO, calle de atrás bajo
+  la torre de 130 m, cruce interior, azotea del mirador; 24 y 38 m; figuras clave como el banco de ciudad, determinista:
+  reloj parado, sin nieve ni ventisca, cámara en su objetivo): **jugador 100 % visible en las 10 vistas, 100 % legible
+  en conjunto** (≥ 95 %); sin corte el jugador se ve el 0 % en el pasillo, la calle de atrás y el cruce.
+- `tests/run_pcss_probe.sh` (R23, Forward+ en lavapipe, `alto`: PCSS 1,2°): la misma torre en el origen y en
+  (2 688, −384): anchura de penumbra **+0,02 %**, diferencia media de luma en la penumbra **0,66 %** del contraste
+  (límite 3 %); sin PCSS la penumbra tiene el 2 % de los píxeles (la sonda la ve). **No hace falta la mitigación de
+  R23** en Las Torres; se repite a 4,3 km en C2.
+- `tests/run_determinism.sh`: 60 chunks (ahora con dos de la manzana) + la línea de la ciudad, idénticos en dos
+  procesos. `run_smoke.sh` (303 comprobaciones), `render_checks.gd` (78) y el banco de ciudad sin cambios.
+- Capturas (Forward+, 1280 × 720): `RENDER=forward tests/run_screenshots.sh docs/screenshots/c0 altavega_c0_day
+  altavega_c0_night mirador altavega_c0_aerial menu_skyline` (PNG `*_forward.png`, guardadas en JPG como
+  `docs/screenshots/c0/*.jpg`).
+- **Web**: `assets/models/city/*` sigue fuera del preset Web (solo las 5 torres son 1,44 MB importados, 1,9 MB en
+  base64: no caben bajo los 15,5 MB); allí la ciudad sale de los sustitutos procedurales (misma colocación, colisión y
+  corte; `tests/c0_city.gd` monta un chunk de la manzana sin arte). C0 añade al `.pck` 98,8 kB (scripts + fichero de
+  lotes; 132 kB en base64). `tools/web_demo/build_web_demo.sh` (27‑09, 23:31) da `index.pck.txt` = **22,34 MB**, por
+  encima del límite **por otros carriles**: el kit de M6a (`assets/models/buildings/**`, 4,35 MB sin codificar) y
+  ≈ 1,07 MB más desde la compilación de las 19:38 (14,99 MB); queda para el integrador.
+
+**Desviaciones**: (1) la ciudad del fichero v0 no es la del generador (C1 lo sustituye por `tools/gen_city.gd`, sube
+`city_version` y migra); (2) la torre se apoya en el tejado de su zócalo (un zócalo por parcela, como una plaza
+elevada), no atraviesa el zócalo hasta la calle: el propio edificio de la cámara y el del jugador son siempre uno;
+(3) el mirador usa V = `shove` (empuja una vez al pulsar) hasta que C1 le dé su aviso; (4) el puente es un bloque:
+tablero plano sobre terraplenes de piedra y una celosía Warren, sin la cinemática de llegada ni el control de C1; (5)
+arte en código (zócalos, escalera, puente, siluetas, poste del mirador) en vez de `blender/` (paramétrico con el
+terreno y el fichero; C1 lo cambia por el kit); (6) los coches del atasco son `MultiMesh` sin interacción (sin botín
+ni puertas: C1/V1); (7) el vestido del atasco depende de la semilla del mundo (C26), el trazado no; (8) en la Web la
+ciudad es procedural.
+
+**Diferido**: el generador de ciudad, familias enterables y navmesh por planta (C1); miradores definitivos, revelar el
+mapa y la cinemática (C1/H5); el aviso del mirador en el HUD (U); luces de semáforo y balizas (G2b/V1); el
+desplazamiento de origen solo en el cliente queda como plan B de R23 (no hizo falta a 2,7 km).
+
 ## §17.7 Nota de implementación S1 (audio)
 
 Detalle completo en `docs/AUDIO.md`. Resumen para la arquitectura:

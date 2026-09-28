@@ -18,6 +18,9 @@ const CENTER_CHUNK := 24
 const CHUNK_COUNT := WORLD_CHUNKS * WORLD_CHUNKS
 ## World format version (persistence `world_meta.world_version`): 1 = M3 valley 3 × 3 km, 2 = W1 world 6 × 6 km.
 const WORLD_VERSION := 2
+## City data version (persistence `world_meta.city_version`, R19): 0 = C0's hand-written lot file
+## (data/world/city/altavega_lots.json v0); C1's generated city bumps it (lot ids and city wids change with it).
+const CITY_VERSION := 0
 ## Terrain samples per chunk edge (1 m spacing, the last row/column is shared with the neighbour).
 const SAMPLES := 65
 const SAMPLE_STEP := 1.0

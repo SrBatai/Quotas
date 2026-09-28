@@ -35,6 +35,10 @@ var _env_t: float = 0.0
 ## Tools (overview shot): stop driving the fog from the focus.
 var env_override: bool = false
 var _spawn_ground: float = 0.0
+## C0: the city's world-level node (camera zones, miradores, power, district silhouettes, menu backdrop).
+var city_world: CityWorld
+## C0: the main menu shows the night skyline of Altavega (false: the clearing at dusk, as before C0).
+@export var menu_skyline: bool = true
 
 
 func _enter_tree() -> void:
@@ -129,8 +133,11 @@ func configure(s: int) -> void:
 		mode = WorldStreamer.Mode.SERVER
 	elif Net.is_client:
 		mode = WorldStreamer.Mode.CLIENT
+	var city_ok := CityLots.load_default()   # C0: the lot file, on the main thread before any chunk job reads it
 	streamer.setup(mode, hf, _clearing_cache[s], _collect_occluders(), $Chunks)
 	_warm_assets(mode)
+	if city_ok:
+		_setup_city()
 	WorldRegistry.materializer = materialize_wid
 	if decorative_only:
 		_setup_menu_camera()
@@ -159,6 +166,21 @@ func _warm_assets(mode: int) -> void:
 		for m in models:
 			Assets.spawn_model(m).free()
 	print("[WORLD] assets warmed in %d ms" % ((Time.get_ticks_usec() - t0) / 1000))
+
+
+## C0: the city of the lot file — its meshes built before streaming reaches it (visual clients) and CityWorld.
+func _setup_city() -> void:
+	var display := DisplayServer.get_name() != "headless"
+	if streamer.visual:
+		var us := CityChunk.warm()
+		print("[WORLD] city C0 warmed in %d ms (lots %s, city_version %d)" % [us / 1000, CityLots.content_hash().substr(0, 12), CityLots.city_version()])
+	if decorative_only and display and menu_skyline and get_node_or_null("CityLights") == null:
+		var cl := CityLights.new()
+		cl.name = "CityLights"
+		add_child(cl)
+	city_world = CityWorld.new()
+	add_child(city_world)
+	city_world.setup(self, hf, streamer.visual and display, display and Net.has_client and not decorative_only, decorative_only and menu_skyline)
 
 
 ## Where the streamer looks when nobody is there yet.
@@ -382,6 +404,12 @@ func _add_fence(scene: PackedScene, p: Vector2, yaw_deg: float) -> void:
 
 
 func _setup_menu_camera() -> void:
+	if city_world != null and menu_skyline and DisplayServer.get_name() != "headless":
+		# C0: the night skyline of Altavega from the Puente de Hierro (CityWorld.setup_menu)
+		menu_focus = CityWorld.MENU_FOCUS
+		city_world.setup_menu()
+		_menu_camera = city_world.menu_camera
+		return
 	_menu_camera = Camera3D.new()
 	_menu_camera.name = "MenuCamera"
 	_menu_camera.fov = 34.0

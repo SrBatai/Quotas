@@ -62,6 +62,8 @@ var _step_i: int = 0
 var _node_cursor: int = 0
 var _mm_cursor: int = 0
 var _sweep_t: float = 0.0
+## C0: the city part of this chunk (buildings, bridge, cars, props, lamps), built in steps (CityChunk).
+var city: CityChunk
 
 
 static func _scene(path: String) -> PackedScene:
@@ -100,6 +102,8 @@ func setup(job: ChunkJob, p_visual: bool, p_with_nodes: bool) -> void:
 	_steps.append(_step_shapes)
 	if visual:
 		_steps.append(_step_multimesh)
+	if not data.city_plan.is_empty():
+		_steps.append(_step_city)
 	if with_nodes:
 		_steps.append(_step_nodes)
 	_steps.append(_step_done)
@@ -123,6 +127,8 @@ func begin_teardown() -> void:
 	set_process(false)
 	for b in _bodies:
 		b.collision_layer = 0
+	if city != null:
+		city.release()
 	if objects != null:
 		for o in objects.get_children():
 			WorldRegistry.unregister(o)
@@ -138,6 +144,9 @@ func teardown_step(budget_usec: int) -> bool:
 			var c := get_child(n - 1)
 			if c == objects and objects.get_child_count() > 0:
 				objects.get_child(objects.get_child_count() - 1).free()
+				continue
+			if c == city and city.get_child_count() > 0:
+				city.get_child(city.get_child_count() - 1).free()   # one building / MultiMesh at a time
 				continue
 			remove_child(c)
 			c.free()
@@ -156,6 +165,9 @@ func teardown_step(budget_usec: int) -> bool:
 			data.quad_colors.pop_back()
 		elif not data.mm.is_empty():
 			data.mm = {}
+		elif not data.city.is_empty():
+			data.city = []
+			data.city_plan = {}
 		else:
 			wid_index = {}
 			_owner_entry_by_body = {}
@@ -165,9 +177,14 @@ func teardown_step(budget_usec: int) -> bool:
 	return get_child_count() == 0 and data == null
 
 
-## Name of the next build step (streaming budget statistics).
+## Name of the next build step (streaming budget statistics; the city step names its piece: one estimate per kind).
 func step_kind() -> String:
-	return String(_steps[_step_i].get_method()) if _step_i < _steps.size() else "done"
+	if _step_i >= _steps.size():
+		return "done"
+	var k := String(_steps[_step_i].get_method())
+	if k == "_step_city" and city != null:
+		return "_step_city:" + city.next_kind()
+	return k
 
 
 func build_all() -> void:
@@ -417,6 +434,17 @@ func _step_nodes() -> bool:
 				_make_stump(i)
 				made += 1
 	return _node_cursor >= total
+
+
+## C0: one piece of the chunk's city per step (CityChunk.step).
+func _step_city() -> bool:
+	if city == null:
+		city = CityChunk.new()
+		city.setup(data.city_plan, visual, key)
+		add_child(city)
+		if city.is_done():
+			return true
+	return city.step()
 
 
 func _step_done() -> bool:

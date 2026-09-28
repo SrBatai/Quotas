@@ -26,6 +26,8 @@ static func chunk_list() -> Array[int]:
 			Vector2(1400, 0), Vector2(-1450, -1450), Vector2(1450, 1450), Vector2(-1152, -128), Vector2(-512, -300),
 			Vector2(256, 896), Vector2(176, -512), Vector2(-704, -768), Vector2(960, 768), Vector2(150, 60)]:
 		add.call(p.x, p.y)
+	for p in [Vector2(2652, -426), Vector2(2708, -466)]:   # C0: the superblock LT-01's podiums and towers
+		add.call(p.x, p.y)
 	for p in [Vector2(1536, -384), Vector2(2432, -384), Vector2(2688, -384), Vector2(2432, 1216), Vector2(4096, 1280),
 			Vector2(3712, -256), Vector2(3264, 3520), Vector2(640, 1672), Vector2(-640, 2176), Vector2(-1024, 3072),
 			Vector2(2432, -1500), Vector2(4390, 4390)]:
@@ -60,6 +62,7 @@ func run(p_tree: SceneTree) -> void:
 			out = a.substr(6)
 	var t0 := Time.get_ticks_msec()
 	ScatterCatalog.load_manifests()
+	CityLots.load_default()   # C0: the Altavega lot file (the ChunkJob reads its items)
 	var macro := MacroMap.load_default()
 	var hf := HeightFunction.create(SEED, macro)
 	var clearing := ScatterGen.clearing_entries(SEED)
@@ -104,6 +107,10 @@ func run(p_tree: SceneTree) -> void:
 		if not ent.is_empty():
 			hc.update(ent.to_byte_array())
 		hc.update(j.region.to_utf8_buffer())
+		# C0: the chunk's city items (layout + seeded jam dressing, heights) as the ChunkJob produced them
+		for e in j.city:
+			hc.update(CityLots.item_line(e).to_utf8_buffer())
+		entries_total += j.city.size()
 		var digest := hc.finish()
 		total.update(digest)
 		lines.append("chunk %d,%d %s entries=%d region=%s" % [j.cx, j.cz, digest.hex_encode().substr(0, 16), j.entries.size() + j.nodes.size(), j.region])
@@ -134,6 +141,10 @@ func run(p_tree: SceneTree) -> void:
 		print("FAIL: determinism chunk list has < %d chunks in a quadrant %s" % [MIN_PER_QUADRANT, per])
 		tree.quit(1)
 		return
+	# C0: the lot file (content hash: parsed data, sorted keys) and every city item of the world for this seed
+	var city_line := "city lots %s city_version %d items %s" % [CityLots.content_hash().substr(0, 16), CityLots.city_version(), CityLots.items_digest(hf).substr(0, 16)]
+	total.update(city_line.to_utf8_buffer())
+	lines.append(city_line)
 	var tot := total.finish().hex_encode()
 	lines.append("TOTAL %s chunks=%d entries=%d" % [tot, jobs.size(), entries_total])
 	var text := "\n".join(lines) + "\n"

@@ -49,7 +49,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 		if w != null and Net.is_server:
 			w.scheduler_enabled = false
 			w.cancel())
-	if preset == "menu":
+	if preset == "menu" or preset == "menu_skyline":   # C0: the menu backdrop is the night skyline of Altavega
 		tree.change_scene_to_file("res://scenes/main/main_menu.tscn")
 		await tree.process_frame
 		await tree.process_frame
@@ -58,17 +58,18 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 	else:
 		GameFlow.play_offline()
 	var waited := 0
-	while preset != "menu" and not ready[0] and waited < 900:
+	var menu := preset == "menu" or preset == "menu_skyline"
+	while not menu and not ready[0] and waited < 900:
 		await tree.process_frame
 		waited += 1
 	waited = 0
-	while preset != "menu" and GameFlow.local_player() == null and waited < 1800:
+	while not menu and GameFlow.local_player() == null and waited < 1800:
 		await tree.process_frame
 		waited += 1
 	await tree.process_frame
 	await tree.process_frame
 	var game := tree.current_scene
-	if preset != "menu":
+	if not menu:
 		var player: Player = GameFlow.local_player()
 		var world: World = game.get_node("World")
 		if player == null:
@@ -200,6 +201,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			await (load("res://tests/h2_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if preset == "firearms":   # M5: shotgun at the campsite (tests/m5_shots.gd)
 			await (load("res://tests/m5_shots.gd").new()).setup(tree, game, world, player, inv)
+		if preset.begins_with("altavega_") or preset == "mirador":   # C0: the first block of Altavega (tests/c0_shots.gd)
+			await (load("res://tests/c0_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if preset.begins_with("street_") or preset == "house_inside":   # M6a: the kit test street (tests/m6a_shots.gd)
 			await (load("res://tests/m6a_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if flags.has("noshadow"):

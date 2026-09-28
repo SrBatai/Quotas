@@ -10,7 +10,7 @@ var _body: RefCounted
 
 func _initialize() -> void:
 	var opts := {"out": "tests/perf/last.json", "budgets": "res://tests/perf_budgets.json", "label": "",
-		"placeholders": false, "check": true}
+		"placeholders": false, "check": true, "scene": "clearing", "hour": 11.0, "zoom": 0.0}
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--out="):
 			opts["out"] = a.substr(6)
@@ -22,6 +22,12 @@ func _initialize() -> void:
 			opts["placeholders"] = true
 		elif a == "--nocheck":
 			opts["check"] = false
+		elif a.begins_with("--scene="):
+			opts["scene"] = a.substr(8)   # C0: altavega_c0 (the superblock of Las Torres)
+		elif a.begins_with("--hour="):
+			opts["hour"] = float(a.substr(7))
+		elif a.begins_with("--zoom="):
+			opts["zoom"] = float(a.substr(7))
 	Engine.max_fps = 0  # uncapped: frame time measures the real cost
 	var script: GDScript = load("res://tests/perf_probe_steps.gd")
 	if script == null or not script.can_instantiate():

@@ -57,6 +57,11 @@ var custom := PackedByteArray()
 var mm: Dictionary = {}          # block * 64 + variant -> {"buf": PackedFloat32Array, "idx": PackedInt32Array}
 var mm_keys: Array[int] = []     # sorted keys of `mm` (deterministic node order)
 var region: String = ""
+## C0 city (CityLots): this chunk's items (layout + seeded dressing, with heights) and what WorldChunk needs to
+## build them in steps (CityChunk.make_plan: MultiMesh buffers, colliders, lamps, bridge arrays).
+var city: Array = []
+var city_plan: Dictionary = {}
+var _city_clear: bool = false
 
 
 func run() -> void:
@@ -78,6 +83,11 @@ func run() -> void:
 	if cancelled:
 		finished = true
 		return
+	# C0: the city's streets and plazas repaint the surface mask; its area keeps no procedural scatter
+	var city_on := CityLots.is_loaded()
+	_city_clear = city_on and CityLots.clears_rect(rect.grow(15.0))
+	if city_on:
+		_paint_city(ox, oz, rect)
 	# scatter: own entries + neighbours' for the AO
 	var all_proc := ScatterGen.procedural(hf, rect, true)
 	var reach := rect.grow(3.0)
@@ -90,6 +100,12 @@ func run() -> void:
 		_take(e, rect, rect.grow(12.0))
 	for o in static_occ:
 		occluders.append(o)
+	if city_on:
+		if CityLots.has_chunk(cx, cz):
+			city = CityLots.chunk_items(hf, cx, cz, height_local)
+			city_plan = CityChunk.make_plan(city, visual)
+		if visual:
+			occluders.append_array(CityChunk.occluders_for(CityLots.items_near(hf.world_seed, rect.grow(4.0))))
 	var c := WorldConst.chunk_center(cx, cz)
 	region = PoiRegistry.region_of_chunk(cx, cz, hf.named_road_at(c.x, c.z, 32.0))
 	if visual and not cancelled:
@@ -115,6 +131,8 @@ func _take(e: Dictionary, rect: Rect2, reach: Rect2) -> void:
 	var p := Vector2(float(e["x"]), float(e["z"]))
 	if not reach.has_point(p):
 		return
+	if _city_clear and CityLots.is_cleared(p.x, p.y):
+		return   # C0: nothing grows in the streets / the block / on the bridge approaches
 	var own := rect.has_point(p)
 	var v := int(e["v"])
 	var id := str(int(e["wid"]))
@@ -144,6 +162,32 @@ func _take(e: Dictionary, rect: Rect2, reach: Rect2) -> void:
 			var own_n := e.duplicate()
 			own_n["y"] = height_local(p.x, p.y)
 			nodes.append(own_n)
+
+
+# ------------------------------------------------------------------ C0 city surface
+## Street beds (asphalt + ruts from the offset to the street axis, like the macro roads) and packed-snow sidewalks /
+## plazas of the lot file, painted into this chunk's surface mask (CUSTOM0: r road, b packed, a 128 + 16·offset).
+## Sidewalks never cover a road bed that is already there (the Gran Vía).
+func _paint_city(ox: int, oz: int, rect: Rect2) -> void:
+	for st in CityLots.streets_in(rect):
+		var r: Rect2 = st[0]
+		var road: bool = str(st[1]) == "road"
+		var along_z: bool = str(st[2]) == "z"
+		var mid := r.get_center()
+		var i0 := clampi(int(ceil(r.position.x)) - ox, 0, N - 1)
+		var i1 := clampi(int(floor(r.end.x)) - ox, 0, N - 1)
+		var j0 := clampi(int(ceil(r.position.y)) - oz, 0, N - 1)
+		var j1 := clampi(int(floor(r.end.y)) - oz, 0, N - 1)
+		for j in range(j0, j1 + 1):
+			for i in range(i0, i1 + 1):
+				var k := j * N + i
+				var s := surface[k]
+				if road:
+					var off := float(ox + i) - mid.x if along_z else float(oz + j) - mid.y
+					var a := clampi(int(round(128.0 + 16.0 * off)), 1, 255)
+					surface[k] = (s & 0x00FF00) | 230 | (a << 24)
+				elif (s & 255) < 64:
+					surface[k] = (s & 0x00FF00) | (204 << 16)
 
 
 # ------------------------------------------------------------------ terrain mesh arrays

@@ -20,6 +20,8 @@ const RELIGHT_PERIOD := 0.3
 ## Fake pool strength kept under a lamp that has a real light.
 const REAL_POOL_SCALE := 0.3
 
+## The world's CityLights (client), where streamed city chunks register their lamps (C0: add_lamps / remove_lamps).
+static var instance: CityLights
 static var _night: float = 0.0
 static var _power: float = 1.0
 static var _hours: float = 12.0
@@ -35,6 +37,50 @@ var focus_override: Node3D
 var _lights: Array[OmniLight3D] = []
 var _real_lit: Dictionary = {}          # lamp index -> true while a real light sits on it
 var _t: float = 0.0
+var _by_owner: Dictionary = {}          # owner key (chunk) -> Array[Dictionary] of its lamps (C0 streaming)
+
+
+func _enter_tree() -> void:
+	instance = self
+
+
+## The pool / halo nodes and their materials exist from the start: the first streamed chunk with lamps must not pay
+## the material load inside a streaming step (C0).
+func _ready() -> void:
+	if pools == null:
+		pools = _mm_node("Pools", POOL_MAT)
+		halos = _mm_node("Halos", HALO_MAT)
+
+
+func _exit_tree() -> void:
+	if instance == self:
+		instance = null
+
+
+## C0: a streamed chunk's lamps ([bulb, ground y, power] each) join the set; the pools / halos are rebuilt.
+func add_lamps(owner: int, list: Array) -> void:
+	var own: Array = []
+	for l in list:
+		own.append({"pos": l[0], "ground": float(l[1]), "power": float(l[2]), "color": LAMP_COLOR})
+	_by_owner[owner] = own
+	_rebuild_owned()
+
+
+## C0: the chunk unloaded: its lamps leave the set.
+func remove_lamps(owner: int) -> void:
+	if _by_owner.erase(owner):
+		_rebuild_owned()
+
+
+func _rebuild_owned() -> void:
+	lamps.clear()
+	var keys := _by_owner.keys()
+	keys.sort()
+	for k in keys:
+		for l in _by_owner[k]:
+			lamps.append(l)
+	build()
+	_t = 0.0
 
 
 # ------------------------------------------------------------------ globals
@@ -134,14 +180,41 @@ func build(pool_radius: float = 6.5, halo_size: float = 1.1) -> void:
 	_real_lit = {}
 	pools.multimesh = _multimesh(pool_radius * 2.0, true)
 	halos.multimesh = _multimesh(halo_size, false)
+	if lamps.is_empty():
+		return
+	# one buffer upload per MultiMesh (C0: chunks add / remove lamps while streaming): 12 transform + 4 custom floats
+	var pb := PackedFloat32Array()
+	var hb := PackedFloat32Array()
+	pb.resize(lamps.size() * 16)
+	hb.resize(lamps.size() * 16)
 	for i in lamps.size():
 		var l: Dictionary = lamps[i]
 		var pos: Vector3 = l["pos"]
-		var custom := lamp_custom(i)
-		pools.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, Vector3(pos.x, float(l["ground"]) + 0.04, pos.z)))
-		pools.multimesh.set_instance_custom_data(i, custom)
-		halos.multimesh.set_instance_transform(i, Transform3D(Basis.IDENTITY, pos))
-		halos.multimesh.set_instance_custom_data(i, custom)
+		var c := lamp_custom(i)
+		var o := i * 16
+		_row(pb, o, Vector3(pos.x, float(l["ground"]) + 0.04, pos.z), c)
+		_row(hb, o, pos, c)
+	pools.multimesh.buffer = pb
+	halos.multimesh.buffer = hb
+
+
+static func _row(b: PackedFloat32Array, o: int, p: Vector3, c: Color) -> void:
+	b[o] = 1.0
+	b[o + 1] = 0.0
+	b[o + 2] = 0.0
+	b[o + 3] = p.x
+	b[o + 4] = 0.0
+	b[o + 5] = 1.0
+	b[o + 6] = 0.0
+	b[o + 7] = p.y
+	b[o + 8] = 0.0
+	b[o + 9] = 0.0
+	b[o + 10] = 1.0
+	b[o + 11] = p.z
+	b[o + 12] = c.r
+	b[o + 13] = c.g
+	b[o + 14] = c.b
+	b[o + 15] = c.a
 
 
 ## INSTANCE_CUSTOM of lamp i for light_pool.gdshader: rgb tint, a = intensity × power at the lamp (negative = flicker).
