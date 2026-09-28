@@ -55,6 +55,11 @@ func _ready() -> void:
 	loot_spawns.name = "LootSpawns"
 	add_child(loot_spawns)
 	loot_spawns.setup(world)
+	# M6a: kit streets placed like POIs (both flavours, deterministic wids; built with the chunk of their centre)
+	var kit_streets := KitStreets.new()
+	kit_streets.name = "KitStreets"
+	add_child(kit_streets)
+	kit_streets.setup(world)
 	# H2: group zone discovery (RPC node, same path in both flavours; after PlayerManager opened the store)
 	var discovery := ZoneDiscovery.new()
 	discovery.name = "ZoneDiscovery"

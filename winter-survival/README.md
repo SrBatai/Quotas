@@ -654,6 +654,50 @@ Pruebas:
 
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.6.
 
+## Kit modular y calle de prueba (M6a)
+
+| La Calle Mayor de día | De noche | Dentro de una casa |
+|---|---|---|
+| ![Calle Mayor de día](docs/screenshots/m6a/street_day.jpg) | ![Calle Mayor de noche](docs/screenshots/m6a/street_night.jpg) | ![Dentro de la casa de 2 plantas](docs/screenshots/m6a/house_inside.jpg) |
+
+Capturas Forward+ del juego (1280 × 720; también `street_signs.jpg`: la entrada del pueblo a 24 m). La **Calle Mayor de
+Santa María del Puerto** es la calle de prueba del kit de edificios: 7 edificios de 5 plantillas en 3 estilos, con sus
+números, el rótulo de la tienda, placas de calle y la señal de entrada al pueblo. Para ir: `/tp -128 3072`.
+
+- **Kit listo para el corte urbano** (`blender/lib/kit.py`, contrato W0): muros con grosor y volúmenes cerrados, una
+  losa por planta (con el hueco de la escalera), tapas `cap_color`, escaleras de 17 peldaños con colisión en rampa,
+  tejados a dos aguas o planos con peto, porches, escaparates con marquesina, chimeneas y el mobiliario de siempre
+  fusionado en cada planta. Estilos `wood_blue`, `brick` y `concrete`.
+- **Plantillas** (tris con los muñones ocultos incluidos): `house_small_A` 8 × 10 (13,0 k / 13,1 k), `house_small_B` 6 × 8
+  (11,7 k / 11,5 k), `house_two_story_A` 8 × 10, 2 plantas (25,8 k / 24,6 k), `shop_general` 10 × 12 (13,4 k / 13,7 k)
+  y `apartment_small` 10 × 10, 3 plantas (30,0 k ladrillo / 25,2 k hormigón).
+- **Carteles diegéticos**: el texto es geometría (una fuente de mallas hecha con Barlow Condensed, sin texturas),
+  iluminada como el tablero y con mayúsculas de 0,30–0,45 m: se lee a 24 m.
+- **Entrar**: al cruzar la puerta, el tejado y las plantas de arriba desaparecen **conservando su sombra** (la
+  habitación sigue en penumbra) y las fachadas del lado de la cámara bajan a un muñón; en la escalera se pasa de planta.
+  Desde la calle, el corte urbano de W0 recorta las casas que se interponen entre la cámara y tú. Las cabañas del bosque
+  (`cabin_small`, torre de vigilancia) usan ya el mismo corte.
+- **Puertas**: clic sobre la puerta (o R, la más cercana): «Abrir puerta» / «Cerrar puerta». Las decide el servidor y todos las ven igual (también quien
+  llega después); las de la calle abren hacia dentro, las interiores hacia el otro lado de quien abre; hacen ruido
+  (6 m). Las ventanas aún no se rompen.
+
+Código: `scripts/world/buildings/` (`KitStreets`, `KitStreet`, `KitBuilding`, `KitDoor`, `CutawayManager`,
+`SignText`); datos `data/buildings/streets/calle_mayor.json` y `data/buildings/templates/`; arte
+`blender/kits/`, `blender/props/build_signs.py` (`python3 build_all.py --only m6a`).
+
+Pruebas:
+
+- `godot --headless --path . -s tests/m6a_checks.gd`: 75 comprobaciones (la calle, el corte por plantas, puertas,
+  carteles, wids deterministas, POIs del bosque con el tejado solo sombra).
+- `tests/run_street_bench.sh gate`: `citycut_probe` en la calle (jugador visible ≥ 99 % desde 24 m en calle, patio,
+  hueco entre casas y dentro de cada planta; zombis legibles ≥ 95 %; medido 100 %) y sombra interior de una casa
+  cortada y de `cabin_small` ±5 % (medido 1,000). `tests/run_street_bench.sh shots carpeta` da las capturas del banco.
+- `tests/net/run_net_test.sh --clients 3 --duration 62 --soak 100 --scenario street --port 7877`: A abre, B ve y cierra,
+  A reabre, C llega 34 s tarde y la encuentra abierta.
+- `RENDER=forward tests/run_screenshots.sh docs/screenshots/m6a street_day street_night street_signs house_inside`.
+
+Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §9.9 y en la sección «M6a» de `docs/v2/ASSET_SPEC_V2.md`.
+
 ## Pruebas
 
 ```bash

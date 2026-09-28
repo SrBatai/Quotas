@@ -18,6 +18,9 @@ signal floor_changed(floor: int)
 
 var hide_mode: int = HideMode.VISIBLE
 var active_floor: int = -1
+## M6a: driven by the CutawayManager (scripts/world/buildings/cutaway_manager.gd), which polls the local player once
+## for every registered building and calls apply_floor(); a managed cutaway does no polling of its own.
+var managed: bool = false
 ## Seconds between two polls of the local player's position.
 var poll_period: float = 0.2
 ## Tests / bench: the player to follow instead of GameFlow.local_player().
@@ -81,6 +84,8 @@ func setup(model: Node3D) -> void:
 			if not openings.has(g):
 				openings[g] = []
 			(openings[g] as Array).append(c)
+			if g.begins_with("Interior") or g.begins_with("Floor"):
+				_add_floor_node(nodes_by_floor, fl, c)   # M6a: interior doors go with their storey
 	for g in by_group:
 		var w: Dictionary = by_group[g]
 		w["stub"] = stubs.get(g)
@@ -110,6 +115,8 @@ func _player() -> Node3D:
 
 
 func _process(delta: float) -> void:
+	if managed:
+		return
 	_t -= delta
 	if _t > 0.0 or _model == null or not _model.is_inside_tree():
 		return
@@ -120,6 +127,15 @@ func _process(delta: float) -> void:
 		active_floor = inside
 		_apply(inside)
 		floor_changed.emit(inside)
+
+
+## Footprint of the walls in model space (M6a: the CutawayManager's registry grid).
+func footprint_aabb() -> AABB:
+	return _foot
+
+
+func model_root() -> Node3D:
+	return _model
 
 
 ## Floor (cut-group index) whose footprint and height band contain the world point `p`, or -1.

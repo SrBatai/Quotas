@@ -446,7 +446,7 @@ func _make_node(e: Dictionary) -> Node3D:
 			node.set_meta("poi_model", str(e["model"]))
 			node.add_to_group("poi_prop")
 			if visual and Net.has_client:
-				PoiCutaway.attach(node, model)
+				CutawayManager.attach(node, model)   # M6a: managed, shadow-preserving (was PoiCutaway)
 			else:
 				for c in model.get_children():
 					if String(c.name).ends_with("_Stub"):

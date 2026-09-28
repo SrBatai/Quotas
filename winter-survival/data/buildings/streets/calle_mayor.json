@@ -1,0 +1,23 @@
+{
+ "id": "calle_mayor",
+ "name": "Calle Mayor",
+ "town": "Santa María del Puerto",
+ "pad": "santa_maria_del_puerto",
+ "milestone": "M6a",
+ "center": [-128.0, 3072.0],
+ "road": {"half_len": 44.0, "half_width": 3.5, "sidewalk": 2.0},
+ "lots": [
+  {"template": "house_small_A", "style": "wood_blue", "pos": [-26.0, -13.7], "yaw": 0, "number": 1},
+  {"template": "shop_general", "style": "brick", "pos": [-11.0, -12.1], "yaw": 0, "number": 3, "shop": "Ultramarinos"},
+  {"template": "house_two_story_A", "style": "wood_blue", "pos": [4.0, -13.7], "yaw": 0, "number": 5},
+  {"template": "apartment_small", "style": "concrete", "pos": [19.0, -11.1], "yaw": 0, "number": 7},
+  {"template": "house_small_B", "style": "brick", "pos": [-22.0, 12.7], "yaw": 180, "number": 2},
+  {"template": "house_two_story_A", "style": "brick", "pos": [-6.0, 13.7], "yaw": 180, "number": 4},
+  {"template": "house_small_A", "style": "brick", "pos": [10.0, 13.7], "yaw": 180, "number": 6}
+ ],
+ "signs": [
+  {"board": "signs/sign_street", "pos": [-34.5, -5.2], "yaw": 45, "text": "Calle Mayor", "back": "Calle Mayor"},
+  {"board": "signs/sign_street", "pos": [38.5, 5.2], "yaw": 45, "text": "Calle Mayor", "back": "Calle Mayor"},
+  {"board": "signs/sign_road", "pos": [45.0, -6.5], "yaw": 90, "text": "Santa María\ndel Puerto", "back": "strike"}
+ ]
+}

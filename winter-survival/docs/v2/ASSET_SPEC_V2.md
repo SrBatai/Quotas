@@ -1660,3 +1660,105 @@ blanco con capuchón rojo, cara 0.32 × 0.40, `TextPanel` (0, 0.50, 0.14), 120 t
 10. **Iconos**: `icons/build_icons.py` incluye el propio script en el hash, así que en T2 se reescribieron los 37 PNG
     (los 20 antiguos con los mismos píxeles; solo cambia el `tEXt` del hash). El arco del icono va montado, sin
     flecha, con las palas en diagonal.
+
+---
+
+## M6a — kit listo para corte (Opus)
+
+El kit de §8 / M3.6 completado para el «corte urbano» de W0 (ARQ v2 §9.7: estructura `world_vcol_struct`,
+`cull_disabled` + `discard`, caras traseras = tapas `cap_color`, base del edificio leída de `MODEL_MATRIX[3].y`) y
+para varias plantas. Todo sale de `blender/lib/kit.py` + `blender/kits/templates/*.json` (`kits/build_buildings.py`
+exporta cada plantilla en cada estilo y copia las plantillas **tal cual** a `data/buildings/templates/`).
+
+### M6a.1 Contrato «listo para corte» (lo comprueba `verify_kits.py`)
+
+- **Volúmenes cerrados**: cada muro es una caja de 0.2 m (tabiques 0.12) con canto, jambas y dinteles cerrados. Las
+  pruebas de W0 / A1 (`third_party/cutready.py`) con los puntos dentro de la huella (a 0.3 m del muro): *closed* (desde
+  el interior de cada planta, a media altura, ningún rayo horizontal escapa: puertas y ventanas cerradas), *slab* (un
+  rayo hacia abajo 0.3 m sobre cada nivel encuentra la losa en ≥ 90 % de los puntos) y *cut* (para cada planta k, con
+  todo lo que queda por encima de nivel + 0.4 m quitado, los rayos de la cámara del juego —48°, 8 guiñadas— encuentran
+  una cara frontal a ≤ 0.6 m bajo el nivel o una cara trasera = tapa; nunca una planta inferior ni el suelo, ≤ 5 %).
+- **Una losa por planta**: `Floor<k>` = losa cerrada de 0.2 m en `0.3 + 3k` (cimiento 0.3; planta k a +0.3 + 3k) con
+  el hueco de la escalera recortado (`rect_minus`), colisión `ColFloor<k>_<n>` troceada alrededor del hueco. El tejado
+  lleva su propia losa (`Roof`, en `0.3 + 3·floors − 0.2`): desde dentro de la última planta el techo es la losa, no
+  la cara inferior del faldón.
+- **Sin desplazamiento en Y**: todas las piezas de primer nivel en y = 0 (la hoja de `Door_<n>` tiene el pivote en la
+  bisagra **a y = 0**; su malla sube desde ahí), sin escala, solo giro en Y.
+- **`ShadowProxy`** (12–400 tris, sin material): caja de la huella hasta el alero + prisma del faldón (o peto) +
+  chimenea; el único que proyecta (`SHADOWS_ONLY`); sus extras son los **metadatos de raíz** del contrato de edificio
+  de ciudad: `floors`, `floor_h` 3.0, `ground_h` 3.3, `foundation` 0.3, `kind` (`house|shop|apartment`),
+  `enterable`. La AO horneada ignora el proxy.
+- **Grupos de corte por planta**: `Floor<k>`, `Walls<k>_{S,N,E,W}` + `_Stub` (0.6 m, mismo contorno), `Interior<k>`,
+  `Roof`; `Door_<n>` / `Window_<n>` llevan `cut_group` (`Walls<k>_<dir>` o `Interior<k>`) y `floor`. ≤ 8 superficies
+  por planta (+1 del tejado). Estado de caras traseras por planta: con el jugador en la planta k, ninguna cara trasera
+  a la vista desde la cámara por encima de la planta (comprobado para cada k).
+- **Escaleras** (`Flight`): 17 contrahuellas de 0.176 m, 16 huellas de 0.28 m (recorrido 4.48 m), ancho **1.1 m**
+  (§8.1 decía 1.2: con 1.2 no caben dos tramos en tijera en 10 m), zanca, pilarotes, pasamanos; colisión en **rampa**
+  (`ColStair<k>`, 30–36°: medido ≈ 33.8°) y barandilla del hueco (`ColRail<k>_<n>`, `ColStairRail<k>`). Altura libre
+  ≥ 2.0 m (la losa superior se recorta 0.9 m más allá del último peldaño).
+
+### M6a.2 Piezas y estilos
+
+- Estilos: `wood_blue` (tablilla), `brick` (hiladas, bandas de forjado, cadenas) y **`concrete`** (nuevo: paneles
+  prefabricados con juntas, manchas de escorrentía, banda de forjado, peto con albardilla). `sheet_metal` sigue
+  pendiente.
+- Nuevas: `Wall_Shop_4` (escaparate 3.2 × 2.2, alféizar 0.35, en 2 celdas: `"shops"` en la plantilla), losas con hueco
+  (`Floor_Stair_Opening`), `Stair_2x6` (tramos rectos y en tijera con meseta), tejado plano (`Roof_Flat` + `Parapet` +
+  albardilla + nieve + chimenea de ventilación + bajante), `Awning_4` (marquesina de lona sobre el escaparate), porche
+  en 1 o varias celdas, bandas de forjado en fachada (`facade_bands`), esquinas por planta.
+- **Mobiliario** (§9): los `.glb` existentes (`bed`, `desk`, `chair`, `shelf`, `clock`, `cabinet`, `wood_stove`,
+  `storage_box`) se importan y se **fusionan en `Interior<k>`** (atributo `Col` reconstruido como `FLOAT_COLOR` /
+  `CORNER`, colores ajustados a la paleta v2.1, sin UV, la brasa de la estufa en hierro: la luz la pone el código) +
+  16 muebles decorativos de cajas (`counter`, `table`, `shelf`, `kitchen`, `sofa`, `armchair`, `rug`, `wardrobe`,
+  `bookshelf`, `dresser`, `tv`, `shop_shelf`, `shop_counter`, `desk_block`, `crates`, `bunk`), con cajas de
+  colisión `ColFurn<k>_<n>` (sin colisión: `rug`, `clock`). `Spawn_Bed` / `Spawn_Stove` dibujan su mueble en el
+  interior y quedan como anclas.
+- **Anclas de cartel** `Spawn_Sign_<n>` (extras `sign` = `number|shop`, `width`, `cap`, `cut_group`, `floor`): el
+  número de la casa en el hastial (grupo `Roof`) o junto a la puerta (`Walls0_S`), el rótulo de la tienda sobre el
+  escaparate.
+
+### M6a.3 Plantillas y presupuestos (tris con los `_Stub` ocultos incluidos)
+
+| Plantilla | Huella | Plantas | Estilos | Tris | Presupuesto |
+|---|---|---|---|---|---|
+| `house_small_A` | 8 × 10 | 1, porche, dos aguas | `wood_blue` / `brick` | 13 046 / 13 072 | 14 500 |
+| `house_small_B` | 6 × 8 | 1, porche de 1 celda, dos aguas 38° | `wood_blue` / `brick` | 11 736 / 11 494 | 12 500 |
+| `house_two_story_A` | 8 × 10 | 2, escalera recta, 4 tabiques, porche | `wood_blue` / `brick` | 25 766 / 24 592 | 26 000 |
+| `shop_general` | 10 × 12 | 1, 2 escaparates + marquesinas, plano con peto | `brick` / `wood_blue` | 13 404 / 13 710 | 16 000 |
+| `apartment_small` | 10 × 10 | 3, escalera en tijera, plano con peto | `brick` / `concrete` | 30 004 / 25 240 | 34 000 |
+
+Ficheros: `assets/models/buildings/{wood_blue,brick,concrete}/<plantilla>.glb` (10), cada uno con su `.import`. Los
+presupuestos son **por plantilla** (≈ 12–13 k por planta, dentro de la «casa del kit 6–14 k» de §14 por planta; un
+edificio de 2–3 plantas la supera en total).
+
+### M6a.4 Carteles diegéticos (`blender/props/build_signs.py`)
+
+- **Fuente de mallas** `assets/models/signs/glyphs.glb` + `glyphs.json`: 59 glifos (`G_<codepoint>`: A–Z, Á É Í Ó Ú
+  Ñ Ü Ç, 0–9, puntuación, ª º · y flechas ← →; el texto se escribe en mayúsculas) de **Barlow Condensed SemiBold** (OFL, ya en el repo) convertidos a mallas planas, altura de
+  mayúscula 1, mirando a −Y, extras `char` / `advance` / `width`; 2 655 tris en total. Sin textura ni atlas: color de
+  vértice, iluminadas como el tablero. El código compone el texto (`SignText`).
+- **Tableros** (nodo `Prop`, extras `col`, `col_center`, `col_size`, `text_w`, `text_h`, `text_color`, `plate_color`,
+  `double_sided`, `mount`; `TextPanel_0` delante, `TextPanel_1` detrás): `sign_street` (placa azul de calle 2.6 ×
+  0.62 en poste, doble cara, texto 0.40 m), `sign_house_number` (placa de pared, 0.34 m), `sign_shop` (rótulo verde
+  militar, 0.38 m), `sign_road` (S‑500 de entrada a poblado, blanco 3.6 × 1.3, 0.45 m, doble cara: detrás, tachado).
+  48–300 tris. Altura de mayúscula ≥ 0.30 m (doc 10 §7.4): legibles a 24 m.
+- `verify_assets.py` (`M6A_ASSETS`, `--only signs/`): nodos, tamaños, extras, cobertura de glifos y paleta.
+
+### M6a.5 Verificación
+
+`python3 blender/verify_kits.py`: ALL OK (10 edificios): nodos y extras, `_Stub`, proxy y metadatos, anclas de
+cartel, pendiente de escaleras, cerrado / losa / corte dentro de la huella, caras traseras por planta, `Roof` dentro
+de la huella, presupuesto por plantilla, ≤ 8 superficies por planta, copia de plantillas idéntica, `.import`
+presente. `tests/inspect_models.gd` añade `_check_kit` (proxy y metadatos, `Floor<k>` en `0.3 + 3k`, `Walls<k>_<dir>` +
+`_Stub`, `Roof`, ninguna pieza con desplazamiento en Y, extras de `Door_` / `Window_` / `Spawn_Sign_`, `Window_` =
+una superficie `window`, AO horneada, presupuesto) y `_check_signs` (glifos y tableros); en un proyecto de trabajo:
+264 assets ALL OK.
+
+### M6a.6 Desviaciones y pendiente
+
+1. Ancho de escalera 1.1 m (§8.1: 1.2). 2. Presupuesto por plantilla, no por edificio (arriba). 3. Sin
+`sheet_metal`, tejados a cuatro aguas ni cumbrera en X. 4. De las plantillas de §8.5 para M6a se entregan
+`house_small_A/B`, `house_two_story_A` y `shop_general`; `apartment_small` (M9a) se adelanta como edificio de 3
+plantas; faltan `house_small_C`, `house_two_story_B`, `garage`, `barn`, `sawmill_shed`, `gas_station`,
+`house_hunter`, `a_frame`. 5. Ventanas sin versión rota / tapiada (`Wall_Broken_2`, `Wall_Boarded_2`, `Shutter`,
+`Planks`). 6. Muebles nuevos de §9 como cajas decorativas fusionadas (sin `Fridge` con puerta ni partes móviles).

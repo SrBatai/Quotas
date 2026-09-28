@@ -147,6 +147,20 @@ incl. ramps, exact boxes from `poi/build_cabin_small.py::COL_BOXES`) and the "ty
 `assets/models/buildings/<style>/<id>.glb` (nodes, stubs, props, collision boxes ±2 cm, budget 14 k, ≤ 20 visible
 surfaces). Both run from `build_all.py`.
 
+## M6a (cut-ready modular kit, diegetic signs)
+
+`python3 build_all.py --only m6a` rebuilds the kit buildings (`kits/build_buildings.py`: 5 templates of
+`kits/templates/*.json` × their styles `wood_blue` / `brick` / `concrete` → `assets/models/buildings/<style>/`, and a
+verbatim copy of the templates in `../data/buildings/templates/`) and the signs (`props/build_signs.py`: the mesh font
+`signs/glyphs.glb` + `glyphs.json` from Barlow Condensed SemiBold, and the boards `sign_street`, `sign_house_number`,
+`sign_shop`, `sign_road`), then runs the verifiers. `lib/kit.py` assembles multi-storey buildings for the W0 «corte
+urbano»: closed wall volumes, one 0.2 m slab per storey (stair openings cut out), a roof slab, straight / scissor
+stairs with ramp collision, flat roofs with parapets, shop fronts and awnings, a `ShadowProxy` carrying the root
+metadata, `Spawn_Sign_<n>` anchors, and the existing furniture `.glb`s merged into `Interior<k>` (+ 16 decorative box
+kinds). `verify_kits.py` adds the cut-ready tests (closed / slab / cut view inside the footprint, per storey), the
+proxy, sign anchors, stair slope 30–36°, back faces in every storey's cutaway states and the template's own `budget`;
+`verify_assets.py --only signs/` checks the glyphs and the boards. Contract: "M6a" in `../docs/v2/ASSET_SPEC_V2.md`.
+
 ## M4 (zombies, combat animations, melee weapons, gore-lite)
 
 `python3 build_all.py --only m4` rebuilds the M4 families (+ icons) and runs the verifiers (`--no-verify` skips them).

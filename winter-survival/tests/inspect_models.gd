@@ -21,6 +21,8 @@ extends SceneTree
 ##     mesh, Loot anchor, every hinged part opens with rotate_object_local(hinge_axis, open_deg): lids up, doors toward
 ##     +Z) and pickups (one mesh Item); world/*.glb (W1): MultiMesh props (one mesh + collision-proxy extras), tunnel
 ##     portals (Portal, Col* StaticBody3D at the first level, RoadIn in front, Panel + TextPanel), km signs.
+##   - buildings/<style>/*.glb (M6a): the cut-ready kit (cut groups per storey, ShadowProxy + root metadata, no Y
+##     offset on any piece, Door_n / Window_n / Spawn_* extras, template budget); signs/*.glb (M6a): mesh font + boards.
 ##   - city/<family>/*.glb (A1, ASSET_SPEC v2 "A1"): the generic mesh contract; root metadata copied by the
 ##     post-import script (city_import.gd); towers / buildings: Base, Shaft_<n> with floor_from, ShadowProxy above 12 m,
 ##     floor_h / ground_h / floors on the root and CityBuilding.validate() clean when that script exists; vehicles: Body
@@ -160,6 +162,8 @@ func _initialize() -> void:
 	checked += _check_loot()
 	checked += _check_world()
 	checked += _check_city()
+	checked += _check_kit()
+	checked += _check_signs()
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
 
@@ -719,6 +723,150 @@ func _check_city() -> int:
 				_fail(asset, p)
 			inst.free()
 			n += 1
+	return n
+
+
+## buildings/<style>/*.glb (M6a, ASSET_SPEC v2 §8.4 + "M6a"): the cut-ready kit buildings. Generic mesh contract +
+## the cut groups (Floor<k> with floor_z, Walls<k>_{N,S,E,W} + _Stub, Interior<k>, Roof), ShadowProxy with the root
+## metadata (floors, floor_h, ground_h, foundation, kind, enterable), no piece with a Y offset (the corte urbano shader
+## takes the building base from each piece's origin: groups, panes AND door leaves), Door_n / Window_n / Spawn_*
+## extras, Col* StaticBody3D at the first level, baked AO, the template budget (data/buildings/templates/<id>.json).
+func _check_kit() -> int:
+	var n := 0
+	for style in ["wood_blue", "brick", "concrete", "sheet_metal"]:
+		for name in _glbs("res://assets/models/buildings/" + style):
+			var asset := "buildings/%s/%s" % [style, name.get_basename()]
+			var inst := _load_scene(asset, "res://assets/models/buildings/%s/%s" % [style, name])
+			if inst == null:
+				continue
+			var problems: Array[String] = []
+			var tpl_path := "res://data/buildings/templates/%s.json" % name.get_basename()
+			var tpl: Dictionary = {}
+			if FileAccess.file_exists(tpl_path):
+				var v: Variant = JSON.parse_string(FileAccess.get_file_as_string(tpl_path))
+				if v is Dictionary:
+					tpl = v
+			else:
+				problems.append("no template %s" % tpl_path)
+			var floors := int(tpl.get("floors", 1))
+			var proxy := inst.get_node_or_null("ShadowProxy")
+			if proxy == null:
+				problems.append("ShadowProxy missing")
+			else:
+				var ex: Dictionary = proxy.get_meta("extras", {})
+				for k in ["floors", "floor_h", "ground_h", "foundation", "kind", "enterable"]:
+					if not ex.has(k):
+						problems.append("ShadowProxy extras lack %s" % k)
+				if int(ex.get("floors", -1)) != floors:
+					problems.append("ShadowProxy floors %s != template %d" % [ex.get("floors"), floors])
+			for k in floors:
+				var fl := inst.get_node_or_null("Floor%d" % k)
+				if fl == null or inst.get_node_or_null("Interior%d" % k) == null:
+					problems.append("Floor%d / Interior%d missing" % [k, k])
+				elif absf(float((fl.get_meta("extras", {}) as Dictionary).get("floor_z", -1.0)) - (0.3 + 3.0 * k)) > 0.001:
+					problems.append("Floor%d floor_z != %.1f" % [k, 0.3 + 3.0 * k])
+				for d in ["N", "S", "E", "W"]:
+					if inst.get_node_or_null("Walls%d_%s" % [k, d]) == null or inst.get_node_or_null("Walls%d_%s_Stub" % [k, d]) == null:
+						problems.append("Walls%d_%s (+ _Stub) missing" % [k, d])
+			if inst.get_node_or_null("Roof") == null:
+				problems.append("Roof missing")
+			var ao_min := 1.0
+			for c in inst.get_children():
+				var cn := String(c.name)
+				if cn.begins_with("Col"):
+					if not (c is StaticBody3D):
+						problems.append("%s is not a StaticBody3D" % cn)
+					continue
+				if not cn.begins_with("Spawn_") and c is Node3D and absf((c as Node3D).position.y) > 0.001:
+					problems.append("%s has a Y offset %.3f (pieces keep the building base at y = 0)" % [cn, (c as Node3D).position.y])
+				var ex: Dictionary = c.get_meta("extras", {})
+				if cn.begins_with("Door_"):
+					for k in ["kind", "exterior", "cut_group", "floor", "hinge", "width"]:
+						if not ex.has(k):
+							problems.append("%s extras lack %s" % [cn, k])
+					if inst.get_node_or_null(String(ex.get("cut_group", ""))) == null:
+						problems.append("%s cut_group %s is not a node" % [cn, ex.get("cut_group")])
+				elif cn.begins_with("Window_"):
+					var mi := c as MeshInstance3D
+					if mi == null or mi.mesh == null or mi.mesh.get_surface_count() != 1 or mi.mesh.surface_get_material(0) == null \
+							or mi.mesh.surface_get_material(0).resource_name != "window":
+						problems.append("%s must be one `window` surface" % cn)
+					if inst.get_node_or_null(String(ex.get("cut_group", ""))) == null:
+						problems.append("%s cut_group is not a node" % cn)
+				elif cn.begins_with("Spawn_Container_") and not ex.has("table"):
+					problems.append("%s lacks the loot table" % cn)
+				elif cn.begins_with("Spawn_Sign_"):
+					for k in ["sign", "width", "cap", "cut_group"]:
+						if not ex.has(k):
+							problems.append("%s extras lack %s" % [cn, k])
+				if c is MeshInstance3D and (c as MeshInstance3D).mesh != null and cn != "ShadowProxy" and not cn.begins_with("Window_"):
+					var mi2 := c as MeshInstance3D
+					for i in mi2.mesh.get_surface_count():
+						var cols = mi2.mesh.surface_get_arrays(i)[Mesh.ARRAY_COLOR]
+						if cols is PackedColorArray:
+							for col in cols:
+								ao_min = minf(ao_min, col.a)
+			if ao_min > 0.9:
+				problems.append("no baked AO in COLOR.a (min alpha %.2f)" % ao_min)
+			var tris := _tris(inst)
+			var budget := int(tpl.get("budget", 14000))
+			if tris > budget + 400:   # + the ShadowProxy (12-400 tris, not drawn)
+				problems.append("%d tris > budget %d" % [tris, budget])
+			if problems.is_empty():
+				print("OK   %-40s tris=%d floors=%d ao_min=%.2f" % [asset, tris, floors, ao_min])
+			for p in problems:
+				_fail(asset, p)
+			inst.free()
+			n += 1
+	return n
+
+
+## signs/*.glb (M6a): the mesh font (G_<codepoint> meshes with extras char / advance, cap height 1) and the boards
+## (Prop + Panel + TextPanel_<n>, extras text_w / text_h >= 0.30 m / colours; TextPanel_0 in front of the Panel).
+func _check_signs() -> int:
+	var n := 0
+	for name in _glbs("res://assets/models/signs"):
+		var asset := "signs/" + name.get_basename()
+		var inst := _load_scene(asset, "res://assets/models/signs/" + name)
+		if inst == null:
+			continue
+		var problems: Array[String] = []
+		if name.begins_with("glyphs"):
+			var glyphs := 0
+			for c in inst.get_children():
+				var ex: Dictionary = c.get_meta("extras", {})
+				if not String(c.name).begins_with("G_") or not (c is MeshInstance3D) or not ex.has("advance") or not ex.has("char"):
+					problems.append("%s: not a glyph mesh with char / advance" % c.name)
+				else:
+					glyphs += 1
+			var h := inst.get_node_or_null("G_72") as MeshInstance3D
+			if h == null or absf(h.get_aabb().end.y - 1.0) > 0.01:
+				problems.append("cap height: the H glyph must span y 0..1")
+			if glyphs < 40:
+				problems.append("only %d glyphs" % glyphs)
+		else:
+			var prop := inst.get_node_or_null("Prop")
+			var panel := inst.get_node_or_null("Panel") as MeshInstance3D
+			var t0 := inst.get_node_or_null("TextPanel_0") as Node3D
+			if prop == null or panel == null or t0 == null:
+				problems.append("Prop / Panel / TextPanel_0 missing")
+			else:
+				var ex: Dictionary = prop.get_meta("extras", {})
+				for k in ["text_w", "text_h", "text_color", "plate_color", "double_sided", "mount", "col"]:
+					if not ex.has(k):
+						problems.append("Prop extras lack %s" % k)
+				if float(ex.get("text_h", 0.0)) < 0.3:
+					problems.append("text_h < 0.30 m (doc 10 §7.4)")
+				if t0.position.z <= (panel.transform * panel.get_aabb()).end.z - 0.001:
+					problems.append("TextPanel_0 not in front (+Z) of the Panel")
+				if bool(ex.get("double_sided", false)) and inst.get_node_or_null("TextPanel_1") == null:
+					problems.append("double-sided without TextPanel_1")
+		if problems.is_empty():
+			print("OK   %-30s tris=%d" % [asset, _tris(inst)])
+		for p in problems:
+			_fail(asset, p)
+		inst.free()
+		n += 1
 	return n
 
 

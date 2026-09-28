@@ -37,6 +37,8 @@ func _initialize() -> void:
 	var body_path := "res://tests/net/net_steps_m5.gd" if str(opts["scenario"]) in ["hitscan", "restart"] else "res://tests/net/net_steps.gd"
 	if str(opts["scenario"]) == "discovery":
 		body_path = "res://tests/net/net_steps_h2.gd"
+	if str(opts["scenario"]) == "street":
+		body_path = "res://tests/net/net_steps_m6a.gd"   # M6a: kit doors replicated (C joins late)
 	var script: GDScript = load(body_path)
 	if script == null or not script.can_instantiate():
 		print("FAIL: cannot load %s" % body_path)

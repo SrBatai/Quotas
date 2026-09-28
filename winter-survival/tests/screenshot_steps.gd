@@ -200,6 +200,8 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			await (load("res://tests/h2_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if preset == "firearms":   # M5: shotgun at the campsite (tests/m5_shots.gd)
 			await (load("res://tests/m5_shots.gd").new()).setup(tree, game, world, player, inv)
+		if preset.begins_with("street_") or preset == "house_inside":   # M6a: the kit test street (tests/m6a_shots.gd)
+			await (load("res://tests/m6a_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		var dn: DayNight = world.get_node("DayNight")

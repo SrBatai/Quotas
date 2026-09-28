@@ -1696,3 +1696,103 @@ del diario; datos de territorio y facción, y «Saqueado 60 %» en la re‑entra
 vehículo real (M7: el umbral de velocidad ya lo cubre); el sonido definitivo y el bus de UI; `tr()` de las cadenas (H6).
 
 ---
+
+### 9.9 Nota de implementación M6a (vinculante hasta que se revise)
+
+Primer paso de §9.1 (pasos 6–7), §9.2, §9.3 y §9.4 sobre el kit listo para el corte urbano (§9.7; arte en ASSET_SPEC
+v2 «M6a»), **sin** el generador de asentamientos (M6b / C3): una calle de datos colocada como un POI. Código en
+`scripts/world/buildings/`.
+
+**Datos y colocación.** `data/buildings/streets/<id>.json`: `center` (x, z de mundo, sobre un pad llano), `road`
+(`half_len`, `half_width`, `sidewalk`), `lots` [{`template`, `style`, `pos` [x, z] desde el centro, `yaw` (0 = frente
++Z), `number`, `shop`}] y `signs` [{`board`, `pos`, `yaw`, `text`, `back`}] — el mismo formato que emitirá el
+generador. `KitStreets` (nodo de `Game` tras `LootSpawns`, servidor y clientes) escucha `WorldStreamer.chunk_loaded`
+y, al cargarse el chunk que contiene el centro, crea un `KitStreet` bajo `chunk.objects` (vive y muere con ese chunk;
+la calle mide ~90 m, dentro del anillo de 5 × 5 de quien está en ella). `KitStreet` construye un edificio por frame
+(`KitBuilding`), después los carteles y, en clientes con pantalla, la cinta de la calle (rodadas, nieve pisada,
+bordillos y aceras: color de vértice, 1 *draw call*, sin sombra); en el servidor marca el navmesh del chunk
+(`NavBaker.mark_dirty_key`). M6a: **`calle_mayor`** en el pad reservado de W1 `santa_maria_del_puerto` (−128, 3072;
+C3): 7 edificios (las 5 plantillas en 3 estilos) y 3 carteles; no toca terreno ni *scatter* (el pad ya es llano y está
+despejado). Llegar: `/tp -128 3072`.
+
+**Identidad sin red.** Todo se construye igual en servidor y clientes con wids deterministas: edificio
+`KitBuilding.wid_for(seed, street_id, i)` (`hash64` con `GEN_BUILDING`), puerta `KitDoor.wid_for(seed, wid_edificio,
+n)` (`GEN_DOOR`), contenedores por `LootSpawns.attach` con el wid del edificio. No se replica ningún nodo: solo viajan
+los deltas (`NetWorld.set_delta` / instantánea de chunk / evento en vivo).
+
+**`KitBuilding`** (un `.glb` de `assets/models/buildings/<style>/<template>.glb`):
+- metadatos de raíz del contrato de edificio de ciudad (`floors`, `floor_h` 3.0, `ground_h` 3.3, `foundation` 0.3,
+  `kind`, `enterable`) leídos de los extras del `ShadowProxy`, que es `SHADOWS_ONLY` en todas partes;
+- clientes con pantalla: `CityBuilding.attach` (materiales `world_vcol_struct` / `window_city`, registro en `CityCut`:
+  el corte urbano actúa desde la calle y como «edificio propio»; proxy único que proyecta; rangos de visibilidad) y su
+  `BuildingCutaway` pasa al `CutawayManager`; *headless*: los `_Stub` se ocultan;
+- `KitDoor` en cada `Door_<n>`; `WindowBoxes` (un `StaticBody3D` con una caja por `Window_<n>`: los cristales
+  bloquean hasta que haya ventanas rompibles);
+- contenedores de `Spawn_Container_<n>` / `Spawn_Loot_<n>` (`LootSpawns.attach`, §9.6), **reparentados** bajo el
+  `Interior<k>` de su planta para que el corte los oculte con ella;
+- carteles en `Spawn_Sign_<n>` (número de casa, rótulo de tienda) hijos de su grupo de corte (el número del hastial
+  se va con el `Roof`);
+- servidor: un `Area3D` «refugio» (`collision_layer` 32, `collision_mask` 2 = jugadores) sobre las plantas → `Player.in_house` (contador por
+  meta, como la cabaña del claro).
+
+**Puertas (`KitDoor`, §9.2 primer paso).** `StaticBody3D` en la bisagra (el pivote de `Door_<n>` está en y = 0: el
+shader de estructura lee la base del edificio de `MODEL_MATRIX[3].y`), caja de colisión en la hoja que gira con ella
+(cerrada bloquea; abierta queda contra el muro), `InteractableComponent` (capa 8; acciones `use` / `open` / `close`;
+«Abrir puerta» / «Cerrar puerta»). Servidor: `server_interact` (tras la validación normal de `request_interact`:
+distancia 2.2 + 1.0 m) → `NetWorld.set_delta(wid, {open, swing})`, ruido de 6 m (`SoundEvents.Kind.DOOR`), `[EVT]
+door %x open|closed by peer n`. Todos: `apply_net_delta` anima 0.35 s en vivo o coloca de golpe desde una instantánea
+(quien llega tarde ve la puerta como está); las exteriores abren hacia dentro, las interiores hacia el lado contrario
+de quien abre; `AudioManager.play(&"door_open" | &"door_close", pos)` (S1 pone los sonidos). Estados `locked`,
+`broken`, `barricaded`, las acciones `force` / `break` / `lock` / `barricade` y el `NavigationLink3D` por puerta
+quedan para M6b / M9.
+
+**Corte (`CutawayManager`, §9.3).** Un nodo por mundo cliente (`CutawayManager.ensure`: hijo de `World`, de la escena
+o de la raíz en tests), rejilla de registro de 32 m, sondeo a 10 Hz de los **pies del jugador local** (radio 30 m): el
+edificio cuya huella y banda de planta los contiene recibe `apply_floor(k)`, el que se deja vuelve entero. Diferencias
+con §9.3: se implementa sobre `BuildingCutaway` (§9.7) con `managed = true` y en modo **`SHADOW`**: lo oculto pasa a
+`SHADOWS_ONLY` (o invisible si no proyectaba y un proxy lo hace por ello), nunca `visible = false` sobre algo que
+proyecta — la habitación sigue a la sombra de su tejado (medido: razón 1.000). Reaplica con `camera_yaw_changed` y
+cuando la cámara pasa a otro lado del edificio (tras un `/tp` o reaparecer dentro, la regla de fachadas usaba la cámara
+vieja). Emite `inside_changed(inside, edificio, planta)` y `Events.shelter_changed`. El cursor todavía no cuenta (solo
+los pies). **Sustituye a `PoiCutaway` en el mundo** (`world_chunk.gd`: `CutawayManager.attach`): `cabin_small` y
+`lookout_tower` cortan ahora conservando la sombra; `PoiCutaway` queda para la comprobación de W0 en
+`render_steps.gd`. La cabaña del claro sigue con su `Cutaway` (M6b: `house_hunter`).
+Cambios aditivos en `building_cutaway.gd` (compartido con C0): `managed` (el `_process` propio no hace nada),
+`Door_` / `Window_` con `cut_group` `Interior<k>` / `Floor<k>` se ocultan con su planta, `footprint_aabb()`,
+`model_root()`.
+
+**Carteles diegéticos (`SignText`).** Texto como **malla** compuesta con la fuente de mallas
+`assets/models/signs/glyphs.glb` (Barlow Condensed SemiBold, altura de mayúscula 1): mayúsculas, líneas centradas,
+comprimido al ancho del tablero, color de vértice lineal con el material compartido `world_vcol`; un `ArrayMesh` (1
+*draw call*) por texto, cacheado. Sin `Label3D` ni atlas: igual en Forward+, Compatibility y Web, nítido a cualquier
+distancia, iluminado como el tablero. `place()` pone `Text_0` / `Text_1` en los `TextPanel` del tablero
+(`back = "strike"`: la barra roja del S‑500 por detrás). Altura de mayúscula 0.30–0.45 m (doc 10 §7.4).
+
+**Pruebas y números** (VM compartida de 4 vCPU, `taskset`):
+- `godot --headless --path . -s tests/m6a_checks.gd` (`tests/m6a_steps.gd`): **75 comprobaciones, 0 fallos** — la
+  calle (7 edificios, metadatos, proxy, puertas y cajas de ventana, contenedores por planta, cortes gestionados, rótulo
+  y números), `CutawayManager` en las plantas 0/1/2 y en una casa girada 180°, `shelter_changed`, puerta (abre hacia
+  dentro, anima, cierra, delta, colocación desde delta), wids deterministas (la calle reconstruida da los mismos),
+  cobertura de glifos, POIs `cabin_small` / `lookout_tower` con el tejado `SHADOWS_ONLY`.
+- `tests/run_street_bench.sh gate` (xvfb, Compatibility; banco `tests/street_bench/` con el mismo `KitStreet`, la
+  pila de render del juego, `CityCut`, `Silhouettes`, `CutawayManager`, jugador y 14 zombis): `citycut_probe` en la
+  calle — **jugador visible 100 %** en las 15 filas vista × zoom (calle con la fila sur delante, patio trasero, hueco
+  entre casas, plantas 0 y 1 de la casa de 2 plantas, planta 2 del bloque, casa sur; 16–38 m; puerta ≥ 99 % desde
+  24 m) y **zombis legibles 100 %** en las vistas de calle a 24–38 m (puerta ≥ 95 %; cuentan los zombis a ≤ 14 m del
+  jugador: los de detrás de otra casa ni se cortan ni se perciben, como en el banco de W0). **Sombra interior**: el
+  suelo alrededor del jugador con el corte frente a solo los que proyectan: casa del kit **1.000** (×1.80 más oscuro
+  que sin tejado), `cabin_small` **1.000** (×2.91); puerta ±5 %.
+- Red: `tests/net/run_net_test.sh --clients 3 --duration 62 --soak 100 --scenario street --port 7877`
+  (`tests/net/net_steps_m6a.gd`): A abre la puerta de la casa de 2 plantas, B la ve abrirse y la cierra, A lo ve y la
+  reabre, C entra 34 s tarde y la encuentra abierta por la instantánea (0 eventos): **PASSED**.
+- Capturas: `RENDER=forward tests/run_screenshots.sh docs/screenshots/m6a street_day street_night house_inside`
+  (`tests/m6a_shots.gd`, en el mundo real); el banco da las mismas en Compatibility (`run_street_bench.sh shots`).
+
+**Desviaciones.** Calle de datos a mano en vez del generador; sin cinta de carretera real (§9.1 paso 3: la de la calle
+es solo visual y no aplana); la cabaña del claro sigue siendo la del slice (su sustitución por `house_hunter` pasa a
+M6b); ventanas sin romper; puertas sin cerraduras ni `NavigationLink3D`; el corte no sigue al cursor; las
+plantillas que faltan están en ASSET_SPEC «M6a.6». Aspecto pendiente (W0 / C0): dentro del pasillo del corte urbano, la
+«planta legible» pinta la cara superior de los `_Stub` del kit (geometría real de 0.6 m, no un corte del shader) como
+plano, y se ve una franja clara a lo largo del muñón del lado de la cámara (`house_inside.jpg`).
+
+---

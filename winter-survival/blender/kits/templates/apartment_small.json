@@ -1,0 +1,848 @@
+{
+ "id": "apartment_small",
+ "kind": "apartment",
+ "style": [
+  "brick",
+  "concrete"
+ ],
+ "footprint": [
+  10,
+  10
+ ],
+ "floors": 3,
+ "budget": 34000,
+ "rooms": [
+  {
+   "name": "hall",
+   "set": "hall",
+   "floor": 0,
+   "cells": [
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "flat_0",
+   "set": "flat",
+   "floor": 0,
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "landing_1",
+   "set": "hall",
+   "floor": 1,
+   "cells": [
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "flat_1",
+   "set": "flat",
+   "floor": 1,
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "landing_2",
+   "set": "hall",
+   "floor": 2,
+   "cells": [
+    [
+     3,
+     0
+    ],
+    [
+     4,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "flat_2",
+   "set": "flat",
+   "floor": 2,
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     4
+    ]
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    4,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    0,
+    4
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    4,
+    4
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    4,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    4
+   ],
+   "dir": "N",
+   "floor": 1
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W",
+   "floor": 1
+  },
+  {
+   "pos": [
+    4,
+    3
+   ],
+   "dir": "E",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S",
+   "floor": 2
+  },
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "floor": 2
+  },
+  {
+   "pos": [
+    4,
+    0
+   ],
+   "dir": "S",
+   "floor": 2
+  },
+  {
+   "pos": [
+    0,
+    4
+   ],
+   "dir": "N",
+   "floor": 2
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N",
+   "floor": 2
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W",
+   "floor": 2
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W",
+   "floor": 2
+  },
+  {
+   "pos": [
+    4,
+    3
+   ],
+   "dir": "E",
+   "floor": 2
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "y",
+   "at": 3,
+   "from": 0,
+   "to": 4,
+   "doors": [
+    1
+   ],
+   "floor": 0
+  },
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    1
+   ],
+   "floor": 0
+  },
+  {
+   "axis": "y",
+   "at": 3,
+   "from": 0,
+   "to": 4,
+   "doors": [
+    3
+   ],
+   "floor": 1
+  },
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    1
+   ],
+   "floor": 1
+  },
+  {
+   "axis": "y",
+   "at": 3,
+   "from": 0,
+   "to": 4,
+   "doors": [
+    0
+   ],
+   "floor": 2
+  },
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    1
+   ],
+   "floor": 2
+  }
+ ],
+ "stairs": [
+  {
+   "floor": 0,
+   "pos": [
+    9.33,
+    1.2
+   ],
+   "dir": "N",
+   "width": 1.1
+  },
+  {
+   "floor": 1,
+   "pos": [
+    7.98,
+    6.1
+   ],
+   "dir": "S",
+   "width": 1.1
+  }
+ ],
+ "roof": {
+  "kind": "flat",
+  "parapet": 0.9
+ },
+ "signs": [
+  {
+   "kind": "number",
+   "dir": "S",
+   "at": 3.1,
+   "z": 2.0,
+   "d": 0.02,
+   "width": 0.4,
+   "cap": 0.3
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "sofa",
+   "pos": [
+    0.52,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 0
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    1.95,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 0
+  },
+  {
+   "kind": "table",
+   "pos": [
+    4.0,
+    1.4
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    5.64,
+    4.75
+   ],
+   "yaw": -90,
+   "floor": 0
+  },
+  {
+   "kind": "armchair",
+   "pos": [
+    2.1,
+    5.2
+   ],
+   "yaw": 150,
+   "floor": 0
+  },
+  {
+   "kind": "wardrobe",
+   "pos": [
+    5.62,
+    8.6
+   ],
+   "yaw": -90,
+   "floor": 0
+  },
+  {
+   "kind": "dresser",
+   "pos": [
+    3.4,
+    9.66
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "sofa",
+   "pos": [
+    0.52,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 1
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    1.95,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 1
+  },
+  {
+   "kind": "table",
+   "pos": [
+    4.0,
+    1.4
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    5.64,
+    4.75
+   ],
+   "yaw": -90,
+   "floor": 1
+  },
+  {
+   "kind": "armchair",
+   "pos": [
+    2.1,
+    5.2
+   ],
+   "yaw": 150,
+   "floor": 1
+  },
+  {
+   "kind": "wardrobe",
+   "pos": [
+    5.62,
+    8.6
+   ],
+   "yaw": -90,
+   "floor": 1
+  },
+  {
+   "kind": "dresser",
+   "pos": [
+    3.4,
+    9.66
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "sofa",
+   "pos": [
+    0.52,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 2
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    1.95,
+    3.0
+   ],
+   "yaw": 90,
+   "floor": 2
+  },
+  {
+   "kind": "table",
+   "pos": [
+    4.0,
+    1.4
+   ],
+   "yaw": 0,
+   "floor": 2
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    5.64,
+    4.75
+   ],
+   "yaw": -90,
+   "floor": 2
+  },
+  {
+   "kind": "armchair",
+   "pos": [
+    2.1,
+    5.2
+   ],
+   "yaw": 150,
+   "floor": 2
+  },
+  {
+   "kind": "wardrobe",
+   "pos": [
+    5.62,
+    8.6
+   ],
+   "yaw": -90,
+   "floor": 2
+  },
+  {
+   "kind": "dresser",
+   "pos": [
+    3.4,
+    9.66
+   ],
+   "yaw": 0,
+   "floor": 2
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    7.0,
+    9.4
+   ],
+   "yaw": 0,
+   "floor": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "house_kitchen",
+   "pos": [
+    4.3,
+    5.62
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    0.5,
+    6.9
+   ],
+   "yaw": 90,
+   "floor": 0
+  },
+  {
+   "kind": "Stove",
+   "pos": [
+    0.62,
+    0.62
+   ],
+   "yaw": 45,
+   "floor": 0
+  },
+  {
+   "kind": "Bed",
+   "pos": [
+    1.4,
+    8.6
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    3.0,
+    2.7
+   ],
+   "floor": 0
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    8.0,
+    2.7
+   ],
+   "floor": 0
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    4.0,
+    1.4,
+    0.78
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "Container",
+   "table": "house_kitchen",
+   "pos": [
+    4.3,
+    5.62
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    0.5,
+    6.9
+   ],
+   "yaw": 90,
+   "floor": 1
+  },
+  {
+   "kind": "Stove",
+   "pos": [
+    0.62,
+    0.62
+   ],
+   "yaw": 45,
+   "floor": 1
+  },
+  {
+   "kind": "Bed",
+   "pos": [
+    1.4,
+    8.6
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    3.0,
+    2.7
+   ],
+   "floor": 1
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    8.0,
+    2.7
+   ],
+   "floor": 1
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    4.0,
+    1.4,
+    0.78
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Container",
+   "table": "house_kitchen",
+   "pos": [
+    4.3,
+    5.62
+   ],
+   "yaw": 0,
+   "floor": 2
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    0.5,
+    6.9
+   ],
+   "yaw": 90,
+   "floor": 2
+  },
+  {
+   "kind": "Stove",
+   "pos": [
+    0.62,
+    0.62
+   ],
+   "yaw": 45,
+   "floor": 2
+  },
+  {
+   "kind": "Bed",
+   "pos": [
+    1.4,
+    8.6
+   ],
+   "yaw": 0,
+   "floor": 2
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    3.0,
+    2.7
+   ],
+   "floor": 2
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    8.0,
+    2.7
+   ],
+   "floor": 2
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    4.0,
+    1.4,
+    0.78
+   ],
+   "yaw": 0,
+   "floor": 2
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    9.4,
+    8.6
+   ],
+   "yaw": -90,
+   "floor": 1
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    7.0,
+    4.0,
+    0.0
+   ],
+   "yaw": 0,
+   "floor": 0
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    3.0,
+    3.6
+   ],
+   "yaw": 40,
+   "floor": 0
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    7.2,
+    8.2
+   ],
+   "yaw": 200,
+   "floor": 1
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    2.6,
+    7.8
+   ],
+   "yaw": 90,
+   "floor": 2
+  }
+ ]
+}

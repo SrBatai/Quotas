@@ -104,6 +104,7 @@ for ((i=0; i<CLIENTS; i++)); do
   LATE=0
   # shared_world: C is the late joiner (receives the chunk deltas of what A and B already did)
   [ "$SCENARIO" = "shared_world" ] && [ "$n" = "C" ] && LATE=22
+  [ "$SCENARIO" = "street" ] && [ "$n" = "C" ] && LATE=34   # M6a: the late joiner finds the door as A left it
   timeout $((DURATION + LATE + 90)) godot --headless --path . -s tests/net/net_smoke.gd ++ --client "--name=$n" --scenario "$SCENARIO" --port "$CLIENT_PORT" --duration "$DURATION" --clients "$CLIENTS" --late "$LATE" > "$OUT/client_$n.log" 2>&1 < /dev/null &
   CLIENT_PIDS+=($!)
   sleep 0.7

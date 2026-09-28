@@ -1,0 +1,351 @@
+{
+ "id": "shop_general",
+ "kind": "shop",
+ "style": [
+  "brick",
+  "wood_blue"
+ ],
+ "footprint": [
+  10,
+  12
+ ],
+ "floors": 1,
+ "budget": 16000,
+ "rooms": [
+  {
+   "name": "shop",
+   "set": "shop",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     4,
+     3
+    ]
+   ]
+  },
+  {
+   "name": "store",
+   "set": "store",
+   "cells": [
+    [
+     0,
+     4
+    ],
+    [
+     4,
+     5
+    ]
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  },
+  {
+   "pos": [
+    3,
+    5
+   ],
+   "dir": "N",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "shops": [
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    4,
+    1
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    4,
+    2
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    4,
+    4
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    1,
+    5
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    0,
+    4
+   ],
+   "dir": "W"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 4,
+   "from": 0,
+   "to": 4,
+   "doors": [
+    1
+   ]
+  }
+ ],
+ "awnings": [
+  {
+   "dir": "S",
+   "from": -4.85,
+   "to": -1.25,
+   "z": 2.78,
+   "depth": 1.1
+  },
+  {
+   "dir": "S",
+   "from": 1.25,
+   "to": 4.85,
+   "z": 2.78,
+   "depth": 1.1
+  }
+ ],
+ "roof": {
+  "kind": "flat",
+  "parapet": 0.9
+ },
+ "chimney": {
+  "pos": [
+   1,
+   1
+  ],
+  "offset": [
+   0.3,
+   0.2
+  ]
+ },
+ "signs": [
+  {
+   "kind": "shop",
+   "dir": "S",
+   "at": 0.0,
+   "z": 2.72,
+   "d": 0.02,
+   "width": 2.4,
+   "cap": 0.36
+  },
+  {
+   "kind": "number",
+   "dir": "S",
+   "at": 1.0,
+   "z": 2.0,
+   "d": 0.02,
+   "width": 0.4,
+   "cap": 0.3
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "shop_shelf",
+   "pos": [
+    3.0,
+    5.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shop_shelf",
+   "pos": [
+    6.0,
+    5.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shop_counter",
+   "pos": [
+    8.2,
+    2.3
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    3.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    5.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    7.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    9.72,
+    6.2
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    1.0,
+    10.8
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    8.4,
+    9.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "desk_block",
+   "pos": [
+    5.0,
+    11.55
+   ],
+   "yaw": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "gas_station",
+   "pos": [
+    9.4,
+    3.3
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Container",
+   "table": "gas_station",
+   "pos": [
+    2.6,
+    11.55
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    8.6,
+    11.55
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    5.0,
+    10.9
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "shelf",
+   "pos": [
+    9.72,
+    10.9
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    3.0,
+    4.6,
+    0.87
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    6.0,
+    5.6,
+    1.27
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    5.0,
+    4.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    5.0,
+    10.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    4.5,
+    3.0
+   ],
+   "yaw": 160
+  }
+ ]
+}

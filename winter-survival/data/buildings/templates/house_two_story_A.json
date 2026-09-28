@@ -1,0 +1,621 @@
+{
+ "id": "house_two_story_A",
+ "kind": "house",
+ "style": [
+  "wood_blue",
+  "brick"
+ ],
+ "footprint": [
+  8,
+  10
+ ],
+ "floors": 2,
+ "budget": 26000,
+ "rooms": [
+  {
+   "name": "living",
+   "set": "living",
+   "floor": 0,
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     2
+    ]
+   ]
+  },
+  {
+   "name": "kitchen",
+   "set": "kitchen",
+   "floor": 0,
+   "cells": [
+    [
+     0,
+     3
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  },
+  {
+   "name": "bedroom_front",
+   "set": "bedroom",
+   "floor": 1,
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     2,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "landing",
+   "set": "landing",
+   "floor": 1,
+   "cells": [
+    [
+     0,
+     2
+    ],
+    [
+     3,
+     2
+    ]
+   ]
+  },
+  {
+   "name": "bedroom_back",
+   "set": "kids",
+   "floor": 1,
+   "cells": [
+    [
+     0,
+     3
+    ],
+    [
+     2,
+     4
+    ]
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    1,
+    0
+   ],
+   "dir": "S",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    2
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    4
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    3,
+    3
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    3,
+    4
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    1,
+    4
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    1,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W",
+   "floor": 1
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W",
+   "floor": 1
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "E",
+   "floor": 1
+  },
+  {
+   "pos": [
+    3,
+    4
+   ],
+   "dir": "E",
+   "floor": 1
+  },
+  {
+   "pos": [
+    1,
+    4
+   ],
+   "dir": "N",
+   "floor": 1
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N",
+   "floor": 1
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    0
+   ],
+   "floor": 0
+  },
+  {
+   "axis": "x",
+   "at": 2,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    1
+   ],
+   "floor": 1
+  },
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 2,
+   "doors": [
+    1
+   ],
+   "floor": 1
+  },
+  {
+   "axis": "y",
+   "at": 3,
+   "from": 3,
+   "to": 4,
+   "doors": [],
+   "floor": 1
+  }
+ ],
+ "stairs": [
+  {
+   "floor": 0,
+   "pos": [
+    7.33,
+    1.2
+   ],
+   "dir": "N",
+   "width": 1.1
+  }
+ ],
+ "roof": {
+  "kind": "gable",
+  "ridge": "y",
+  "pitch": 35,
+  "overhang": 0.4
+ },
+ "porch": {
+  "cells": [
+   [
+    0,
+    -1
+   ],
+   [
+    1,
+    -1
+   ],
+   [
+    2,
+    -1
+   ]
+  ]
+ },
+ "chimney": {
+  "pos": [
+   0,
+   3
+  ],
+  "offset": [
+   0.3,
+   0.2
+  ]
+ },
+ "signs": [
+  {
+   "kind": "number",
+   "dir": "S",
+   "at": 0.0,
+   "z": 3.62,
+   "d": 0.035,
+   "floor": 1,
+   "width": 0.6,
+   "cap": 0.34,
+   "group": "Roof"
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "sofa",
+   "pos": [
+    1.1,
+    0.62
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    2.0,
+    2.6
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "tv",
+   "pos": [
+    0.42,
+    3.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "armchair",
+   "pos": [
+    4.9,
+    1.1
+   ],
+   "yaw": 200
+  },
+  {
+   "kind": "bookshelf",
+   "pos": [
+    4.6,
+    5.76
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    0.4,
+    7.3
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "table",
+   "pos": [
+    4.0,
+    8.0
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    6.2,
+    9.75
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "wardrobe",
+   "pos": [
+    0.42,
+    1.2
+   ],
+   "yaw": 90,
+   "floor": 1
+  },
+  {
+   "kind": "dresser",
+   "pos": [
+    5.2,
+    3.7
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    3.0,
+    5.0
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "bunk",
+   "pos": [
+    0.62,
+    8.6
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "bookshelf",
+   "pos": [
+    5.78,
+    8.0
+   ],
+   "yaw": -90,
+   "floor": 1
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    7.2,
+    8.6
+   ],
+   "yaw": 0,
+   "floor": 1
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "house_kitchen",
+   "pos": [
+    1.6,
+    9.58
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Stove",
+   "pos": [
+    5.6,
+    3.2
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    4.9,
+    2.4
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "clock",
+   "pos": [
+    2.4,
+    5.94,
+    1.6
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    3.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    8.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    4.0,
+    8.0,
+    0.78
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    3.5,
+    7.6
+   ],
+   "yaw": 30
+  },
+  {
+   "kind": "Bed",
+   "pos": [
+    2.6,
+    2.0
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "desk",
+   "pos": [
+    4.9,
+    0.45
+   ],
+   "yaw": 180,
+   "floor": 1
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    4.9,
+    1.1
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    3.0,
+    9.55
+   ],
+   "yaw": 0,
+   "floor": 1
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    6.9,
+    6.8
+   ],
+   "yaw": -90,
+   "floor": 1
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    2.0,
+    2.7
+   ],
+   "floor": 1
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    3.0,
+    8.0,
+    2.7
+   ],
+   "floor": 1
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    3.2,
+    5.0
+   ],
+   "yaw": 120,
+   "floor": 1
+  }
+ ]
+}

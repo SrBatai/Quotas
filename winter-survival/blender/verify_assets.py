@@ -369,6 +369,22 @@ T2_ASSETS.update({
 for _k in ("world/tunnel_portal", "world/tunnel_portal_collapsed"):
     T2_ASSETS[_k]["col"] = None                       # checked by portal_problems (wing prisms are not boxes)
 ASSETS.update(T2_ASSETS)
+# M6a: diegetic signs (props/build_signs.py): the mesh font + the sign boards (Prop + Panel + TextPanel_<n>)
+M6A_ASSETS = {
+    "signs/glyphs": a(0, 6000, {}, minz=None, extra={"glyphs": True, "ao_exempt": True}, hd=True, bf=False),
+    "signs/sign_street": a(0, 700, {"Prop": ZERO, "Panel": ZERO, "TextPanel_0": (0.0, -0.052, 2.55),
+                                    "TextPanel_1": (0.0, 0.052, 2.55)}, dims={"x": 2.6, "z": 3.03},
+                           extra={"m6a_sign": True}, hd=True, bf=True),
+    "signs/sign_house_number": a(0, 700, {"Prop": ZERO, "Panel": ZERO, "TextPanel_0": (0.0, -0.037, 0.0)},
+                                 dims={"x": 0.62, "z": 0.50}, minz=None, extra={"m6a_sign": True, "maxz": 0.25},
+                                 hd=True, bf=True),
+    "signs/sign_shop": a(0, 700, {"Prop": ZERO, "Panel": ZERO, "TextPanel_0": (0.0, -0.062, 0.0)},
+                         dims={"x": 2.66}, minz=None, extra={"m6a_sign": True}, hd=True, bf=True),
+    "signs/sign_road": a(0, 700, {"Prop": ZERO, "Panel": ZERO, "TextPanel_0": (0.0, -0.05, 2.35),
+                                  "TextPanel_1": (0.0, 0.05, 2.35)}, dims={"x": 3.6, "z": 3.15},
+                         extra={"m6a_sign": True}, hd=True, bf=True),
+}
+ASSETS.update(M6A_ASSETS)
 # W1: typical mountain-road view at the game camera (Carretera del Puerto: guardrails, poles, crest rocks, a portal)
 MOUNTAIN_VIEW = {
     "world/guardrail": 16, "world/guardrail_end": 2, "world/guardrail_bent": 2, "world/parapet_stone": 8,
@@ -1240,6 +1256,81 @@ def sign_problems(by):
     return out
 
 
+def m6a_sign_problems(by, objs):
+    """M6a sign boards: Prop extras (col, col_center, col_size, panels, text_w, text_h >= 0.30 m -- doc 10 §7.4, text
+    readable at 24 m --, text_color / plate_color palette names, double_sided, anchors); TextPanel_0 in front of
+    the Panel (-Y), TextPanel_1 behind it on double-sided boards; the text fits the panel."""
+    out = []
+    prop, panel = by.get("Prop"), by.get("Panel")
+    if prop is None or panel is None:
+        return ["Prop / Panel missing"]
+    for k in ("col", "col_center", "col_size", "panels", "text_w", "text_h", "text_color", "plate_color",
+              "double_sided", "anchors", "mount"):
+        if k not in prop.keys():
+            out.append("Prop extras lack %s" % k)
+    if out:
+        return out
+    if prop["text_h"] < 0.30:
+        out.append("cap height %.2f < 0.30 m" % prop["text_h"])
+    for k in ("text_color", "plate_color"):
+        if prop[k] not in palette.all_names():
+            out.append("%s %r is not a palette colour" % (k, prop[k]))
+    pmn, pmx = world_bounds([panel])
+    if prop["text_w"] > pmx.x - pmn.x:
+        out.append("text_w %.2f wider than the panel %.2f" % (prop["text_w"], pmx.x - pmn.x))
+    if _pos(by["TextPanel_0"]).y >= pmn.y:
+        out.append("TextPanel_0 not in front of the Panel (-Y)")
+    if prop["double_sided"]:
+        if "TextPanel_1" not in by or _pos(by["TextPanel_1"]).y <= pmx.y:
+            out.append("double-sided board without a TextPanel_1 behind the Panel (+Y)")
+    return out
+
+
+def glyph_problems(objs):
+    """M6a mesh font: one mesh G_<codepoint> per glyph (extras char / advance / width), flat in the XZ plane facing
+    -Y, cap height 1 (the H spans z 0..1), baseline at z = 0, <= 140 tris each, matching signs/glyphs.json."""
+    out = []
+    meta_path = export.MODELS_DIR / "signs" / "glyphs.json"
+    try:
+        meta = json.loads(meta_path.read_text())["glyphs"]
+    except (OSError, ValueError, KeyError):
+        return ["signs/glyphs.json missing or unreadable"]
+    seen = set()
+    for o in objs:
+        if o.type != 'MESH':
+            out.append("stray object %s" % o.name)
+            continue
+        m = re.match(r"^G_(\d+)$", o.name)
+        if not m:
+            out.append("bad glyph name %s" % o.name)
+            continue
+        ch = chr(int(m.group(1)))
+        seen.add(ch)
+        if o.get("char") != ch or "advance" not in o.keys() or "width" not in o.keys():
+            out.append("%s extras char / advance / width" % o.name)
+        if tris_of(o) > 140:
+            out.append("%s %d tris > 140" % (o.name, tris_of(o)))
+        ys = [(o.matrix_world @ v.co).y for v in o.data.vertices]
+        if max(ys) - min(ys) > 1e-4:
+            out.append("%s not flat in XZ" % o.name)
+        if any((o.matrix_world.to_3x3() @ p.normal).y > -0.99 for p in o.data.polygons):
+            out.append("%s has faces not facing -Y" % o.name)
+        rec = meta.get(ch)
+        if rec is None or abs(rec["advance"] - o.get("advance", 0)) > 1e-3 or rec["tris"] != tris_of(o):
+            out.append("%s does not match glyphs.json" % o.name)
+    if set(meta) != seen:
+        out.append("glyphs.json lists %s, the .glb has %s" % (sorted(set(meta) - seen), sorted(seen - set(meta))))
+    h = by_name = {o.name: o for o in objs}.get("G_%d" % ord("H"))
+    if h is None:
+        out.append("no H glyph")
+    else:
+        zs = [(h.matrix_world @ v.co).z for v in h.data.vertices]
+        if abs(max(zs) - 1.0) > 0.01 or abs(min(zs)) > 0.01:
+            out.append("cap height: H spans z %.3f..%.3f (want 0..1)" % (min(zs), max(zs)))
+    del by_name
+    return out
+
+
 def mountain_budget(per):
     """W1: typical mountain-road view (Carretera del Puerto) at the game camera + reserve <= VIEW_BUDGET."""
     view = 0
@@ -1427,6 +1518,10 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems += portal_problems(spec, by, objs)
     if spec["extra"].get("sign"):
         problems += sign_problems(by)
+    if spec["extra"].get("m6a_sign"):
+        problems += m6a_sign_problems(by, objs)
+    if spec["extra"].get("glyphs"):
+        problems += glyph_problems(objs)
     if spec["extra"].get("fragments"):
         problems += fragment_problems(spec, objs)
     if spec["bf"]:

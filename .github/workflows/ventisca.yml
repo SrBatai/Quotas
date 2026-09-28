@@ -117,6 +117,14 @@ jobs:
       - name: City bench gate (W0, Compatibility on llvmpipe)
         run: tests/run_city_bench.sh gate
 
+      # M6a: the kit test street (buildings, CutawayManager storeys, doors, signs, wids) and its bench: player ≥ 99 %
+      # visible / zombies ≥ 95 % readable through the corte urbano, a cut house interior in shadow ±5 %.
+      - name: M6a kit street checks (headless)
+        run: godot --headless --path . -s tests/m6a_checks.gd
+
+      - name: M6a street bench gate (Compatibility on llvmpipe)
+        run: tests/run_street_bench.sh gate
+
       # Timing-based: Forward+ on lavapipe, cut on / evaluate-only / off / G1 material.
       - name: City bench perf, Forward+ on lavapipe (informational)
         continue-on-error: true

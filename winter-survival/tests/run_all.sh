@@ -13,7 +13,8 @@
 # scenario behind tests/net/net_sim.gd (150 ms, ±20, 2 % loss) and the `restart` scenario on both stores. H2: the zone
 # tracker unit test (hysteresis, hierarchy, cooldowns, highway sign, W1's 20 points, discovery store, names C36; the
 # in-game zone steps run inside the smoke test) and the `discovery` scenario (group discovery across a restart) on both
-# stores.
+# stores. M6a: the kit street checks (headless), the street bench (citycut_probe + interior shadow, xvfb) and the
+# `street` scenario (replicated kit doors, late joiner).
 # On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
@@ -93,6 +94,21 @@ else
   echo "xvfb-run not found: city bench skipped"
 fi
 
+step "M6a checks (kit street: buildings, CutawayManager storeys / stubs / shadow-preserving, doors, signs, wids; headless)"
+godot --headless --path . -s tests/m6a_checks.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== m6a checks" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "M6A CHECKS FAILED"; status=1; }
+
+step "M6a street bench (citycut_probe on the test street: player ≥ 99 %, zombies ≥ 95 % readable; interior shadow ±5 %; xvfb + Compatibility)"
+if command -v xvfb-run > /dev/null; then
+  if tests/run_street_bench.sh gate > /tmp/ventisca_street_all.log 2>&1; then
+    grep -E "citycut_probe|interior shadow|STREET BENCH" /tmp/ventisca_street_all.log
+  else
+    grep -E "FAIL|SCRIPT ERROR|citycut_probe|interior shadow|STREET BENCH" /tmp/ventisca_street_all.log | head -n 20; status=1
+  fi
+else
+  echo "xvfb-run not found: street bench skipped"
+fi
+
 step "net test (M1: 1 headless server + 4 headless clients, soak 90 s)"
 if tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90 > /tmp/ventisca_net_all.log 2>&1; then
   grep -E "RESULT|admin|NET TEST" /tmp/ventisca_net_all.log
@@ -145,6 +161,13 @@ for b in sqlite file; do
     grep -E "dbinfo|RESULT|!!|DISCOVERY TEST" /tmp/ventisca_discovery_${b}_all.log | cut -c1-220 | head -n 30; status=1
   fi
 done
+
+step "net test street (M6a: kit doors — A opens, B sees and closes, A reopens, late joiner C gets the open door from the chunk snapshot)"
+if NET_TEST_OUT=/tmp/ventisca_net_street tests/net/run_net_test.sh --clients 3 --duration 62 --soak 100 --scenario street --port 7877 > /tmp/ventisca_net_street_all.log 2>&1; then
+  grep -E "RESULT|NET TEST" /tmp/ventisca_net_street_all.log | cut -c1-220
+else
+  grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_street_all.log | cut -c1-220 | head -n 30; status=1
+fi
 
 step "determinism (M3 + W1: 60 chunks in the 4 quadrants, server path vs client path, two processes)"
 if tests/run_determinism.sh > /tmp/ventisca_det_all.log 2>&1; then

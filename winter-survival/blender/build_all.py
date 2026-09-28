@@ -14,6 +14,9 @@ weapons / gore.
 T2: python3 build_all.py --only t2     rebuilds the firearms (weapons/build_firearms.py), the humanoid_firearms library
 (anims/build_firearms.py + data/anim_events.json), the loot (props/build_loot.py), the W1 world props
 (world/build_world_props.py) and the icons, then runs the verifiers.
+M6a: python3 build_all.py --only m6a   rebuilds the cut-ready kit buildings (kits/build_buildings.py: 5 templates x
+2 styles, + data/buildings/templates/ copies) and the diegetic signs (props/build_signs.py: mesh font + boards), then
+runs the verifiers (verify_kits.py: cut-ready contract; verify_assets.py: signs/*).
 A1: python3 build_all.py --only city   rebuilds the winterized CC0 city set (third_party/build_city.py: fetches the
 pinned sources first, ~2.5 min) and runs verify_assets.py, whose city part is third_party/verify_city.py.
 """
@@ -37,6 +40,8 @@ SCRIPTS = [
     "vegetation.build_trees", "vegetation.build_bushes", "vegetation.build_rocks", "vegetation.build_snow",
     "vegetation.build_logs", "props.build_icicles", "poi.build_cabin_small", "poi.build_lookout_tower",
     "poi.build_campsite_remains", "kits.build_buildings",
+    # M6a: diegetic signs (mesh font + street / house number / shop / road boards)
+    "props.build_signs",
     # M4: zombies (skeletal, share the survivor rig), zombie + combat animation libraries, melee weapons, gore-lite props
     "zombies.build_zombie", "anims.build_zombie_anims", "anims.build_combat", "weapons.build_weapons",
     "props.build_gore",
@@ -50,6 +55,7 @@ M4_SCRIPTS = ("zombies.build_zombie", "anims.build_zombie_anims", "anims.build_c
               "props.build_gore", "icons.build_icons")
 T2_SCRIPTS = ("weapons.build_firearms", "anims.build_firearms", "props.build_loot", "world.build_world_props",
               "icons.build_icons")
+M6A_SCRIPTS = ("kits.build_buildings", "props.build_signs")
 VERIFIERS = ["verify_assets", "verify_kits", "verify_chars"]
 CITY_SCRIPTS = ("third_party.build_city",)
 
@@ -61,7 +67,7 @@ def main(argv=()):
     if "--only" in argv:
         words = argv[argv.index("--only") + 1].split(",")
         only = [n for n in SCRIPTS if any(w in n or (w == "m4" and n in M4_SCRIPTS) or (w == "t2" and n in T2_SCRIPTS)
-                                          for w in words)]
+                                          or (w == "m6a" and n in M6A_SCRIPTS) for w in words)]
         if only and all(n in CITY_SCRIPTS for n in only):
             verifiers = ["verify_assets"]      # the city set: verify_assets (it runs third_party/verify_city.py)
     run_verifiers = "--no-verify" not in argv
