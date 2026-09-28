@@ -4,6 +4,7 @@ extends Control
 
 var _panel: PanelContainer
 var _hud_settings: HudSettingsPanel
+var _audio_settings: AudioSettingsPanel   # S1: "Sonido" (volumes)
 
 
 func _ready() -> void:
@@ -29,6 +30,12 @@ func _ready() -> void:
 		_hud_settings.visible = false
 		_panel.visible = true)
 	center.add_child(_hud_settings)
+	_audio_settings = AudioSettingsPanel.new()
+	_audio_settings.visible = false
+	_audio_settings.back.connect(func() -> void:
+		_audio_settings.visible = false
+		_panel.visible = true)
+	center.add_child(_audio_settings)
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 10)
 	panel.add_child(vb)
@@ -48,6 +55,11 @@ func _ready() -> void:
 		_panel.visible = false
 		_hud_settings.visible = true)
 	vb.add_child(b2)
+	var b_snd := UiTheme.menu_button("Sonido")
+	b_snd.pressed.connect(func() -> void:
+		_panel.visible = false
+		_audio_settings.visible = true)
+	vb.add_child(b_snd)
 	var b3 := UiTheme.menu_button("Menú principal")
 	b3.pressed.connect(func() -> void:
 		resume()
@@ -71,6 +83,7 @@ func open() -> void:
 	visible = true
 	_panel.visible = true
 	_hud_settings.visible = false
+	_audio_settings.visible = false
 	GameFlow.set_paused(true)
 
 

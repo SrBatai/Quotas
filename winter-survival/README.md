@@ -698,11 +698,38 @@ Pruebas:
 
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §9.9 y en la sección «M6a» de `docs/v2/ASSET_SPEC_V2.md`.
 
+## Sonido (S1)
+
+Todo el juego suena: armas (disparo cercano + capa lejana por distancia + cola del entorno — bosque, nieve abierta,
+cañón urbano, interior —, corredera y cerrojo, vainas en nieve o en duro, recargas paso a paso con los eventos de
+animación, encasquillado, impactos por material, silbido de bala), cuerpo a cuerpo (*swings* por peso, impacto +
+carne + reacción), zombis (gemidos con presupuesto de 6 voces — ganan los más cercanos —, «te he visto», ataques,
+muertes, pasos arrastrados, congelados que se sueltan del hielo, el hinchado que revienta), lobos, pasos del jugador
+por superficie (nieve, nieve pisada, hielo, madera, hormigón, metal), respiración en el frío, fuego, estufa, bengala,
+tala y caída del árbol, puertas, cofres, y un **director de ambiente** que funde lechos por lugar (bosque del valle,
+puerto de montaña, río helado, Altavega, puerto, interior), hora, viento y ventisca, con *one-shots* dispersos
+(cuervos, búho, alarmas y perros lejanos, disparos y gritos que no ves). Música mínima: solo *stingers*.
+
+- **Escucha la demo**: [`docs/audio/demo_mix.ogg`](docs/audio/demo_mix.ogg) (42 s).
+- Volúmenes (General, Efectos, Ambiente, Interfaz, Música): menú de pausa → **Sonido** (`user://settings.cfg`).
+- Diseño, mapa de sonidos, mezcla, oyente y licencias: [`docs/AUDIO.md`](docs/AUDIO.md). Todo es **CC0** u obra
+  propia CC0 (`assets/audio/LICENSES.md` lista cada fichero y sus grabaciones).
+- Reconstruir los sonidos (Python 3 + numpy, scipy, pyloudnorm y ffmpeg con libvorbis — `pip install numpy scipy
+  pyloudnorm imageio-ffmpeg`):
+
+```bash
+tools/audio/fetch_sources.sh                 # grabaciones CC0 (Kenney, OpenGameArt) fijadas por commit → ~/.cache/ventisca/audio_src
+python3 tools/audio/build_audio.py [grupo]   # weapons creatures player world ambience ui → assets/audio/*, manifest.json, LICENSES.md
+python3 tools/audio/render_demo.py           # docs/audio/demo_mix.ogg
+godot --headless --path . -s tools/audio/gen_bus_layout.gd   # default_bus_layout.tres
+godot --headless --path . -s tests/unit/audio_test.gd        # la prueba del audio
+```
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1 + H2 (zone_tracker_test, discovery sqlite + file): godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1 + H2 (zone_tracker_test, discovery sqlite + file) + S1 (audio_test): godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
 ./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak

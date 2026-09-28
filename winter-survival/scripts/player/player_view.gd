@@ -141,6 +141,7 @@ func on_chop() -> void:
 ## swing is only known at its release: the others see it from Melee_Charged `hold_end` (the strike).
 func on_swing(clip: StringName) -> void:
 	visual.play_action(clip, AnimEvents.at("Melee_Charged", "hold_end", 0.72) if clip == &"Melee_Charged" else 0.0)
+	AudioManager.clip_started(clip, self, AnimEvents.at("Melee_Charged", "hold_end", 0.72) if clip == &"Melee_Charged" else 0.0)   # S1: anim-event sounds
 
 
 ## Local prediction of the owner's swing (the request is on its way). A charged release lets the held wind-up go.

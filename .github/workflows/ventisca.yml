@@ -104,6 +104,14 @@ jobs:
           godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
           grep -q "ALL PASSED" /tmp/persistence.log
 
+      # S1: event table valid, every event the code plays has a stream or a documented silence, every file loads
+      # (mono 3D / stereo beds, sane length, peaks ≤ −1 dBFS), licences cover them, variations, ≤ 10.5 MB, the
+      # AudioManager's voice budget / loops / gunshot layering (the in-game audio steps run inside the smoke test)
+      - name: Audio unit test (S1)
+        run: |
+          godot --headless --path . -s tests/unit/audio_test.gd 2>&1 | tee /tmp/audio.log
+          grep -q "ALL PASSED" /tmp/audio.log
+
       - name: Render checks (W0 + G2a, headless)
         run: godot --headless --path . -s tests/render_checks.gd
 

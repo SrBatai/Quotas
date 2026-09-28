@@ -15,6 +15,8 @@
 # in-game zone steps run inside the smoke test) and the `discovery` scenario (group discovery across a restart) on both
 # stores. M6a: the kit street checks (headless), the street bench (citycut_probe + interior shadow, xvfb) and the
 # `street` scenario (replicated kit doors, late joiner).
+# S1: the audio unit test (event table, files, licences, budgets, voice budget; the in-game audio steps — listener,
+# gunfire at the muzzle, loops, ambience beds by place, 50-zombie voice budget — run inside the smoke test).
 # On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
@@ -52,6 +54,10 @@ done
 step "unit tests (H2: zone tracker — zigzag 0 changes, 12 m / 1.5 s, district over city, cooldowns, combat / P0, exit line, highway sign, camera profile, W1's 20 points, discovery store schema 3, names C36)"
 godot --headless --path . -s tests/unit/zone_tracker_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "ZONE TRACKER TEST FAILED"; status=1; }
+
+step "unit tests (S1: audio — event table valid, every event the code plays has a stream or a documented silence, files load mono / stereo with sane length and peaks, licences, variations, ≤ 10.5 MB, voice budget / loops / layering in the AudioManager)"
+godot --headless --path . -s tests/unit/audio_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "AUDIO TEST FAILED"; status=1; }
 
 step "smoke test"
 if tests/run_smoke.sh > /tmp/ventisca_smoke_all.log 2>&1; then grep -E "== [0-9]+ checks|SMOKE TEST" /tmp/ventisca_smoke_all.log; else grep -E "FAIL|SCRIPT ERROR|ERROR: |SMOKE TEST" /tmp/ventisca_smoke_all.log | head -n 20; status=1; fi

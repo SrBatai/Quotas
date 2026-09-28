@@ -1796,3 +1796,36 @@ plantillas que faltan están en ASSET_SPEC «M6a.6». Aspecto pendiente (W0 / C0
 plano, y se ve una franja clara a lo largo del muñón del lado de la cámara (`house_inside.jpg`).
 
 ---
+
+## §17.7 Nota de implementación S1 (audio)
+
+Detalle completo en `docs/AUDIO.md`. Resumen para la arquitectura:
+
+- **`AudioManager` v2** (autoload, `scripts/autoload/audio_manager.gd`) conserva la API por nombre (`play`,
+  `start_loop`, `stop_loop`, `set_wind`) y la de H2 (`STREAM_FILES`, `register`, `has_stream`) y añade `play_ex`
+  (devuelve la voz), `schedule`, `heartbeat(intensidad)` (gancho de H3), `clip_started(clip, vista)` (sonidos por
+  eventos de animación) y consultas (`env_at`, `surface_at`, `impact_material`, `listener_position`,
+  `voices_in_group`). Datos: `data/audio_events.json` (`AudioTable`, resuelta contra `assets/audio/manifest.json`).
+  *Pool* de 40 voces 3D (Web 24) + 16 2D; robo por prioridad − distancia; `max_instances`, `cooldown`, presupuestos
+  por grupo (`zombie_voice` ≤ 6, gana el más cercano); un evento 3D más allá de su `max_distance` no se reproduce.
+- **Hijos**: `AmbienceDirector` (lechos por bioma del mapa macro / zona de H2 / hora / viento / ventisca / interior,
+  *one-shots*, generador de las zonas con `power: generator`, *stingers* de anochecer y amanecer), `ZombieVoices`
+  (registros de `ZombieClient` a 8 Hz: gemidos, jadeos, pasos, tambaleo, derribo), `CombatAudio` (clips → recargas y
+  *swings*; `shot_fired` → impactos y silbidos; `fire_result`, `loot_opened`, `hit_result`; derribados; respiración).
+- **Ganchos fuera del carril**: una línea en `PlayerView.on_swing` (`AudioManager.clip_started`); el menú de pausa
+  añade «Sonido» (`AudioSettingsPanel`, `user://settings.cfg [audio]`). El resto escucha señales existentes
+  (`Events.*`) o lee estado replicado; ningún cambio de juego ni de red.
+- **Buses** (`default_bus_layout.tres`, `tools/audio/gen_bus_layout.gd`): Master (limitador) → Music, SFX (compresor)
+  ← Weapons, Creatures, Foley, World; Ambience (pasa-bajos del director + compresor con *sidechain* de Weapons); UI;
+  retornos `RevOutdoor` / `RevInterior` / `RevCity` alimentados por un `Area3D` de envío en la **capa física 20**
+  que sigue al oyente (`AudioStreamPlayer3D.area_mask`; probado con Jolt).
+- **Oyente**: `AudioListener3D` en la cabeza del jugador local, orientado con el *yaw* de la cámara (distancias del
+  personaje = las de los `SoundEvents`; paneo por posición en pantalla, GDD §14).
+- **Ensayo sin sonido**: con `DisplayServer` *headless* o el driver `Dummy` (`dry_run`) todo se resuelve igual pero
+  sin arrancar reproducciones reales (ninguna reproducción viva al salir → sin «resources still in use at exit»).
+- **Servidor dedicado**: `enabled = false` (sin voces ni cargas; todas las llamadas vuelven al instante); el preset
+  «Dedicated Server» excluye `assets/audio/*`. Web/Linux/Windows incluyen `data/audio_events.json` y
+  `assets/audio/manifest.json`.
+- **Construcción**: `tools/audio/` (grabaciones CC0 fijadas por commit + diseño en Python, determinista) → 557
+  ficheros OGG, 8,37 MB, `assets/audio/LICENSES.md`. Pruebas: `tests/unit/audio_test.gd` (run_all + CI) y el paso 20
+  de la prueba de humo (`tests/s1_audio_smoke_steps.gd`).

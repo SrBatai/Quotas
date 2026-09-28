@@ -481,6 +481,8 @@ func run(p_tree: SceneTree) -> void:
 	await (load("res://tests/hud_steps.gd").new()).run(self, tree, game, world, player)
 	# 19. H2 — zones: enter two, leave one, discovery, highway sign (tests/h2_smoke_steps.gd)
 	await (load("res://tests/h2_smoke_steps.gd").new()).run(self, tree, game, world, player)
+	# 20. S1 — audio: listener, gunfire at the muzzle, loops, ambience beds by place, zombie voice budget (tests/s1_audio_smoke_steps.gd)
+	await (load("res://tests/s1_audio_smoke_steps.gd").new()).run(self, tree, game, world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
 	tree.quit(1 if _failed else 0)
 
