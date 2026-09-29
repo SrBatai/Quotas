@@ -28,6 +28,7 @@ var _acc: float = 0.0
 var _feels_ref: float = INF
 var _t: float = 0.0
 var _ready_values: bool = false
+var _was_visible: bool = false
 var _scrim: Scrim
 
 
@@ -103,8 +104,11 @@ func _process(delta: float) -> void:
 		var dt := _acc
 		_acc = 0.0
 		_update(dt)
-	if _any_visible():
+	# redraw while shown, and once more when the last one goes (a jump to 0 — settle(), a preset — left a stale ring)
+	var any := _any_visible()
+	if any or _was_visible:
 		queue_redraw()
+	_was_visible = any
 	if _scrim != null:
 		var m := 0.0
 		for st: StringName in ORDER:

@@ -28,6 +28,8 @@ static func chunk_list() -> Array[int]:
 		add.call(p.x, p.y)
 	for p in [Vector2(2652, -426), Vector2(2708, -466)]:   # C0: the superblock LT-01's podiums and towers
 		add.call(p.x, p.y)
+	for p in [Vector2(2024, -611), Vector2(3003, -511), Vector2(1990, 262), Vector2(2812, -446)]:   # C1: casco, ensanche, barriada, a hero tower
+		add.call(p.x, p.y)
 	for p in [Vector2(1536, -384), Vector2(2432, -384), Vector2(2688, -384), Vector2(2432, 1216), Vector2(4096, 1280),
 			Vector2(3712, -256), Vector2(3264, 3520), Vector2(640, 1672), Vector2(-640, 2176), Vector2(-1024, 3072),
 			Vector2(2432, -1500), Vector2(4390, 4390)]:
@@ -145,6 +147,10 @@ func run(p_tree: SceneTree) -> void:
 	var city_line := "city lots %s city_version %d items %s" % [CityLots.content_hash().substr(0, 16), CityLots.city_version(), CityLots.items_digest(hf).substr(0, 16)]
 	total.update(city_line.to_utf8_buffer())
 	lines.append(city_line)
+	# C1: the seeded dressing of 50 enterable lots (door and loot wids, loot tables)
+	var dress_line := "city dressing %s" % CityLots.lot_digest(SEED, 50).substr(0, 16)
+	total.update(dress_line.to_utf8_buffer())
+	lines.append(dress_line)
 	var tot := total.finish().hex_encode()
 	lines.append("TOTAL %s chunks=%d entries=%d" % [tot, jobs.size(), entries_total])
 	var text := "\n".join(lines) + "\n"

@@ -52,12 +52,23 @@ uniform float ice_specular : hint_range(0.0, 1.0) = 0.45;
 global uniform vec4 snow_wind;
 uniform float drift_strength : hint_range(0.0, 0.3) = 0.07;
 uniform float drift_speed = 3.5;
+// G2b visible thaw (doc 08 §3.2 «deshielo»): around the heat sources Atmosphere lists (thaw_a / thaw_b columns =
+// x, y, z, melted radius; thaw_info.x = count) the snow turns to darker, wet slush and, at the centre, to bare wet
+// ground with a glossy sheen (the fire's own light glints on it). 0 sources = no cost beyond one branch.
+global uniform mat4 thaw_a;
+global uniform mat4 thaw_b;
+global uniform vec4 thaw_info;
+uniform vec4 slush_tint : source_color = vec4(0.72, 0.76, 0.84, 1.0);
+uniform vec4 bare_color : source_color = vec4(0.23, 0.21, 0.20, 1.0);
+uniform float bare_mix : hint_range(0.0, 1.0) = 0.75;
+uniform float wet_sheen : hint_range(0.0, 2.0) = 0.55;
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
 varying float v_ao;
 varying vec3 v_tint;
 varying vec4 v_surface;
+varying float v_wet;
 
 vec3 linear_to_srgb(vec3 c) {
 	return mix(1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, 12.92 * c, lessThan(c, vec3(0.0031308)));
@@ -88,6 +99,27 @@ float vnoise(vec2 p) {
 
 vec2 trail_uv(vec3 wp) {
 	return (wp.xz - trail_rect.xy) / trail_rect.zw;
+}
+
+float thaw_at(vec3 wp) {
+	int n = int(thaw_info.x + 0.5);
+	if (n <= 0) {
+		return 0.0;
+	}
+	float t = 0.0;
+	float rag = 0.8 + 0.4 * vnoise(wp.xz * 0.9 + 3.7);
+	for (int i = 0; i < 8; i++) {
+		if (i >= n) {
+			break;
+		}
+		vec4 s = i < 4 ? thaw_a[i] : thaw_b[i - 4];
+		vec3 d = wp - s.xyz;
+		float r = max(s.w, 0.01) * rag;
+		float h = 1.0 - smoothstep(0.3 * r, r, length(d.xz));
+		h *= 1.0 - smoothstep(1.2, 3.5, abs(d.y));
+		t = max(t, h);
+	}
+	return t;
 }
 
 bool trail_inside(vec2 uv) {
@@ -166,6 +198,15 @@ void fragment() {
 		vec3 ice_c = ice_color.rgb * (0.86 + 0.28 * streak);
 		albedo = mix(albedo, ice_c, ice_vis * 0.9);
 	}
+	// G2b thaw: wet slush, then bare wet ground at the heart of the melt
+	v_wet = 0.0;
+	float thaw = thaw_at(v_world_pos);
+	if (thaw > 0.0) {
+		albedo = mix(albedo, albedo * slush_tint.rgb, smoothstep(0.0, 0.55, thaw));
+		float bare = smoothstep(0.78, 0.98, thaw + (vnoise(v_world_pos.xz * 2.3) - 0.5) * 0.35);
+		albedo = mix(albedo, bare_color.rgb * (0.85 + 0.3 * nz), bare * bare_mix);
+		v_wet = smoothstep(0.1, 0.8, thaw);
+	}
 	// baked contact AO: darker and bluer under objects
 	float ao = mix(1.0, v_ao, ao_strength);
 	albedo = mix(albedo * ao_tint.rgb, albedo, ao);
@@ -184,7 +225,12 @@ void fragment() {
 void light() {
 	float lit;
 	stylized_light(NORMAL, LIGHT, VIEW, LIGHT_COLOR, ATTENUATION, LIGHT_IS_DIRECTIONAL, DIFFUSE_LIGHT, SPECULAR_LIGHT, lit);
-	if (LIGHT_IS_DIRECTIONAL && sparkle_strength > 0.0 && lit > 0.05) {
+	if (v_wet > 0.01) {
+		// wet ground / slush: a tight glossy lobe (the fire's light and the low sun glint on the melt)
+		vec3 hw = normalize(LIGHT + VIEW);
+		SPECULAR_LIGHT += pow(max(dot(NORMAL, hw), 0.0), 48.0) * v_wet * wet_sheen * ATTENUATION * LIGHT_COLOR;
+	}
+	if (LIGHT_IS_DIRECTIONAL && sparkle_strength > 0.0 && lit > 0.05 && v_wet < 0.3) {
 		vec3 cell = floor(v_world_pos * sparkle_scale);
 		float h = hash13(cell);
 		if (h > sparkle_density) {

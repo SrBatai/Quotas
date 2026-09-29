@@ -124,7 +124,7 @@ func _debug_command(peer: int, line: String) -> void:
 				var rules := WorldState.instance.rules.duplicate()
 				var key := parts[1].to_lower()
 				var val: Variant = parts[2].to_lower()
-				if key == "pvp":
+				if key == "pvp" or key == "vertical_filter":   # C1: the tower interest filter (net scenario `tower`)
 					val = val == "true" or val == "1" or val == "on"
 				elif key in ["zombie_count_scale", "noise_scale", "cold_scale"] and parts[2].is_valid_float():
 					val = float(parts[2])
@@ -145,7 +145,9 @@ func _debug_command(peer: int, line: String) -> void:
 		"/tp":
 			if parts.size() >= 3 and parts[1].is_valid_float() and parts[2].is_valid_float():
 				# M3: the collider must exist before the body lands; M5: W1's playable range (SE quadrant)
-				AdminCommands.teleport_player(p, float(parts[1]), float(parts[2]))
+				# C1: an optional height (a floor of a hero tower: `/tp x z y`)
+				var ty := float(parts[3]) if parts.size() >= 4 and parts[3].is_valid_float() else NAN
+				AdminCommands.teleport_player(p, float(parts[1]), float(parts[2]), ty)
 
 
 ## `/zombies <n> [walker|runner|crawler|frozen|bloater] [radius]` · `/zombies clear` · `/zombies freeze`.

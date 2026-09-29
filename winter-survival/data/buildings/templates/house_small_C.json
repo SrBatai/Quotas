@@ -1,0 +1,358 @@
+{
+ "id": "house_small_C",
+ "kind": "house",
+ "style": [
+  "brick",
+  "wood_blue"
+ ],
+ "footprint": [
+  8,
+  8
+ ],
+ "floors": 1,
+ "budget": 14500,
+ "rooms": [
+  {
+   "name": "living",
+   "set": "living_kitchen",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     1
+    ]
+   ]
+  },
+  {
+   "name": "bedroom",
+   "set": "bedroom",
+   "cells": [
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     3
+    ]
+   ]
+  },
+  {
+   "name": "store",
+   "set": "store",
+   "cells": [
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     3
+    ]
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  },
+  {
+   "pos": [
+    3,
+    3
+   ],
+   "dir": "N",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    1,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    3,
+    1
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    3,
+    2
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "N"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 2,
+   "from": 0,
+   "to": 3,
+   "doors": [
+    1,
+    3
+   ]
+  },
+  {
+   "axis": "y",
+   "at": 2,
+   "from": 2,
+   "to": 3,
+   "doors": []
+  }
+ ],
+ "roof": {
+  "kind": "gable",
+  "ridge": "y",
+  "pitch": 33,
+  "overhang": 0.45
+ },
+ "porch": {
+  "cells": [
+   [
+    1,
+    -1
+   ],
+   [
+    2,
+    -1
+   ]
+  ]
+ },
+ "chimney": {
+  "pos": [
+   0,
+   1
+  ],
+  "offset": [
+   0.2,
+   0.4
+  ]
+ },
+ "signs": [
+  {
+   "kind": "number",
+   "dir": "S",
+   "at": 0.0,
+   "z": 3.5,
+   "d": 0.035,
+   "width": 0.6,
+   "cap": 0.34,
+   "group": "Roof"
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "kitchen",
+   "pos": [
+    6.2,
+    3.62
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "table",
+   "pos": [
+    4.2,
+    2.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "sofa",
+   "pos": [
+    1.3,
+    3.5
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "rug",
+   "pos": [
+    1.6,
+    2.0
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "tv",
+   "pos": [
+    0.4,
+    1.6
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "wardrobe",
+   "pos": [
+    0.42,
+    5.6
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "dresser",
+   "pos": [
+    2.6,
+    7.62
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    7.72,
+    5.2
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    5.0,
+    7.5
+   ],
+   "yaw": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "house_kitchen",
+   "pos": [
+    7.55,
+    1.6
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    2.9,
+    4.45
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Container",
+   "table": "house",
+   "pos": [
+    6.4,
+    4.45
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Stove",
+   "pos": [
+    0.55,
+    0.9
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Bed",
+   "pos": [
+    1.9,
+    6.2
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    4.9,
+    2.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    4.0,
+    2.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    2.0,
+    6.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    4.2,
+    2.0,
+    0.78
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    2.4,
+    5.8
+   ],
+   "yaw": 40
+  }
+ ]
+}

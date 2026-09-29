@@ -9,6 +9,10 @@ extends RefCounted
 ##                 amber accent on the nearest refuge (compare v2_d)
 ##   hud_info      Info held: missions on demand, time / temperature (compare v2_f)
 ##   hud_map       P1: the paper map with the fog of war after a walk (zoom 1 km); hud_journal: the journal
+##   hud_downed_coop  (H3; also `downed_coop`) a teammate down 6 m away at dusk by the porch, walkers around: the ONE
+##                 indicator in the accent — ground ring, the bleed-out ring with the skull, «Ana 38 s», «mantén ⓧ
+##                 para reanimar · 6 m» — and nothing else but the strip (compare v2_e); hud_downed_coop_cue: the
+##                 same 0.8 s after the down, with the sound caption «latido y estática de radio · Ana → 6 m»
 ## Run: RENDER=forward tests/run_screenshots.sh <dir> hud_idle   (1920 × 1080 for hud_* presets)
 
 var tree: SceneTree
@@ -91,6 +95,8 @@ func setup(p_tree: SceneTree, preset: String, game: Node, world: World, player: 
 			hud.map_screen.zoom = 1
 			for i in 4:
 				await tree.process_frame
+		"hud_downed_coop", "hud_downed_coop_cue", "downed_coop":
+			await downed_coop(hud, world, player, inv, preset == "hud_downed_coop_cue")
 		"hud_info":
 			WorldState.instance.set_time(1, 15.3)
 			inv.add(&"hacha", 1)
@@ -103,7 +109,7 @@ func setup(p_tree: SceneTree, preset: String, game: Node, world: World, player: 
 	var rig := CameraRig.active()
 	if rig != null:
 		rig.snap_to_player()
-	if preset != "hud_action":
+	if preset != "hud_action" and not preset.contains("downed_coop"):
 		# no mouse in the picture: its context label would float with no cursor
 		hud.world_layer._cursor_text = ""
 		Engine.time_scale = 0.0
@@ -209,3 +215,107 @@ func _action(hud: Hud, world: World, player: Player, inv: InventoryComponent) ->
 	hud.vis.settle()
 	print("hud_action: health %.0f, mission '%s' (a %.2f vis %s), feed %d, accent %s, edge %s" % [player.state.health, hud.mission_line.objective,
 		hud.vis.alpha_of(MissionLine.EL), hud.mission_line.visible, hud.feed.lines.size(), hud.accent.accent.get("kind", "-"), hud.world_layer.last_edge])
+
+
+## H3 (mockup v2_e): a teammate — a puppet player of the in-process server, peer 2 «Ana» — down 6 m from the survivor,
+## in front of the porch at dusk, walkers standing around. The P0 is the one world indicator (accent), the rest is
+## sound (no banner, no frame). `cue`: 0.8 s after the down, the caption still on screen.
+func downed_coop(hud: Hud, world: World, player: Player, inv: InventoryComponent, cue: bool) -> void:
+	WorldState.instance.set_time(1, 19.35)
+	world.cabin.stove.burner.add_fuel(600.0)
+	inv.add(&"bate", 1)
+	inv.add(&"madera", 3)
+	var sys := ZombieSystem.instance
+	sys.clear_all()
+	var right := Vector3(0.7071, 0.0, -0.7071)
+	var down := Vector3(0.7071, 0.0, 0.7071)
+	var c := coop_spot(world, right, down)
+	player.global_position = c + Vector3(0, 0.2, 0)
+	await tree.physics_frame
+	await _settle(hud)
+	var at := func(r: float, d: float) -> Vector3:
+		var p := c + right * r + down * d
+		p.y = world.get_height(p.x, p.z)
+		return p
+	# Ana, 6 m to the lower right (as in the mockup)
+	var mate: Player = PlayerManager.instance.spawn_player(2, "Ana", "shot-ana")
+	await tree.process_frame
+	var ap: Vector3 = at.call(3.6, 4.8)
+	mate.global_position = ap + Vector3(0, 0.1, 0)
+	mate.net_position = mate.global_position
+	for g in [[-5.4, -2.6], [-3.2, -5.0], [5.6, -3.8], [-6.4, 3.6], [7.8, 4.8], [-2.2, 3.4]]:
+		var p: Vector3 = at.call(float(g[0]), float(g[1]))
+		var dv := ap - p
+		sys.spawn(ZombieKinds.Kind.WALKER, p, atan2(dv.x, dv.z), ZombieKinds.State.IDLE, -1, -2)
+	for i in 8:
+		await tree.process_frame
+	sys.set_physics_process(false)   # the walkers hold their pose (and never bite: no arc, no vital in the picture)
+	player.state.health = Balance.HEALTH_MAX
+	player.state.mark(&"stats")
+	HudInput.gamepad = true          # «mantén ⓧ para reanimar» with the pad glyph, like the mockup
+	hud.captions.clear()
+	# the jump to dusk moved the feels-like temperature: take it as the new reference (no «sentida» poke later)
+	hud.vitals._update(0.1)
+	hud.info_block.set("_feels_ref", INF)
+	hud.vitals.set("_feels_ref", INF)
+	hud.info_block._process(0.0)
+	hud.vitals._update(0.1)
+	hud.vis.clear_all()
+	mate.stats.go_down()
+	mate.stats.set("_bleed_left", 38.4)
+	mate.bleed = 39
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < (800 if cue else 1300):
+		await tree.process_frame
+		player.state.warmth = 90.0   # steady Calor: its vital stays hidden (the mockup shows none)
+		player.state.mark(&"stats")
+	mate.bleed = 38
+	hud.feed.lines.clear()
+	hud.vis.clear_all()   # the preset's own kit and health resets poke nothing into the picture
+	hud.world_layer._hits.clear()
+	if not cue:
+		hud.captions.clear()   # the mockup is the moment after the cue: the indicator alone
+	hud.accent.update()
+	var rig := CameraRig.active()
+	if rig != null:
+		rig.snap_to_player()
+	hud.world_layer._cursor_text = ""
+	Engine.time_scale = 0.0
+	hud.vis.settle()
+	print("hud_downed_coop: Ana downed at %.1f m, bleed %d s, accent %s, P0 %s, captions %s" % [Vector2(ap.x - c.x, ap.z - c.z).length(), mate.bleed,
+		hud.accent.accent.get("kind", "-"), hud.router.p0.keys(), hud.captions.history])
+
+
+## The survivor's spot for the downed_coop moment: in front of the porch (like mockup v2_e), with no interactable
+## within 3.2 m (no prompt in the picture) and no scatter (pines, rocks, logs) within 4 m of the survivor, of Ana
+## (3.6 m right, 4.8 m down the screen) or of the ground toward the camera from both (a pine there hides them).
+static func coop_spot(world: World, right: Vector3, down: Vector3) -> Vector3:
+	var base := world.cabin.global_position + down * 9.5 + right * 1.5
+	var nodes := world.get_tree().get_nodes_in_group("interactable")
+	var scatter: Array = ScatterGen.clearing_entries(world.seed_value)
+	var best := base
+	var best_score := INF
+	for dd in range(0, 9):
+		for rr in range(-6, 7):
+			var p := base + right * float(rr) + down * float(dd) * 0.8
+			var near_prompt := false
+			for n in nodes:
+				if n is Node3D and Vector2((n as Node3D).global_position.x - p.x, (n as Node3D).global_position.z - p.z).length() < 3.2:
+					near_prompt = true
+					break
+			if near_prompt:
+				continue
+			var ana := p + right * 3.6 + down * 4.8
+			var probes := [p, ana, p + down * 3.5, ana + down * 3.5, p + down * 6.0, ana + down * 6.0]
+			var clash := 0
+			for e: Dictionary in scatter:
+				var q := Vector2(float(e["x"]), float(e["z"]))
+				for pr: Vector3 in probes:
+					if q.distance_to(Vector2(pr.x, pr.z)) < 4.0:
+						clash += 1
+			var score := float(clash) * 100.0 + p.distance_to(base)
+			if score < best_score:
+				best_score = score
+				best = p
+	best.y = world.get_height(best.x, best.z)
+	return best

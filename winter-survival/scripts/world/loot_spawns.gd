@@ -60,7 +60,9 @@ func world_seed() -> int:
 
 
 ## Adds the containers of `model`'s spawn empties under `parent` (a POI / building node). Returns how many.
-static func attach(parent: Node3D, model: Node, parent_wid: int, seed_v: int) -> int:
+## M6b: `remap` = the building use's loot tables ({template table: table}, "*" = every table; a bar's shelves roll
+## the bar table, a village shop's the shop table).
+static func attach(parent: Node3D, model: Node, parent_wid: int, seed_v: int, remap: Dictionary = {}) -> int:
 	var spawns: Array[Node3D] = []
 	for s in model.find_children("Spawn_*", "Node3D", true, false):
 		var nm := String(s.name)
@@ -73,6 +75,8 @@ static func attach(parent: Node3D, model: Node, parent_wid: int, seed_v: int) ->
 		var loose := String(s.name).begins_with("Spawn_Loot_")
 		var extras: Dictionary = s.get_meta("extras", {}) if s.has_meta("extras") else {}
 		var table := StringName(str(extras.get("table", "loose" if loose else "campsite")))
+		if not remap.is_empty() and not loose:
+			table = StringName(str(remap.get(String(table), remap.get("*", String(table)))))
 		var c := LootContainer.new()
 		c.setup(WorldConst.hash64(seed_v, Loot.GEN_LOOT, parent_wid, i + 1), table, loose)
 		var xf := parent.global_transform.affine_inverse() * s.global_transform if parent.is_inside_tree() and s.is_inside_tree() \

@@ -12,6 +12,11 @@
 // apply_snow(albedo, n) keeps the v1 signature for older callers.
 global uniform float snow_amount;
 global uniform vec4 snow_wind;
+// G2b visible thaw (Atmosphere writes them): up to 8 heat sources near the camera, columns of thaw_a / thaw_b =
+// (x, y, z, radius of the melted ground, which grows while the fire burns); thaw_info.x = how many are set.
+global uniform mat4 thaw_a;
+global uniform mat4 thaw_b;
+global uniform vec4 thaw_info;
 uniform vec4 snow_color : source_color = vec4(0.945, 0.961, 0.98, 1.0);
 uniform float snow_start : hint_range(0.0, 1.0) = 0.55;
 uniform float snow_end : hint_range(0.0, 1.0) = 0.85;
@@ -37,6 +42,29 @@ float sn_vnoise(vec2 p) {
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+// Thaw 0 (dry snow) … 1 (melted to the ground) at a world point: the strongest of the listed heat sources, with a
+// ragged edge (value noise) and only near the source's own level (a fire on a roof does not melt the street).
+float thaw_at(vec3 wp) {
+	int n = int(thaw_info.x + 0.5);
+	if (n <= 0) {
+		return 0.0;
+	}
+	float t = 0.0;
+	float rag = 0.8 + 0.4 * sn_vnoise(wp.xz * 0.9 + 3.7);
+	for (int i = 0; i < 8; i++) {
+		if (i >= n) {
+			break;
+		}
+		vec4 s = i < 4 ? thaw_a[i] : thaw_b[i - 4];
+		vec3 d = wp - s.xyz;
+		float r = max(s.w, 0.01) * rag;
+		float h = 1.0 - smoothstep(0.3 * r, r, length(d.xz));
+		h *= 1.0 - smoothstep(1.2, 3.5, abs(d.y));
+		t = max(t, h);
+	}
+	return t;
+}
+
 // Snow mask 0..1 for a world-space normal n at world position wp with baked AO `ao` (1 = open).
 float snow_mask_v2(vec3 n, vec3 wp, float ao) {
 	float a = clamp(snow_amount + snow_base, 0.0, 1.0);
@@ -55,6 +83,8 @@ float snow_mask_v2(vec3 n, vec3 wp, float ao) {
 	m = max(m, wind * smoothstep(0.38, 0.62, nz));
 	// sheltered below AO 0.3 (eaves, under cars, interiors), open sky above 0.75
 	m *= smoothstep(0.0, 0.35, a) * mix(1.0 - snow_shelter, 1.0, smoothstep(0.3, 0.75, ao));
+	// G2b: the snow melts off near a fire
+	m *= 1.0 - thaw_at(wp);
 	return clamp(m, 0.0, 1.0);
 }
 

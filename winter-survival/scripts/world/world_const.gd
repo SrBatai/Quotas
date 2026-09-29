@@ -19,8 +19,9 @@ const CHUNK_COUNT := WORLD_CHUNKS * WORLD_CHUNKS
 ## World format version (persistence `world_meta.world_version`): 1 = M3 valley 3 × 3 km, 2 = W1 world 6 × 6 km.
 const WORLD_VERSION := 2
 ## City data version (persistence `world_meta.city_version`, R19): 0 = C0's hand-written lot file
-## (data/world/city/altavega_lots.json v0); C1's generated city bumps it (lot ids and city wids change with it).
-const CITY_VERSION := 0
+## (data/world/city/altavega_lots.json v0); 1 = C1's generated city (tools/gen_city.gd; lot ids and city wids change
+## with it: v0 had no persisted city deltas — its jam and props were static — so the migration is a no-op).
+const CITY_VERSION := 1
 ## Terrain samples per chunk edge (1 m spacing, the last row/column is shared with the neighbour).
 const SAMPLES := 65
 const SAMPLE_STEP := 1.0

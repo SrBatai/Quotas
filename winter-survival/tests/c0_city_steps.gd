@@ -32,6 +32,13 @@ func run(p_tree: SceneTree) -> void:
 	# ---- lot file
 	var ok := CityLots.load_default()
 	check(ok and CityLots.problems().is_empty(), "lot file %s loads and validates %s" % [CityLots.PATH, CityLots.problems()])
+	# C1 replaced the lot file v0 (city_version 1, the generated districts): the C0 checks below describe v0 (one
+	# superblock, 4–6 towers, every city chunk streamed); tests/c1_city.gd gates the city now.
+	if CityLots.city_version() != 0:
+		print("  skip the C0 checks: the lot file is city_version %d (C1) — see tests/c1_city.gd" % CityLots.city_version())
+		print("== %d checks, %s (%d ms)" % [_checks, "ALL PASSED" if not _failed else "FAILED", Time.get_ticks_msec() - t0])
+		tree.quit(0 if not _failed else 1)
+		return
 	check(CityLots.city_version() == 0 and WorldConst.CITY_VERSION == 0, "city_version 0 = WorldConst.CITY_VERSION (world_meta.city_version)")
 	check(CityLots.file_hash().length() == 64 and CityLots.content_hash().length() == 64,
 		"hashes: file %s…, content %s…" % [CityLots.file_hash().substr(0, 12), CityLots.content_hash().substr(0, 12)])

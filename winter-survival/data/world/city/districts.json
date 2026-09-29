@@ -1,0 +1,2666 @@
+{
+ "format": "altavega_districts",
+ "city_version": 1,
+ "doc": "C1 «Altavega: núcleo urbano» (PLAN v3.8.2 C1, doc 09 §4.3-4.6): the hand-authored INPUT of tools/gen_city.gd (CityGen, scripts/world/city/city_gen.gd), which writes data/world/city/altavega_lots.json (city_version 1). Units: cm (integers) for positions and sizes, degrees for angles; x east, z south, world coordinates. `districts` = the four procedural districts of C1 with their street / block / lot rules (doc 09 §4.5 «Reglas por distrito»); `reserved` = rects the generator keeps empty (hero pads of C2, the Gran Vía corridor, the río Albo and its banks); `fixed` = hand-made content copied to the output as is: the C0 superblock LT-01 of Las Torres (podiums, A1 towers, jam, lamps, military control), the Puente de Hierro, the Control del Puerto; `heroes` = the enterable hero towers; `miradores`.",
+ "seed": 71317,
+ "zones": [
+  {
+   "id": "altavega_casco_viejo",
+   "district": "casco_viejo",
+   "rect": [
+    172800,
+    -96000,
+    236800,
+    -6400
+   ]
+  },
+  {
+   "id": "altavega_ensanche",
+   "district": "ensanche",
+   "rect": [
+    249600,
+    -96000,
+    364800,
+    57600
+   ]
+  },
+  {
+   "id": "barriada_de_san_lazaro",
+   "district": "barriada",
+   "rect": [
+    172800,
+    -6400,
+    236800,
+    57600
+   ]
+  },
+  {
+   "id": "altavega_las_torres",
+   "district": "las_torres",
+   "rect": [
+    249600,
+    -70400,
+    288000,
+    -6400
+   ]
+  }
+ ],
+ "reserved": [
+  {
+   "id": "gran_via",
+   "rect": [
+    170000,
+    -40600,
+    370000,
+    -36200
+   ]
+  },
+  {
+   "id": "rio_albo",
+   "rect": [
+    229200,
+    -110000,
+    259000,
+    70000
+   ]
+  },
+  {
+   "id": "paseo_oeste",
+   "rect": [
+    227400,
+    -100000,
+    229200,
+    60000
+   ]
+  },
+  {
+   "id": "paseo_este",
+   "rect": [
+    259000,
+    -100000,
+    262200,
+    60000
+   ]
+  },
+  {
+   "id": "catedral",
+   "rect": [
+    212600,
+    -54700,
+    222600,
+    -47700
+   ],
+   "grow": 400
+  },
+  {
+   "id": "plaza_mayor",
+   "rect": [
+    210200,
+    -57100,
+    225000,
+    -45300
+   ]
+  },
+  {
+   "id": "torre_telecomunicaciones",
+   "rect": [
+    188000,
+    -93600,
+    196000,
+    -85600
+   ],
+   "grow": 400
+  },
+  {
+   "id": "universidad",
+   "rect": [
+    181200,
+    -8300,
+    202800,
+    8300
+   ],
+   "grow": 400
+  },
+  {
+   "id": "hospital_provincial",
+   "rect": [
+    312000,
+    -82800,
+    328000,
+    -70800
+   ],
+   "grow": 400
+  },
+  {
+   "id": "jefatura_de_policia",
+   "rect": [
+    303200,
+    9800,
+    311200,
+    15800
+   ],
+   "grow": 400
+  },
+  {
+   "id": "centro_comercial",
+   "rect": [
+    326400,
+    -19200,
+    352000,
+    -6400
+   ],
+   "grow": 400
+  },
+  {
+   "id": "estadio",
+   "rect": [
+    333600,
+    28400,
+    357600,
+    48400
+   ],
+   "grow": 400
+  },
+  {
+   "id": "estacion_central",
+   "rect": [
+    366700,
+    -35600,
+    375700,
+    -15600
+   ],
+   "grow": 400
+  },
+  {
+   "id": "ronda_sur",
+   "rect": [
+    170000,
+    61200,
+    370000,
+    66800
+   ]
+  },
+  {
+   "id": "ronda_norte",
+   "rect": [
+    170000,
+    -105200,
+    370000,
+    -99600
+   ]
+  }
+ ],
+ "districts": [
+  {
+   "id": "las_torres",
+   "kind": "towers",
+   "rect": [
+    249600,
+    -70400,
+    288000,
+    -6400
+   ],
+   "columns": [
+    [
+     262400,
+     273600
+    ],
+    [
+     275600,
+     286800
+    ]
+   ],
+   "rows": [
+    [
+     -68600,
+     -60600
+    ],
+    [
+     -58600,
+     -50600
+    ],
+    [
+     -48600,
+     -40600
+    ],
+    [
+     -36200,
+     -28200
+    ],
+    [
+     -26200,
+     -18200
+    ],
+    [
+     -16200,
+     -8200
+    ]
+   ],
+   "street": 2000,
+   "skip_blocks": [
+    [
+     262400,
+     -48600,
+     273600,
+     -40600
+    ],
+    [
+     262400,
+     -36200,
+     273600,
+     -28200
+    ],
+    [
+     275600,
+     -48600,
+     286800,
+     -40600
+    ]
+   ],
+   "families": [
+    "tower_a",
+    "tower_b",
+    "tower_c",
+    "tower_d",
+    "tower_e"
+   ],
+   "extra_groups": [
+    0,
+    4
+   ],
+   "tower_chance": 0.78,
+   "plaza": 0.12,
+   "generator": 0.06,
+   "styles": [
+    "concrete",
+    "glass",
+    "brick"
+   ]
+  },
+  {
+   "id": "ensanche",
+   "kind": "grid",
+   "rect": [
+    249600,
+    -96000,
+    364800,
+    57600
+   ],
+   "block": 9600,
+   "street": 1800,
+   "road": 1200,
+   "chaflan": 850,
+   "exclude": [
+    [
+     249600,
+     -70400,
+     288000,
+     -6400
+    ]
+   ],
+   "avenue_north": -40600,
+   "avenue_south": -36200,
+   "floors": [
+    5,
+    8
+   ],
+   "enterable": 0.3,
+   "generator": 0.03,
+   "grids": [
+    {
+     "rect": [
+      288000,
+      -96000,
+      364800,
+      57600
+     ],
+     "origin_x": 289800
+    },
+    {
+     "rect": [
+      260400,
+      -96000,
+      288000,
+      57600
+     ],
+     "columns": [
+      [
+       262400,
+       273600
+      ],
+      [
+       275600,
+       286800
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "id": "casco_viejo",
+   "kind": "organic",
+   "rect": [
+    172800,
+    -96000,
+    227000,
+    -6400
+   ],
+   "spacing": [
+    5800,
+    5000
+   ],
+   "jitter": 1100,
+   "street": [
+    650,
+    800
+   ],
+   "main_every": 3,
+   "avenue_north": -40600,
+   "avenue_south": -36200,
+   "plazas": [
+    [
+     210200,
+     -57100,
+     225000,
+     -45300
+    ]
+   ],
+   "plaza_share": 0.05,
+   "floors": [
+    3,
+    4
+   ],
+   "enterable": 0.22,
+   "generator": 0.02,
+   "arcade": 0.6
+  },
+  {
+   "id": "barriada",
+   "kind": "slabs",
+   "rect": [
+    172800,
+    -5200,
+    227000,
+    57200
+   ],
+   "super": 12000,
+   "street": 1200,
+   "road": 800,
+   "floors": [
+    8,
+    14
+   ],
+   "enterable": 0.12,
+   "generator": 0.04
+  }
+ ],
+ "streets": [
+  {
+   "from": [
+    228200,
+    -100000
+   ],
+   "to": [
+    228200,
+    60000
+   ],
+   "road": 800,
+   "walk": 200,
+   "kind": "road"
+  },
+  {
+   "from": [
+    261400,
+    -100000
+   ],
+   "to": [
+    261400,
+    60000
+   ],
+   "road": 1400,
+   "walk": 300,
+   "kind": "road"
+  }
+ ],
+ "fixed": {
+  "block": {
+   "id": "LT-01",
+   "district": "las_torres",
+   "rect": [
+    262400,
+    -48600,
+    273600,
+    -40600
+   ]
+  },
+  "podiums": [
+   {
+    "id": 11,
+    "pos": [
+     265200,
+     -42600
+    ],
+    "size": [
+     5000,
+     3200
+    ],
+    "yaw": 0,
+    "floors": 2,
+    "ground_h": 430,
+    "floor_h": 380,
+    "style": "concrete",
+    "stair": {
+     "face": "w",
+     "bottom": -1500,
+     "top": 300,
+     "width": 250
+    },
+    "mirador": 71
+   },
+   {
+    "id": 12,
+    "pos": [
+     270800,
+     -42600
+    ],
+    "size": [
+     5000,
+     3200
+    ],
+    "yaw": 0,
+    "floors": 2,
+    "ground_h": 430,
+    "floor_h": 380,
+    "style": "glass",
+    "generator": true
+   },
+   {
+    "id": 13,
+    "pos": [
+     265200,
+     -46600
+    ],
+    "size": [
+     5000,
+     3200
+    ],
+    "yaw": 0,
+    "floors": 2,
+    "ground_h": 430,
+    "floor_h": 380,
+    "style": "brick"
+   },
+   {
+    "id": 14,
+    "pos": [
+     270800,
+     -46600
+    ],
+    "size": [
+     5000,
+     3200
+    ],
+    "yaw": 0,
+    "floors": 3,
+    "ground_h": 430,
+    "floor_h": 380,
+    "style": "concrete"
+   }
+  ],
+  "towers": [
+   {
+    "id": 21,
+    "family": "tower_a",
+    "groups": 5,
+    "on": 11,
+    "pos": [
+     266500,
+     -43000
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 22,
+    "family": "tower_b",
+    "groups": 8,
+    "on": 12,
+    "pos": [
+     271200,
+     -43000
+    ],
+    "yaw": 0,
+    "generator": true
+   },
+   {
+    "id": 23,
+    "family": "tower_c",
+    "groups": 5,
+    "on": 13,
+    "pos": [
+     263900,
+     -47000
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 24,
+    "family": "tower_e",
+    "groups": 3,
+    "on": 13,
+    "pos": [
+     266500,
+     -47000
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 25,
+    "family": "tower_d",
+    "groups": 7,
+    "on": 14,
+    "pos": [
+     271000,
+     -46800
+    ],
+    "yaw": 180
+   }
+  ],
+  "families": {
+   "tower_a": {
+    "model": "towers/tower_a",
+    "height": 6963,
+    "roof_z": 6880,
+    "floors": 18,
+    "full_groups": 3,
+    "top_floors": 1,
+    "floor_h": 380,
+    "ground_h": 569,
+    "base_top": 1684,
+    "proxy": [
+     1494,
+     1494
+    ],
+    "base": [
+     1763,
+     1744
+    ],
+    "style": "glass"
+   },
+   "tower_b": {
+    "model": "towers/tower_b",
+    "height": 9466,
+    "roof_z": 9380,
+    "floors": 24,
+    "full_groups": 4,
+    "top_floors": 3,
+    "floor_h": 380,
+    "ground_h": 567,
+    "base_top": 1682,
+    "proxy": [
+     1489,
+     1489
+    ],
+    "base": [
+     1735,
+     1717
+    ],
+    "style": "glass"
+   },
+   "tower_c": {
+    "model": "towers/tower_c",
+    "height": 7395,
+    "roof_z": 6880,
+    "floors": 18,
+    "full_groups": 3,
+    "top_floors": 1,
+    "floor_h": 380,
+    "ground_h": 427,
+    "base_top": 1542,
+    "proxy": [
+     1366,
+     1481
+    ],
+    "base": [
+     1617,
+     1749
+    ],
+    "style": "concrete"
+   },
+   "tower_d": {
+    "model": "towers/tower_d",
+    "height": 10027,
+    "roof_z": 9740,
+    "floors": 26,
+    "full_groups": 5,
+    "top_floors": 1,
+    "floor_h": 380,
+    "ground_h": 428,
+    "base_top": 1543,
+    "proxy": [
+     1368,
+     1484
+    ],
+    "base": [
+     1611,
+     1729
+    ],
+    "style": "concrete"
+   },
+   "tower_e": {
+    "model": "towers/tower_e",
+    "height": 6328,
+    "roof_z": 6250,
+    "floors": 16,
+    "full_groups": 2,
+    "top_floors": 3,
+    "floor_h": 380,
+    "ground_h": 650,
+    "base_top": 1765,
+    "proxy": [
+     1191,
+     1191
+    ],
+    "base": [
+     1538,
+     1468
+    ],
+    "style": "glass"
+   }
+  },
+  "bridge": {
+   "id": 31,
+   "name": "Puente de Hierro (provisional)",
+   "axis_z": -38400,
+   "x_from": 226200,
+   "x_to": 261200,
+   "deck_y": 310,
+   "width": 3000,
+   "road": 2400,
+   "ramp": 3200,
+   "truss_from": 236000,
+   "truss_to": 250800,
+   "truss_h": 850,
+   "piers": [
+    241000,
+    245800
+   ],
+   "parapet_h": 110,
+   "deck_thickness": 140
+  },
+  "jams": [
+   {
+    "id": 41,
+    "name": "atasco de la Gran Vía",
+    "x_from": 261000,
+    "x_to": 278400,
+    "axis_z": -38400,
+    "lanes": [
+     -900,
+     -300,
+     300,
+     900
+    ],
+    "facing": "west",
+    "gap": [
+     120,
+     520
+    ],
+    "skip": 0.18,
+    "jitter": 45,
+    "yaw_jitter": 7,
+    "askew": 0.12,
+    "models": {
+     "sedan": 30,
+     "suv": 18,
+     "taxi": 12,
+     "van": 12,
+     "pickup": 10,
+     "bus": 3,
+     "ambulance": 3,
+     "police": 3,
+     "box_truck": 4
+    },
+    "variants": {
+     "snowed": 50,
+     "crashed": 16,
+     "doors": 16,
+     "burnt": 10,
+     "clean": 8
+    }
+   },
+   {
+    "id": 42,
+    "name": "coches abandonados en el puente",
+    "x_from": 228000,
+    "x_to": 258000,
+    "axis_z": -38400,
+    "lanes": [
+     -900,
+     -300,
+     300,
+     900
+    ],
+    "facing": "west",
+    "gap": [
+     400,
+     2400
+    ],
+    "skip": 0.72,
+    "jitter": 60,
+    "yaw_jitter": 18,
+    "askew": 0.3,
+    "models": {
+     "sedan": 30,
+     "suv": 20,
+     "taxi": 10,
+     "van": 15,
+     "pickup": 15,
+     "police": 4
+    },
+    "variants": {
+     "snowed": 45,
+     "crashed": 20,
+     "doors": 15,
+     "burnt": 20
+    }
+   }
+  ],
+  "vehicles": [
+   {
+    "id": 451,
+    "model": "military_truck",
+    "variant": "crashed",
+    "pos": [
+     261200,
+     -39000
+    ],
+    "yaw": -70
+   },
+   {
+    "id": 452,
+    "model": "police",
+    "variant": "crashed",
+    "pos": [
+     261400,
+     -37700
+    ],
+    "yaw": 200
+   },
+   {
+    "id": 453,
+    "model": "military_truck",
+    "variant": "snowed",
+    "pos": [
+     259900,
+     -42600
+    ],
+    "yaw": 5
+   },
+   {
+    "id": 454,
+    "model": "ambulance",
+    "variant": "doors",
+    "pos": [
+     272600,
+     -49600
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 461,
+    "model": "military_truck",
+    "variant": "snowed",
+    "pos": [
+     150200,
+     -36000
+    ],
+    "yaw": 80
+   },
+   {
+    "id": 462,
+    "model": "military_truck",
+    "variant": "crashed",
+    "pos": [
+     157000,
+     -41400
+    ],
+    "yaw": -15
+   },
+   {
+    "id": 463,
+    "model": "police",
+    "variant": "doors",
+    "pos": [
+     158200,
+     -36900
+    ],
+    "yaw": 110
+   },
+   {
+    "id": 464,
+    "model": "ambulance",
+    "variant": "snowed",
+    "pos": [
+     149700,
+     -40900
+    ],
+    "yaw": 95
+   }
+  ],
+  "props": [
+   {
+    "id": 501,
+    "model": "jersey_barrier",
+    "pos": [
+     259600,
+     -39450
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 502,
+    "model": "jersey_barrier",
+    "pos": [
+     259600,
+     -39150
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 503,
+    "model": "jersey_barrier",
+    "pos": [
+     259600,
+     -38850
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 504,
+    "model": "jersey_barrier",
+    "pos": [
+     259600,
+     -38550
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 505,
+    "model": "jersey_barrier",
+    "pos": [
+     259600,
+     -38250
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 506,
+    "model": "mil_barricade",
+    "pos": [
+     259600,
+     -37420
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 507,
+    "model": "jersey_barrier",
+    "pos": [
+     260300,
+     -38250
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 508,
+    "model": "jersey_barrier",
+    "pos": [
+     260300,
+     -37950
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 509,
+    "model": "jersey_barrier",
+    "pos": [
+     260300,
+     -37650
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 510,
+    "model": "jersey_barrier",
+    "pos": [
+     260300,
+     -37350
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 511,
+    "model": "mil_barricade",
+    "pos": [
+     260300,
+     -39380
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 512,
+    "model": "hedgehog",
+    "pos": [
+     259600,
+     -39900
+    ],
+    "yaw": 15
+   },
+   {
+    "id": 513,
+    "model": "hedgehog",
+    "pos": [
+     259600,
+     -36900
+    ],
+    "yaw": 40
+   },
+   {
+    "id": 514,
+    "model": "hedgehog",
+    "pos": [
+     260300,
+     -40000
+    ],
+    "yaw": 70
+   },
+   {
+    "id": 515,
+    "model": "hedgehog",
+    "pos": [
+     260300,
+     -36800
+    ],
+    "yaw": 5
+   },
+   {
+    "id": 516,
+    "model": "sandbag_wall",
+    "pos": [
+     260800,
+     -39900
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 517,
+    "model": "sandbag_wall",
+    "pos": [
+     261050,
+     -40050
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 518,
+    "model": "sandbag_wall",
+    "pos": [
+     260550,
+     -40050
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 519,
+    "model": "sandbag_wall",
+    "pos": [
+     260800,
+     -36900
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 520,
+    "model": "mil_tent",
+    "pos": [
+     259500,
+     -41500
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 521,
+    "model": "barrel",
+    "pos": [
+     259050,
+     -41100
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 522,
+    "model": "barrel",
+    "pos": [
+     259000,
+     -41190
+    ],
+    "yaw": 30
+   },
+   {
+    "id": 523,
+    "model": "pallet",
+    "pos": [
+     259150,
+     -44200
+    ],
+    "yaw": 12
+   },
+   {
+    "id": 530,
+    "model": "barrier_striped",
+    "pos": [
+     260700,
+     -40400
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 531,
+    "model": "barrier_striped",
+    "pos": [
+     261000,
+     -40450
+    ],
+    "yaw": 8
+   },
+   {
+    "id": 532,
+    "model": "traffic_cone",
+    "pos": [
+     261350,
+     -40350
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 533,
+    "model": "traffic_cone",
+    "pos": [
+     261650,
+     -40420
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 534,
+    "model": "barrier_plastic",
+    "pos": [
+     273900,
+     -40450
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 535,
+    "model": "barrier_plastic",
+    "pos": [
+     274300,
+     -40400
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 536,
+    "model": "traffic_cone",
+    "pos": [
+     274750,
+     -40500
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 540,
+    "model": "bus_stop",
+    "pos": [
+     269000,
+     -39900
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 541,
+    "model": "bench",
+    "pos": [
+     265800,
+     -40350
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 542,
+    "model": "bench",
+    "pos": [
+     272600,
+     -40350
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 543,
+    "model": "bin_wheelie",
+    "pos": [
+     264500,
+     -40330
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 544,
+    "model": "bin_wheelie",
+    "pos": [
+     270050,
+     -40340
+    ],
+    "yaw": 170
+   },
+   {
+    "id": 545,
+    "model": "bin_wheelie",
+    "pos": [
+     273150,
+     -40300
+    ],
+    "yaw": 200
+   },
+   {
+    "id": 546,
+    "model": "hydrant",
+    "pos": [
+     262600,
+     -40500
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 547,
+    "model": "hydrant",
+    "pos": [
+     273400,
+     -48400
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 548,
+    "model": "trash_bags",
+    "pos": [
+     268100,
+     -44700
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 549,
+    "model": "trash_bags",
+    "pos": [
+     268250,
+     -44580
+    ],
+    "yaw": 60
+   },
+   {
+    "id": 550,
+    "model": "trash_bags",
+    "pos": [
+     267960,
+     -44820
+    ],
+    "yaw": 130
+   },
+   {
+    "id": 551,
+    "model": "container_green",
+    "pos": [
+     268000,
+     -46200
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 552,
+    "model": "barrel",
+    "pos": [
+     273800,
+     -48900
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 553,
+    "model": "pallet",
+    "pos": [
+     263000,
+     -48900
+    ],
+    "yaw": 80
+   },
+   {
+    "id": 554,
+    "model": "barrier_striped",
+    "pos": [
+     262700,
+     -49600
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 555,
+    "model": "barrier_striped",
+    "pos": [
+     262700,
+     -50000
+    ],
+    "yaw": 95
+   },
+   {
+    "id": 560,
+    "model": "traffic_light_arm",
+    "pos": [
+     262300,
+     -40200
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 561,
+    "model": "traffic_light_arm",
+    "pos": [
+     273700,
+     -40200
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 562,
+    "model": "traffic_light_arm",
+    "pos": [
+     262300,
+     -36600
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 563,
+    "model": "traffic_light_arm",
+    "pos": [
+     273700,
+     -36600
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 564,
+    "model": "sign_street",
+    "pos": [
+     262450,
+     -40550
+    ],
+    "yaw": 45
+   },
+   {
+    "id": 565,
+    "model": "sign_direction",
+    "pos": [
+     262000,
+     -36900
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 701,
+    "model": "jersey_barrier",
+    "pos": [
+     151600,
+     -39100
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 702,
+    "model": "jersey_barrier",
+    "pos": [
+     151600,
+     -38820
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 703,
+    "model": "jersey_barrier",
+    "pos": [
+     151600,
+     -38540
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 704,
+    "model": "jersey_barrier",
+    "pos": [
+     152400,
+     -38260
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 705,
+    "model": "jersey_barrier",
+    "pos": [
+     152400,
+     -37980
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 706,
+    "model": "jersey_barrier",
+    "pos": [
+     152400,
+     -37700
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 707,
+    "model": "barrier_striped",
+    "pos": [
+     154000,
+     -38800
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 708,
+    "model": "barrier_striped",
+    "pos": [
+     154000,
+     -38050
+    ],
+    "yaw": 95
+   },
+   {
+    "id": 709,
+    "model": "sandbag_wall",
+    "pos": [
+     151100,
+     -39800
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 710,
+    "model": "sandbag_wall",
+    "pos": [
+     151350,
+     -39800
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 711,
+    "model": "sandbag_wall",
+    "pos": [
+     151100,
+     -37000
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 712,
+    "model": "sandbag_wall",
+    "pos": [
+     151350,
+     -37000
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 713,
+    "model": "sandbag_wall",
+    "pos": [
+     156600,
+     -39600
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 714,
+    "model": "sandbag_wall",
+    "pos": [
+     156600,
+     -37300
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 715,
+    "model": "hedgehog",
+    "pos": [
+     150800,
+     -40500
+    ],
+    "yaw": 15
+   },
+   {
+    "id": 716,
+    "model": "hedgehog",
+    "pos": [
+     150800,
+     -36400
+    ],
+    "yaw": 40
+   },
+   {
+    "id": 717,
+    "model": "hedgehog",
+    "pos": [
+     157500,
+     -40700
+    ],
+    "yaw": 70
+   },
+   {
+    "id": 718,
+    "model": "hedgehog",
+    "pos": [
+     157500,
+     -36200
+    ],
+    "yaw": 5
+   },
+   {
+    "id": 719,
+    "model": "hedgehog",
+    "pos": [
+     158600,
+     -39500
+    ],
+    "yaw": 20
+   },
+   {
+    "id": 720,
+    "model": "mil_tent",
+    "pos": [
+     154500,
+     -41200
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 721,
+    "model": "mil_tent",
+    "pos": [
+     155800,
+     -41400
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 722,
+    "model": "mil_tent",
+    "pos": [
+     153000,
+     -35600
+    ],
+    "yaw": 180
+   },
+   {
+    "id": 723,
+    "model": "barrel",
+    "pos": [
+     155200,
+     -41000
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 724,
+    "model": "barrel",
+    "pos": [
+     155270,
+     -41040
+    ],
+    "yaw": 30
+   },
+   {
+    "id": 725,
+    "model": "barrel",
+    "pos": [
+     153300,
+     -35200
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 726,
+    "model": "barrel",
+    "pos": [
+     156600,
+     -35600
+    ],
+    "yaw": 12
+   },
+   {
+    "id": 727,
+    "model": "pallet",
+    "pos": [
+     153800,
+     -35200
+    ],
+    "yaw": 12
+   },
+   {
+    "id": 728,
+    "model": "pallet",
+    "pos": [
+     154000,
+     -35250
+    ],
+    "yaw": 80
+   },
+   {
+    "id": 729,
+    "model": "container_green",
+    "pos": [
+     157500,
+     -38600
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 730,
+    "model": "container_green",
+    "pos": [
+     157500,
+     -38100
+    ],
+    "yaw": 90
+   },
+   {
+    "id": 731,
+    "model": "traffic_cone",
+    "pos": [
+     154300,
+     -39900
+    ],
+    "yaw": 0
+   },
+   {
+    "id": 732,
+    "model": "traffic_cone",
+    "pos": [
+     154300,
+     -36900
+    ],
+    "yaw": 180
+   }
+  ],
+  "rows": [
+   {
+    "id": 61,
+    "model": "lamp_street",
+    "from": [
+     262800,
+     -40000
+    ],
+    "to": [
+     279600,
+     -40000
+    ],
+    "step": 2400,
+    "yaw": 0,
+    "lamp": true
+   },
+   {
+    "id": 62,
+    "model": "lamp_street",
+    "from": [
+     262800,
+     -36800
+    ],
+    "to": [
+     279600,
+     -36800
+    ],
+    "step": 2400,
+    "yaw": 180,
+    "lamp": true
+   },
+   {
+    "id": 63,
+    "model": "lamp_ornate",
+    "from": [
+     227400,
+     -39780
+    ],
+    "to": [
+     259800,
+     -39780
+    ],
+    "step": 3600,
+    "yaw": 0,
+    "lamp": true
+   },
+   {
+    "id": 64,
+    "model": "lamp_ornate",
+    "from": [
+     227400,
+     -37020
+    ],
+    "to": [
+     259800,
+     -37020
+    ],
+    "step": 3600,
+    "yaw": 180,
+    "lamp": true
+   },
+   {
+    "id": 65,
+    "model": "lamp_street",
+    "from": [
+     262200,
+     -43000
+    ],
+    "to": [
+     262200,
+     -48400
+    ],
+    "step": 2700,
+    "yaw": -90,
+    "lamp": true
+   },
+   {
+    "id": 66,
+    "model": "lamp_street",
+    "from": [
+     273800,
+     -43000
+    ],
+    "to": [
+     273800,
+     -48400
+    ],
+    "step": 2700,
+    "yaw": 90,
+    "lamp": true
+   },
+   {
+    "id": 67,
+    "model": "lamp_street",
+    "from": [
+     264800,
+     -48800
+    ],
+    "to": [
+     271600,
+     -48800
+    ],
+    "step": 3400,
+    "yaw": 180,
+    "lamp": true
+   },
+   {
+    "id": 69,
+    "model": "lamp_highway",
+    "from": [
+     150500,
+     -40200
+    ],
+    "to": [
+     158500,
+     -40200
+    ],
+    "step": 2000,
+    "yaw": 0,
+    "lamp": true
+   },
+   {
+    "id": 70,
+    "model": "lamp_highway",
+    "from": [
+     150500,
+     -36600
+    ],
+    "to": [
+     158500,
+     -36600
+    ],
+    "step": 2000,
+    "yaw": 180,
+    "lamp": true
+   }
+  ],
+  "models": {
+   "_doc": "Collision / fallback sizes [width x, height y, length z] and collider kind (box | cylinder: [diameter, height]); `center_y` of the box. From the A1 manifest (assets/models/city/manifest.json); the server and the web build (no city .glb) only read these.",
+   "sedan": {
+    "dir": "vehicles",
+    "size": [
+     182,
+     125,
+     465
+    ],
+    "col": "box",
+    "colour": "#7A8594"
+   },
+   "suv": {
+    "dir": "vehicles",
+    "size": [
+     195,
+     160,
+     480
+    ],
+    "col": "box",
+    "colour": "#56606E"
+   },
+   "taxi": {
+    "dir": "vehicles",
+    "size": [
+     182,
+     132,
+     465
+    ],
+    "col": "box",
+    "colour": "#C8B048"
+   },
+   "van": {
+    "dir": "vehicles",
+    "size": [
+     200,
+     220,
+     530
+    ],
+    "col": "box",
+    "colour": "#B9BEC4"
+   },
+   "pickup": {
+    "dir": "vehicles",
+    "size": [
+     205,
+     175,
+     560
+    ],
+    "col": "box",
+    "colour": "#8A5A45"
+   },
+   "bus": {
+    "dir": "vehicles",
+    "size": [
+     255,
+     290,
+     1200
+    ],
+    "col": "box",
+    "colour": "#C9CFD6"
+   },
+   "ambulance": {
+    "dir": "vehicles",
+    "size": [
+     230,
+     260,
+     630
+    ],
+    "col": "box",
+    "colour": "#D9DCE0"
+   },
+   "police": {
+    "dir": "vehicles",
+    "size": [
+     188,
+     140,
+     490
+    ],
+    "col": "box",
+    "colour": "#2E3A4F"
+   },
+   "box_truck": {
+    "dir": "vehicles",
+    "size": [
+     250,
+     320,
+     720
+    ],
+    "col": "box",
+    "colour": "#A8ADB3"
+   },
+   "military_truck": {
+    "dir": "vehicles",
+    "size": [
+     250,
+     320,
+     720
+    ],
+    "col": "box",
+    "colour": "#556048"
+   },
+   "jersey_barrier": {
+    "dir": "props",
+    "size": [
+     300,
+     82,
+     62
+    ],
+    "col": "box",
+    "colour": "#A9A9A4"
+   },
+   "mil_barricade": {
+    "dir": "props",
+    "size": [
+     440,
+     125,
+     160
+    ],
+    "col": "box",
+    "colour": "#6C6A5C"
+   },
+   "hedgehog": {
+    "dir": "props",
+    "size": [
+     160,
+     130,
+     160
+    ],
+    "col": "box",
+    "colour": "#4A4C50"
+   },
+   "sandbag_wall": {
+    "dir": "props",
+    "size": [
+     240,
+     46,
+     40
+    ],
+    "col": "box",
+    "colour": "#8F8566"
+   },
+   "mil_tent": {
+    "dir": "props",
+    "size": [
+     420,
+     270,
+     520
+    ],
+    "col": "box",
+    "colour": "#5C6450"
+   },
+   "barrel": {
+    "dir": "props",
+    "size": [
+     55,
+     90,
+     55
+    ],
+    "col": "box",
+    "colour": "#5B6E86"
+   },
+   "pallet": {
+    "dir": "props",
+    "size": [
+     122,
+     14,
+     89
+    ],
+    "col": "box",
+    "colour": "#8C7456"
+   },
+   "barrier_striped": {
+    "dir": "props",
+    "size": [
+     156,
+     111,
+     88
+    ],
+    "col": "box",
+    "colour": "#D8D2C8"
+   },
+   "barrier_plastic": {
+    "dir": "props",
+    "size": [
+     138,
+     80,
+     45
+    ],
+    "col": "box",
+    "colour": "#C9502E"
+   },
+   "traffic_cone": {
+    "dir": "props",
+    "size": [
+     54,
+     70,
+     54
+    ],
+    "col": "box",
+    "colour": "#D86A2E"
+   },
+   "bus_stop": {
+    "dir": "props",
+    "size": [
+     380,
+     257,
+     170
+    ],
+    "col": "box",
+    "colour": "#7C8792"
+   },
+   "bench": {
+    "dir": "props",
+    "size": [
+     180,
+     85,
+     62
+    ],
+    "col": "box",
+    "colour": "#6F5A45"
+   },
+   "bin_wheelie": {
+    "dir": "props",
+    "size": [
+     58,
+     105,
+     76
+    ],
+    "col": "box",
+    "colour": "#3F5A47"
+   },
+   "hydrant": {
+    "dir": "props",
+    "size": [
+     52,
+     77,
+     40
+    ],
+    "col": "box",
+    "colour": "#B3452E"
+   },
+   "trash_bags": {
+    "dir": "props",
+    "size": [
+     50,
+     56,
+     50
+    ],
+    "col": "box",
+    "colour": "#2B2E33"
+   },
+   "container_green": {
+    "dir": "props",
+    "size": [
+     571,
+     260,
+     256
+    ],
+    "col": "box",
+    "colour": "#3E6B4A"
+   },
+   "traffic_light_arm": {
+    "dir": "props",
+    "size": [
+     24,
+     466,
+     24
+    ],
+    "col": "cylinder",
+    "colour": "#3D4148"
+   },
+   "sign_street": {
+    "dir": "props",
+    "size": [
+     10,
+     277,
+     10
+    ],
+    "col": "cylinder",
+    "colour": "#56606E"
+   },
+   "sign_direction": {
+    "dir": "props",
+    "size": [
+     260,
+     295,
+     20
+    ],
+    "col": "box",
+    "colour": "#3F6E4E"
+   },
+   "lamp_street": {
+    "dir": "props",
+    "size": [
+     24,
+     664,
+     24
+    ],
+    "col": "cylinder",
+    "colour": "#4A4F57",
+    "bulb": [
+     0,
+     632,
+     239
+    ]
+   },
+   "lamp_ornate": {
+    "dir": "props",
+    "size": [
+     27,
+     440,
+     27
+    ],
+    "col": "cylinder",
+    "colour": "#2F3338",
+    "bulb": [
+     0,
+     400,
+     0
+    ]
+   },
+   "lamp_highway": {
+    "dir": "props",
+    "size": [
+     42,
+     900,
+     42
+    ],
+    "col": "cylinder",
+    "colour": "#4A4F57",
+    "bulb": [
+     0,
+     870,
+     120
+    ]
+   }
+  }
+ },
+ "heroes": [
+  {
+   "id": 901,
+   "name": "Torre Albo",
+   "pos": [
+    268000,
+    -32200
+   ],
+   "size": [
+    3000,
+    3000
+   ],
+   "yaw": 180,
+   "floors": 40,
+   "ground_h": 430,
+   "floor_h": 380,
+   "style": "glass",
+   "crown": "helipad",
+   "furnished": [
+    0,
+    1,
+    2,
+    12,
+    39
+   ],
+   "generator": true,
+   "mirador": 72
+  },
+  {
+   "id": 902,
+   "name": "Edificio Meridiano",
+   "pos": [
+    281200,
+    -44600
+   ],
+   "size": [
+    3600,
+    2000
+   ],
+   "yaw": 0,
+   "floors": 24,
+   "ground_h": 430,
+   "floor_h": 380,
+   "style": "concrete",
+   "crown": "tanks",
+   "furnished": [
+    0,
+    1,
+    2,
+    3,
+    8,
+    23
+   ]
+  }
+ ],
+ "fixed_buildings": [
+  {
+   "fam": "caseta",
+   "var": 0,
+   "floors": 1,
+   "pos": [
+    152800,
+    -39500
+   ],
+   "yaw": 180,
+   "pal": 0,
+   "flags": 1
+  },
+  {
+   "fam": "caseta",
+   "var": 0,
+   "floors": 1,
+   "pos": [
+    154800,
+    -37100
+   ],
+   "yaw": 0,
+   "pal": 0,
+   "flags": 1
+  },
+  {
+   "fam": "caseta",
+   "var": 1,
+   "floors": 1,
+   "pos": [
+    156000,
+    -40400
+   ],
+   "yaw": 180,
+   "pal": 1,
+   "flags": 1
+  }
+ ],
+ "clear": [
+  [
+   258400,
+   -51200,
+   276400,
+   -35600
+  ],
+  [
+   225000,
+   -40200,
+   262400,
+   -36600
+  ],
+  [
+   148000,
+   -42500,
+   159600,
+   -34300
+  ],
+  [
+   172800,
+   -96000,
+   229600,
+   -6400
+  ],
+  [
+   259000,
+   -96000,
+   366000,
+   57600
+  ]
+ ],
+ "camera_zones": [
+  {
+   "id": 81,
+   "profile": "default",
+   "rect": [
+    172800,
+    -96000,
+    236800,
+    -6400
+   ],
+   "rooftop_h": 700,
+   "district": "casco_viejo"
+  },
+  {
+   "id": 82,
+   "profile": "default",
+   "rect": [
+    249600,
+    -96000,
+    364800,
+    57600
+   ],
+   "rooftop_h": 700,
+   "district": "ensanche"
+  },
+  {
+   "id": 83,
+   "profile": "default",
+   "rect": [
+    172800,
+    -6400,
+    236800,
+    57600
+   ],
+   "rooftop_h": 700,
+   "district": "barriada"
+  },
+  {
+   "id": 84,
+   "profile": "default",
+   "rect": [
+    249600,
+    -70400,
+    288000,
+    -6400
+   ],
+   "rooftop_h": 700,
+   "district": "las_torres",
+   "priority": 1
+  }
+ ],
+ "miradores": [
+  {
+   "id": 71,
+   "name": "Mirador provisional de Las Torres",
+   "on": 11,
+   "pos": [
+    263300,
+    -41500
+   ],
+   "look": 112,
+   "pitch": -7.0,
+   "fov": 46.0,
+   "far": 1500,
+   "dist": 9.0,
+   "radius": 260,
+   "reveal": 60000
+  },
+  {
+   "id": 72,
+   "name": "Torre Albo",
+   "hero": 901,
+   "at": "roof",
+   "pos": [
+    268900,
+    -31300
+   ],
+   "look": 250,
+   "pitch": -12.0,
+   "fov": 50.0,
+   "far": 2600,
+   "dist": 11.0,
+   "radius": 400,
+   "reveal": 140000
+  },
+  {
+   "id": 73,
+   "name": "Puente de Hierro",
+   "at": "deck",
+   "pos": [
+    244000,
+    -39700
+   ],
+   "look": 80,
+   "pitch": -4.0,
+   "fov": 48.0,
+   "far": 1800,
+   "dist": 8.0,
+   "radius": 300,
+   "reveal": 80000
+  },
+  {
+   "id": 74,
+   "name": "Torre de vigilancia",
+   "at": "poi",
+   "poi": "lookout_tower",
+   "pos": [
+    25600,
+    89600
+   ],
+   "h": 1050,
+   "look": 20,
+   "pitch": -8.0,
+   "fov": 48.0,
+   "far": 1400,
+   "dist": 7.0,
+   "radius": 350,
+   "reveal": 70000
+  },
+  {
+   "id": 75,
+   "name": "Repetidor del Pico",
+   "at": "ground",
+   "pos": [
+    -115200,
+    -12800
+   ],
+   "look": 60,
+   "pitch": -6.0,
+   "fov": 50.0,
+   "far": 2400,
+   "dist": 9.0,
+   "radius": 600,
+   "reveal": 110000
+  }
+ ],
+ "power": {
+  "grid": 0.0,
+  "generators": [
+   12,
+   22
+  ],
+  "rects": [
+   [
+    258600,
+    -41000,
+    262200,
+    -36000
+   ],
+   [
+    149000,
+    -42000,
+    159000,
+    -35000
+   ]
+  ],
+  "map": [
+   148000,
+   -100000,
+   370000,
+   62000
+  ],
+  "cell": 800,
+  "flicker": 0.15
+ },
+ "silhouettes": {
+  "version": 1,
+  "seed": 71317,
+  "extent": [
+   166400,
+   -108800,
+   377600,
+   64000
+  ],
+  "terrain_step": 6400,
+  "exclude": [],
+  "districts": [
+   {
+    "id": "casco_viejo",
+    "kind": "lots",
+    "district": "casco_viejo"
+   },
+   {
+    "id": "ensanche",
+    "kind": "lots",
+    "district": "ensanche"
+   },
+   {
+    "id": "barriada",
+    "kind": "lots",
+    "district": "barriada"
+   },
+   {
+    "id": "las_torres",
+    "kind": "lots",
+    "district": "las_torres"
+   }
+  ],
+  "landmarks": [
+   {
+    "id": "catedral",
+    "kind": "cathedral",
+    "pos": [
+     217600,
+     -51200
+    ],
+    "yaw": 0
+   },
+   {
+    "id": "torre_telecomunicaciones",
+    "kind": "mast",
+    "pos": [
+     192000,
+     -89600
+    ],
+    "height": 12000
+   },
+   {
+    "id": "hospital_provincial",
+    "kind": "hospital",
+    "pos": [
+     320000,
+     -76800
+    ],
+    "size": [
+     16000,
+     12000
+    ],
+    "floors": 6,
+    "floor_h": 360
+   },
+   {
+    "id": "centro_comercial",
+    "kind": "box",
+    "pos": [
+     339200,
+     -12800
+    ],
+    "size": [
+     25600,
+     12800
+    ],
+    "height": 1600
+   },
+   {
+    "id": "estadio",
+    "kind": "stadium",
+    "pos": [
+     345600,
+     38400
+    ],
+    "size": [
+     24000,
+     20000
+    ],
+    "height": 2500
+   },
+   {
+    "id": "jefatura",
+    "kind": "box",
+    "pos": [
+     307200,
+     12800
+    ],
+    "size": [
+     8000,
+     6000
+    ],
+    "height": 1500
+   },
+   {
+    "id": "universidad",
+    "kind": "campus",
+    "pos": [
+     192000,
+     0
+    ],
+    "size": [
+     20000,
+     15000
+    ],
+    "floors": 4,
+    "floor_h": 360
+   },
+   {
+    "id": "presa_del_cierzo",
+    "kind": "dam",
+    "pos": [
+     243200,
+     -128400
+    ],
+    "size": [
+     21000,
+     1200
+    ],
+    "height": 3000
+   }
+  ]
+ },
+ "graph_roads": [
+  {
+   "from": [
+    179200,
+    -38400
+   ],
+   "to": [
+    371200,
+    -38400
+   ],
+   "width": 2400,
+   "name": "GRAN VÍA"
+  },
+  {
+   "from": [
+    175200,
+    -102400
+   ],
+   "to": [
+    371200,
+    -102400
+   ],
+   "width": 1800,
+   "name": "RONDA NORTE"
+  },
+  {
+   "from": [
+    175200,
+    64000
+   ],
+   "to": [
+    371200,
+    64000
+   ],
+   "width": 1800,
+   "name": "RONDA SUR"
+  },
+  {
+   "from": [
+    150000,
+    -38400
+   ],
+   "to": [
+    179200,
+    -38400
+   ],
+   "width": 700,
+   "name": "CARRETERA DEL PUERTO"
+  }
+ ],
+ "dressing": {
+  "_doc": "C1 street dressing (CityLots): street lamps along the roads (layout: `lamp` model every `lamp_step` cm on `lamp_sides` sides, `lamp_curb` cm beyond the road edge); cars parked along the curbs of roads >= `min_road` wide (seeded per world: one `slot` each with probability `park`, `cars` / `variants` weights, `curb` cm from the road edge to the car's axis) and sidewalk furniture (`props` every `prop_step` with probability `prop_p`); nothing within `end_clear` of a crossing.",
+  "slot": 650,
+  "end_clear": 700,
+  "curb": 130,
+  "lamp_curb": 60,
+  "min_road": 700,
+  "districts": {
+   "casco_viejo": {
+    "lamp": "lamp_ornate",
+    "lamp_step": 2200,
+    "lamp_sides": 1,
+    "park": 0.16,
+    "park_sides": 1,
+    "cars": {
+     "sedan": 55,
+     "van": 25,
+     "suv": 20
+    },
+    "variants": {
+     "snowed": 85,
+     "burnt": 15
+    },
+    "props": {
+     "trash_bags": 45,
+     "bin_wheelie": 35,
+     "barrel": 20
+    },
+    "prop_step": 1600,
+    "prop_p": 0.3
+   },
+   "ensanche": {
+    "lamp": "lamp_street",
+    "lamp_step": 2800,
+    "lamp_sides": 2,
+    "park": 0.34,
+    "park_sides": 2,
+    "cars": {
+     "sedan": 45,
+     "suv": 25,
+     "taxi": 12,
+     "van": 18
+    },
+    "variants": {
+     "snowed": 80,
+     "burnt": 10,
+     "doors": 10
+    },
+    "props": {
+     "bin_wheelie": 30,
+     "trash_bags": 25,
+     "bench": 25,
+     "hydrant": 12,
+     "bus_stop": 8
+    },
+    "prop_step": 1800,
+    "prop_p": 0.3
+   },
+   "barriada": {
+    "lamp": "lamp_street",
+    "lamp_step": 3000,
+    "lamp_sides": 1,
+    "park": 0.32,
+    "park_sides": 2,
+    "cars": {
+     "sedan": 45,
+     "pickup": 20,
+     "van": 35
+    },
+    "variants": {
+     "snowed": 80,
+     "burnt": 20
+    },
+    "props": {
+     "bin_wheelie": 35,
+     "trash_bags": 40,
+     "container_green": 10,
+     "barrel": 15
+    },
+    "prop_step": 1800,
+    "prop_p": 0.3
+   },
+   "las_torres": {
+    "lamp": "lamp_street",
+    "lamp_step": 2400,
+    "lamp_sides": 2,
+    "park": 0.2,
+    "park_sides": 2,
+    "cars": {
+     "suv": 45,
+     "sedan": 40,
+     "police": 15
+    },
+    "variants": {
+     "snowed": 85,
+     "doors": 15
+    },
+    "props": {
+     "bench": 30,
+     "bin_wheelie": 30,
+     "barrier_plastic": 20,
+     "traffic_cone": 20
+    },
+    "prop_step": 2000,
+    "prop_p": 0.25
+   }
+  }
+ }
+}

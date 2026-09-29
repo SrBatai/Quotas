@@ -77,3 +77,7 @@ signal local_shot(weapon: StringName, spread_deg: float)   # owner: predicted sh
 signal shot_fired(shooter_peer: int, weapon: StringName, origin: Vector3, ends: PackedVector3Array, flags: int)   # every client in reach
 signal projectile_spawned(kind: int, from: Vector3, to: Vector3, flight: float, shooter_peer: int)   # arrow / can / flare
 signal loot_opened(wid: int, table: StringName, items: int)   # owner: a loot container opened (first roll or not)
+# H3 notices, hazards and group (docs/research/10_hud_ux.md appendix §6.4.3, §6.5, §6.8, §8.5; presentation, clients)
+signal ping_placed(id: int, peer: int, kind: StringName, pos: Vector3, seconds: float)   # HudNet: a replicated ping (place | danger)
+signal teammate_state(peer: int, state: Dictionary)   # HudNet: {health, warmth, bleed, downed, dead, in_house, t_ms} of a teammate
+signal p0_notice(n: Dictionary, on: bool)   # NotifyRouter: a P0 started / ended (shown in the world or on the vital, never a banner)

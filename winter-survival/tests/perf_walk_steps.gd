@@ -16,6 +16,14 @@ const ROUTE_M3 := [Vector2(0, 30), Vector2(160, -60), Vector2(420, -200), Vector
 ## west, back and east streets ≈ 2.4 km.
 const ROUTE_C0 := [Vector2(640, -392), Vector2(1792, -384), Vector2(2250, -384), Vector2(2614, -384), Vector2(2614, -496),
 	Vector2(2746, -496), Vector2(2746, -392), Vector2(2800, -384)]
+## C1 route (--route=city, PLAN C1 «perf_walk urbano»): the Carretera del Puerto past the Control del Puerto, the
+## Gran Vía between the casco viejo and the barriada, over the Puente de Hierro, through Las Torres (Meridiano, Albo)
+## into the ensanche and round two of its manzanas ≈ 2.3 km (run at 15 m/s: --speed=15).
+const ROUTE_CITY := [Vector2(1400, -387), Vector2(1792, -384), Vector2(2250, -384), Vector2(2614, -384), Vector2(2889, -384),
+	Vector2(3003, -384), Vector2(3003, -511), Vector2(3231, -511), Vector2(3231, -625), Vector2(3003, -625)]
+## M6b route (--route=m6b, PLAN §7 M6b «perf_drive por la aldea»): from the Valdenieve road east of La Herrería into
+## the village's main street to its far end, back, down the sawmill lane into the yard of the Aserradero and out
+## again, then the Calle de la Fragua when the seed drew it — built from the world's village plan (Settlements).
 var ROUTE: Array = ROUTE_W1
 const WARMUP_FRAMES := 60
 const HITCH_MS := 33.3
@@ -28,9 +36,14 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	tree = p_tree
 	opts = p_opts
 	ROUTE = ROUTE_M3 if str(opts.get("route", "w1")) == "m3" else (ROUTE_C0 if str(opts.get("route", "w1")) == "c0" else ROUTE_W1)
+	if str(opts.get("route", "w1")) == "city":
+		ROUTE = ROUTE_CITY
 	await tree.process_frame
 	if bool(opts.get("cpu", false)):
 		WorldStreamer.force_visual = true
+		# M6b: the village drive measures the client's building path too (CityBuilding materials, cutaway, signs)
+		if str(opts.get("route", "w1")) == "m6b":
+			KitBuilding.render_override = 1
 	elif not Quality.is_compat_renderer():
 		Quality.set_preset(&"alto", false)
 	# --nothreads: the web (nothreads template) path, chunks generated on the main thread (informative, not gated)
@@ -59,6 +72,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		waited += 1
 	var player: Player = GameFlow.local_player()
 	var world: World = tree.current_scene.get_node("World")
+	if str(opts.get("route", "w1")) == "m6b":
+		ROUTE = route_m6b(world.seed_value)
 	if player == null:
 		print("FAIL: no local player")
 		tree.quit(1)
@@ -116,6 +131,14 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	var fprobe: PackedInt64Array = SchedProbe.sample() if sched else PackedInt64Array()
 	var fsteal := SchedProbe.steal_jiffies() if sched else 0
 	var sched_frames: Array = []
+	# M6b (route m6b): the frame's own time (wall − the main thread's run-queue wait) and the village builders' share
+	var village := str(opts.get("route", "w1")) == "m6b"
+	var own_ms: Array[float] = []
+	var village_ms: Array[float] = []
+	var hitches_own := 0
+	var hitches_village := 0
+	var village_hitches: Array = []
+	SettlementChunk.take_usec()
 	while seg < ROUTE.size() - 1:
 		await tree.process_frame
 		var now := Time.get_ticks_usec()
@@ -156,6 +179,19 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		var wms := maxf(sms - qms, 0.0)
 		frame_ms.append(fms)
 		stream_ms.append(sms)
+		if village:
+			var vms := float(SettlementChunk.take_usec()) / 1000.0
+			own_ms.append(fms - fq)
+			village_ms.append(vms)
+			if fms - fq > HITCH_MS:
+				hitches_own += 1
+				# the village's hitch: not one without the site builders' work, or they took a real share of it
+				if fms - fq - vms <= HITCH_MS or vms > (fms - fq) * 0.25:
+					hitches_village += 1
+			if fms > HITCH_MS and village_hitches.size() < 12:
+				village_hitches.append([snappedf(fms, 0.1), snappedf(fq, 0.1), snappedf(sms, 0.01), snappedf(vms, 0.01),
+					snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.1), snappedf(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, 0.1),
+					snappedf(Performance.get_monitor(Performance.TIME_NAVIGATION_PROCESS) * 1000.0, 0.1)])
 		work_ms.append(wms)
 		wait_ms.append(qms)
 		if st.frame_blocks > 0:
@@ -272,6 +308,13 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		"video_mem_mb": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1),
 		"nodes": Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
 	}
+	if village:
+		report["frame_own_ms"] = {"p50": _pct(own_ms, 0.5), "p99": _pct(own_ms, 0.99), "max": own_ms.max()}
+		report["frames_over_33ms_own"] = hitches_own
+		report["frames_over_33ms_village"] = hitches_village
+		report["village_ms"] = {"p50": _pct(village_ms, 0.5), "p99": _pct(village_ms, 0.99), "max": village_ms.max(), "budget": SettlementChunk.FRAME_BUDGET_USEC / 1000.0}
+		report["village_hitch_frames"] = village_hitches
+		report["village_step_max_us"] = SettlementChunk.step_max.duplicate()
 	print("== perf walk%s (%s, %d cores): %.0f m at %.0f m/s, %d frames" % [" --cpu (headless, visual streaming forced)" if bool(opts.get("cpu", false)) else "", report["rendering_method"], report["cpu_cores"], total_len, speed, frames])
 	print("  frame ms      p50 %.1f  p99 %.1f  max %.1f  (> 33 ms: %d, caused by streaming: %d)" % [report["frame_ms"]["p50"], report["frame_ms"]["p99"], report["frame_ms"]["max"], hitches, hitches_streaming])
 	print("  streaming ms  p50 %.2f  p99 %.2f  p99.9 %.2f  max %.2f  (budget %.1f)  max step %.2f ms %s" % [report["stream_ms"]["p50"], report["stream_ms"]["p99"], report["stream_ms"]["p999"], report["stream_ms"]["max"], WorldConst.STREAM_BUDGET_USEC / 1000.0, report["step_ms_max"], report["step_max_by_kind_us"]])
@@ -286,6 +329,11 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	print("  frames over the 2 ms streaming budget: %d of %d (%.2f %%); worst [stream ms, frame ms, [refresh, collect, instantiate, unload µs, step]]: %s" % [over_budget, frames, 100.0 * over_budget / maxf(frames, 1), worst])
 	print("  chunks        %d generated (avg %.1f ms, max %.1f ms in workers), %d unloaded, %d loaded at the end, %d sync loads, ground missing %d frames" % [report["chunks_generated"], report["gen_ms_avg"], report["gen_ms_max"], report["chunks_unloaded"], report["loaded_chunks_end"], report["sync_loads"], missing_ground])
 	print("  memory        RSS max %.0f MB, static %.0f MB, video %.0f MB, nodes %d, draw calls p50 %d" % [report["rss_mb_max"], report["memory_static_mb"], report["video_mem_mb"], int(report["nodes"]), int(report["draw_calls_p50"])])
+	if village:
+		print("  village       frame own ms (wall − run-queue wait) p50 %.1f  p99 %.1f  max %.1f  (> 33 ms: %d, caused by the village: %d); site builders ms p50 %.2f  p99 %.2f  max %.2f; frames > 33 ms [frame ms, run-queue ms, stream ms, village ms, process ms, physics ms, navigation ms]: %s" % [
+			report["frame_own_ms"]["p50"], report["frame_own_ms"]["p99"], report["frame_own_ms"]["max"], hitches_own, hitches_village, report["village_ms"]["p50"],
+			report["village_ms"]["p99"], report["village_ms"]["max"], village_hitches])
+		print("  village       slowest site builder step by kind (µs): %s" % [report["village_step_max_us"]])
 	if sched:
 		report["sched_slow_steps"] = st.probe_steps
 		report["sched_slow_frames"] = sched_frames
@@ -303,9 +351,36 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	tree.quit(0 if ok else 1)
 
 
+## The village drive of M6b (world metres), from the seed's plan.
+static func route_m6b(seed_v: int) -> Array:
+	var p := Settlements.site(seed_v, "la_herreria")
+	var out: Array = [Vector2(-560, -644), Vector2(-700, -662)]
+	if p.is_empty():
+		return out
+	var streets: Array = p["streets"]
+	var main: PackedVector2Array = (streets[0] as Dictionary)["points"]
+	for q in main:
+		out.append(q)
+	for si in range(1, streets.size()):
+		var pts: PackedVector2Array = (streets[si] as Dictionary)["points"]
+		out.append(pts[0])
+		for q in pts:
+			out.append(q)
+		if si == 1:
+			out.append(Vector2(-632, -772))                      # into the sawmill yard
+		for k in range(pts.size() - 1, -1, -1):
+			out.append(pts[k])
+	out.append(main[0])
+	out.append(Vector2(-840, -700))
+	return out
+
+
 func _check(report: Dictionary) -> bool:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(String(opts["budgets"]))) if FileAccess.file_exists(String(opts["budgets"])) else {}
-	var b: Dictionary = data.get("perf_walk_cpu" if bool(opts.get("cpu", false)) else "perf_walk", {}) if data is Dictionary else {}
+	var section := ("perf_walk_cpu" if bool(opts.get("cpu", false)) else "perf_walk") + ("_m6b" if str(opts.get("route", "w1")) == "m6b" else "")
+	if str(opts.get("route", "w1")) == "city":
+		section += "_city"
+	var b: Dictionary = data.get(section, {}) if data is Dictionary else {}
 	var ok := true
 	# W1: with the scheduler probe the per-frame streaming numbers are the work time (raw wall − run-queue wait)
 	var sk := "stream_work_ms" if bool(report.get("sched_probe", false)) else "stream_ms"
@@ -316,7 +391,15 @@ func _check(report: Dictionary) -> bool:
 	var checks := [["stream_ms_p99_max", report[sk]["p99"]], ["stream_ms_p999_max", report[sk]["p999"]],
 		["stream_ms_max", mx], ["frames_over_stream_budget_pct_max", pct],
 		["frames_over_33ms_streaming_max", report["frames_over_33ms_streaming"]],
-		["missing_ground_frames_max", report["missing_ground_frames"]], ["rss_mb_max", report["rss_mb_max"]]]
+		["missing_ground_frames_max", report["missing_ground_frames"]], ["rss_mb_max", report["rss_mb_max"]],
+		# M6b (route m6b): the whole frame (village buildings instantiate outside the streaming window), draw calls
+		["frame_ms_p99_max", report["frame_ms"]["p99"]], ["frames_over_33ms_max", report["frames_over_33ms"]],
+		["draw_calls_p50_max", report["draw_calls_p50"]]]
+	if report.has("frame_own_ms"):
+		checks.append(["frame_own_ms_p99_max", report["frame_own_ms"]["p99"]])
+		checks.append(["frames_over_33ms_own_max", report["frames_over_33ms_own"]])
+		checks.append(["frames_over_33ms_village_max", report["frames_over_33ms_village"]])
+		checks.append(["village_ms_max", report["village_ms"]["max"]])
 	for c in checks:
 		if not b.has(c[0]):
 			continue

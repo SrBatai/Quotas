@@ -73,6 +73,13 @@ RENDER=forward tests/run_screenshots.sh /tmp/shots hud_idle hud_action hud_zone 
 godot --headless --path . -s tests/unit/zone_tracker_test.gd   # H2: zonas (histéresis, jerarquía, enfriamientos, cartel, 20 puntos W1, nombres)
 tests/net/run_discovery_test.sh --backend sqlite     # H2: descubrimiento del grupo y reinicio del servidor
 RENDER=forward tests/run_screenshots.sh /tmp/shots zone_card zone_sign_vehicle   # H2, a 1080p
+godot --headless --path . -s tests/unit/notify_router_test.gd   # H3: avisos P0–P3, prelación, cola, fusión, enfriamiento, peligros
+tests/net/run_net_test.sh --clients 4 --duration 55 --soak 75 --scenario team --port 7897   # H3: ping de peligro en los 4, derribo de B → A ≤ 0,2 s
+tests/run_hud_coverage.sh --moments=idle,downed_coop   # H3: compañera derribada ≤ 3 % (como el reposo)
+RENDER=forward tests/run_screenshots.sh /tmp/shots downed_coop hud_downed_coop_cue   # H3, a 1080p
+godot --headless --path . -s tests/m6b_checks.gd   # M6b: plan de La Herrería, hash en 4 semillas, sellos, residentes, zonas, botín
+tests/net/run_net_test.sh --clients 2 --duration 90 --soak 120 --scenario village --port 7917   # M6b: puertas y contenedores coherentes
+tests/run_perf_walk.sh --cpu --route=m6b   # M6b: paseo en coche por la aldea (frame propio p99 ≤ 16 ms, sin tirones de la aldea)
 ```
 
 ## Reconstruir los modelos 3D (Blender)
@@ -370,7 +377,7 @@ sobre blanco; el límite es 3 %). Todo lo demás aparece cuando cambia y se fund
   según lo que se sepa del lugar). Se entra estando 12 m dentro durante 1,5 s y se sale 12 m fuera: ya no parpadea al
   cruzar un borde de chunk. La re‑entrada muestra solo el nombre al 60 %. En combate espera. Desde H2 los lugares son
   los de W1 (Altavega y sus distritos incluidos): ver «Zonas: entrar y salir (H2)».
-- **Avisos**: un aviso central con prioridad y cola (P0 interrumpe, «2 avisos en espera»), una columna lateral para
+- **Avisos** (desde H3 los P0 ya no van al centro: ver «Avisos, peligros y grupo (H3)»): una línea central con prioridad y cola («2 avisos en espera»), una columna lateral para
   lo recogido y fabricado con contadores que se suman («Madera +3 (5)»), y los peligros en una línea: prevista →
   se acerca → «❄ VENTISCA · visibilidad 6 m · 2:40» → a los 5 s solo el icono y el tiempo.
 - **Compañeros**: nada si están cerca; punto y nombre si están lejos (> 25 m, 10 m en ventisca), tienen frío o hablan
@@ -483,6 +490,73 @@ origen y a 2,7 km, Forward+), `tests/run_perf_walk.sh --cpu --route=c0` (Carrete
 `tests/run_determinism.sh` (ahora incluye los objetos de la ciudad y el hash del fichero). Capturas:
 `RENDER=forward tests/run_screenshots.sh docs/screenshots/c0 altavega_c0_day altavega_c0_night mirador
 altavega_c0_aerial menu_skyline`.
+
+## Altavega: núcleo urbano (C1)
+
+Altavega ya es una ciudad: **2 968 edificios** generados en cuatro distritos a los dos lados del río Albo, con
+**calles de verdad** (un grafo de 475 nudos y 711 tramos, calzadas y aceras pintadas en la nieve, farolas, coches
+aparcados y enterrados, contenedores, bancos y marquesinas) y **dos torres héroe** en las que se puede entrar.
+
+- **Casco viejo** (al oeste del río): manzanas irregulares de casas de 3–4 plantas con soportales, balcones,
+  contraventanas y tejados a dos aguas; la catedral y la plaza mayor quedan como solares reservados.
+- **Ensanche** (al este de Las Torres): cuadrícula de manzanas de 96 m con **chaflanes**, bloques de 5–8 plantas con
+  bajos comerciales, miradores y áticos retranqueados.
+- **Barriada de San Lázaro** (al sur de la Gran Vía): bloques lineales de 8–14 plantas y torres‑punto en supermanzanas.
+- **Las Torres**: las supermanzanas de zócalos y torres de C0 repetidas a lo largo de la Gran Vía y, en medio,
+  la **Torre Albo** (40 plantas, más de 150 m, helipuerto, mirador en la azotea) y el **Edificio Meridiano** (24 plantas).
+
+Unos 260 bajos (tiendas, bares, portales) tienen **puerta y botín**; en las torres héroe se sube por la **escalera**
+(dos tramos por planta, puertas de escalera y de oficinas, contenedores en las plantas amuebladas, puerta a la azotea).
+Arriba hay zombis: cada planta tiene sus **residentes** (aparecen cuando alguien está a ≤ 2 plantas y lo que matas
+queda muerto aunque se reinicie el servidor). Por la ciudad hay **estatuas congeladas** y gente **atrapada en los
+coches** del atasco. La **primera vez que cruzas el Puente de Hierro** (ahora un puente de arcos atirantados con pilas
+de piedra) una cinemática de 7 s enseña Las Torres (cualquier tecla la salta). Cada distrito tiene su **perfil de
+cámara** y la distancia de dibujo crece con el zoom y en las azoteas. Hay **cinco miradores** (Torre Albo, el puente, la
+torre de vigilancia, el repetidor del Pico y el de C0): mantén V 1 s en el poste para ver la ciudad desde arriba; el
+mirador queda marcado como usado (el mapa de H5 revelará su zona).
+El **Control del Puerto** (tres casetas militares con botín, barreras y camiones) cierra la entrada por la Carretera del
+Puerto.
+
+Llegar con `debug_commands`: `/tp 2003 -513` (casco viejo), `/tp 3003 -511` (chaflán del ensanche), `/tp 2065 342`
+(barriada), `/tp 2690 -370` (Gran Vía en la Torre Albo), `/tp 2812 -430` (puerta del Meridiano), `/tp 1542 -384`
+(Control del Puerto). `/tp x z y` acepta una altura (una planta de una torre). `/rule vertical_filter off|on` apaga el
+filtro vertical de interés (para medirlo).
+
+| Llegada por el puente | Casco viejo | Ensanche | Barriada |
+|---|---|---|---|
+| ![Puente](docs/screenshots/c1/c1_bridge.jpg) | ![Casco](docs/screenshots/c1/c1_casco.jpg) | ![Ensanche](docs/screenshots/c1/c1_ensanche.jpg) | ![Barriada](docs/screenshots/c1/c1_barriada.jpg) |
+
+| La Gran Vía en Las Torres | Las Torres desde una azotea | *Skyline* de noche | Una planta de torre |
+|---|---|---|---|
+| ![Gran Vía](docs/screenshots/c1/c1_torres.jpg) | ![Azotea](docs/screenshots/c1/c1_rooftop.jpg) | ![Noche](docs/screenshots/c1/c1_night.jpg) | ![Planta](docs/screenshots/c1/c1_tower_floor.jpg) |
+
+![Vista aérea: el casco viejo, el Puente de Hierro sobre el río Albo helado y Las Torres](docs/screenshots/c1/c1_aerial.jpg)
+
+Cómo está hecho (detalles en `docs/v2/ARQUITECTURA_V2.md` §9.12):
+
+- **La ciudad es un fichero de datos.** `data/world/city/districts.json` (a mano: distritos, reglas de manzana y
+  parcela, solares reservados, calles fijas, torres héroe, miradores, zonas de cámara, vestido de calle) →
+  `tools/gen_city.gd` (`CityGen`) → `data/world/city/altavega_lots.json` v1 (`city_version = 1`). El trazado no depende
+  de la semilla del mundo; el vestido (coches, mobiliario, puertas y botín de cada bajo) sale de
+  `hash64(semilla, GEN_CITY, …)` y es igual en el servidor y en cada cliente. Regenerar:
+  `godot --headless --path . -s tools/gen_city.gd` (y `++ --check` comprueba que el fichero es idéntico byte a byte).
+- **Edificios**: `BuildingAssembler` (familias casco / ensanche / bloque / caseta, variantes y paletas, fachadas por
+  planta, bajo enterable con puerta `KitDoor` y `LootSpawns`) sobre `CityMesh` (malla plana con color de vértice,
+  hecha en el hilo del `ChunkJob`); `HeroTower` (plantas, escalera, núcleo, oficinas, azotea; montada por pasos).
+- **Servidor**: `CityNav` (una tesela de navegación por planta, perezosa, `NavFloorTile`, unidas por
+  `NavigationLink3D` en la escalera), `CityPopulation` (residentes por planta), y el **filtro vertical** de
+  `ZombieNet` (un zombi dentro de un edificio a más de 9 m por encima o por debajo no se envía).
+
+Pruebas de C1: `godot --headless --path . -s tests/c1_city.gd` (29 comprobaciones: fichero y generador reproducible,
+distritos, títulos de zona, grafo, familias, *streaming*, puertas y botín, torre héroe por rayos, navegación de planta
+a planta, filtro vertical, población, vestido de 50 parcelas, siluetas, estatuas), `tests/run_citycut_probe.sh
+--points=c1` (corte urbano en 10 puntos al azar de los cuatro distritos), `tests/net/run_net_test.sh --clients 4
+--duration 240 --soak 260 --scenario tower` (4 jugadores en 3 plantas del Meridiano: puertas y contenedor coherentes,
+el filtro vertical recorta ≥ 30 % la bajada de zombis), `tests/run_perf_walk.sh --cpu --route=city --speed=15`
+(Carretera del Puerto → Gran Vía → ensanche), `tests/run_perf_horde.sh --city` (150 zombis + 300 estatuas + 4 bots en
+Las Torres) y `tests/run_determinism.sh` (incluye 4 chunks de C1 y el vestido de 50 parcelas). Capturas:
+`RENDER=forward tests/run_screenshots.sh <dir> c1_bridge c1_casco c1_ensanche c1_barriada c1_torres c1_rooftop
+c1_night c1_tower_floor c1_aerial` (PNG; las de `docs/screenshots/c1/` son esas mismas pasadas a JPG).
 
 ## Armas de fuego, botín y servidor (M5)
 
@@ -701,6 +775,74 @@ Pruebas:
 
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.6.
 
+## Avisos, peligros y grupo (H3)
+
+| Compañera derribada (maqueta v2 e) | Un instante después del aviso, con el rótulo de sonido |
+|---|---|
+| ![Compañera derribada](docs/screenshots/h3/downed_coop.jpg) | ![Rótulo de sonido](docs/screenshots/h3/downed_coop_cue.jpg) |
+
+Con un HUD que se oculta, **nada crítico se pierde** (PLAN v3.8.1 H3; `docs/research/10_hud_ux.md` §V.3, §V.9.3 y el
+apéndice §6.5–6.8). Capturas Forward+ a 1920 × 1080 (`RENDER=forward tests/run_screenshots.sh <carpeta> downed_coop
+hud_downed_coop_cue`); la cobertura medida del momento es **2,80 %** (maqueta: 2,96 %; límite 3 %). La comparación con
+la maqueta está en `docs/screenshots/h3/maqueta_vs_h3.jpg`.
+
+- **Prioridades** (`NotifyRouter`): **P0** —compañero derribado, te estás congelando, hielo fino bajo los pies, alud—
+  **no es un banner**: vive en el mundo (el indicador del derribado, un «!» a tus pies) o en la constante afectada, dura
+  lo que dura la condición y suena una vez con su **rótulo de sonido con dirección**. Durante 3 s se queda la atención:
+  un aviso P1 / P2 que lleve más de 1,2 s en pantalla cede y vuelve a la cola. **P1–P2** son una línea de 3 s arriba al
+  centro («2 avisos en espera»; la misma clave refresca, «×2»); **P3** es la línea de recogidas abajo a la derecha,
+  con fusión («Madera +3 (5)»). Cola de 6, «Inventario lleno» como mucho cada 8 s, y de los demás jugadores solo lo
+  que te afecta. Mientras hay título de zona, P1 y P2 esperan. En *Interfaz y accesibilidad*: «Aviso crítico también
+  en la línea central» (el plan B del riesgo R29).
+- **Peligros** (`HazardStack` bajo la línea de arriba a la derecha): previsto → inminente → activo → fin.
+  «❄ VENTISCA · se acerca · 1:00» con el pitido de radio **60 s antes** (antes eran 10 s), «VENTISCA · visibilidad 6 m ·
+  1:30» al empezar y, a los 5 s, solo el icono y el tiempo; los últimos 15 s laten. La cuenta atrás la manda el
+  servidor, así que todos los jugadores ven lo mismo. Gran Ventisca («en 1 día» → «hoy») y la API para E1 / E2: hielo
+  fino (P0 en el mundo con `ice_crack`), tormenta de hielo, ola de frío, alud, apagón (peligro de zona, sin tiempo),
+  incendio: `Events.hazard_changed.emit(&"ice_storm", &"soon", {"seconds": 60.0})` en un cliente, o
+  `HudNet.broadcast_hazard(...)` en el servidor. Se ven dos a la vez como mucho («+1 previsto»).
+- **Grupo**: nada si están cerca; punto y nombre a más de 25 m; «herido» con la salud real (< 25 %, la replica el
+  servidor cada 0,5 s); **derribado = un solo indicador** en ámbar (anillo en el suelo, anillo de desangrado,
+  «Ana 38 s», «mantén ⓧ para reanimar · 6 m») que llega en unos milisegundos: el servidor lo empuja en cuanto lo ve,
+  sin esperar a la sincronización (0,2 s). Suena `ui_mate_down` (latido doble y estática), el **latido** sigue suave
+  mientras se desangra y la **estática de radio** vuelve cada 10 s. Con Info, la línea del grupo lleva una calavera y
+  los segundos del derribado, o un corazón / termómetro si está herido o helado.
+- ***Pings***: clic central = «lugar» (⚑ del color del jugador, 30 s); doble clic central o clic sobre un zombi =
+  «peligro» (▲ con anillo de cuenta atrás, 8 s). Los valida el servidor (≤ 150 m, 3 cada 2 s, 3 vivos por jugador) y
+  llegan a todos con su sonido posicionado; los de un compañero dejan una línea («Ana: peligro · 40 m»). Fuera de
+  pantalla solo se ven con Info. (Con mando llegan con la rueda de H4: todos los botones tienen ya un uso.)
+- **Arco de daño direccional**: el golpe dibuja un arco rojo en el suelo hacia quien te lo dio (un zombi, un lobo, un
+  disparo cuya línea pasa por ti o el *swing* de otro jugador), resuelto en el cliente (`Events.player_hit_from`).
+- **Audio de UI**: latido por salud baja (< 25) o derribado, estática de radio, `ui_objective_update`, `ui_ping` y
+  `ui_ping_danger` posicionados. **Rótulos de sonido con dirección** abajo al centro para los P0 (por defecto; «Todos»
+  añade avisos, disparos y «te han visto»): «latido y estática de radio · Ana · derecha, 5 m».
+- **Armas (M5)**: la retícula de dispersión es la del HUD (anillo fino verde < 4°, ámbar 4–8°, rojo > 8°, gris con un
+  aliado en la línea; arco de recarga; «encasquillada · R») y la munición va en la línea de la barra («12/15 · 44»,
+  «recargando»), visible al disparar o recargar y fija con un cuarto del cargador o menos.
+
+Sonidos nuevos (obra propia, CC0; `tools/audio/recipes_ui.py` `build_h3`, `python3 tools/audio/build_audio.py ui`):
+`ui/radio_static_01–02`, `ui/ping_01`, `ui/ping_danger_01` (los demás ficheros de la UI no cambian ni un byte).
+Código en `scripts/ui/hud/` (`notify_router.gd`, `hazard_stack.gd`, `hazard_line.gd`, `sound_captions.gd`, `pings.gd`,
+`hit_direction.gd`, `ui_audio.gd`, `hud_net.gd`, `team_tracker.gd`, `reticle_hook.gd`) y la barra (`scripts/ui/hotbar.gd`).
+
+Pruebas:
+
+- `godot --headless --path . -s tests/unit/notify_router_test.gd`: 46 comprobaciones — prioridad y orden, prelación a
+  los 1,2 s y vuelta a la cola, ventana de atención, cola de 6, fusión, enfriamiento, P3, filtro cooperativo, cruce
+  con el título de zona, ciclo de vida de un P0 (en el mundo y en la constante), sonido + rótulo, avisos antiguos,
+  banner P0 opcional, ventisca y Gran Ventisca, y los tipos de E1 / E2.
+- `tests/run_smoke.sh` (paso 21, `tests/h3_smoke_steps.gd`): un **P0 simulado** —una compañera («Ana», un jugador
+  títere del servidor en proceso) cae a 5 m: indicador y `ui_mate_down` en milisegundos, sin banner, rótulo con
+  dirección, latido y estática; se levanta y todo se apaga—, salud replicada, arcos de daño, la **ventisca forzada con
+  su aviso de 60 s**, hielo fino, *pings* y la retícula / munición.
+- `tests/net/run_net_test.sh --clients 4 --duration 55 --soak 75 --scenario team --port 7897` (con una horda
+  alrededor): el *ping* de peligro de C llega, se dibuja y suena en **los 4 clientes**; el derribo de B llega a A
+  (indicador + audio) **≤ 0,2 s** después del servidor (medido: 8–19 ms y 5–17 ms); A reanima a B y el P0 se apaga; la
+  cuenta atrás de la ventisca, en todos.
+- `tests/run_hud_coverage.sh --moments=idle,downed_coop`: reposo 0,08 %, compañera derribada 2,80 % (≤ 3 %).
+
+Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §17.8.
+
 ## Kit modular y calle de prueba (M6a)
 
 | La Calle Mayor de día | De noche | Dentro de una casa |
@@ -745,6 +887,59 @@ Pruebas:
 
 Detalles técnicos en `docs/v2/ARQUITECTURA_V2.md` §9.9 y en la sección «M6a» de `docs/v2/ASSET_SPEC_V2.md`.
 
+## La Herrería, el aserradero, la gasolinera norte y la granja (M6b)
+
+| La Herrería de día | De noche | Dentro de una casa |
+|---|---|---|
+| ![La Herrería de día](docs/screenshots/m6b/village_day.jpg) | ![La Herrería de noche](docs/screenshots/m6b/village_night.jpg) | ![Dentro de una casa](docs/screenshots/m6b/house_inside.jpg) |
+| **El aserradero** | **La gasolinera norte** | **La Granja del Molino** |
+| ![El aserradero](docs/screenshots/m6b/sawmill.jpg) | ![La gasolinera norte](docs/screenshots/m6b/gas_station.jpg) | ![La Granja del Molino](docs/screenshots/m6b/farm.jpg) |
+
+Capturas Forward+ del juego (1280 × 720). **La Herrería** es la primera aldea generada: está a 1,1 km al noroeste del
+claro, donde la carretera de Valdenieve pasa bajo la sierra (`/tp -745 -740`). Cada mundo la genera igual en el
+servidor y en todos los clientes a partir de la semilla: una calle mayor que sale de la carretera, el camino del
+aserradero y a veces la calle de la Fragua, 15–19 edificios en parcelas de 400–900 m² (casas de 1 y 2 plantas, el bar,
+la tienda de ultramarinos y el taller mecánico), de los que al menos 6 se pueden abrir; las demás casas están cerradas
+con llave. El terreno se allana bajo cada casa y las calles son asfalto con rodadas.
+
+- **POIs a mano**: el **aserradero** al final del camino (la nave, la línea de sierra, pilas de troncos y de tablas, la
+  oficina; `/tp -640 -768`), la **gasolinera norte** en la N‑140 donde sale la Carretera del Puerto (marquesina,
+  surtidores, la tienda, el cartel de precios, coches abandonados; `/tp 619 -388`) y la **Granja del Molino** (casa de
+  2 plantas, granero rojo, silos, tractor, heno, cercados; `/tp -97 -902`). Al entrar, el título de zona dice
+  «La Herrería», «Aserradero», «Gasolinera norte» o «Granja del Molino».
+- **Zombis por uso del suelo**: duermen dentro de las casas, la tienda, el bar y el taller (más en el aserradero y la
+  gasolinera) y hay unos pocos en la calle, algunos congelados: 3–8 por chunk en la aldea.
+- **Alarmas**: una de cada veinte tiendas (también el bar y la gasolinera) tiene la alarma armada: al abrir la puerta
+  suena un minuto y atrae a los zombis en 150 m.
+- **Botín por tipo de edificio**: la tienda (latas, chocolate), el bar, el taller (herramientas, cinta), el aserradero
+  (madera, cuerda, hachas), la granja, el maletero de los coches abandonados y los contenedores de basura.
+- **Luces del pueblo**: de noche las farolas que aún tienen corriente (el generador del aserradero) dejan su charco de
+  luz y su halo; algunas parpadean y otras están muertas. En Forward+ las más cercanas iluminan de verdad.
+
+Código: `scripts/world/settlement/` (`SettlementGen`, `Settlements`, `SettlementSpawner`, `SettlementChunk`,
+`VillageLights`); datos `data/buildings/settlements/la_herreria.json` y `data/buildings/pois/`; arte
+`blender/props/build_village_props.py` y las plantillas nuevas de `blender/kits/templates/`
+(`python3 build_all.py --only m6b`).
+
+Pruebas:
+
+- `godot --headless --path . -s tests/m6b_checks.gd`: 37 comprobaciones (el plan de la aldea: 15–19 edificios, ≥ 6
+  enterables, parcelas de 400–900 m² que no se pisan; el mismo hash de aldea al repetir y en 4 semillas; el terreno
+  llano bajo cada casa y dentro de los `bounds`; residentes por uso; zonas; botín por uso; los edificios construidos y
+  sus contenedores registrados).
+- Paso 22 del humo (`tests/m6b_smoke_steps.gd`): en el juego real, la aldea construida alrededor de la calle mayor, la
+  zona, la densidad de zombis = los objetivos de la aldea (dentro de las casas y congelados en la calle), una puerta
+  cerrada con llave, la alarma de una tienda que atrae a un caminante a 60 m y la tabla de botín del bar.
+- `tests/net/run_net_test.sh --clients 2 --duration 90 --soak 120 --scenario village --port 7917`: A y B, cada uno en
+  una casa, abren su puerta y un contenedor, ven abierta la puerta del otro y encuentran en su contenedor lo que el
+  otro dejó; el hash de aldea es el mismo en el servidor y en los dos clientes.
+- `tests/run_perf_walk.sh --cpu --route=m6b`: el paseo en coche por la aldea y el aserradero a 25 m/s con los
+  edificios, props y farolas del cliente: frame propio p99 ≤ 16 ms (medido 11–12 ms), 0 frames > 33 ms causados por la
+  aldea o el *streaming*, trabajo de la aldea ≤ 16 ms en cualquier frame (medido 6,8 ms: un edificio por frame);
+  `RENDER=forward tests/run_perf_walk.sh --route=m6b`: ≤ 800 *draw calls* (mediana; medido 150).
+- `RENDER=forward tests/run_screenshots.sh docs/screenshots/m6b m6b_village_day m6b_village_night m6b_sawmill
+  m6b_gas_station m6b_farm m6b_house_inside`.
+
 ## Sonido (S1)
 
 Todo el juego suena: armas (disparo cercano + capa lejana por distancia + cola del entorno — bosque, nieve abierta,
@@ -772,17 +967,71 @@ godot --headless --path . -s tools/audio/gen_bus_layout.gd   # default_bus_layou
 godot --headless --path . -s tests/unit/audio_test.gd        # la prueba del audio
 ```
 
+## Atmósfera (G2b)
+
+*The Long Dark* en cada hora: profundidad entre torres, viento que se ve, vida que humea (PLAN v3.8.2 G2b, doc 08
+§3.5–3.10; nota vinculante en `docs/v2/ARQUITECTURA_V2.md` §9.10). Todo es del cliente con pantalla
+(`scripts/world/atmosphere/`): el servidor dedicado y los clientes *headless* no cambian.
+
+![Hoja de contacto: 8 horas × 3 climas](docs/screenshots/g2b/g2b_sheet.jpg)
+
+| Amanecer en el valle | Ventisca | Altavega al anochecer |
+|---|---|---|
+| ![](docs/screenshots/g2b/dawn.jpg) | ![](docs/screenshots/g2b/blizzard.jpg) | ![](docs/screenshots/g2b/city_dusk.jpg) |
+
+| Noche en la Gran Vía: rotativos, humo, cables | Noche en el claro: fogata, deshielo, chimenea | `compat` (izquierda) frente a Forward+ (derecha): noche, anochecer, ventisca |
+|---|---|---|
+| ![](docs/screenshots/g2b/city_night.jpg) | ![](docs/screenshots/g2b/night_fire.jpg) | ![](docs/screenshots/g2b/compat_vs_forward.jpg) |
+
+- **Cielo cubierto** (`nublado`): capa de presentación, determinista con la semilla y el reloj (todos los clientes ven lo
+  mismo, 0 B/s); el primer día siempre despejado; ≈ 1/4 del tiempo. `WorldState.weather` sigue siendo `clear` /
+  `blizzard`. Luz plana, niebla más densa y gris, más viento (las serpientes de nieve corren sin ventisca), la nevada
+  ligera según la nubosidad.
+- **Niebla en capas**: exponencial + altura (bruma del amanecer en los valles, la bruma de calle de G2a, capa fina con
+  nubes), dispersión hacia el sol bajo al atardecer; **volumétrica solo en `alto` y solo en ventisca o de noche** (los
+  faroles y fuegos ganan halo), con `FogVolume` locales (humo sobre los fuegos, bruma de calle nocturna en la ciudad,
+  niebla sobre el hielo del lago y del Albo). En `medio` / `compat` / Web no hay volumétrica: la profundidad vuelve con
+  más niebla exponencial (medido: conserva el 91–141 % del gradiente de niebla lejos/cerca de Forward+).
+- **Gradación LUT 32³** (`tools/make_luts.py` → `assets/luts/`): `dia_claro`, `nublado`, `ventisca`, `atardecer`,
+  `noche`, `noche_ciudad`, `apagon`, `calor`, mezcladas en CPU (`LutGrade`) según hora, nubes, ventisca, ciudad con o sin
+  corriente y cercanía a un fuego, en `Environment.adjustment_color_correction` (los tres renderizadores).
+- **Viento por vértice** (`assets/shaders/wind_include.gdshaderinc`): pinos y arbustos (`world_vcol_foliage`), lonas
+  (`world_vcol_cloth`: la tienda militar), cables (`world_vcol_cable`: cruzan la Gran Vía entre farolas), con rachas que
+  corren a favor del viento; las sombras se mueven con ellos.
+- **Serpientes de nieve** que culebrean y respiran con las rachas (`SnowDrift`) y ondas de nieve suelta en el terreno.
+- **Vida**: humo de sprites CC0 (Kenney *Particle Pack*, `tools/fetch_fx_sprites.py`) iluminado y llevado por el viento
+  (chimenea, fogatas, coches quemados que humean con brasas), llamas de sprites, balizas y rotativos (policía,
+  ambulancias, barreras, semáforos en ámbar donde hay corriente; foco real que barre la calle en `alto`/`medio`),
+  bandadas de cuervos que giran (y sus sombras cruzan la nieve), todo determinista y solo de render (V1 pondrá la capa
+  del servidor).
+- **Deshielo visible**: junto a una fogata (y a un coche que arde) la nieve se vuelve aguanieve oscura y brillante y, en
+  el centro, suelo mojado; el círculo crece mientras arde y se seca cuando se apaga.
+- **Ventisca blanca**: por encima del 75 % de ventisca la sombra del sol (ya ilegible) se desvanece y sus pases se
+  apagan; así la ventisca en la ciudad cuesta menos que el día (medido en lavapipe: 0.68 del frame de día; 0.95–1.09
+  sin el corte).
+
+Pruebas:
+
+```bash
+godot --headless --path . -s tests/g2b_checks.gd     # LUTs y mezcla (exacta, ≤ 0.1 ms/frame, 0 en reposo), pesos, nubes, capas de niebla, volumétrica, deshielo, viento, sprites, vida
+python3 tools/make_luts.py --check                    # las LUT salen iguales del script
+tests/run_g2b_bench.sh gate                           # ventisca vs día en la ciudad (Forward+/lavapipe ≤ +25 %), LUT en el bucle real, profundidad compat vs Forward+ (≥ 80 %)
+RENDER=forward tests/run_screenshots.sh docs/screenshots/g2b g2b_sheet g2b_sheet_city g2b_dawn g2b_blizzard g2b_city_dusk g2b_city_night g2b_night_fire
+```
+
 ## Pruebas
 
 ```bash
 cd winter-survival
-./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1 + H2 (zone_tracker_test, discovery sqlite + file) + S1 (audio_test): godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
+./tests/run_all.sh [--shots] [--no-walk-render]   # todas las puertas M0–M5 + W0 + W1 + H2 (zone_tracker_test, discovery sqlite + file) + S1 (audio_test) + H3 (notify_router_test, escenario team, cobertura downed_coop): godot-sqlite fijado, import, parse, persistencia, humo, contrato de arte, perf, render (W0, headless), banco de ciudad (W0, xvfb), red (basic, shared_world, far con 4 clientes en 4 cuadrantes, zombies, hitscan con --net-sim, restart sqlite + file), unitarias M5, determinismo (60 chunks), mundo W1, «el valle no cambia», macro reproducible, perf walk (6.5 km), perf horde [, capturas]; en una máquina compartida: taskset -c 0,1 ./tests/run_all.sh
 ./tests/run_perf_horde.sh [--zombies=200] [--seconds=20]   # M4: servidor dedicado + 4 bots + 200 zombis → tests/perf/horde.json (tick mediano ≤ 8 ms, p99 informativo)
 ./tests/run_smoke.sh                 # importa + prueba de humo sin pantalla (SMOKE TEST OK / FAILED); offline = servidor local en proceso
 ./tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90   # 1 servidor + 4 clientes headless: se ven moverse, chat, FF bloqueado, reconexión, ≤ 5 kB/s, soak
 ./tests/run_screenshots.sh [carpeta] [presets] # capturas day/dusk/night/blizzard/interior/menu con xvfb + OpenGL; RENDER=forward = Forward+ con lavapipe (presets extra: `multi` = cliente unido a un servidor, `overview` = vista aérea del lago y una carretera, M3; `zombies` = la pelea al atardecer delante de la cabaña, M4)
 python3 tools/contact_sheet.py hoja.png 3 "ref=…jpg" "antes=…png" "después=…png"   # hoja de comparación (Pillow)
 ./tests/run_perf.sh [--placeholders] # sonda de rendimiento (draw calls, objetos, ms) → tests/perf/last.json vs tests/perf_budgets.json
+godot --headless --path . -s tests/g2b_checks.gd   # G2b: LUTs y su mezcla, nubes, niebla en capas, volumétrica, deshielo, viento, vida
+./tests/run_g2b_bench.sh gate        # G2b: ventisca vs día en la ciudad (≤ +25 %, lavapipe) y profundidad compat vs Forward+ (≥ 80 %)
 godot --headless --path . -s tests/inspect_models.gd [++ --quiet] [--placeholders]  # contrato ASSET_SPEC v2 de cada .glb (o de los placeholders)
 ```
 

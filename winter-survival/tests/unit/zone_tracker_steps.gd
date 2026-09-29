@@ -148,8 +148,8 @@ func _data() -> void:
 		"parents resolve; «Urbanizaciones del norte» is one zone in two parts (alias of the east rect)")
 	var torres := Locations.by_id("altavega_las_torres")
 	var cat := Locations.by_id("catedral")
-	check(Locations.chain_ids(cat) == ["altavega_casco_viejo", "altavega"] and torres.get("camera") == &"city" and Locations.by_id("gran_via").get("camera") == &"city"
-		and Locations.by_id("valdenieve").get("camera", &"") == &"", "hierarchy chain Catedral ⊂ Casco viejo ⊂ Altavega; urban camera profile in Altavega only")
+	check(Locations.chain_ids(cat) == ["altavega_casco_viejo", "altavega"] and torres.get("camera") == &"torres" and Locations.by_id("gran_via").get("camera") == &"city"
+		and Locations.by_id("valdenieve").get("camera", &"") == &"", "hierarchy chain Catedral ⊂ Casco viejo ⊂ Altavega; urban camera profile in Altavega only (C1: Las Torres' own)")
 	check(LocationInfo.de(Locations.by_id("control_militar_km_12")) == "del Control militar km 12" and LocationInfo.de(cat) == "de la Catedral de Altavega"
 		and LocationInfo.de(torres) == "de Las Torres" and LocationInfo.de(Locations.by_id("valdenieve")) == "de Valdenieve",
 		"Spanish articles for the exit line (del / de la / de Las Torres / de Valdenieve)")
@@ -387,8 +387,8 @@ func _camera() -> void:
 	walk(zt, Vector3(2688, 0, -640), 0.25)
 	for i in 8:
 		rig._process(0.25)
-	check(before == &"default" and in_fight == &"default" and rig.profile.id == &"city" and rig.pitch_deg > -44.5,
-		"zone_entered drives the camera profile: default → city in Las Torres (pitch %.1f°), never during a fight" % rig.pitch_deg)
+	check(before == &"default" and in_fight == &"default" and rig.profile.id == &"torres" and rig.pitch_deg > -44.5,
+		"zone_entered drives the camera profile: default → torres in Las Torres (C1 district profile, pitch %.1f°), never during a fight" % rig.pitch_deg)
 	walk(zt, Vector3(-400, 0, -300), 2.0)
 	for i in 8:
 		rig._process(0.25)

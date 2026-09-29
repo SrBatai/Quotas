@@ -138,6 +138,11 @@ jobs:
       - name: M6a street bench gate (Compatibility on llvmpipe)
         run: tests/run_street_bench.sh gate
 
+      # M6b: La Herrería (generator: 15–20 buildings / ≥ 6 enterable, OBB lots, plan hash, level pads, residents by
+      # land use, zones, built chunks) — the in-game steps and the `village` net scenario run in tests/run_all.sh.
+      - name: M6b La Herrería checks (headless)
+        run: godot --headless --path . -s tests/m6b_checks.gd
+
       # Timing-based: Forward+ on lavapipe, cut on / evaluate-only / off / G1 material.
       - name: City bench perf, Forward+ on lavapipe (informational)
         continue-on-error: true
@@ -285,8 +290,124 @@ jobs:
           NET_TEST_OUT: /tmp/ventisca_discovery_file
         run: tests/net/run_discovery_test.sh --backend file --port 7867
 
-  c0:
-    name: C0 Escaparate de Altavega (lot file, city streaming, corte urbano, draw calls, PCSS far from the origin)
+  h3:
+    name: H3 notices, hazards and group (notify router, team scenario, downed_coop coverage)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # P0 in the world / on the vital (never a banner), P1–P2 the 3 s line, P3 the pickup line; precedence after
+      # 1.2 s, back to the queue, attention window, queue of 6, merge / refresh, 8 s cooldown keys, co-op filter,
+      # zone-title crossing, legacy notices, P0 sound + caption, the HazardStack (blizzard, Gran Ventisca, E1 / E2 kinds)
+      - name: Notify router unit test
+        run: |
+          godot --headless --path . -s tests/unit/notify_router_test.gd 2>&1 | tee /tmp/notify_router.log
+          grep -q "ALL PASSED" /tmp/notify_router.log
+
+      # 4 clients with a horde around: a danger ping on every client (world + sound + P2 line), B's down reaches A
+      # (the one indicator + ui_mate_down) ≤ 0.2 s after the server, the P0 ends when A revives B; the blizzard
+      # warning's 60 s countdown from the server on every client
+      - name: Net test team (H3, 4 clients)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_team
+        run: tests/net/run_net_test.sh --clients 4 --duration 55 --soak 75 --scenario team --port 7897
+
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+
+      - name: HUD coverage, idle and downed_coop ≤ 3 % (Compatibility on llvmpipe)
+        run: tests/run_hud_coverage.sh --moments=idle,downed_coop
+
+  city:
+    name: C1 Altavega (generator, districts, families, hero towers, corte urbano, draw calls, tower scenario, city perf)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # C1: tools/gen_city.gd rebuilds data/world/city/altavega_lots.json (city_version 1) byte for byte from
+      # data/world/city/districts.json + the macro map (the layout is seed-independent; the dressing is seeded)
+      - name: City generator reproducible (gen_city --check)
+        run: |
+          godot --headless --path . -s tools/gen_city.gd ++ --check 2>&1 | tee /tmp/gen_city.log
+          grep -q "gen_city --check: identical" /tmp/gen_city.log
+
+      # lot file v1 + hashes, districts / zone titles / street graph, families (city contract, budgets), streaming of
+      # the four districts (CityCut, doors, loot, painted streets), Control del Puerto, hero towers (stairs, doors,
+      # containers, roof by physics rays), NavFloorTile + stair links, vertical filter, floor population, lot dressing
+      # digest, silhouettes of the real lots, frozen statues bake. (tests/c0_city.gd skips itself on the v1 file.)
+      - name: C1 city checks (headless)
+        run: |
+          godot --headless --path . -s tests/c1_city.gd ++ --no-gen 2>&1 | tee /tmp/c1_city.log
+          grep -q "ALL PASSED" /tmp/c1_city.log
+
+      # 4 clients on floors 2, 2, 3 and 8 of the Edificio Meridiano: stair doors + a desk container coherent on every
+      # client; the vertical interest filter cuts each client's zombie downstream ≥ 30 %
+      - name: Net scenario tower (4 clients in a hero tower)
+        run: tests/net/run_net_test.sh --clients 4 --duration 240 --soak 260 --scenario tower --port 7927
+
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
+
+      # Blocking: player ≥ 99 % visible at 5 fixed points of the superblock (24 / 38 m), player + zombies ≥ 95 % readable
+      - name: Corte urbano probe in Las Torres (Compatibility on llvmpipe)
+        run: tests/run_citycut_probe.sh
+
+      # Blocking (PLAN C1): player + zombies ≥ 95 % readable over 10 seeded sidewalk points of the casco viejo, the
+      # ensanche, the barriada and Las Torres at 24 / 38 m (views with the player under 99 % visible are reported)
+      - name: Corte urbano probe, 10 random points of the four districts (Compatibility on llvmpipe)
+        run: tests/run_citycut_probe.sh --points=c1
+
+      # Blocking (counts, not timings): ≤ 700 draw calls in Compatibility, day and night
+      - name: Perf probe altavega_c0, day and night (draw-call budgets, Compatibility)
+        run: |
+          tests/run_perf.sh --scene=altavega_c0 --hour=11 --label=altavega_c0_day --out=tests/perf/altavega_c0_day.json
+          tests/run_perf.sh --scene=altavega_c0 --hour=22.5 --label=altavega_c0_night --out=tests/perf/altavega_c0_night.json
+
+      # R23: PCSS penumbra of the same tower at the origin and at 2.7 km (Forward+ on lavapipe), ≤ 3 %
+      - name: PCSS far from the origin (Forward+ on lavapipe)
+        run: tests/run_pcss_probe.sh
+
+      # Timing-based: shared CI runners add scheduling noise, so these report but do not block.
+      - name: Streaming perf walk, CPU, Carretera del Puerto → Las Torres (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu --route=c0
+
+      - name: Urban perf walk, CPU, Carretera del Puerto → Gran Vía → ensanche at 15 m/s (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu --route=city --speed=15 --out=tests/perf/walk_cpu_city.json
+
+      - name: Perf horde city, 150 walkers + 300 statues + 4 bots in Las Torres (informational)
+        continue-on-error: true
+        run: tests/run_perf_horde.sh --city --out=tests/perf/horde_city.json
+
+  g2b:
+    name: G2b Atmósfera (LUTs + CPU blend, fog layers, wind, thaw, life; blizzard cost in the city, compat depth)
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
@@ -304,34 +425,31 @@ jobs:
       - name: Import project
         run: godot --headless --path . --import || true
 
-      # lot file v0 (city_version 0, hashes), tower assembler + city contract, podiums, jam, bridge, ChunkJob → WorldChunk
-      # → CityBuilding / CityHlod, MultiMesh cars and props, colliders and the mirador stair, teardown, silhouettes v0
-      - name: C0 city checks (headless)
+      # the 8 LUTs are rebuilt from tools/make_luts.py and must match the files (pixels within 1/255)
+      - name: LUTs reproducible
         run: |
-          godot --headless --path . -s tests/c0_city.gd 2>&1 | tee /tmp/c0_city.log
-          grep -q "ALL PASSED" /tmp/c0_city.log
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-numpy python3-pil
+          python3 tools/make_luts.py --check
+
+      # LUT files, CPU blend exact and ≤ 0.1 ms per frame (median; 0 at rest), grade weights, overcast, DayNight hooks
+      # (fog layers, volumetric only on alto and in a blizzard or at night, compat depth boost), thaw, wind, sprites, life
+      - name: G2b checks (headless)
+        run: |
+          godot --headless --path . -s tests/g2b_checks.gd 2>&1 | tee /tmp/g2b_checks.log
+          grep -q "== g2b checks: .*, 0 failed" /tmp/g2b_checks.log
 
       - name: Install xvfb + Mesa software drivers
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
 
-      # Blocking: player ≥ 99 % visible at 5 fixed points of the superblock (24 / 38 m), player + zombies ≥ 95 % readable
-      - name: Corte urbano probe in Las Torres (Compatibility on llvmpipe)
-        run: tests/run_citycut_probe.sh
+      # Blocking: the fog makes the far third of the city frame foggier than the near third in both renderers, and
+      # Compatibility (no volumetrics) keeps ≥ 80 % of Forward+'s depth — night, dusk, blizzard
+      - name: Compat keeps the depth (Compatibility on llvmpipe vs Forward+ on lavapipe)
+        run: tests/run_g2b_bench.sh depth /tmp/g2b_depth
 
-      # Blocking (counts, not timings): ≤ 700 draw calls in Compatibility, day and night
-      - name: Perf probe altavega_c0, day and night (draw-call budgets, Compatibility)
-        run: |
-          tests/run_perf.sh --scene=altavega_c0 --hour=11 --label=altavega_c0_day --out=tests/perf/altavega_c0_day.json
-          tests/run_perf.sh --scene=altavega_c0 --hour=22.5 --label=altavega_c0_night --out=tests/perf/altavega_c0_night.json
-
-      # R23: PCSS penumbra of the same tower at the origin and at 2.7 km (Forward+ on lavapipe), ≤ 3 %
-      - name: PCSS far from the origin (Forward+ on lavapipe)
-        run: tests/run_pcss_probe.sh
-
-      # Timing-based: shared CI runners add scheduling noise, so this reports but does not block.
-      - name: Streaming perf walk, CPU, Carretera del Puerto → Las Torres (informational)
+      # A ratio of two interleaved measurements, but still software rendering on a shared runner: reports, does not block
+      - name: Blizzard vs day in the C0 city, Forward+ on lavapipe (≤ +25 %, informational)
         continue-on-error: true
-        run: tests/run_perf_walk.sh --cpu --route=c0
+        run: tests/run_g2b_bench.sh ratio 3
 
   export:
     name: Desktop builds

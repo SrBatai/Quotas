@@ -31,6 +31,7 @@ func _ready() -> void:
 	add_to_group("choppable")
 	add_to_group("tree")
 	_model = Assets.spawn_model(variant)
+	WindSway.apply_to_model(_model, variant)   # G2b: keeps swaying like its MultiMesh instance did
 	visual.add_child(_model)
 	var vi := ScatterCatalog.index_of(variant)
 	var vd: Dictionary = ScatterCatalog.variant(vi) if vi >= 0 else ScatterCatalog.variant(0)

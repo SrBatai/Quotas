@@ -114,6 +114,7 @@ func instancing_mesh(model_name: String) -> Mesh:
 	root.free()
 	if mesh == null:
 		mesh = BoxMesh.new()
+	mesh = WindSway.instancing_mesh(model_name, mesh)   # G2b: scatter trees / bushes sway (world_vcol_foliage)
 	_inst_meshes[model_name] = mesh
 	return mesh
 

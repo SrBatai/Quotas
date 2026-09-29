@@ -7,11 +7,16 @@ extends Control
 ## the % in `warn` below 20 % durability). Empty slots are a dot, counts are 16 px tabular figures. 3 s after the
 ## last use it folds back (600 ms). Slot 0 = MANO. Actions are server requests (unchanged).
 ## Audit fix (§1.3.1): the gamepad selection (`selected`) is drawn — it was invisible before.
+## H3 (M5 hook): with a firearm in hand, the ammo sits on the bar's line, right of the strip / the icons —
+## "12/15 · 44" in tabular figures (warn at a quarter of the magazine, blood when empty, «recargando» /
+## «encasquillada» in small caps). It shows on a shot, a reload, a jam or a weapon change for 3 s (element
+## `hotbar.ammo`), stays while jammed, reloading or low, and with Info (Events.weapon_state_changed).
 
 signal slot_used(index: int)
 
 const EL := &"hotbar"
 const EL_NAME := &"hotbar.name"
+const EL_AMMO := &"hotbar.ammo"
 
 var open_storage: Storage
 var selected: int = 0
@@ -27,9 +32,13 @@ var _name_text: String = ""
 var _name_pct: String = ""
 var _name_warn: bool = false
 var _select_hand_next: bool = false
-var _drawn: Vector2 = Vector2(-1, -1)
+var _drawn: Vector3 = Vector3(-1, -1, -1)
 ## Set by the owner when there is no HudVisibility (legacy placement / tests): the icons stay unfolded.
 var always_open: bool = false
+## H3: the owner's weapon mirror (Events.weapon_state_changed) and the ammo text drawn on the bar's line.
+var gun: Dictionary = {}
+var ammo_text: String = ""
+var _ammo_key: String = ""
 
 
 func _ready() -> void:
@@ -41,6 +50,7 @@ func _ready() -> void:
 		queue_redraw())
 	Events.inventory_changed.connect(refresh)
 	GameFlow.local_player_changed.connect(func(_p: Node) -> void: refresh())
+	Events.weapon_state_changed.connect(_on_gun)
 	refresh()
 
 
@@ -49,6 +59,43 @@ func setup(v: HudVisibility) -> void:
 	vis = v
 	vis.register(EL, null, UiTokens.T_HOTBAR, true, &"hotbar")
 	vis.register(EL_NAME, null, UiTokens.T_ITEM_NAME, true, &"hotbar")
+	vis.register(EL_AMMO, null, UiTokens.T_HOTBAR, true, &"hotbar")
+
+
+# ------------------------------------------------------------------ H3: ammo on the bar's line (M5 hook)
+func _hand_is_gun() -> bool:
+	if _items.is_empty() or (_items[0] as Dictionary).is_empty():
+		return false
+	var id: StringName = _items[0]["id"]
+	return Firearms.is_firearm(id) or Firearms.is_bow(id)
+
+
+func _on_gun(d: Dictionary) -> void:
+	gun = d
+	var t := ammo_line(d)
+	var key := "%s|%s" % [str(d.get("w", "")), t]
+	if key != _ammo_key:
+		_ammo_key = key
+		ammo_text = t
+		if vis != null and t != "" and _hand_is_gun():
+			vis.poke(EL_AMMO)
+	queue_redraw()
+
+
+## "12/15 · 44", «recargando», «encasquillada» (or "" without a firearm).
+static func ammo_line(d: Dictionary) -> String:
+	if d.is_empty() or str(d.get("w", "")) == "":
+		return ""
+	if bool(d.get("jammed", false)):
+		return "encasquillada"
+	if float(d.get("reload_left", -1.0)) >= 0.0:
+		return "recargando"
+	return "%d/%d · %d" % [int(d.get("ammo", 0)), int(d.get("mag", 0)), int(d.get("reserve", 0))]
+
+
+func _ammo_low() -> bool:
+	var mag := int(gun.get("mag", 0))
+	return mag > 0 and float(int(gun.get("ammo", 0))) <= float(mag) * UiTokens.AMMO_LOW_FRACTION
 
 
 func _icons_width() -> float:
@@ -216,7 +263,11 @@ func _process(delta: float) -> void:
 		var storage_open := open_storage != null and is_instance_valid(open_storage) and open_storage.is_open
 		vis.set_hold(EL, storage_open or _hover >= 0)
 		vis.set_hold(EL_NAME, _low_durability() and vis.is_on(EL))
-	var key := Vector2(expand(), vis.alpha_of(EL_NAME) if vis != null else 0.0)
+		var gun_in_hand := _hand_is_gun() and ammo_text != ""
+		vis.set_hold(EL_AMMO, gun_in_hand and (bool(gun.get("jammed", false)) or float(gun.get("reload_left", -1.0)) >= 0.0 or _ammo_low()))
+		if not gun_in_hand and vis.is_on(EL_AMMO):
+			vis.release(EL_AMMO)
+	var key := Vector3(expand(), vis.alpha_of(EL_NAME) if vis != null else 0.0, vis.alpha_of(EL_AMMO) if vis != null else 0.0)
 	if key != _drawn:
 		_drawn = key
 		queue_redraw()
@@ -232,6 +283,7 @@ func expand() -> float:
 func _draw() -> void:
 	var k := expand()
 	var name_a := vis.alpha_of(EL_NAME) if vis != null else 0.0
+	_draw_ammo(k)
 	# folded strip (fades out as the icons come in)
 	var sa := 1.0 - k
 	if sa > 0.002:
@@ -288,3 +340,24 @@ func _draw() -> void:
 		if _name_pct != "":
 			UiStyle.draw_text(self, &"item_name", Vector2(x + UiStyle.text_width(&"item_name", _name_text) + 12.0, by), _name_pct,
 				UiTokens.WARN if _name_warn else UiTokens.INK_70, HORIZONTAL_ALIGNMENT_LEFT, -1.0, name_a * k)
+
+
+## The ammo text right of the strip (folded) or of the icons (unfolded), on the bar's baseline.
+func _draw_ammo(k: float) -> void:
+	var a := vis.alpha_of(EL_AMMO) if vis != null else (1.0 if ammo_text != "" else 0.0)
+	if a <= 0.002 or ammo_text == "" or not _hand_is_gun():
+		return
+	var words := not ammo_text.contains("/")
+	var style := &"smallcaps" if words else &"text_num"
+	var col := UiTokens.INK_70
+	if bool(gun.get("jammed", false)):
+		col = UiTokens.WARN
+	elif not words and int(gun.get("ammo", 0)) == 0:
+		col = UiTokens.BLOOD_TEXT
+	elif not words and _ammo_low():
+		col = UiTokens.WARN
+	var right_strip := (size.x + _strip_width()) * 0.5
+	var right_icons := (size.x + _icons_width()) * 0.5
+	var x := lerpf(right_strip + 16.0, right_icons + 12.0, k)
+	var y := lerpf(size.y + 5.0, size.y - UiTokens.HOTBAR_CELL * 0.5 + 6.0 - UiMotion.slide(UiTokens.HOTBAR_LIFT) * k, k)
+	UiStyle.draw_text(self, style, Vector2(x, y), ammo_text, col, HORIZONTAL_ALIGNMENT_LEFT, -1.0, a)

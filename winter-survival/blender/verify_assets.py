@@ -385,6 +385,21 @@ M6A_ASSETS = {
                          extra={"m6a_sign": True}, hd=True, bf=True),
 }
 ASSETS.update(M6A_ASSETS)
+# M6b: village / POI props (props/build_village_props.py): one `Prop` mesh (one palette surface), extras col / cols /
+# anchors, props/village/manifest.json. Budgets and heights as built (BUDGETS of the builder); dims = the height.
+M6B_PROPS = {
+    "lamp_post": (500, 6.10), "power_pole": (500, 8.0), "mailbox": (700, 1.42), "bench": (700, 0.87),
+    "trash_can": (700, 1.05), "dumpster": (600, 1.34), "bus_stop": (900, 2.52), "hydrant": (700, 0.83),
+    "fence_wood_2": (700, 1.15), "fence_wire_2": (700, 1.30), "fence_chain_2": (700, 1.90),
+    "barricade_wood": (700, 1.14), "barricade_sandbags": (1100, 0.68), "barricade_wire": (900, 0.92),
+    "barricade_jersey": (700, 0.84), "tire_stack": (700, 0.85), "pallet": (700, 0.17), "crate": (700, 0.82),
+    "barrel": (700, 0.94), "shopping_cart": (900, 1.08), "fuel_pump": (600, 2.11), "gas_sign": (600, 7.28),
+    "gas_canopy": (1400, 5.54), "silo": (1500, 13.10), "tractor": (1800, 2.77), "hay_bale": (700, 0.77),
+    "hay_round": (600, 1.52), "sawmill_saw": (1600, 3.50), "log_pile": (1400, 1.53), "lumber_stack": (900, 0.51),
+}
+M6B_ASSETS = {"props/village/" + k: a(0, b, {"Prop": ZERO}, extra={"village": True, "top": h}, hd=True, bf=True)
+              for k, (b, h) in M6B_PROPS.items()}
+ASSETS.update(M6B_ASSETS)
 # W1: typical mountain-road view at the game camera (Carretera del Puerto: guardrails, poles, crest rocks, a portal)
 MOUNTAIN_VIEW = {
     "world/guardrail": 16, "world/guardrail_end": 2, "world/guardrail_bent": 2, "world/parapet_stone": 8,
@@ -1256,6 +1271,62 @@ def sign_problems(by):
     return out
 
 
+def village_prop_problems(name, by, objs, g, top_want=None):
+    """M6b: the A1 prop contract, MultiMesh-friendly: exactly one mesh `Prop` (top level, no children, one surface),
+    extras family / kind / height / col / col_center / col_size (+ cols, anchors), the collision proxy inside the
+    asset, the manifest entry equal to the extras."""
+    out = []
+    if [o.name for o in objs] != ["Prop"]:
+        return ["village prop must hold exactly one object Prop, has %s" % sorted(o.name for o in objs)]
+    o = by["Prop"]
+    if o.type != 'MESH' or o.parent is not None or o.children:
+        out.append("Prop must be a top-level mesh without children")
+    prims = sum(len(g["meshes"][nd["mesh"]]["primitives"]) for nd in g["nodes"] if "mesh" in nd)
+    if prims != 1:
+        out.append("%d surfaces (village props: 1)" % prims)
+    for key in ("family", "kind", "height", "col", "col_center", "col_size", "anchors", "cols"):
+        if key not in o.keys():
+            out.append("extras: missing %s" % key)
+    if out:
+        return out
+    mn, mx = world_bounds([o])
+    if o["family"] != "village":
+        out.append("extras family %s != village" % o["family"])
+    if abs(float(o["height"]) - mx.z) > 0.03:
+        out.append("extras height %.3f != top %.3f" % (o["height"], mx.z))
+    if top_want is not None and abs(mx.z - float(top_want)) > 0.06:
+        out.append("top %.2f, expected %.2f (M6B_PROPS)" % (mx.z, top_want))
+    kind = o["col"]
+    cs = list(o["col_size"])
+    cc = list(o["col_center"])
+    if kind not in ("box", "cylinder") or len(cs) != COL_KINDS[kind] or len(cc) != 3:
+        out.append("extras col %s / col_size %s / col_center %s" % (kind, cs, cc))
+    else:
+        top = cc[1] + cs[1] / 2
+        if top > mx.z + 0.1 or cc[1] < -0.3 or abs(cc[0]) > max(abs(mn.x), abs(mx.x)) + 0.1:
+            out.append("collision proxy outside the asset (centre %s size %s)" % (cc, cs))
+    for c in list(o["cols"]):
+        c = list(c)
+        if len(c) != 2 or len(list(c[0])) != 3 or len(list(c[1])) != 3:
+            out.append("extras cols entry %s is not [centre, size]" % c)
+    anchors = dict(o["anchors"])
+    for an, p in anchors.items():
+        p = list(p)
+        if len(p) != 3 or p[1] < -0.3 or p[1] > mx.z + 0.3:
+            out.append("anchor %s at %s outside the asset" % (an, p))
+    man = export.MODELS_DIR / "props" / "village" / "manifest.json"
+    try:
+        rec = json.loads(man.read_text())[name.split("/")[-1]]
+    except (OSError, ValueError, KeyError):
+        return out + ["no entry in props/village/manifest.json"]
+    if rec.get("node") != "Prop" or rec.get("path") != "res://assets/models/%s.glb" % name or rec.get("tris") != tris_of(o):
+        out.append("manifest node / path / tris mismatch")
+    for key in ("kind", "col"):
+        if rec.get(key) != o[key]:
+            out.append("manifest %s %s != extras %s" % (key, rec.get(key), o[key]))
+    return out
+
+
 def m6a_sign_problems(by, objs):
     """M6a sign boards: Prop extras (col, col_center, col_size, panels, text_w, text_h >= 0.30 m -- doc 10 §7.4, text
     readable at 24 m --, text_color / plate_color palette names, double_sided, anchors); TextPanel_0 in front of
@@ -1520,6 +1591,8 @@ def verify(name, spec0, allowed_bytes, godot_targets):
         problems += sign_problems(by)
     if spec["extra"].get("m6a_sign"):
         problems += m6a_sign_problems(by, objs)
+    if spec["extra"].get("village"):
+        problems += village_prop_problems(name, by, objs, g, spec["extra"].get("top"))
     if spec["extra"].get("glyphs"):
         problems += glyph_problems(objs)
     if spec["extra"].get("fragments"):

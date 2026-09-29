@@ -32,6 +32,11 @@ const INTEREST_PERIOD := 0.5
 const KEYFRAME := 1.0
 const BANDS := [[30.0, 4], [60.0, 6], [INF, 15]]   # [max distance, physics ticks between two sends]
 const Q_XZ := 4095.0
+## C1 (doc 09 §4.4, PLAN C32): vertical interest filter in the towers — a zombie inside a building (a hero tower's
+## floors, an enterable ground floor) more than VERTICAL_RANGE m above or below the peer's player is not sent (the
+## population of 30 floors sharing a chunk); zombies at street level always are. Off with the server rule
+## `vertical_filter` = false (the net scenario `tower` measures the saving).
+const VERTICAL_RANGE := 9.0
 
 static var instance: ZombieNet
 
@@ -39,7 +44,7 @@ var sys: ZombieSystem
 ## Test / bench hook: bot players (not network peers) for which packets are built and counted but not sent.
 var bench_players: Array = []
 ## Stats: bytes sent per peer (running), packets, entries; bytes/s per peer over the last second.
-var stats: Dictionary = {"bytes": 0, "snap_packets": 0, "entries": 0, "rel_packets": 0, "usec": 0}
+var stats: Dictionary = {"bytes": 0, "snap_packets": 0, "entries": 0, "rel_packets": 0, "usec": 0, "vfiltered": 0}
 var kbps: Dictionary = {}          # peer -> kB/s of zombie data (last second)
 
 var _peers: Dictionary = {}        # peer -> PeerState
@@ -176,12 +181,16 @@ func _update_interest() -> void:
 		var pcx := WorldConst.chunk_of(pp.x)
 		var pcz := WorldConst.chunk_of(pp.z)
 		var cand: Array = []
+		var vfilter := CityLots.is_loaded() and bool(WorldState.rules_now().get("vertical_filter", true)) and sys.world != null
 		for i in sys.used.size():
 			if sys.used[i] == 0:
 				continue
 			var q := sys.pos[i]
 			if WorldConst.ring_dist(WorldConst.chunk_of(q.x), WorldConst.chunk_of(q.z), pcx, pcz) > WorldConst.INTEREST_RADIUS:
 				continue
+			if vfilter and absf(q.y - pp.y) > VERTICAL_RANGE and CityLots.indoors_at(q, sys.world.hf):
+				stats["vfiltered"] = int(stats["vfiltered"]) + 1
+				continue   # C1: another floor of a tower
 			var d := Vector2(q.x - pp.x, q.z - pp.z).length()
 			if d <= Balance.ZOMBIE_L1_RADIUS:
 				cand.append([d, i])

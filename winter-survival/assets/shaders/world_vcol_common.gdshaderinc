@@ -10,10 +10,17 @@
 //   world_vcol.gdshader          cull_back, never cut: characters, forest, props, POIs (G1 cost, no discard)
 //   world_vcol_capsule.gdshader  cull_back + WV_CUT_CAPSULE: city props, lamps, foliage, cars (capsule only)
 //   world_vcol_struct.gdshader   cull_disabled + WV_CUT_STRUCT: city building structure (floor cut + caps)
+//   world_vcol_foliage.gdshader  cull_back + WV_WIND_TREE: scatter pines / birches / bushes (G2b, wind_include)
+//   world_vcol_cloth.gdshader    cull_disabled + WV_WIND_CLOTH (+ WV_CUT_CAPSULE): tarps, tents (G2b)
+//   world_vcol_cable.gdshader    cull_disabled + WV_WIND_CABLE (+ WV_CUT_CAPSULE): hanging cables (G2b)
 // The defines select the «corte urbano» hooks of city_cut.gdshaderinc.
 
 #include "res://assets/shaders/snow_include.gdshaderinc"
 #include "res://assets/shaders/stylized_light.gdshaderinc"
+#if defined(WV_WIND_TREE) || defined(WV_WIND_CLOTH) || defined(WV_WIND_CABLE)
+#define WV_WIND
+#include "res://assets/shaders/wind_include.gdshaderinc"
+#endif
 #if defined(WV_CUT_STRUCT) || defined(WV_CUT_CAPSULE)
 #include "res://assets/shaders/city_cut.gdshaderinc"
 #endif
@@ -72,6 +79,10 @@ vec3 tint_whites(vec3 c) {
 }
 
 void vertex() {
+#ifdef WV_WIND
+	// G2b: per-vertex wind (pines, cloth, cables; wind_include) — the shadow pass sways the same way
+	VERTEX += wind_model_offset(VERTEX, MODEL_MATRIX, TIME);
+#endif
 	world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	model_y = VERTEX.y;

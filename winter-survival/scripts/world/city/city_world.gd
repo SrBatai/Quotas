@@ -23,6 +23,10 @@ const NIGHT_FOG := Color("#162033")
 const GENERATOR_REACH := 14.0
 
 static var instance: CityWorld
+## C1: miradores used by the local player (id -> {"pos": Vector3, "radius": m, "name"}): the map reveal H5 reads.
+static var revealed: Dictionary = {}
+
+signal mirador_used(id: int, pos: Vector3, reveal_radius: float)
 
 var world: World
 var hf: HeightFunction
@@ -33,6 +37,12 @@ var menu_camera: Camera3D
 var skyline_on: bool = false
 
 
+## C1: detached subtrees waiting to be freed a little per frame (a hero tower's ~900 nodes in one teardown step
+## are 5–10 ms; `defer_free` takes them out of the tree at once and frees them for ≤ FREE_USEC per frame).
+const FREE_USEC := 700
+var _graveyard: Array[Node] = []
+
+
 func _enter_tree() -> void:
 	instance = self
 
@@ -40,6 +50,43 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	if instance == self:
 		instance = null
+	for n in _graveyard:
+		if is_instance_valid(n):
+			n.free()
+	_graveyard.clear()
+
+
+## Frees `n` (already out of the tree) over the next frames: its children first, a few per frame. Without a
+## CityWorld it is freed now.
+static func defer_free(n: Node) -> void:
+	if instance == null or not is_instance_valid(instance):
+		n.free()
+		return
+	instance._graveyard.append(n)
+	instance.set_process(true)
+
+
+func _process(_delta: float) -> void:
+	if _graveyard.is_empty():
+		set_process(false)
+		return
+	var t0 := Time.get_ticks_usec()
+	while not _graveyard.is_empty() and Time.get_ticks_usec() - t0 < FREE_USEC:
+		var n: Node = _graveyard[_graveyard.size() - 1]
+		if not is_instance_valid(n):
+			_graveyard.pop_back()
+			continue
+		var k := n.get_child_count()
+		if k > 0:
+			var c := n.get_child(k - 1)
+			n.remove_child(c)
+			if c.get_child_count() > 8:
+				_graveyard.append(c)   # a big child (a collider body with its shapes): its own children first
+			else:
+				c.free()
+			continue
+		_graveyard.pop_back()
+		n.free()
 
 
 ## `visual`: the client renders (silhouettes, lights); `display`: a real window (miradores, camera zones);
@@ -51,10 +98,12 @@ func setup(p_world: World, p_hf: HeightFunction, visual: bool, display: bool, me
 	if display and not menu:
 		for z in CityLots.camera_zones():
 			var r := CityLots.rect_of(z["rect"])
-			var cz := CameraZone.new()
+			var cz := CityCameraZone.new()
+			cz.hf = hf
 			cz.name = "CityZone_%d" % int(z["id"])
 			cz.profile = StringName(str(z.get("profile", "city")))
-			cz.size = Vector3(r.size.x, 400.0, r.size.y)
+			cz.size = Vector3(r.size.x, 800.0, r.size.y)
+			cz.priority = int(z.get("priority", 0))
 			cz.rooftop_height = CityLots.cm(z.get("rooftop_h", 700))
 			add_child(cz)
 			var c := r.get_center()
@@ -64,10 +113,26 @@ func setup(p_world: World, p_hf: HeightFunction, visual: bool, display: bool, me
 			var mir := Mirador.new()
 			mir.setup(m)
 			add_child(mir)
-			var pod := CityLots.podium(int(m["on"]))
-			var p := CityLots.v2(m["pos"])
-			mir.global_position = Vector3(p.x, CityLots.podium_base(hf, int(m["on"])) + CityLots.podium_roof(pod), p.y)
+			mir.global_position = mirador_point(hf, m)
+			mir.used.connect(_on_mirador_used)
 			miradores.append(mir)
+		# C1: the arrival cinematic, the first time the local player crosses the Puente de Hierro
+		var cine := ArrivalCinematic.new()
+		cine.name = "ArrivalCinematic"
+		add_child(cine)
+		cine.setup(self)
+	if Net.is_server and not menu:
+		# C1: the floors of the hero towers — lazy navigation tiles + stair links, and their population
+		var cn := CityNav.new()
+		add_child(cn)
+		cn.setup(world)
+		var cp := CityPopulation.new()
+		add_child(cp)
+		cp.setup(world)
+	if visual and not menu and Net.has_client:
+		# C1: frozen statues (MultiMesh) and the zombies trapped in the jam cars
+		var fs := FrozenStatues.new()
+		add_child(fs)
 	if visual:
 		apply_power()
 		silhouettes = CitySilhouettes.new()
@@ -81,18 +146,50 @@ func setup(p_world: World, p_hf: HeightFunction, visual: bool, display: bool, me
 		silhouettes.visible = false
 
 
-## City power v0 (CityLights): the grid level of the lot file (0 = blackout) everywhere, 1 on the generator lots
-## (their windows light up at night) and in the listed rects (the military control's generator).
+## World point of a mirador record: on a podium roof (`on`, C0), a hero tower's roof (`hero`), the bridge deck
+## (`at` deck), a valley POI's platform (`poi`: `h` m over the ground) or the ground (`at` ground).
+static func mirador_point(p_hf: HeightFunction, m: Dictionary) -> Vector3:
+	var p := CityLots.v2(m["pos"])
+	if m.has("on"):
+		var pod := CityLots.podium(int(m["on"]))
+		return Vector3(p.x, CityLots.podium_base(p_hf, int(m["on"])) + CityLots.podium_roof(pod), p.y)
+	if m.has("hero"):
+		var h := CityLots.hero(int(m["hero"]))
+		var y := CityLots.hero_base(p_hf, int(m["hero"])) + HeroTower.level(int(h["floors"]), CityLots.cm(h.get("ground_h", 430)), CityLots.cm(h.get("floor_h", 380)))
+		return Vector3(p.x, y, p.y)
+	match str(m.get("at", "ground")):
+		"deck":
+			var d := CityLots.bridge_deck(p_hf, p.x, p.y)
+			return Vector3(p.x, (d if not is_nan(d) else p_hf.height_at(p.x, p.y)), p.y)
+		"poi":
+			return Vector3(p.x, p_hf.height_at(p.x, p.y) + CityLots.cm(m.get("h", 0)), p.y)
+	return Vector3(p.x, p_hf.height_at(p.x, p.y), p.y)
+
+
+func _on_mirador_used(m: Mirador) -> void:
+	var id := int(m.rec.get("id", 0))
+	var r := CityLots.cm(m.rec.get("reveal", 60000))
+	revealed[id] = {"pos": m.global_position, "radius": r, "name": str(m.rec.get("name", ""))}
+	mirador_used.emit(id, m.global_position, r)
+
+
+## City power (CityLights): the grid level of the lot file (0 = blackout) everywhere, 1 on the generator lots
+## (their windows light up at night; C1: the generated lots flagged `generator` too) and in the listed rects (the
+## military controls' generators).
 func apply_power() -> void:
 	var pw := CityLots.power()
 	CityLights.set_grid_power(float(pw.get("grid", 0.0)))
 	if not pw.has("map"):
 		return
 	var r := CityLots.rect_of(pw["map"])
-	CityLights.create_power_map(r.position.x, r.position.y, r.size.x, r.size.y, 4.0, float(pw.get("grid", 0.0)))
+	CityLights.create_power_map(r.position.x, r.position.y, r.size.x, r.size.y, CityLots.cm(pw.get("cell", 400)), float(pw.get("grid", 0.0)))
 	var gens := {}
 	for g in pw.get("generators", []):
 		gens[int(g)] = true  # JSON numbers parse as floats
+	for id in gens:
+		var b := CityLots.building(int(id))
+		if not b.is_empty():
+			_paint_lot(b["pos"], (b["size"] as Vector2) + Vector2(4, 4), float(b["yaw"]))
 	for p in CityLots.podiums():
 		if gens.has(int(p["id"])):
 			# the lot's generator also feeds the street lamps along its podium (GENERATOR_REACH m around it)

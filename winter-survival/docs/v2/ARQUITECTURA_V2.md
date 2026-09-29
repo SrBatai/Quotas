@@ -1942,6 +1942,156 @@ ciudad es procedural.
 mapa y la cinemática (C1/H5); el aviso del mirador en el HUD (U); luces de semáforo y balizas (G2b/V1); el
 desplazamiento de origen solo en el cliente queda como plan B de R23 (no hizo falta a 2,7 km).
 
+### 9.10 Nota de implementación G2b «Atmósfera» (vinculante hasta que se revise)
+
+Implementa el G2b de PLAN v3.8.2 (P1 de C31; doc 08 §3.5, §3.7, §3.9, §3.10) y cierra los «Diferido» de §9.7 (LUT 3D
+por clima, `FogVolume` locales y volumétrica urbana) y de §9.8 (balizas; los semáforos, en ámbar). Todo es cliente con
+pantalla: `DayNight` crea un hijo `Atmosphere` (`scripts/world/atmosphere/`) solo si `DisplayServer` no es *headless*;
+el servidor dedicado (que quita `DayNight`) y los clientes *headless* (pruebas, `perf_walk --cpu`) no cambian.
+
+**Ganchos en `DayNight`** (tres líneas; sin `Atmosphere` todo es como antes): `shape_keys(k, …)` antes de mezclar la
+ventisca, `post_apply(env, …)` antes de `_apply_city`, y `shape_wind(wind)` dentro de `_apply_city`.
+
+**Cielo cubierto (`nublado`), solo de presentación.** `Atmosphere.overcast_at(semilla, hora_absoluta)`: ruido de valor
+suave (frentes cada 9 h de juego + una octava rápida al 15 %), `smoothstep(0.5, 0.82)`; 0 las primeras 30 h (el primer
+día siempre despejado). Determinista: todos los clientes lo ven igual sin red. `WorldState.weather` **no cambia de
+significado** (`clear` / `blizzard`; lo lee H3): `Atmosphere.overcast_now()` para quien quiera la nubosidad.
+Efecto: sol × 0.22 y desaturado, ambiente gris azulado, niebla × 1.8 + 0.002 y más gris, bruma de altura + 0.006, SSAO
+× 1.15, sin destellos; viento 0.3 → 0.65 (`snow_wind.z`) con rachas (`snow_wind.w`, antes sin uso: 0.25–1); la nevada
+ligera de `Snowfall` va del 45 % (despejado) al 100 % (cubierto o ventisca). Una ventisca trae su propio techo de nubes
+(`overcast ≥ blizzard_blend`). **Corte de sombras en la ventisca blanca**: por encima del 75 % de ventisca la sombra del
+sol (0.10 × 0.22 de energía: ilegible) se desvanece con `shadow_opacity` y al 97 % se apagan sus pases (y los de la luna);
+el doc 08 §5.1 ya presupuestaba la sombra de la ventisca en 1.0 ms frente a 1.8–2.5 de día. `Atmosphere.shadow_cut`
+lo desactiva (el banco mide las dos).
+
+**Niebla en capas.** Exponencial + altura como en G1/G2a, más: bruma del amanecer (5–10.5 h, +0.012 de densidad de
+altura hasta 1.5 m sobre el suelo del foco, la mitad en la ciudad), `fog_sun_scatter` 0.22 con el sol bajo (−4…16°) y
+cielo despejado. **Volumétrica solo en `alto` (Forward+) y solo en ventisca o de noche**: ventisca 0.028 (G1), noche
+0.0045 en el valle / 0.009 en la ciudad (× 1.6 con nubes), albedo más oscuro y menos ambiente inyectado de noche (sin
+«sábana» luminosa); los focos de las balizas y las brasas llevan `light_volumetric_fog_energy` 2–2.5. **`FogPatches`**:
+hasta 6 `FogVolume` junto a la cámara, solo mientras la volumétrica está encendida (humo sobre fuegos 0.07/m, bruma de
+calle nocturna en la ciudad 0.018/m, niebla sobre el hielo del lago y del Albo al amanecer y de noche 0.05/m, con
+`NoiseTexture3D` 32³). En `medio`, `compat` y Web no hay volumétrica ni volúmenes: `compat_fog_boost` suma a la niebla
+exponencial 0.005 (valle) / 0.011 (ciudad) de noche, lo que la volumétrica pone en Forward+ (0.0045 / 0.009 por metro,
+un poco más porque la exponencial no tiene los halos). Medido con `tests/run_g2b_bench.sh depth` (abajo).
+
+**LUT 3D.** `tools/make_luts.py` (numpy, determinista; `--check` compara píxeles ±1/255) escribe 8 LUT 32³ + `identity`
+en `assets/luts/*.png` (tira 1024 × 32: rebanada z = azul; importador `image`) con **alfa 128** a propósito. Operaciones:
+ASC-CDL por canal en espacio de pantalla y, en OKLab, tinte de sombras / luces, saturación por banda de luminosidad (de
+noche las luces cálidas conservan su color), contraste en S alrededor de un pivote y negro levantado. Godot muestrea la
+LUT con el color *tonemapeado* sRGB como coordenada (texel i en (i + 0.5)/32, comprobado en 4.7.2 en los dos
+renderizadores): texel i = entrada i/31, exacto en 0, ½ y 1 y a ≤ 4/255 junto a los extremos.
+`LutGrade` mezcla en CPU con operaciones nativas de `Image`: por unidad (¼ de rebanada, 32 × 8), una imagen RGBAF negra
+opaca y, por cada LUT con peso, su trozo RGBAF (alfa 128/255) preescalado con `adjust_bcs` y `blend_rect` encima
+(`dst·(1−s) + src·s`; tras N fuentes, Σ s(1−s)^(N−i)·srcᵢ, así que el preescalado wᵢ / (s(1−s)^(N−i)) da Σ wᵢ·LUTᵢ
+exacto, sin recorte); la rebanada pasa a RGBA8 y, al completar las 32, `ImageTexture3D.update` en un frame propio. Presupuesto
+`budget_usec` = 75 µs por frame (la primera unidad siempre; no empieza una unidad que la media diga que se pasa). Máximo
+3 LUT por mezcla (las más pequeñas fuera, renormalizado); en reposo (pesos a < 1/128 de lo mostrado) **no corre nada**, y
+una LUT pura se pone tal cual (su textura, sin mezcla). Pesos (`Atmosphere.lut_weights_for`, puro): noche por
+`night_amount`, `atardecer` con el sol entre −6° y 16°, el resto `dia_claro`; las nubes llevan el día a `nublado`; de
+noche la ciudad (perfil de cámara de ciudad, o un mirador / el menú: `fog_color_override`) reparte `noche` entre
+`noche_ciudad` (con corriente en el foco: `CityLights.power_at`) y `apagon`; la ventisca toma `ventisca` (× 0.55 de
+noche); junto a un fuego (`heat_source`, o una estufa encendida) `calor` hasta 0.5. El objetivo se recalcula a 10 Hz.
+Alternativas descartadas: una pasada de pantalla (`hint_screen_texture`) mezclando dos `sampler3D` (0 CPU, pero una
+copia y una pasada más de GPU en iGPU/Web) y `Texture3DRD` + *compute* (solo Forward+). *No* funciona con salida HDR
+(4.7): si se activa, la gradación pasa a `CompositorEffect`.
+
+**Viento por vértice** (`assets/shaders/wind_include.gdshaderinc`, incluido por `world_vcol_common` con
+`WV_WIND_TREE` / `WV_WIND_CLOTH` / `WV_WIND_CABLE`): desplazamiento en espacio mundo desde `snow_wind` y un reloj de
+rachas que corre a favor del viento (frentes de ~8 m/s), pasado a espacio modelo con `Mᵀ·off / s²` (escala uniforme);
+no se mueve una instancia inclinada (árbol talado). Corre también en el pase de sombras. Materiales:
+`world_vcol_foliage` (pinos, abedules, árboles muertos y arbustos del *scatter*: `Assets.instancing_mesh` → 
+`WindSway.instancing_mesh`, una copia del *mesh* con el material; el `ChoppableTree` materializado lo mismo con
+`WindSway.apply_to_model`, así que un árbol señalado no «salta»), `world_vcol_cloth` (+ cápsula de corte;
+`AmbientLife` se lo pone a la tienda militar de C0 sobre la malla cacheada de `CityChunk.group_mesh`) y
+`world_vcol_cable` (+ cápsula; `HangingCables`: un `MultiMesh` por luz de vano, solo giro por instancia). Otras vías:
+`WindSway.swap_surfaces(mesh, kind, altura)` / `apply_to_node`. `world_vcol` (personajes, props) no se mueve.
+
+**Nieve que vuela.** `SnowDrift`: cinta subdividida (6) que culebrea (±0.22 m) y se rompe en bocanadas a lo largo,
+densidad que respira con las rachas; con el viento del cielo cubierto (0.65) ya se ven serpientes (≈ 44 % de la
+alfombra de ventisca) y ondas de nieve suelta en el terreno (`terrain.gdshader`, que ya las tenía por encima de 0.35).
+
+**Vida (render).** `FxSprites`: atlas 2 × 2 de humo y de llamas sacados del *Particle Pack* 1.1 de Kenney (CC0; espejo
+`series-ai/jam-ready-assets` @ `f8206b38`, LFS; `tools/fetch_fx_sprites.py` fija el commit y los SHA-256 en
+`assets/textures/fx/sources.lock.json`, copia la licencia y escribe `manifest.json`; las fuentes van a una caché fuera
+del repositorio). Humo con luz por vértice (el sol, el ambiente y los fuegos lo iluminan), fotograma y giro aleatorios,
+borde suave contra el suelo en Forward+, y un brillo propio de noche (`set_night_glow`) para que no desaparezca; la deriva
+del viento es común (`FxSprites.wind_gravity`: hilo recto en calma, tumbado en ventisca). `SmokeEffect` (chimenea) y
+`FireEffect` (fogata, antorcha) usan los sprites; `SmokeColumn`: columna alta con brasas (disco aditivo `ember_glow` + luz
+parpadeante solo de noche y con presupuesto de farolas) y anillo de deshielo (grupo `thaw_source`, **no** `heat_source`:
+no calienta a nadie). `BeaconLights`: bombilla (halo) + luz en el suelo por baliza en dos `MultiMesh` animados por
+`beacon.gdshader` (modos intermitente, rotativo con cuña que gira, pulso rojo y ámbar de semáforo; reloj común por
+material), y en `alto`/`medio` de noche hasta 3/2 `SpotLight3D` reales que giran con el mismo reloj sobre los
+rotativos más cercanos. `Flock`: cuervos (9 triángulos) cuyo vuelo se calcula entero en `flock.gdshader`
+(`INSTANCE_CUSTOM` = fase, radio, altura, velocidad), con sombra: desde la cámara de juego suelen quedar por encima del
+encuadre y lo que cruza la nieve es su sombra; se posan (se ocultan) de noche y en ventisca.
+`AmbientLife` lee (solo lectura) el `plan` de los `CityChunk` cargados cada 0.5 s: rotativos azul/rojo en el 60 % de
+los coches de policía, ámbar/rojo en la mitad de las ambulancias, intermitentes en el 70 % de las barreras a rayas,
+semáforos en ámbar donde hay corriente, columnas de humo en el 55 % de los coches quemados y en los bidones del control
+(≤ 4 por chunk), la lona de la tienda, cables entre farolas enfrentadas de la Gran Vía (la mitad de los pares); todo por
+*hash* de la posición (igual en todos los clientes, 0 B/s) y fuera con su chunk. Dos bandadas fijas (el atasco de la
+Gran Vía y el claro). V1 sustituye esta capa por la del servidor (registro de bandadas, escenas de rastro).
+
+**Deshielo visible.** Globales `thaw_a` / `thaw_b` (`mat4`: columnas = x, y, z, radio fundido) y `thaw_info.x`
+(cuántas): `Atmosphere` pone las 8 fuentes más cercanas a la cámara (≤ 60 m) de `heat_source` (fogatas encendidas) y
+`thaw_source`; el radio crece de 0.35 m al de la fuente (2.6 m por defecto, meta `thaw_radius`) en 40 s y, apagada, se
+seca en 60 s. `terrain.gdshader`: aguanieve (albedo × 0.72/0.76/0.84), en el centro suelo mojado con borde roto, y un
+lóbulo especular estrecho (`wet_sheen`) en `light()` — la luz del propio fuego brilla en el charco —; sin destellos de
+nieve donde está mojado. `snow_include`: la nieve v2 se funde en objetos junto al fuego. Sin fuentes, una rama.
+
+**Pruebas y medidas** (máquina compartida con otros tres carriles; `taskset -c 2,3`):
+- `tests/g2b_checks.gd` (*headless*, 78 comprobaciones; `run_all.sh` y el trabajo `g2b` de CI): globales, familia de
+  materiales, LUT (tiras 32³, alfa 128, identidad a ≤ 4/255 como la muestrea el tonemapper, cada gradación hace lo que
+  dice), **mezcla exacta** (Σ wᵢ·LUTᵢ a ≤ 1/255), **≤ 0.1 ms de CPU por frame** (tiempo de trabajo = pared − espera en
+  cola, `SchedProbe`; puerta: mediana ≤ 100 µs y ≤ 10 % de frames por encima; medido 51–65 µs de mediana, 3 LUT en
+  94–129 frames, 5–9 ms de CPU en total), **0 en reposo** (120 frames: 0 unidades, 0 µs), umbral 1/128, LUT pura sin
+  mezcla, ≤ 3 fuentes; pesos por hora / nubes / ventisca / ciudad / apagón / fuego; nubes deterministas, primer día
+  despejado, 26 % del tiempo con la semilla 1337, suaves (≤ 0.076 por 0.1 h), otra semilla otro cielo; ganchos de
+  `DayNight` (sin `Atmosphere` en *headless*; nubes, viento 0.65, bruma del amanecer, dispersión al sol bajo,
+  volumétrica solo `alto` + noche/ventisca, `medio` sin ella y con `compat_fog_boost`, `FogVolume` solo con volumétrica,
+  mirador = ciudad, ventisca = nubes, corte de sombras); deshielo (crece, se seca, 8 fuentes); viento (pinos sí, rocas no,
+  árbol materializado, material por vano); sprites (CC0, procedencia), humo con deriva, columnas, balizas (2 *draw
+  calls*), bandada (9 triángulos), cables; `AmbientLife` desde un `plan` sintético (determinista, se va con el chunk).
+  `python3 tools/make_luts.py --check`: las LUT salen del script (píxeles ±1/255).
+- `tests/run_g2b_bench.sh ratio` (Forward+ en lavapipe, `alto`, la vista de `perf_probe --scene=altavega_c0`, 3 rondas
+  intercaladas, mediana de la proporción por ronda): **ventisca / día = 0.68** (rondas 0.725 / 0.619 / 0.682; frame de
+  día 873–1 079 ms, ventisca 632–668 ms con volumétrica 0.028, nieve densa, serpientes, nubes y LUT; 118 → 48 *draw
+  calls*), **0.95 sin el corte de sombras** (otra pasada con más carga: 0.69 y 1.09; siempre ≤ 1.25); noche / día 1.36
+  (volumétrica nocturna 0.009 + faroles y focos), noche con ventisca / día 0.80. Paso de LUT en el bucle real: mediana
+  64 µs, p95 118 µs, 0 en reposo. En CI informa (máquina compartida); ≤ 14 ms en la GPU del propietario: sin medir aquí.
+- `tests/run_g2b_bench.sh depth` (la misma vista de noche, al anochecer con nubes y en ventisca; tres capturas: como la
+  pinta el juego, sin niebla y con la niebla saturada; métrica: parte del contraste local que la niebla quita en el
+  tercio lejano (arriba) menos en el cercano): **`compat` conserva la profundidad** — gradiente 141 % / 99 % / 91 % y
+  tercio lejano 92 % / 93 % / 97 % del de Forward+ (noche con volumétrica / anochecer / ventisca con volumétrica; puerta
+  ≥ 80 %, bloqueante en CI). Antes de subir `compat_fog_boost` a 0.011 la noche daba 56 % / 62 %.
+- Capturas (Forward+, 1280 × 720, JPG en `docs/screenshots/g2b/`): `g2b_sheet.jpg` (8 horas × 3 climas del claro,
+  `RENDER=forward tests/run_screenshots.sh … g2b_sheet`), `dawn`, `blizzard`, `city_dusk`, `city_night`,
+  `night_fire`, `compat_vs_forward` (capturas del banco de profundidad).
+- Regresiones (fijadas a 2 núcleos con otros tres carriles en la máquina, carga 6–7): `render_checks` 78/78, banco de
+  ciudad `gate` OK (Compatibility: 120 / 54 *draw calls* día / noche), `citycut_probe` 100 % legible, prueba de humo
+  339/339; `perf_walk --cpu` p99 1.92 ms (≤ 2) pero p99.9 2.69 ms (> 2.5) con 4.3 s de espera en cola y *steal* en los
+  núcleos: el camino *headless* no crea `Atmosphere` y G2b no toca el *streaming* (el viento se pone al calentar las
+  mallas), así que es ruido de carga; repetir a solas.
+
+**Desviaciones**: (1) «≤ 0.1 ms de CPU por actualización» se cumple **por frame**: con las operaciones nativas de `Image` una mezcla
+32³ completa cuesta 2–4 ms de CPU (medido: `blend_rect` 41 ns/texel en RGBA8, 29 en RGBAF; 32 768 texels), así que se
+reparte en unidades de ¼ de rebanada (0.5–2 s de latencia a 60 fps; las transiciones de hora duran ~1 min y la de la
+ventisca 2 s). (2) «nublado» es una capa de presentación determinista y no un tercer estado de `WorldState.weather`
+(H3 lo lee; no se cambia su semántica). (3) La ventisca pasa de sobra también sin el corte de sombras (0.95–1.09), pero el
+corte se queda: es una decisión de aspecto (en una ventisca blanca no hay sombras) que además paga la volumétrica.
+(4) La vida de la ciudad (balizas, humo, cables, lona) lee el `plan` de `CityChunk` sin tocar su código, y la lona se
+cambia en la malla cacheada de `CityChunk.group_mesh`; C1 debería llamar a `WindSway.swap_surfaces` al fusionar props y
+V1 sustituirá la capa por la del servidor. (5) Los sprites llevan su propio `assets/textures/fx/manifest.json`
+(procedencia, SHA-256, licencia): el generador de `assets/third_party/manifest.json` es de A1 y no se ha tocado. (6)
+Los pinos del bosque ya no son idénticos al píxel a G1 con tiempo despejado (se mueven) y con cielo despejado cae el
+45 % de la nevada ligera de antes. (7) Los `FogVolume` solo existen con volumétrica: solo `alto`. (8) Las puertas de
+tiempo (paso de LUT, proporción de la ventisca) se miden con proporciones / tiempo de trabajo por la máquina
+compartida; la de la ventisca informa en CI.
+
+**Diferido**: bandadas que despegan y las delatan, escenas de rastro con humo, generadores sueltos (V1); resplandor
+naranja en la niebla de un incendio lejano (E2a); LUT por región (hoy: por hora, clima, ciudad/apagón y fuego); una
+pasada de LUT en GPU si algún día hace falta mezclar más de 3 o sin latencia.
+
 ## §17.7 Nota de implementación S1 (audio)
 
 Detalle completo en `docs/AUDIO.md`. Resumen para la arquitectura:
@@ -1974,3 +2124,376 @@ Detalle completo en `docs/AUDIO.md`. Resumen para la arquitectura:
 - **Construcción**: `tools/audio/` (grabaciones CC0 fijadas por commit + diseño en Python, determinista) → 557
   ficheros OGG, 8,37 MB, `assets/audio/LICENSES.md`. Pruebas: `tests/unit/audio_test.gd` (run_all + CI) y el paso 20
   de la prueba de humo (`tests/s1_audio_smoke_steps.gd`).
+
+---
+
+## §17.8 Nota de implementación H3 (avisos, peligros y grupo)
+
+Vinculante hasta que se revise. Implementa la tarjeta H3 del PLAN (v3.8.1) con la dirección «Susurro» de
+`docs/research/10_hud_ux.md` §V.3 («Avisos críticos», «Peligro», «Compañeros»), §V.4.6–V.4.7, §V.9.3 y las reglas del
+apéndice §5.6, §6.4.3, §6.5–6.8 y §8.5–8.7. Sustituye lo que §17.5 dice del aviso central y del arco de daño.
+
+#### Avisos: `NotifyRouter` (`scripts/ui/hud/notify_router.gd`)
+
+- **P0** (compañero derribado, te estás congelando, hielo fino bajo los pies, alud, derribado propio) **no va a un
+  banner**: `target` = `world` (el indicador de derribo de `WorldLayer`, o un «!» con dos palabras a los pies para los
+  P0 con punto), `vital` (la constante afectada queda fija con `HudVisibility.set_hold`) o `self` (el `DownedOverlay`).
+  Dura lo que su condición: `seconds` > 0, `end_p0(key)` o un `hold` (`Callable` evaluado a 4 Hz). Suena una vez
+  (`sound`) y le dice a `SoundCaptions` de dónde viene (`expect`). Durante `P0_ATTENTION` (3 s) la línea espera; si un
+  P1 / P2 llevaba > 1,2 s en pantalla, cede y vuelve a la cola **con su hora de llegada** (primero de su prioridad).
+  `Events.p0_notice(n, on)`; `Hud.p0_active()` = `router.p0_active()` o derribado / Calor < 15 (compacta los títulos).
+- **P1–P2**: la línea de 3 s (`NotifyBanner`, sin caja; «×2» al refrescar, «2 avisos en espera»). Cola de 6 (llena:
+  sale la más antigua de la prioridad más baja), la misma clave en pantalla refresca y en cola se actualiza, las
+  claves de enfriamiento (8 s), esperan al título de zona, 300 ms entre líneas. **P3**: la línea de recogidas
+  (`PickupStack`, fusión «+N (total)»). Filtro cooperativo: `from_peer` ajeno sin `affects_me` se descarta.
+- Ajustes nuevos en `UiSettings` (`[hud]`): `captions` = `p0` (por defecto) | `all` | `off`; `p0_banner` (R29 plan B:
+  el P0 también ocupa la línea 3 s). Filas en «Interfaz y accesibilidad».
+
+#### Peligros: `HazardStack` (`hazard_stack.gd`, `RefCounted`) y `HazardLine`
+
+- Una entrada por tipo: `forecast` → `soon` (alias `imminent`) → `active` → `end`; datos `seconds`, `detail`, `pos`,
+  `source`. `SPECS`: nombre, icono de línea, rango, nivel del aviso al volverse inminente / activo (0 = P0 en el mundo,
+  1 = sonido P1, 2 = solo la línea), textos por estado. **Ventisca y Gran Ventisca** conectadas; **API para E1 / E2**:
+  `thin_ice` (zona; activo = P0 con `ice_crack`), `ice_storm`, `cold_wave`, `avalanche` (activo = P0), `blackout` (zona,
+  sin tiempo ni alarma), `fire`, `extreme_cold`. Un peligro de API con tiempo que nadie termina se va solo.
+- `HazardLine` dibuja la primera entrada en línea completa 5 s y luego icono + tiempo; la segunda, compacta debajo
+  (2 visibles); el resto de previstos como «+1 previsto»; los últimos 15 s laten. Inminente → `ui_warn`, activo →
+  `ui_hazard` (una vez por cambio de estado; el mismo estado solo corrige la cuenta atrás si se mueve > 1,5 s).
+- **Aviso de ventisca a 60 s**: `Balance.BLIZZARD_WARNING` 10 → **60** (GDD §7, doc 10 §6.7). La cuenta atrás la
+  manda el servidor (`HudNet`), así que los clientes remotos la ven igual que el anfitrión.
+
+#### Red: `HudNet` (`scripts/ui/hud/hud_net.gd`, `/root/Game/HudNet` en los dos sabores; `game.gd` lo añade tras `ZoneDiscovery`)
+
+- Solo a pares sincronizados (`request_sync` al aparecer el jugador local; nunca a uno que aún carga la escena).
+  Canal 1 fiable, como `ZoneDiscovery`. Sin cambios en `NET_PROTOCOL`: es un nodo nuevo.
+- `_mate(peer, downed, bleed, t_ms)`: el servidor mira `downed` de todos los jugadores **cada frame** y lo empuja en
+  cuanto cambia (el `MultiplayerSynchronizer` del jugador tiene `delta_interval` 0,2 s: sin esto no se cumple
+  «≤ 0,2 s»). `t_ms` es la hora Unix del servidor (en pruebas, misma máquina: latencia directa).
+- `_team(bytes)` cada 0,5 s con ≥ 2 jugadores: 8 B por jugador `[peer:int32, salud, calor, desangrado, flags
+  (derribado, muerto, en casa, frío)]` (§8.7 `teammate_state`, sin tocar el espejo de `PlayerState`) →
+  `Events.teammate_state`. «Herido» = salud < 25 % real.
+- `_hazard(kind, state, seconds, detail)`: el `Weather` del servidor sondeado a 2 Hz (`_warning_left`, `_active`,
+  `_time_left`: sin tocar `weather.gd`) y `broadcast_hazard()` para E1 / E2 (los últimos se reenvían al sincronizar).
+- Pings: `request_ping(kind, pos)` → validado (vivo, `place` | `danger`, ≤ 150 m de su posición autoritativa, 3 cada
+  2 s, 3 vivos por jugador) → `_ping(id, peer, kind, pos, seconds)` a todos; `[EVT] ping …` en el log.
+- `request_test_warning(duration)`: solo offline o con `debug_commands`: la ventisca **con** su aviso (pruebas).
+
+#### Grupo, *pings*, daño y audio
+
+- `TeamTracker`: el derribo se detecta el mismo frame (señal de `HudNet` o la bandera replicada, comprobada cada
+  frame) → `mate_downed` / `mate_up` una vez. El HUD lo convierte en el P0 `mate_down:<peer>` (mundo, `ui_mate_down`,
+  subtítulo hacia el compañero) y fuerza `AccentArbiter.update()` y el redibujado del `WorldLayer` en ese frame.
+  `WorldLayer.downed_seen[peer]` guarda cuándo se dibujó el indicador (mundo o borde). Una muerte da un P1.
+- **Indicador único**: `PlayerView.world_labels` (estático, nuevo) apaga los `Label3D` del slice (nombre sobre cada
+  remoto y «☠ DERRIBADO · 45 s»); el HUD dibuja los compañeros (§V.3: nada cerca, punto y nombre lejos, el indicador
+  de derribo). Sin HUD (herramientas *headless*) siguen como antes. El anillo en el suelo mide 0,95 m de radio.
+- `InfoBlock`: la línea del grupo con Info lleva calavera y segundos (derribado, en ámbar) o corazón / termómetro.
+- `Pings` (`pings.gd`): clic central = lugar, doble clic central (0,3 s) o clic sobre un zombi = peligro; el punto es el
+  rayo de la cámara contra la capa 1 (o el plano del jugador). Al llegar: sonido posicionado (`ui_ping` /
+  `ui_ping_danger`), y de otro jugador P2 («Ana: peligro · 40 m») o P3 («Ana marcó un lugar · 84 m»). `WorldLayer` los
+  dibuja (▲ con anillo de cuenta atrás / ⚑ del color del jugador); fuera de pantalla, solo con Info, tenues en el
+  carril (el único indicador de borde sigue siendo el del acento). Con mando: la rueda de H4.
+- `HitDirection` (`hit_direction.gd`): el cliente dueño solo recibe `player_damaged(amount, "")`; la dirección sale de
+  lo visto en los últimos 0,7 s — un disparo (`Events.shot_fired`) cuya línea pasa a < 1,6 m, un sonido de ataque
+  (`AudioManager.event_played`: `zombie_attack`, `wolf_bite`, *swings* de otro jugador) a < 4 m, o el zombi que ataca /
+  persigue más cercano, o un lobo — y espera hasta 0,25 s si el sonido llega después del daño. Emite
+  `Events.player_hit_from(dir, amount)`; `WorldLayer` ya no busca atacantes.
+- `SoundCaptions` (`sound_captions.gd`, abajo al centro sobre la barra): escucha `AudioManager.event_played`; tabla
+  evento → descripción y nivel (P0 / todos); flecha de 6 px hacia la fuente en pantalla (misma proyección que el
+  carril, `WorldLayer.dir_on_screen`) y distancia; 3 s, 3 líneas, fusión «×N» en 1,5 s; `text_of()` con la dirección en
+  palabras («derecha», «detrás a la izquierda»…) para pruebas y el TTS de H6. Si otro sistema toca el mismo sonido sin
+  contexto (el `CombatAudio` de S1 también suena `ui_mate_down`), `expect()` completa esa línea.
+- `UiAudio` (`ui_audio.gd`): `AudioManager.heartbeat()` — salud < 25 → 0,35…1, derribado 0,8, un compañero
+  desangrándose 0,22 — y `ui_radio_static` cada 10 s mientras siga derribado. Sonidos nuevos (obra propia, CC0,
+  `tools/audio/recipes_ui.py` `build_h3` con semilla propia: los 33 ficheros anteriores de `ui` / `music` no cambian ni
+  un byte): `ui/radio_static_01–02`, `ui/ping_01`, `ui/ping_danger_01`; eventos en `data/audio_events.json`.
+- **M5**: `ReticleHook` conserva clase y nombre de nodo (la prueba de M5 lo busca) pero dibuja la retícula del HUD
+  (escala `k`, anillo 1,5 px + 4 marcas + punto, verde / ámbar / rojo / gris por banda, arco de recarga,
+  «encasquillada · R»). La munición va en la línea de la barra (`Hotbar`, elemento `hotbar.ammo`: al disparar, recargar,
+  encasquillarse o cambiar de arma 3 s; fija si está encasquillada, recargando o con ≤ ¼ del cargador; con Info).
+
+#### Señales nuevas en `Events`
+
+`ping_placed(id, peer, kind, pos, seconds)`, `teammate_state(peer, state)`, `p0_notice(n, on)`.
+
+#### Pruebas y números (VM compartida, `taskset -c 2,3`, con otros tres carriles trabajando)
+
+- `tests/unit/notify_router_test.gd` (+ `_steps`): **46/46** en ≈ 0,1 s (prioridad, prelación, atención, cola,
+  fusión, enfriamiento, P3, filtro cooperativo, título de zona, P0 en el mundo / la constante, sonido + subtítulo,
+  avisos antiguos, banner P0 opcional, ventisca, Gran Ventisca, tipos de E1 / E2). En `run_all.sh` y CI (trabajo `h3`).
+- Humo, paso 21 (`tests/h3_smoke_steps.gd`): P0 simulado con una compañera títere del servidor en proceso (peer 2
+  «Ana») a 5 m — indicador en 6–67 ms y `ui_mate_down` en 4–45 ms (la cifra alta, con la VM cargada por otros
+  carriles), sin banner, subtítulo «latido y estática de radio ·
+  Ana · derecha, 5 m», latido 0,22, estática a los 10 s, fin al levantarse —; salud replicada → «herido»; arcos hacia
+  un mordisco y un disparo; ventisca forzada: «ventisca · se acerca · 1:00» → «0:50» → «visibilidad 6 m · 1:30» → icono
+  y tiempo; hielo fino (P0 a los pies); *pings* (servidor, límite, alcance, dibujado); retícula y munición.
+- Escenario de red `team` (`tests/net/net_steps_h3.gd`, 4 clientes, horda de 30 alrededor): el *ping* de peligro de C
+  llega, se dibuja y suena en los 4 (y deja la línea P2 en A, B y D); **el derribo de B llega a A en 8–19 ms
+  (indicador) y 5–17 ms (`ui_mate_down`)** desde la hora del servidor en dos corridas (RPC 5–17 ms; presupuesto 200 ms); A reanima a B y el P0 se
+  apaga; la cuenta atrás de 60 s de la ventisca en todos. Puerto 7897 en `run_all.sh` y CI.
+- Cobertura (`tests/run_hud_coverage.sh --moments=idle,downed_coop`): reposo **0,08 %**, compañera derribada
+  **2,80 %** (maqueta v2 e: 2,96 %; puerta ≤ 3 % para los dos).
+- Capturas Forward+ a 1080p: `downed_coop` y `hud_downed_coop_cue` en `docs/screenshots/h3/` (+ `maqueta_vs_h3.jpg`).
+- Humo completo 339/339. CPU del HUD en el momento cargado (ya con los nodos de H3 en la cuenta): 0,52 ms con la VM
+  cargada por otros carriles (puerta del humo 1,0 ms; presupuesto 0,5 ms — H2 midió 0,17–0,21 ms en una VM tranquila:
+  hay que repetirlo a solas). `WorldLayer` es el nodo más caro (≈ 0,17 ms a 30 Hz de dibujo).
+
+#### Desviaciones
+
+1. El aviso P1 de «inminente» y «activo» del apéndice §6.7 no ocupa la línea central: la línea de peligro de arriba a la
+   derecha ya es su canal (con `ui_warn` / `ui_hazard`); el fin de la ventisca queda 3 s en esa línea («la ventisca
+   amaina»), como en H1, en vez de una línea P3.
+2. La muerte de un compañero es un P1 en la línea («Ana ha muerto · la mochila queda en el cuerpo»), no un P0: no hay
+   indicador de mundo que mantener (el cadáver ya se ve).
+3. Sin *ping* con mando (la rueda es de H4) y sin *pings* en el mapa de papel (H5 leerá `Pings.live`).
+4. `PlayerView` (fuera del carril U) recibe una bandera estática para apagar sus etiquetas 3D; es la única línea de
+   juego tocada, además de `Balance.BLIZZARD_WARNING` y el nodo `HudNet` en `game.gd`.
+5. El subtítulo usa la dirección en pantalla (la guiñada de la cámara, como el carril), no la del personaje.
+
+#### Diferido
+
+Rueda de *pings* y peticiones (H4), *pings* y pronóstico en el mapa (H5), TTS de los P0 y rótulos para todos los
+sonidos del mundo (H6), el «calor cercano» con más de una fuente (H4), el sonido de muerte de un compañero, el
+ahogamiento del ambiente por bus en los P0 (lo hace la tabla de S1 con `duck`).
+
+---
+
+### 9.11 Nota de implementación M6b (vinculante hasta que se revise)
+
+Primer asentamiento generado (§9.1 pasos 2 y 4–8) y los tres POIs a mano de §9.5, sobre el kit de M6a (§9.9); arte en
+ASSET_SPEC v2 «M6b». Código en `scripts/world/settlement/`.
+
+**Sitios y datos.** `data/buildings/settlements/<id>.json` (procedurales) y `data/buildings/pois/<id>.json` (a mano):
+M6b = **`la_herreria`** (aldea sobre la región W1 «LA HERRERÍA» (−704, −768) r 170 de `PoiRegistry.REGIONS`: en el macro,
+fila 6, `v` = aldea y `S` = aserradero; la calle sale de la carretera de Valdenieve en (−752, −676)), **`aserradero`**
+(−632, −772), **`gasolinera_norte`** (606, −386; sobre el pad M3 `gas_north`, junto a la N‑140 y la salida de la
+Carretera del Puerto) y **`granja_molino`** (−128, −900; la zona de H2 «GRANJA DEL MOLINO», al final de su camino).
+Cada sitio lleva sus `bounds` (rect cerrado: fuera de él M6b no toca nada del valle). `Settlements` (estático, puro)
+genera **un plan por sitio y semilla** y lo cachea; `plan_hash(seed)` = SHA‑256 de un volcado canónico (calles, edificios
+—plantilla, estilo, uso, posición al cm, número, rótulo, enterable, residentes, wid— e ítems): es el «hash de aldea»
+de la aceptación, igual en servidor y clientes (se imprime `[SETTLEMENT] plans <hash>` en cada proceso y el escenario de
+red lo compara).
+
+**Generador (`SettlementGen`, determinista por `hash64(seed, "SETT", sitio, k)`; solo enteros y floats en orden fijo).**
+Calle mayor de 172–192 m desde el punto de acceso con rumbo ±8° y curvatura ±7°; ramales: el camino al aserradero (hacia
+un punto fijo del POI) y, con un 65 %, la calle de la Fragua (lado oeste, 62–86 m): **1–2 ramales**. Parcelas OBB a
+ambos lados de cada calle (frente 16–23 m, fondo 24–32 m, **400–900 m²**), descartadas si tocan otra calle, la carretera
+de acceso (+11 m), otra parcela, los `bounds` o el círculo de la región. Uso: primero los reservados (bar, tienda de
+ultramarinos, taller) en las parcelas más centrales en que caben, luego casas por plantilla ponderada que quepa
+(`house_small_A/B/C`, `house_two_story_A/B`), 5 % solares vacíos, objetivo 15–19 edificios (si una tirada no llega a
+15 se repite con el siguiente flujo de la misma semilla, hasta 6 veces); enterables: tiendas y servicios siempre, el
+45 % de las casas, al menos 6 (las demás casas: puertas exteriores `locked`). Cada edificio mira a su calle y se
+asienta en un **pad orientado** de su huella + 2,5 m, a la altura de la calle delante de él. Vestido: farolas cada
+26–32 m alternando acera (70 % encendidas, 15 % parpadeando, el resto muertas: la aldea tira del generador del
+aserradero), postes con cables en la calle mayor, buzones, vallas (50 % de las casas), hidrantes, bancos / papeleras /
+contenedor con botín / carrito junto al bar y la tienda, neumáticos, bidones y un pick‑up en el taller, señal S‑500
+«La Herrería» (tachada por detrás) y stop a la salida, placas de calle, parada de autobús en la carretera, barricadas
+al fondo de las calles y 3–5 coches abandonados (A1) con botín en el maletero.
+
+**Terreno (sellos).** `HeightFunction._setup` llama a `Settlements.stamp(self)` tras las carreteras macro (cambios
+aditivos en `height_function.gd`: `add_road()` —el cuerpo de `_build_roads` extraído— con `pin_start` / `pin_end`
+para anclar el perfil a la carretera a la que se une; `add_pad()` = pad **rectangular orientado** (`_pad_rot`), que
+`eval` gira a su marco; `pads_in` devuelve su AABB a la dispersión; `road_info` / `furniture_of` leen `_road_src`).
+Las calles de la aldea son carreteras `road` de 5–6 m con arcén de 3 m: lecho de asfalto con rodadas en la máscara, la
+dispersión se aparta y `Locations` las ve como vías conducibles. Resultado medido (semilla 1337): esquinas de cada
+huella a ≤ 9 mm del centro; cada parcela a ≤ 3 mm de la calle de delante; la calle mayor sale de la carretera al mismo
+nivel (Δ 1 cm). `tests/valley_unchanged` admite, además de la Carretera del Puerto, los chunks de los `bounds` de los
+sitios + 12 m (lista cerrada en los datos; `m6b_checks` comprueba que todo sello cae dentro).
+
+**Construcción por chunk (`SettlementSpawner` + `SettlementChunk`).** Nodo del `Game` (tras `KitStreets`, ambos
+sabores) enganchado a `WorldStreamer.chunk_loaded`: el chunk que contiene el centro de un edificio o ítem lo construye
+en pasos como hijos directos de `chunk.objects` (se liberan con el desmontaje del chunk; `chunk_unloaded` desregistra
+puertas y contenedores al instante). Un **presupuesto común** a todos los chunks de sitio del frame (a velocidad de
+vehículo cargan varios a la vez): ≤ 2,5 ms de pasos y **como mucho un edificio por frame** (3–8 ms en caliente; el
+primero de la partida paga materiales, corte y rótulos ≈ 25 ms, así que en clientes con pantalla el `SettlementSpawner`
+precalienta al configurarse el mundo los modelos del plan, las mallas fusionadas y un `KitBuilding` desechable:
+≈ 0,2–0,5 s dentro de la carga). Un `StaticBody3D` por chunk
+con las cajas / cilindros de props, coches y contenedores (capa mundo + bloqueo de colocación, grupo `nav_static`);
+en clientes con pantalla un `MultiMeshInstance3D` por modelo de prop (arte fusionado en una superficie con el material
+cápsula del corte urbano, sin sombra por debajo de 1 m), los coches (malla fusionada de A1), los carteles
+(`SignText`), los cables (una malla) y las farolas. Edificios = `KitBuilding` (M6a) con `opts`: `locked` (puertas
+exteriores de casas no enterables), `alarm` (tienda / bar / gasolinera) y `tables` (tablas de botín por uso:
+`LootSpawns.attach(..., remap)`). wids: edificio `KitBuilding.wid_for(seed, sitio, i)`, ítem
+`hash64(seed, "SITE", sitio, i)`, contenedor de coche / contenedor de basura `hash64(seed, GEN_LOOT, ítem, 1)`
+(`LootContainer.hidden_model`: el prop es su aspecto). Servidor: navmesh de los chunks marcado tras construir.
+**Corrección de M6a:** los contenedores que `KitBuilding` mueve bajo su `Interior<k>` salían del `WorldRegistry` al
+salir del árbol (el servidor contestaba «no_existe» al abrirlos): se vuelven a registrar.
+
+**Puertas (§9.2, segundo paso).** `KitDoor.locked`: el servidor rechaza abrirla (`[EVT] door … locked`), etiqueta
+«Cerrada con llave» (forzar con palanca: M9). **Alarma de tienda** (GDD §6.3 / §9.2): el 5 % de las puertas exteriores
+de tiendas, bar y gasolinera (`hash64(wid, "ALRM")`, `KitDoor.force_alarm` en tests); la primera vez que se abre, el
+delta lleva `alarm: true` (nunca vuelve a sonar) y el servidor emite `SoundEvents` ALARM de 150 m cada 2,5 s durante
+60 s; los clientes que lo ven en vivo reproducen `car_alarm`.
+
+**Población por uso de suelo.** `Settlements` fija por chunk los residentes: los de cada edificio según su uso (casa
+1–2, casa cerrada 0–1, tienda 1–2, bar 2–3, taller 1–2; aserradero 4 + 1, gasolinera 2, granja 2 + 2) como durmientes
+en la planta 0 (los `Spawn_Zombie` de la plantilla y puntos de la huella), más la cuota de calle / patio (aldea 1–2
+por chunk, POIs 2–7) fuera de los edificios, 40 % congelados; tope 12 por chunk. `PopulationTable.compute` devuelve
+ese objetivo en los chunks de los sitios (3 líneas); `PopulationManager._spawn_chunk` los despierta en sus puntos
+(`SettlementSpawner.spawn_residents`, 3 líneas) y ningún punto aleatorio cae dentro de un edificio
+(`Settlements.occupied`). Medido (semilla 1337): 24 residentes en los 6 chunks con edificios de la aldea (4,0 por
+chunk, aldea 3–8); en juego, 35 en 7 chunks calientes, 23 dentro de edificios y 8 congelados en la calle.
+
+**Zonas (H2).** `Locations.register` añade el POI «Aserradero» (padre `la_herreria`, círculo de 44 m) al arrancar el
+`SettlementSpawner`: los títulos dicen La Herrería en la aldea y Aserradero, Gasolinera norte y Granja del Molino en
+los tres POIs.
+
+**Luces (`VillageLights`, riesgo R7).** Dos `MultiMesh` para todas las farolas cargadas (charco en el suelo + halo de la
+bombilla, los materiales `light_pool` / `light_halo` de G2a, que se encienden con el factor de noche de `DayNight`):
+2 *draw calls* de noche en cualquier renderizador; en Forward+ además hasta `Quality.lamp_light_budget()` luces
+`OmniLight3D` reales sobre las farolas encendidas más cercanas al foco (0 en `compat` / Web).
+
+**Pruebas.** `tests/m6b_checks.gd` (generador, hash en 4 semillas, sellos, residentes, zonas, botín, chunks
+construidos, registro de contenedores); pasos de humo `tests/m6b_smoke_steps.gd` (paso 22: chunks construidos
+alrededor de la calle, densidad de la aldea = objetivos, puerta cerrada, alarma que atrae a un caminante a 60 m, tabla
+del bar); escenario de red `village` (`tests/net/net_steps_m6b.gd`); recorrido `perf_walk --route=m6b` (secciones
+`perf_walk_cpu_m6b` / `perf_walk_m6b` de `tests/perf_budgets.json`); capturas `m6b_*` (`tests/m6b_shots.gd`).
+El recorrido m6b (0,9 km a 25 m/s desde la carretera, la calle mayor ida y vuelta, el camino y el patio del aserradero,
+la calle de la Fragua si salió) mide en `--cpu` el camino de construcción del cliente (`KitBuilding.render_override`)
+y, además de las puertas de *streaming*, el **frame propio** = pared − espera en cola del hilo principal
+(`SchedProbe`, como `stream_work`; las cajas de prueba son compartidas) y el trabajo de los `SettlementChunk` por frame
+(`SettlementChunk.take_usec`). Medido (semilla 1337, 2 núcleos fijados con otros tres agentes en la máquina): frame
+propio p50 5,5 ms / **p99 12,0 ms** (máx 23,5), **0 frames > 33 ms causados por la aldea o el *streaming***, aldea
+≤ 6,8 ms en cualquier frame (paso de edificio más lento 8,1 ms), *streaming* p99 1,81 ms; en Forward+ (lavapipe,
+`alto`) **150 *draw calls* de mediana** conduciendo por la aldea (≤ 800), 0 frames sin suelo. Escenario `village`:
+hash `fb3465a0fce89b94` igual en servidor, A y B; puertas y contenedores coherentes. `m6b_checks`: 37/37.
+
+**Desviaciones.** POIs como datos JSON (no `.tscn`: el mismo formato que el generador, colocados por `Settlements`);
+calles como lechos de carretera del terreno (sin baldosas del kit de §9.1 paso 3); los edificios de la aldea se
+construyen fuera de la ventana de *streaming* de 2 ms (por pasos propios, un edificio por frame); la cabaña del claro
+no pasa a `house_hunter` (ASSET_SPEC «M6b.4»); sin `NavigationLink3D` por puerta ni cerraduras que se fuercen (M9).
+
+### 9.12 Nota de implementación C1 (vinculante hasta que se revise)
+
+«Altavega: núcleo urbano» (PLAN v3.8.2 C1, doc 09 §4.3–4.6): los cuatro distritos de la ciudad generados como DATOS,
+edificios por familias, dos torres héroe enterables, navegación por planta, filtro vertical de interés, población por
+planta, estatuas congeladas y la cámara de ciudad. Sustituye el fichero de lotes v0 de C0 (§9.8), que pasa a ser la
+entrada `fixed` del generador. Código en `scripts/world/city/`.
+
+**Generador** (`tools/gen_city.gd` → `CityGen`, `scripts/world/city/city_gen.gd`). Entrada a mano
+`data/world/city/districts.json`: `zones` (rects de los 4 distritos, los títulos de H2), `reserved` (solares que
+quedan vacíos: Gran Vía, río Albo y paseos, catedral / plaza mayor, telecomunicaciones, universidad, hospital,
+jefatura, centro comercial, estadio, estación, rondas; `grow` por solar), `districts` (reglas por distrito: casco =
+retícula irregular con jitter y parcelas de 6–12 m, esquinas que se reintentan; ensanche = cuadrícula de manzanas de
+96 m con chaflanes y parcelas de 15–24 m, `grids` con columnas explícitas junto a Las Torres; barriada = supermanzanas
+con 4 patrones de bloques; Las Torres = supermanzanas de zócalos + torres A1 con `skip_blocks`), `streets`,
+`graph_roads`, `fixed` (el contenido de C0 + el Control del Puerto), `heroes`, `fixed_buildings`, `clear`,
+`camera_zones`, `miradores`, `power`, `silhouettes` y `dressing`. Salida `data/world/city/altavega_lots.json`
+(`city_version = 1` = `WorldConst.CITY_VERSION`): `buildings` como tabla (`fields` id, fam, var, floors, x, z, yaw
+(centigrados), pal, flags (1 enterable, 2 generador), district; una fila por línea), `streets` (segmentos x0 z0 x1 z1
+ancho tipo: calzada / acera / plaza), `graph` (nudos + aristas, partido en los cruces, nudos a 2 m, componentes unidas
+≤ 60 m), podios, torres, `districts`, `stats`. Todo en cm enteros y un serializador canónico (claves ordenadas): el
+generador no depende de la semilla y `++ --check` reconstruye el fichero byte a byte (paso de `run_all` y del job
+`city` de CI). Nada cae en el agua ni se solapa (SAT); una parcela cuyo desnivel bajo la huella pasa del `skirt` de su familia
+− 0,4 m se descarta, y un bajo sólo es enterable con ≤ 0,35 m de desnivel.
+Medido: 2 968 edificios (casco 1 676, ensanche 1 247, bloque 42, caseta 3), 259 enterables, 37 zócalos, 31 torres,
+1 359 segmentos de calle, grafo 475 / 711 (componente mayor ≥ 90 %), 243 KB, 4,9 s.
+
+**`CityLots` v1** (lectura, índices por chunk, hilos del `ChunkJob`): huellas `[quad, tipo, id, bounds, interior]`,
+segmentos de calle y rects de limpieza por chunk; `occupied`, `footprint_at`, `indoors_at` (base de la huella en
+caché: el filtro vertical), `paint_chunk` (calzada r = 230 + roderas en a, acera / plaza b = 204 en la máscara de
+superficie; 2 líneas en `ChunkJob._paint_city`), `footprint_base` (la muestra más alta de la huella; los muros bajan
+`skirt` m: zócalo de piedra en la ladera), `district_at`, `graph()`, `hero()`, `lot_digest(seed, 50)`. **Vestido de
+calle** (`dressing`): farolas por distrito a lo largo de las calzadas (trazado, al cargar; `lamp_ornate` en el casco,
+`lamp_street` en el resto) y, sembrados por mundo (`street_items`: `hash64(semilla, GEN_CITY, segmento, lado, hueco)`),
+coches aparcados junto al bordillo (sentido de la marcha, variantes nevado / quemado / puertas) y mobiliario en las
+aceras (contenedores, bolsas, bancos, bocas de riego, marquesinas); nada sobre una huella ni en la calzada de un cruce.
+Los `wid` de las parcelas siguen `hash64(GEN_CITY, CITY_VERSION, id, 0)`; puerta = `KitDoor.wid_for(seed, wid, 0)`,
+botín = `hash64(seed, Loot.GEN_LOOT, wid, i + 1)` con la tabla por `hash64(wid, 17, i)`.
+
+**Familias** (`BuildingAssembler` + `CityMesh`). Cuatro familias × 2–5 variantes × paletas: casco (planta baja 3,3 m,
+plantas 3,0 m, fondo 11 m, 3–4 plantas, frentes 6–12 m y una con soportales; balcones, contraventanas, cornisa, tejado
+a dos aguas), ensanche (4,3 / 3,0 m, fondo 15 m, 5–8 plantas, frentes 15–24 m y la esquina con chaflán de 8,5 m;
+bajos comerciales con toldos, balcón corrido en la principal, miradores, ático retranqueado con terraza), bloque
+(3,3 / 3,0 m, 8–14 plantas, lineales de 40–60 m y torre‑punto 24 × 24), caseta (garita 3,4 m y barracón 12 × 6 m).
+La geometría es un array plano con color de vértice (AO en `COLOR.a`) hecho en el hilo del `ChunkJob`
+(`BuildingAssembler.data`, caché con mutex por clave familia|variante|plantas|paleta|enterable); el hilo principal
+sólo crea el `ArrayMesh` una vez por clave. Contrato de ciudad de W0 (`Base` + `ShadowProxy`, piezas en y = 0, una
+losa por planta en `base + ground_h + (k − 1)·floor_h`, materiales `struct` / `window_city`); ≤ 12 k triángulos por
+variante (máx. 10 090). Planta baja enterable: hueco de puerta en la fachada de la calle con hoja `Door_0` (`KitDoor`),
+tabique trasero, mostrador, estanterías, `Spawn_Container_n` (`LootSpawns.attach`, tablas por familia; las casetas
+militares / policía) y un `Area3D` de refugio en el servidor (`KitBuilding._shelter_count`). No se colocan los
+`KitBuilding` de M6a en la ciudad: las familias reutilizan su puerta, su botín y su refugio.
+
+**Torres héroe** (`HeroTower`): 901 Torre Albo (30 × 30 m, 40 plantas, 4,3 / 3,8 m, vidrio, helipuerto, mirador 72 en
+la azotea, plantas amuebladas 0, 1, 2, 12, 39) y 902 Edificio Meridiano (36 × 20 m, 24 plantas, hormigón, depósitos;
+amuebladas 0–3, 8, 23). Por planta: losa, fachada, núcleo (escalera de dos tramos de 1,5 m con meseta intermedia +
+ascensor sin uso), puerta de escalera (`KitDoor`) en cada planta, dos puertas de oficina y contenedores en las
+amuebladas, caseta de escalera con puerta a la azotea. Colisiones: el vestíbulo y la escalera de la planta 0 en
+`ColBody` (grupo `nav_static`, el navmesh de la calle) y las plantas 1… en `FloorsCol` (grupo `nav_floor`, fuera del
+navmesh de calle); 491 colisionadores en el servidor para el Meridiano. Se monta por pasos (una pieza visual por frame)
+y `CityBuilding.attach` al final (el corte por plantas de W0 funciona como en cualquier edificio).
+
+**Navegación por planta** (servidor, `CityNav` + `NavFloorTile`, R17): una tesela por (torre, planta) que algún
+jugador necesita (dentro de la torre o a ≤ 30 m: las plantas k − 1 … k + 1 de su planta k), horneada en un
+`WorkerThreadPool` desde las caras de las cajas de `FloorsCol` en la franja `[nivel_k − 0,5, nivel_{k+1} − 0,35]`
+(≤ 7 ms cada una, ≤ 12 por segundo), añadida como región del mapa de `NavBaker`; las plantas se unen con
+`NavigationLink3D` bidireccionales: tramo A (rellano k → meseta), tramo B (meseta → rellano k + 1) y la puerta de la
+escalera (oficina ↔ rellano: el hueco de 1 m es más estrecho que el agente erosionado). Teselas sin interés 10 s se
+liberan con sus enlaces. `tests/c1_city.gd` encuentra un camino de la planta 1 a la 3 (31 puntos). Las puertas de
+oficina no tienen enlace (diferido).
+
+**Filtro vertical de interés** (`ZombieNet`, doc 09 §4.4, PLAN C32): un zombi dentro de una torre / bajo enterable
+(`CityLots.indoors_at`: más de 1,5 m sobre la base de su huella) a más de `VERTICAL_RANGE` = 9 m por encima o por
+debajo del jugador no se envía a ese par; los de la calle siempre. Regla de servidor `vertical_filter` (on por
+defecto; `/rule vertical_filter off`). `ZombieSystem.ground_y(p)` mantiene a los zombis de las plantas altas en su
+planta (no los baja al terreno). Escenario de red `tower` (4 clientes en las plantas 2, 2, 3 y 8 del Meridiano,
+10 congelados en la 5 y 10 en la 11): recorte de la bajada de zombis A 100 %, B 100 %, C 54 % (la planta 5 está a
+7,6 m de la 3), D 100 %; puertas de escalera de las plantas 2 y 3 abiertas en los 4; C vacía una pila de un
+contenedor de la planta 3 y D encuentra exactamente lo que dejó.
+
+**Población por planta** (servidor, `CityPopulation`): cada planta k ≥ 1 es un contador L3 (residentes − bajas; 0–4
+por planta, 3–6 en las amuebladas, ninguno en la última): cuando un jugador está a ≤ 2 plantas (o a ≤ 30 m de la
+puerta) los vivos pasan a registros de `ZombieSystem` en puntos hash de su planta (lejos del núcleo); sin nadie
+8 s vuelven al contador. Las bajas se guardan en el `ChunkDelta.population` del chunk de la torre
+(`hero_<id>_<k>`). Respeta `PopulationManager.enabled` (`/director off`). Meridiano: 53 residentes.
+
+**Cliente.** `FrozenStatues`: los registros congelados sin vista a ≤ 110 m se dibujan como instancias de un
+`MultiMesh` de 4 poses horneadas (piel en CPU: `bake_mesh_from_current_skeleton_pose` falla sin ventana), ≤ 300,
+refresco a 4 Hz; el 22 % de los coches del atasco (no quemados) llevan una figura congelada al volante (decoración
+sembrada, 0 B/s). `ArrivalCinematic`: 7 s la primera vez que se cruza el Puente de Hierro hacia el este fuera de
+combate (`user://c1_seen.cfg`), saltable a los 0,5 s, siluetas encendidas y niebla × 0,18. Cámara: perfiles de
+distrito `casco` (−46°, 16–40 m, far 85), `ensanche` (−44°, 16–42, 95), `barriada` (−43°, 16–44, 100), `torres`
+(−42°, 18–46, 110) vía `Locations` (`CameraProfile.for_zone`); `CityCameraZone` pasa a `rooftop` a > 7 m sobre el
+terreno; **far dinámico** (`CameraRig.target_far()` = `CameraProfile.far_for`: lo que ve el borde superior del
+encuadre desde la altura de la cámara + la caída, entre el far del perfil y 420 m). Miradores 71–75 (C0, Torre Albo,
+el puente, la torre de vigilancia, el repetidor del Pico) emiten `mirador_used` y quedan en `CityWorld.revealed`
+(el mapa de H5 los leerá). Puente de Hierro v1: tres arcos atirantados (cordón superior en arco, péndolas cada 4 m,
+diagonales Pratt, arriostramiento superior) sobre pilas con tajamar. Siluetas de distrito de los lotes reales
+(`kind: "lots"`: 3 035 cajas, 79 k triángulos, 6 mallas).
+
+***Streaming* (cliente): ningún paso de ciudad pasa de ~1–2 ms.** `WorldChunk._step_city` solo crea el `CityChunk`
+(la primera pieza va en el paso siguiente); colisiones de mobiliario y coches en cuerpos de 24 formas, un paso cada
+uno; una parcela enterable en dos pasos (casco + puerta; botín, refugio y `CityBuilding.attach`); una clave de
+familia nueva hace sus `ArrayMesh` en tres pasos (`BuildingAssembler.mesh_stage`: estructura, vidrio, proxy +
+puerta); la torre héroe es una lista de pasos (`HeroTower.build_step`: vestíbulo, 4 puertas, spawns, 3 contenedores,
+cada pieza (malla y luego instancia), `attach` —antes de `FloorsCol`, para que sus recorridos no pasen por sus
+400–700 formas— y 60 formas de `FloorsCol` por paso, fuera del árbol hasta la última); el HLOD es `CityHlod.make`
+(sin recorrer el grupo) y `CityHlod.link` de 6 edificios por paso. `CityChunk.warm` precalienta los modelos de botín
+de las tablas de la ciudad, un `KitDoor` y los materiales de rejilla de familias y torres héroe. Al descargar:
+`CityChunk.release` da de baja las puertas y contenedores de una lista propia (sin `find_children` recursivo) y deja
+el HLOD el primero de la lista (se libera el último; sin `remove_from`); `CityChunk.free_last` suelta una torre héroe
+del árbol y `CityWorld.defer_free` la libera ≤ 0,7 ms por frame; `WorldChunk.teardown_step` suelta entradas,
+oclusores y objetos de ciudad de 64 en 64 en su sitio (`resize`, sin copiar el resto) y el plan de la ciudad clave a
+clave. `CityLights` guarda las filas de búfer de cada chunk (reconstruir = concatenar; una tabla de potencia nueva las
+invalida). `WorldStreamer._collect_jobs` libera la tarea de un `ChunkJob` 2 frames después de ver su `finished` (el
+trabajador ya volvió de `run()`: el principal no se bloquea esperándolo) y `ChunkJob.run` suelta sus temporales antes
+del flag. Medido (`perf_walk --cpu`, núcleos 0,1, máquina en reposo): W1 p99.9 2,11 ms / máx. 5,42 ms; C0 2,22 / 5,87;
+`--route=city --speed=15` 2,08 / 4,79; M6b 1,91 / 2,03; 0 frames > 33 ms causados por el *streaming*.
+`perf_horde --city` (150 cuerpos L0 + 300 estatuas + 4 bots en Las Torres): p50 10,0 ms frente a 7,6 ms del banco
+normal en las mismas condiciones de carga (1,3×; 146 frente a 113 cuerpos).
+
+**Determinismo.** `tests/determinism_steps.gd` añade 4 chunks de C1 (casco, ensanche, barriada, Meridiano) y la línea
+`city dressing <lot_digest(seed, 50)>` (wid de parcela, de puerta y de cada contenedor + tabla de 50 bajos).
+
+**Pruebas.** `tests/c1_city.gd` (29 comprobaciones headless, `++ --no-gen` salta la regeneración); `tools/gen_city.gd
+++ --check`; `tests/run_citycut_probe.sh --points=c1` (10 puntos sembrados de acera en los 4 distritos, mismas
+puertas que C0); escenario `tower` (`tests/net/net_steps_c1.gd`: las fases arrancan por chat cuando los 4 están en su
+sitio); `perf_walk --route=city --speed=15` (secciones `perf_walk_cpu_city` / `perf_walk_city`); `perf_horde --city`
+(150 caminantes fuera de las huellas + 300 estatuas + 4 bots en Las Torres); capturas `c1_*` (`tests/c1_shots.gd`).
+`tests/c0_city.gd` se salta con el fichero v1. El job `c0` de CI pasa a `city`.
+
+**Desviaciones.** Las familias son procedurales en código (`CityMesh`), no un kit de Blender importado; las torres de
+Las Torres siguen siendo las A1 de C0; «atrapados en coches» es decoración (liberarlos, V1); el filtro vertical sólo
+filtra zombis (los jugadores y objetos replicados no); las puertas de oficina no tienen enlace de navegación; el
+ascensor es decorativo; el mapa revelado por los miradores es un registro (`CityWorld.revealed`) hasta H5.

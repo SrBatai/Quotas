@@ -146,7 +146,7 @@ func teardown_step(budget_usec: int) -> bool:
 				objects.get_child(objects.get_child_count() - 1).free()
 				continue
 			if c == city and city.get_child_count() > 0:
-				city.get_child(city.get_child_count() - 1).free()   # one building / MultiMesh at a time
+				city.free_last()   # one building / MultiMesh at a time (C1: a big one detached, freed over frames)
 				continue
 			remove_child(c)
 			c.free()
@@ -155,9 +155,9 @@ func teardown_step(budget_usec: int) -> bool:
 		if data == null:
 			return true
 		if not data.entries.is_empty():
-			data.entries = data.entries.slice(0, maxi(data.entries.size() - 64, 0))
+			data.entries.resize(maxi(data.entries.size() - 64, 0))   # (C1: in place, no copy of the rest)
 		elif not data.occluders.is_empty():
-			data.occluders = []
+			data.occluders.resize(maxi(data.occluders.size() - 64, 0))   # (C1: a city chunk has hundreds)
 		elif not data.quad_verts.is_empty():
 			data.quad_verts.pop_back()
 			data.quad_normals.pop_back()
@@ -166,8 +166,9 @@ func teardown_step(budget_usec: int) -> bool:
 		elif not data.mm.is_empty():
 			data.mm = {}
 		elif not data.city.is_empty():
-			data.city = []
-			data.city_plan = {}
+			data.city.resize(maxi(data.city.size() - 64, 0))   # C1: the city items, then the plan's parts, a slice at a time
+		elif not data.city_plan.is_empty():
+			data.city_plan.erase(data.city_plan.keys()[0])
 		else:
 			wid_index = {}
 			_owner_entry_by_body = {}
@@ -442,8 +443,7 @@ func _step_city() -> bool:
 		city = CityChunk.new()
 		city.setup(data.city_plan, visual, key)
 		add_child(city)
-		if city.is_done():
-			return true
+		return city.is_done()   # C1: the first piece in the next step (setup + a piece was one 5–8 ms step)
 	return city.step()
 
 

@@ -93,6 +93,10 @@ const CITY_HAZE_TOP := 3.0
 const CITY_HAZE_DAY := 0.006
 const CITY_HAZE_NIGHT := 0.010
 
+## G2b: the atmosphere layer (overcast, layered / volumetric fog policy, LUT grade, thaw, ambient life), a child
+## created only with a display (scripts/world/atmosphere/atmosphere.gd); null headless and on the dedicated server.
+var atmosphere: Atmosphere
+
 var _camera_yaw: float = Balance.CAMERA_YAW_DEG
 var _last_spill: float = -1.0
 var _last_sparkle: float = -1.0
@@ -106,6 +110,10 @@ func _ready() -> void:
 	env = parent.get_node_or_null("Env")
 	_compat = Quality.is_compat_renderer()
 	_setup()
+	if env != null and Atmosphere.wanted(self):
+		atmosphere = Atmosphere.new()
+		atmosphere.name = "Atmosphere"
+		add_child(atmosphere)
 	Events.time_changed.connect(_on_time_changed)
 	Events.camera_yaw_changed.connect(func(yaw: float) -> void: _camera_yaw = yaw)
 	apply(WorldState.hour_now() if WorldState.instance != null else menu_hour)
@@ -216,6 +224,8 @@ func apply(hour: float) -> void:
 	var elev := sun_elevation(hour)
 	var k := _lerp_keys(hour)
 	var night_amount := 1.0 - clampf((elev + 4.0) / 10.0, 0.0, 1.0)
+	if atmosphere != null:
+		k = atmosphere.shape_keys(k, hour, elev, night_amount)   # G2b: presentation-only overcast
 	if blizzard_blend > 0.0:
 		var bz := BLIZZARD.duplicate()
 		bz[K_FOG] = (BLIZZARD[K_FOG] as Color).lerp(NIGHT_BLIZZARD_FOG, night_amount)
@@ -289,6 +299,8 @@ func apply(hour: float) -> void:
 	# snow accumulates on upward faces of every world_vcol surface while the blizzard blows (PLAN C17)
 	snow_amount = blizzard_blend * Quality.snow_amount_max()
 	RenderingServer.global_shader_parameter_set("snow_amount", snow_amount)
+	if atmosphere != null:
+		atmosphere.post_apply(e, hour, elev, night_amount)   # G2b: fog layers, volumetric policy
 	_apply_city(hour, elev)
 
 
@@ -298,6 +310,8 @@ func _apply_city(hour: float, elev: float) -> void:
 	var yaw := WorldState.instance.wind_yaw if WorldState.instance != null else 0.0
 	var wd := Vector3(-1, 0, 0).rotated(Vector3.UP, yaw)   # where the wind blows to (Snowfall convention)
 	var wind := Vector4(wd.x, wd.z, 0.3 + 0.7 * blizzard_blend, 0.0)
+	if atmosphere != null:
+		wind = atmosphere.shape_wind(wind)   # G2b: overcast skies blow harder; w = gustiness
 	if not wind.is_equal_approx(snow_wind) or not _wind_sent:
 		snow_wind = wind
 		current_wind = wind

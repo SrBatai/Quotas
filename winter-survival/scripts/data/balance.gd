@@ -115,7 +115,7 @@ const BLIZZARD_FIRST_DAY := 1
 const BLIZZARD_FIRST_HOUR := 14.0
 const BLIZZARD_CHANCE_PER_HOUR := 0.08
 const BLIZZARD_MIN_GAP_HOURS := 6.0
-const BLIZZARD_WARNING := 10.0
+const BLIZZARD_WARNING := 60.0   # H3: the HUD warns 60 s before (GDD §7, doc 10 §6.7; was 10 s)
 const BLIZZARD_MIN := 60.0
 const BLIZZARD_MAX := 90.0
 

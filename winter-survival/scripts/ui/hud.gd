@@ -9,6 +9,9 @@ extends Control
 ## `safe` is the safe box inside it (64 / 52 px + the "Margen de pantalla" setting, the display safe area, and on
 ## 21:9 a centred 16:9 box by default). Full-screen effects (frost vignette, damage vignette) stay outside `root`.
 ## Kept for game.gd / tests: `hotbar`, `category_bar` (now shown only while crafting), `down_panel`, `down_title`.
+## H3: NotifyRouter P0–P3 (P0 in the world / on the vital, never a banner), HazardStack under the hazard line,
+## sound captions with direction, pings, the directional damage arc (HitDirection → Events.player_hit_from), the
+## heartbeat / radio static (UiAudio) and the group replicated by HudNet (a teammate down = the one indicator).
 
 const FROST_SHADER := preload("res://assets/ui/frost_screen.gdshader")
 
@@ -36,6 +39,10 @@ var feed: PickupStack
 var downed: DownedOverlay
 var category_bar: CategoryBar
 var map_screen: MapScreen
+var captions: SoundCaptions
+var pings: Pings
+var hit_dir: HitDirection
+var ui_audio: UiAudio
 var frost: ColorRect
 var damage: TextureRect
 ## Legacy names (smoke test): the downed overlay and its title label.
@@ -57,6 +64,7 @@ var _settings: UiSettings
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	PlayerView.world_labels = false   # H3: teammates' names and the downed indicator are the HUD's (one indicator)
 	_settings = UiSettings.get_instance()
 	_build_screen_fx()
 	root = Control.new()
@@ -134,6 +142,9 @@ func _ready() -> void:
 	root.add_child(downed)
 	down_panel = downed
 	down_title = downed.title
+	captions = SoundCaptions.new()
+	captions.name = "Captions"
+	safe.add_child(captions)
 	router = NotifyRouter.new()
 	router.name = "NotifyRouter"
 	router.banner = banner
@@ -141,7 +152,27 @@ func _ready() -> void:
 	router.hazard = hazard
 	router.zone_title = zone_title
 	router.vis = vis
+	router.captions = captions
 	add_child(router)
+	hazard.router = router
+	# H3: pings, hit direction, UI audio; the group's P0 (a teammate down)
+	pings = Pings.new()
+	pings.name = "Pings"
+	pings.router = router
+	pings.captions = captions
+	add_child(pings)
+	hit_dir = HitDirection.new()
+	hit_dir.name = "HitDirection"
+	add_child(hit_dir)
+	ui_audio = UiAudio.new()
+	ui_audio.name = "UiAudio"
+	ui_audio.team = team
+	ui_audio.captions = captions
+	add_child(ui_audio)
+	world_layer.pings = pings
+	world_layer.router = router
+	team.mate_downed.connect(_on_mate_downed)
+	team.mate_up.connect(_on_mate_up)
 	zones = ZoneTracker.new()
 	zones.name = "ZoneTracker"
 	zones.in_combat = in_combat
@@ -257,6 +288,8 @@ func _layout(vp_override: Vector2 = Vector2.ZERO) -> void:
 	vitals.size = Vector2(700.0, 240.0)
 	feed.position = Vector2(sw.x - 560.0, sw.y - 240.0)
 	feed.size = Vector2(560.0, 200.0)
+	captions.size = Vector2(1000.0, 110.0)
+	captions.position = Vector2(sw.x * 0.5 - 500.0, sw.y - 100.0 - captions.size.y)
 	zone_title.position = Vector2.ZERO
 	zone_title.size = ref
 	zone_sign.position = Vector2(0.0, 6.0)
@@ -308,9 +341,9 @@ func in_combat() -> bool:
 	return false
 
 
-## A P0 condition is on (downed, freezing, a P0 notice on screen): zone cards turn compact and wait.
+## A P0 condition is on (downed, freezing, a P0 notice of the router): zone cards turn compact and wait.
 func p0_active() -> bool:
-	if router != null and not router.current.is_empty() and int(router.current.get("priority", 2)) == 0:
+	if router != null and router.p0_active():
 		return true
 	var p := GameFlow.local_player() as Player
 	return p != null and (p.downed or (p.state != null and p.state.warmth < Balance.FREEZING_SLOW_BELOW))
@@ -327,6 +360,40 @@ func exclusion_rects() -> Array:
 	if hazard.visible or info_block.visible:
 		out.append(Rect2(safe.position + Vector2(safe.size.x - 460.0, -20.0), Vector2(520, 170)))
 	return out
+
+
+# ------------------------------------------------------------------ H3: a teammate down (P0 in the world)
+func _on_mate_downed(m: Dictionary) -> void:
+	var o := TeamTracker.player_of(m)
+	var peer := int(m.get("peer", 0))
+	var nm := str(m.get("name", ""))
+	var t := team
+	router.push({"priority": 0, "key": "mate_down:%d" % peer, "title": "derribo", "body": "%s está en el suelo" % nm,
+		"target": &"world", "peer": peer, "subject": nm, "pos": o.global_position if o != null else Vector3.INF,
+		"sound": &"ui_mate_down", "seconds": 0.0, "tone": &"danger",
+		"hold": func() -> bool: return not t.nearest_downed().is_empty() and bool(t._down.get(peer, false))})
+	# the one indicator now, not at the next 10 / 30 Hz tick
+	accent.update()
+	world_layer.queue_redraw()
+
+
+func _on_mate_up(m: Dictionary) -> void:
+	var peer := int(m.get("peer", 0))
+	router.end_p0("mate_down:%d" % peer)
+	var p := _player_of_peer(peer)
+	if p != null and p.dead:
+		router.push({"priority": 1, "key": "mate_dead:%d" % peer, "title": "muerte", "body": "%s ha muerto · la mochila queda en el cuerpo" % p.display_name,
+			"seconds": 4.0, "tone": &"danger"})
+
+
+func _player_of_peer(peer: int) -> Player:
+	var me := GameFlow.local_player() as Node
+	if me == null or me.get_parent() == null:
+		return null
+	for n in me.get_parent().get_children():
+		if n is Player and (n as Player).peer_id == peer:
+			return n
+	return null
 
 
 # ------------------------------------------------------------------ frame
@@ -400,10 +467,10 @@ func settle_to_rest() -> void:
 	zone_title.visible = false
 	zone_sign.t = -1.0
 	zone_sign.visible = false
-	router.queue.clear()
-	router.current = {}
+	router.clear_all()
 	banner.show_notice({}, 0)
 	banner.visible = false
 	feed.lines.clear()
+	captions.clear()
 	mission_line._since = 99.0
 	vis.settle()

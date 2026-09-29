@@ -6,7 +6,8 @@ extends RefCounted
 ##   ink    pixels with opacity ≥ 10 %;
 ##   boxes  area of the union of the bounding boxes of every element after a 15 × 15 px morphological closing
 ##          (letters grouped into lines and blocks) — the conservative figure used as "coverage".
-## GATE: at rest (day, nothing happening) boxes ≤ 3 %. The other moments are reported (not gated).
+## GATE: at rest (day, nothing happening) boxes ≤ 3 %; H3: `downed_coop` (a teammate down, mockup v2_e: the one
+## world indicator + the strip) ≤ 3 % too. The other moments are reported (not gated).
 
 const GATE_PCT := 3.0
 const BLOCK := 2          # the closing / components run on 2 × 2 px cells
@@ -72,6 +73,8 @@ func run(p_tree: SceneTree, moments: PackedStringArray, out_dir: String) -> void
 		Engine.time_scale = 1.0
 	if results.has("idle"):
 		check(float(results["idle"]["boxes"]) <= GATE_PCT, "idle HUD coverage %.2f %% ≤ %.1f %% at 1920 × 1080 (ink %.2f %%)" % [results["idle"]["boxes"], GATE_PCT, results["idle"]["ink"]])
+	if results.has("downed_coop"):
+		check(float(results["downed_coop"]["boxes"]) <= GATE_PCT, "H3 downed_coop HUD coverage %.2f %% ≤ %.1f %% (ink %.2f %%)" % [results["downed_coop"]["boxes"], GATE_PCT, results["downed_coop"]["ink"]])
 	print("== HUD COVERAGE %s" % ("FAILED" if failed else "OK"))
 	tree.quit(1 if failed else 0)
 
@@ -139,7 +142,45 @@ func _setup(m: String, hud: Hud, world: World, player: Player) -> void:
 			await frames(6)
 			hud.vis.settle()
 			Engine.time_scale = 0.0
+		"downed_coop":
+			await _downed_coop(hud, world, player)
 	await frames(2)
+
+
+## H3 (mockup v2_e): a puppet teammate of the in-process server («Ana», peer 2) down 6 m away at dusk; the moment
+## after the cue (the caption gone): the one world indicator and the strip.
+func _downed_coop(hud: Hud, world: World, player: Player) -> void:
+	WorldState.instance.set_time(1, 19.35)
+	var right := Vector3(0.7071, 0.0, -0.7071)
+	var down := Vector3(0.7071, 0.0, 0.7071)
+	var c: Vector3 = load("res://tests/hud_shots.gd").coop_spot(world, right, down)   # the screenshot's spot
+	player.global_position = c + Vector3(0, 0.2, 0)
+	await tree.physics_frame
+	var mate: Player = PlayerManager.instance.player_of(2) if PlayerManager.instance.player_of(2) != null else PlayerManager.instance.spawn_player(2, "Ana", "cov-ana")
+	await frames(2)
+	var ap := c + right * 3.6 + down * 4.8
+	ap.y = world.get_height(ap.x, ap.z)
+	mate.global_position = ap + Vector3(0, 0.1, 0)
+	mate.net_position = mate.global_position
+	await frames(3)
+	HudInput.gamepad = true
+	mate.stats.go_down()
+	mate.stats.set("_bleed_left", 38.4)
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 1200:
+		await tree.process_frame
+	mate.bleed = 38
+	hud.captions.clear()
+	hud.feed.lines.clear()
+	hud.vis.clear_all()   # only the P0 remains: no vital poked by the moment's own setup
+	hud.accent.update()
+	var rig := CameraRig.active()
+	if rig != null:
+		rig.snap_to_player()
+	hud.world_layer._cursor_text = ""
+	hud.vis.settle()
+	Engine.time_scale = 0.0
+	print("downed_coop: accent %s, P0 %s, downed drawn %d" % [hud.accent.accent.get("kind", "-"), hud.router.p0.keys(), hud.world_layer.downed_drawn])
 
 
 ## Renders the HUD over black and white and returns {boxes, ink, ink_px, blobs}.

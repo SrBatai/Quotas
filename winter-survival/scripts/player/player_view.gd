@@ -16,6 +16,9 @@ var _speed: float = 0.0
 var hitstop: float = 0.0
 var last_swing_t: float = -10.0
 var _down_label: Label3D
+## H3: the HUD «Susurro» draws the teammates itself (name and dot only when far, the ONE downed indicator — doc 10
+## §V.3 / §V.4.7), so it turns these slice-era 3D labels off (Hud._ready). Headless tools without a HUD keep them.
+static var world_labels: bool = true
 var _last_tick_pos: Vector3 = Vector3.INF
 var _label: Label3D
 ## The model root (rigid placeholder or the skeletal survivor).
@@ -130,6 +133,7 @@ func _process(delta: float) -> void:
 	visual.position.y = lerpf(visual.position.y, 0.25 if player.downed and not clips else 0.0, 1.0 - exp(-6.0 * delta))
 	if _label != null:
 		_label.modulate.a = 0.35 if player.disconnected else 1.0
+		_label.visible = world_labels
 	_update_down_label()
 
 
@@ -189,7 +193,7 @@ func _update_down_label() -> void:
 		_down_label.outline_size = 10
 		_down_label.position = Vector3(0, 1.4, 0)
 		add_child(_down_label)
-	_down_label.visible = true
+	_down_label.visible = world_labels
 	var txt := "☠ DERRIBADO · %d s" % player.bleed
 	if player.revive_by != 0:
 		txt = "REANIMANDO · %d %%" % player.revive_pct

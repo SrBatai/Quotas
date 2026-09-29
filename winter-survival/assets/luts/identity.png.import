@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bvlyjroup5211"
+path="res://.godot/imported/identity.png-842d4c887f587753dc461d4ce9af89ff.image"
+
+[deps]
+
+source_file="res://assets/luts/identity.png"
+dest_files=["res://.godot/imported/identity.png-842d4c887f587753dc461d4ce9af89ff.image"]
+
+[params]
+

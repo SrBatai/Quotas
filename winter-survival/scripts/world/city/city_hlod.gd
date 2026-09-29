@@ -47,6 +47,37 @@ static func build_for(chunk_root: Node3D, begin: float = -1.0) -> MeshInstance3D
 	return mi
 
 
+## C1 streaming in slices (CityChunk): the HLOD mesh of the given roots only (no group scan, no linking) — the
+## streamer then links a few buildings per step with link(). Same mesh, material and ranges as build_for.
+static func make(chunk_root: Node3D, roots: Array[Node3D], begin: float = -1.0) -> MeshInstance3D:
+	if roots.is_empty():
+		return null
+	var mesh: Mesh = mesh_builder.call(roots) if mesh_builder.is_valid() else merged_proxies(roots, chunk_root)
+	var mi := MeshInstance3D.new()
+	mi.name = "CityHLOD"
+	mi.mesh = mesh
+	mi.material_override = Assets.get_shared_material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.visibility_range_begin = begin if begin > 0.0 else Quality.hlod_begin()
+	mi.visibility_range_begin_margin = 10.0
+	if Quality.visibility_fade():
+		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	chunk_root.add_child(mi)
+	return mi
+
+
+## Links one building's pieces to the HLOD `mi` (what build_for does for each of its roots).
+static func link(mi: MeshInstance3D, r: Node3D) -> void:
+	r.set_meta(CityBuilding.HLOD_META, mi)
+	for c in r.get_children():
+		var nm := String(c.name)
+		# (collider bodies hold no geometry: a hero tower's FloorsCol has 400–700 shapes to walk through)
+		if CityBuilding.canonical(nm) == CityBuilding.PROXY or nm.begins_with("Col") or nm.ends_with("Col") or nm == "Shelter":
+			continue
+		for gi in BuildingCutaway._geometries(c):
+			gi.visibility_parent = gi.get_path_to(mi)
+
+
 ## Undoes build_for (chunk unload, or before a rebuild): clears the pieces' visibility_parent and frees the HLOD.
 static func remove_from(chunk_root: Node3D) -> void:
 	var mi := chunk_root.get_node_or_null("CityHLOD") as MeshInstance3D

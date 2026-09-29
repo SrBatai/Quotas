@@ -9,13 +9,25 @@ extends StaticBody3D
 ## (NetWorld.set_delta: persisted with the chunk, broadcast to the peers that follow it, restored for late joiners
 ## and after a reload / restart) and makes a 6 m noise (SoundEvents, indoors). Clients animate the leaf and its box
 ## (0.35 s). Exterior doors always swing into the building; interior doors swing away from whoever opens them.
-## The collision box follows the leaf (a closed door blocks, an open one stands against the wall). Not yet: locks,
-## forcing / breaking by zombies and the NavigationLink3D (ARQ v2 §9.2, later milestones).
+## The collision box follows the leaf (a closed door blocks, an open one stands against the wall). M6b: `locked`
+## (the exterior doors of a non-enterable village house: the server refuses to open them; «Cerrada con llave») and
+## the shop alarm (`alarm_armed`: 5 % of the exterior doors of shops / the gas station, GDD §6.3 / §9.2): the first
+## time one opens, the server stores {"alarm": true} in the delta (it never rings twice) and emits an ALARM noise of
+## 150 m every ALARM_PERIOD s for 60 s; every peer that sees it live plays the alarm. Not yet: forcing / breaking by
+## zombies and the NavigationLink3D (ARQ v2 §9.2, M9).
 
 const GEN_DOOR := 0x444F4F52      # "DOOR"
 const OPEN_DEG := 100.0
 const SWING_SECONDS := 0.35
 const NOISE := 6.0
+## M6b: shop alarm (GDD §6.3: «alarma de tienda 150 (60 s), 5 % al forzar tienda»).
+const ALARM_CHANCE := 0.05
+const ALARM_SECONDS := 60.0
+const ALARM_RADIUS := 150.0
+const ALARM_PERIOD := 2.5
+const GEN_ALARM := 0x414C524D     # "ALRM"
+## Tests: 1 = every alarm-capable door is armed, 0 = none, -1 = the 5 % roll.
+static var force_alarm: int = -1
 
 var leaf: Node3D
 var is_open: bool = false
@@ -24,6 +36,12 @@ var exterior: bool = true
 var outward := Vector3.BACK       # model space: the facade's outward normal (exterior doors)
 var width: float = 1.0
 var interactable: InteractableComponent
+var locked: bool = false
+var alarm_armed: bool = false
+var alarm_fired: bool = false
+## Seconds of alarm still to ring on this peer (server: noise; clients: sound).
+var alarm_left: float = 0.0
+var _alarm_t: float = 0.0
 ## Tests / stats.
 var toggles: int = 0
 var _angle: float = 0.0           # current (animated) angle, radians
@@ -33,6 +51,13 @@ var _centre := Vector3.ZERO       # leaf centre relative to the hinge (model spa
 
 static func wid_for(seed_v: int, building_wid: int, index: int) -> int:
 	return WorldConst.hash64(seed_v, GEN_DOOR, building_wid, index + 1)
+
+
+## True for the alarm-capable doors that are armed (5 % by the door's wid, or the test override).
+static func alarm_roll(door_wid: int) -> bool:
+	if force_alarm >= 0:
+		return force_alarm == 1
+	return WorldConst.unit(WorldConst.hash64(door_wid, GEN_ALARM)) < ALARM_CHANCE
 
 
 ## Called before the node enters the tree (child of the building model root, next to the leaf).
@@ -95,6 +120,8 @@ func interact_actions() -> Array:
 
 
 func get_interact_label(_player: Node) -> String:
+	if locked and not is_open:
+		return "Cerrada con llave"
 	return "Cerrar puerta" if is_open else "Abrir puerta"
 
 
@@ -109,10 +136,16 @@ func server_interact(player: Node, action: StringName, _arg: int) -> bool:
 	var want := not is_open if action == &"use" else action == &"open"
 	if want == is_open:
 		return true
+	if want and locked:
+		print("[EVT] door %x locked (peer %d)" % [WorldRegistry.wid_of(self), int((player as Player).peer_id) if player is Player else 0])
+		return false
 	var s := swing
 	if want:
 		s = _swing_for(player as Node3D)
 	var fields := {"open": want, "swing": s}
+	if want and alarm_armed and not alarm_fired:
+		fields["alarm"] = true
+		print("[EVT] door %x alarm: %d m for %d s" % [WorldRegistry.wid_of(self), int(ALARM_RADIUS), int(ALARM_SECONDS)])
 	NetWorld.instance.set_delta(WorldRegistry.wid_of(self), fields)
 	apply_net_delta(fields, true)
 	var pid := int((player as Player).peer_id) if player is Player else 0
@@ -144,12 +177,19 @@ func _swing_for(player: Node3D) -> int:
 
 ## Replicated fields (server delta, snapshot, live event). live = animate, else snap.
 func apply_net_delta(f: Dictionary, live: bool = true) -> void:
+	if f.has("alarm"):
+		var rang := alarm_fired
+		alarm_fired = bool(f["alarm"])
+		if live and alarm_fired and not rang and is_inside_tree():
+			alarm_left = ALARM_SECONDS
+			_alarm_t = 0.0
+			set_process(true)
 	if f.has("swing"):
 		swing = int(f["swing"])
 	if f.has("open"):
 		var was := is_open
 		is_open = bool(f["open"])
-		set_process(live and is_inside_tree())
+		set_process((live and is_inside_tree()) or alarm_left > 0.0)
 		if live and is_inside_tree() and was != is_open:
 			# every peer hears its own copy swing (S1 plugs the streams; silent until then)
 			AudioManager.play(&"door_open" if is_open else &"door_close", global_position)
@@ -166,7 +206,16 @@ func _process(delta: float) -> void:
 	var t := _target()
 	_angle = move_toward(_angle, t, delta * deg_to_rad(OPEN_DEG) / SWING_SECONDS)
 	_pose()
-	if is_equal_approx(_angle, t):
+	if alarm_left > 0.0:
+		alarm_left -= delta
+		_alarm_t -= delta
+		if _alarm_t <= 0.0:
+			_alarm_t = ALARM_PERIOD
+			if Net.is_server:
+				SoundEvents.emit(global_position, ALARM_RADIUS, 3, SoundEvents.Kind.ALARM, 0, false)
+			if Net.has_client:
+				AudioManager.play(&"car_alarm", global_position)
+	if is_equal_approx(_angle, t) and alarm_left <= 0.0:
 		set_process(false)
 
 

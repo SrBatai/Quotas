@@ -19,6 +19,9 @@ static var _manifest_loaded: bool = false
 var table_id: StringName = &"campsite"
 var loose: bool = false
 var model_name: String = "crate"
+## M6b: no visual of its own (a car's boot, a dumpster: the wreck / prop around it is the look); collision and
+## interaction as usual. Set before the node enters the tree.
+var hidden_model: bool = false
 var storage: Storage
 var interactable: InteractableComponent
 var rolled: bool = false
@@ -40,9 +43,9 @@ func _ready() -> void:
 	add_to_group("loot_container")
 	collision_layer = 1 | 64
 	collision_mask = 0
-	var visual := Assets.spawn_model(model_name)
+	var visual: Node3D = Node3D.new() if hidden_model else Assets.spawn_model(model_name)
 	add_child(visual)
-	var m: Dictionary = manifest().get(model_name, {})
+	var m: Dictionary = {} if hidden_model else manifest().get(model_name, {})
 	var box := BoxShape3D.new()
 	box.size = Vector3(0.5, 0.35, 0.4) if loose else Vector3(0.9, 0.7, 0.6)
 	var cs := CollisionShape3D.new()
@@ -129,6 +132,18 @@ func _title() -> String:
 			return "CAJA DE MUNICIÓN"
 		&"cabin_forest", &"hunter":
 			return "BAÚL"
+		&"car":
+			return "MALETERO"
+		&"dumpster":
+			return "CONTENEDOR"
+		&"bar":
+			return "BARRA"
+		&"shop":
+			return "ESTANTERÍA"
+		&"garage", &"sawmill":
+			return "BANCO DE TRABAJO"
+		&"farm":
+			return "ARCÓN"
 	return "CAJA"
 
 

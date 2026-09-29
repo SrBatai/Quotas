@@ -220,7 +220,7 @@ func spawn(k: int, p: Vector3, y: float = 0.0, st: int = ZombieKinds.State.IDLE,
 	id_slot[_next_id] = i
 	_next_id = (_next_id + 1) & 0xFFFF
 	if world != null:
-		p.y = world.get_height(p.x, p.z)
+		p.y = ground_y(p)
 	pos[i] = p
 	vel[i] = Vector3.ZERO
 	yaw[i] = y
@@ -264,6 +264,14 @@ func release(i: int) -> void:
 	path[i] = PackedVector3Array()
 	_free.append(i)
 	alive_count -= 1
+
+
+## Ground height for a record without a body: the terrain, except on the upper floors of a city building (C1: a
+## hero tower's floor population keeps its floor's height; CityLots.indoors_at).
+func ground_y(p: Vector3) -> float:
+	if CityLots.is_loaded() and CityLots.indoors_at(p, world.hf):
+		return p.y
+	return world.get_height(p.x, p.z)
 
 
 func slot_of(id: int) -> int:
@@ -1083,7 +1091,7 @@ func _move_l1(i: int, dt: float) -> void:
 	if not WorldConst.in_playable(p.x, p.z):
 		vel[i] = Vector3.ZERO
 		return
-	p.y = world.get_height(p.x, p.z)
+	p.y = ground_y(p)
 	pos[i] = p
 
 
@@ -1195,7 +1203,7 @@ func _push(i: int, dir: Vector3, dist: float) -> void:
 		pos[i] = b.global_position
 	else:
 		var p := pos[i] + d
-		p.y = world.get_height(p.x, p.z) if world != null else p.y
+		p.y = ground_y(p) if world != null else p.y
 		pos[i] = p
 
 

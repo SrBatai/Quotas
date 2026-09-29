@@ -1,0 +1,269 @@
+{
+ "id": "gas_station",
+ "kind": "shop",
+ "style": [
+  "brick",
+  "concrete"
+ ],
+ "footprint": [
+  10,
+  8
+ ],
+ "floors": 1,
+ "budget": 14500,
+ "rooms": [
+  {
+   "name": "shop",
+   "set": "shop",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     4,
+     2
+    ]
+   ]
+  },
+  {
+   "name": "store",
+   "set": "store",
+   "cells": [
+    [
+     0,
+     3
+    ],
+    [
+     4,
+     3
+    ]
+   ]
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  },
+  {
+   "pos": [
+    4,
+    3
+   ],
+   "dir": "N",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "shops": [
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "S"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    4,
+    1
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    1,
+    3
+   ],
+   "dir": "N"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 3,
+   "from": 0,
+   "to": 4,
+   "doors": [
+    2
+   ]
+  }
+ ],
+ "roof": {
+  "kind": "flat",
+  "parapet": 0.9
+ },
+ "awnings": [
+  {
+   "dir": "S",
+   "from": -1.3,
+   "to": 1.3,
+   "z": 2.78,
+   "depth": 1.0
+  }
+ ],
+ "signs": [
+  {
+   "kind": "shop",
+   "dir": "S",
+   "at": 0.0,
+   "z": 3.42,
+   "d": 0.02,
+   "width": 2.6,
+   "cap": 0.38
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "shop_shelf",
+   "pos": [
+    3.0,
+    3.4
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shop_shelf",
+   "pos": [
+    6.2,
+    3.4
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shop_counter",
+   "pos": [
+    8.4,
+    1.4
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    3.4
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    9.72,
+    3.6
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    1.4,
+    7.45
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    5.0,
+    7.45
+   ],
+   "yaw": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "gas_station",
+   "pos": [
+    8.6,
+    2.4
+   ],
+   "yaw": 180
+  },
+  {
+   "kind": "Container",
+   "table": "gas_station",
+   "pos": [
+    0.5,
+    5.2
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Container",
+   "table": "garage",
+   "pos": [
+    7.6,
+    7.5
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    3.0,
+    3.4,
+    0.87
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    6.2,
+    3.4,
+    1.27
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    5.0,
+    2.5,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    5.0,
+    7.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    4.6,
+    2.0
+   ],
+   "yaw": 200
+  }
+ ]
+}

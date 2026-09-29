@@ -1,0 +1,37 @@
+{
+ "id": "gasolinera_norte",
+ "name": "Gasolinera norte",
+ "kind": "poi",
+ "milestone": "M6b",
+ "doc": "Hand-made POI (PLAN §7 M6b «poi/gas_station_north»): the service station on the N‑140 where the Carretera del Puerto leaves toward the sierra (M3 pad `gas_north` (610, -384) r 30, region «GASOLINERA NORTE»). Local +Z = the forecourt's front toward the N‑140 (east). Canopy with four pumps, the shop (template gas_station), the tall price sign by the road, wrecks at the pumps. GDD §9.2: shelves, till, workshop, pumps; tins, chocolate, tape, fuel 30 %, oil, battery, parts, chains; 6–12 zombies, alarm 5 %.",
+ "center": [606.0, -386.0],
+ "yaw": 90.0,
+ "bounds": [572, -420, 58, 68],
+ "pads": [{"c": [-1.0, -3.0], "half": [23, 16], "rot": 0, "blend": 8, "h_at": [610.0, -384.0]}],
+ "buildings": [
+  {"template": "gas_station", "style": "brick", "pos": [0.0, -10.5], "yaw": 0, "use": "gas_station", "shop": "Gasolinera", "enterable": true, "residents": 2, "alarm": true}
+ ],
+ "items": [
+  {"k": "prop", "model": "props/village/gas_canopy", "pos": [0.0, 5.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/fuel_pump", "pos": [-2.2, 3.4], "yaw": 90},
+  {"k": "prop", "model": "props/village/fuel_pump", "pos": [2.2, 3.4], "yaw": 90},
+  {"k": "prop", "model": "props/village/fuel_pump", "pos": [-2.2, 6.6], "yaw": 90},
+  {"k": "prop", "model": "props/village/fuel_pump", "pos": [2.2, 6.6], "yaw": 90},
+  {"k": "prop", "model": "props/village/gas_sign", "pos": [14.0, 15.5], "yaw": 0},
+  {"k": "car", "model": "city/vehicles/sedan_doors", "pos": [-4.6, 5.0], "yaw": 2, "table": "car"},
+  {"k": "car", "model": "city/vehicles/van_snowed", "pos": [8.2, 6.6], "yaw": 84, "table": "car"},
+  {"k": "car", "model": "city/vehicles/suv_burnt", "pos": [-15.0, 12.0], "yaw": 150, "table": "car"},
+  {"k": "container", "model": "props/village/dumpster", "pos": [11.5, -12.0], "yaw": -90, "table": "dumpster"},
+  {"k": "prop", "model": "props/village/tire_stack", "pos": [-9.0, -5.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/tire_stack", "pos": [-10.2, -4.0], "yaw": 50},
+  {"k": "prop", "model": "props/village/barrel", "pos": [9.5, -6.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/barrel", "pos": [10.4, -5.4], "yaw": 30},
+  {"k": "prop", "model": "props/village/trash_can", "pos": [-5.8, -4.6], "yaw": 0},
+  {"k": "prop", "model": "props/village/bench", "pos": [4.8, -4.8], "yaw": 0},
+  {"k": "prop", "model": "props/village/barricade_jersey", "pos": [-19.0, 14.0], "yaw": 15},
+  {"k": "prop", "model": "props/village/barricade_sandbags", "pos": [-17.0, 16.0], "yaw": -20},
+  {"k": "lamp", "model": "props/village/lamp_post", "pos": [-12.0, 14.0], "yaw": 0, "power": 1.0},
+  {"k": "lamp", "model": "props/village/lamp_post", "pos": [12.0, -2.0], "yaw": 0, "power": 0.0}
+ ],
+ "outdoor": [3, 5]
+}

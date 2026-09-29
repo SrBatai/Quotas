@@ -60,10 +60,18 @@ func _ready() -> void:
 	kit_streets.name = "KitStreets"
 	add_child(kit_streets)
 	kit_streets.setup(world)
+	# M6b: La Herrería, the sawmill, the Gasolinera Norte and the Granja del Molino (both flavours, deterministic wids)
+	var settlements := SettlementSpawner.new()
+	add_child(settlements)
+	settlements.setup(world)
 	# H2: group zone discovery (RPC node, same path in both flavours; after PlayerManager opened the store)
 	var discovery := ZoneDiscovery.new()
 	discovery.name = "ZoneDiscovery"
 	add_child(discovery)
+	# H3: the group's downed / health, hazards and pings for the HUD (RPC node, same path in both flavours)
+	var hud_net := HudNet.new()
+	hud_net.name = "HudNet"
+	add_child(hud_net)
 	Events.world_ready.connect(_on_world_ready)
 	if world.is_ready:
 		_on_world_ready()

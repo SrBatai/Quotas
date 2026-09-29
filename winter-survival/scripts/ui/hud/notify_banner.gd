@@ -1,8 +1,9 @@
 class_name NotifyBanner
 extends Control
-## The central notice of the HUD v2 (appendix §6.5 channel "banner", restyled for §V): no box — a line of 22 px
-## Light text over a soft scrim, 104 px below the top edge, with an optional small-caps eyebrow in the tone colour
-## and "2 avisos en espera" under it. Enters in 220 ms, leaves in 300 ms. Driven by `NotifyRouter`.
+## The P1 / P2 line of the HUD v2 (appendix §6.5 channel "banner", restyled for §V; H3: P0 never comes here unless
+## the «Banner P0 mínimo» setting is on): no box — a line of 22 px Light text over a soft scrim, 104 px below the
+## top edge, with an optional small-caps eyebrow in the tone colour, "×2" when the same key was refreshed and
+## "2 avisos en espera" under it. 3 s by default; enters in 220 ms, leaves in 300 ms. Driven by `NotifyRouter`.
 
 const TOP := 104.0
 const TONES := {&"": UiTokens.INK_70, &"warn": UiTokens.WARN, &"danger": UiTokens.BLOOD, &"accent": UiTokens.ACCENT, &"cold": UiTokens.COLD}
@@ -35,7 +36,7 @@ func show_notice(n: Dictionary, wait: int) -> void:
 		_target = 1.0
 		shown += 1
 		visible = true
-		var bw := UiStyle.text_width(&"main", str(n.get("body", "")))
+		var bw := UiStyle.text_width(&"main", _body_of(n))
 		var has_title := str(n.get("title", "")) != ""
 		_scrim.position = Vector2(size.x * 0.5 - bw * 0.5 - 180.0, TOP - 70.0)
 		_scrim.size = Vector2(bw + 360.0, 180.0 + (26.0 if has_title else 0.0))
@@ -49,7 +50,12 @@ func set_waiting(n: int) -> void:
 
 
 func text_now() -> String:
-	return str(notice.get("body", "")) if _target > 0.0 else ""
+	return _body_of(notice) if _target > 0.0 else ""
+
+
+func _body_of(n: Dictionary) -> String:
+	var b := str(n.get("body", ""))
+	return b + (" ×%d" % int(n["count"]) if int(n.get("count", 1)) > 1 else "")
 
 
 func _process(delta: float) -> void:
@@ -71,7 +77,7 @@ func _draw() -> void:
 	var cx := size.x * 0.5
 	var y := TOP
 	var title := str(n.get("title", ""))
-	var body := str(n.get("body", ""))
+	var body := _body_of(n)
 	var bw := UiStyle.text_width(&"main", body)
 	if title != "":
 		var tw := UiStyle.text_width(&"smallcaps_wide", title)

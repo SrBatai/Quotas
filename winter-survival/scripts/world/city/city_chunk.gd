@@ -27,6 +27,14 @@ var hlod: MeshInstance3D
 var _steps: Array = []            # [kind, arg]
 var _i: int = 0
 var _lamps_added: bool = false
+## C1: every step ≤ ~1 ms of work (the 2 ms streaming window): prop colliders COLS_PER_STEP per body, an enterable lot
+## in two steps (shell; fit-out), a hero tower in its own small steps, the HLOD mesh then its links LINKS_PER_STEP
+## buildings at a time.
+const COLS_PER_STEP := 24
+const LINKS_PER_STEP := 6
+var _registered: Array[Node] = []   # KitDoors and loot containers of this chunk (WorldRegistry, out at release)
+var _hero: HeroTower                # the hero tower being built (its steps run as "hero" steps)
+var _lot_roots: Dictionary = {}     # lot id -> root (for its "fitout" step)
 
 
 # ------------------------------------------------------------------ worker side (pure data)
@@ -45,6 +53,16 @@ static func make_plan(items: Array, visual_on: bool) -> Dictionary:
 		match k:
 			CityLots.Kind.PODIUM, CityLots.Kind.TOWER:
 				buildings_out.append(e)
+			CityLots.Kind.BUILDING:
+				buildings_out.append(e)
+				# C1: the family geometry is pure data, built (or read from the cache) here in the worker thread;
+				# the main thread only makes the ArrayMesh once per key. The server needs no geometry.
+				if visual_on:
+					BuildingAssembler.data(str(e["fam"]), int(e["var"]), int(e["floors"]), int(e["pal"]), bool(e["ent"]))
+			CityLots.Kind.HERO:
+				buildings_out.append(e)
+				if visual_on:
+					HeroTower.prepare(int(e["id"]))
 			CityLots.Kind.BRIDGE:
 				var seg := CityProcedural.bridge_segment(CityLots.bridge(), float(e["x0"]), float(e["x1"]), e["ends"])
 				bridge.append(seg)
@@ -87,7 +105,7 @@ static func occluders_for(items: Array) -> Array:
 		var k := int(e["k"])
 		var p: Vector2 = e["pos"]
 		match k:
-			CityLots.Kind.PODIUM:
+			CityLots.Kind.PODIUM, CityLots.Kind.BUILDING, CityLots.Kind.HERO:
 				out.append({"id": "city_%d" % int(e["wid"]), "pos": p, "size": (e["size"] as Vector2) + Vector2(0.6, 0.6), "yaw": deg_to_rad(float(e["yaw"])),
 					"strength": 0.5, "soft": 2.2})
 			CityLots.Kind.VEHICLE:
@@ -130,6 +148,8 @@ static func group_mesh(model: String, variant: String, dir: String) -> Mesh:
 static func clear_cache() -> void:
 	_group_meshes.clear()
 	_podium_meshes.clear()
+	BuildingAssembler.clear_cache()
+	HeroTower.clear_cache()
 
 
 ## Every MeshInstance3D of an art model (transforms baked) → surface 0: all vertex-colour surfaces (palette, emissive
@@ -224,6 +244,39 @@ static func warm() -> int:
 		for m in j["models"]:
 			for variant in j["variants"]:
 				group_mesh(str(m), str(variant), "vehicles")
+	# C1 street dressing: the district lamps, parked cars (model × variant) and sidewalk furniture
+	for dc in ((d.get("dressing", {}) as Dictionary).get("districts", {}) as Dictionary).values():
+		if (dc as Dictionary).has("lamp"):
+			group_mesh(str(dc["lamp"]), "", "props")
+		for m in (dc as Dictionary).get("cars", {}):
+			for variant in (dc as Dictionary).get("variants", {}):
+				group_mesh(str(m), str(variant), "vehicles")
+		for m in (dc as Dictionary).get("props", {}):
+			group_mesh(str(m), "", str(CityLots.model_info(str(m)).get("dir", "props")))
+	# C1: the loot container models of the city's tables, a KitDoor (its first instance loads its scripts and
+	# resources: 3–5 ms inside a streaming step otherwise) and the floor-grid materials of the families / heroes
+	var tables := {&"house": true, &"house_kitchen": true, &"pharmacy": true, &"police": true, &"military": true}
+	for fam in BuildingAssembler.SHOP_TABLES:
+		for t in BuildingAssembler.SHOP_TABLES[fam]:
+			tables[t] = true
+	var models := {}
+	for t in tables:
+		models[LootTables.model_for(t, false)] = true
+	for m in models:
+		Assets.spawn_model(str(m)).free()
+	var leaf := MeshInstance3D.new()
+	leaf.set_meta("extras", {"kind": "door", "exterior": true, "hinge": "L", "width": 1.0, "cut_group": "Walls0_S", "floor": 0})
+	var kd := KitDoor.new()
+	kd.setup(leaf, 1)
+	kd.free()
+	leaf.free()
+	for fam in BuildingAssembler.FAMILIES:
+		var f: Dictionary = BuildingAssembler.FAMILIES[fam]
+		CityBuilding.struct_material(float(f["ground_h"]), float(f["floor_h"]))
+		CityBuilding.window_material(float(f["ground_h"]), float(f["floor_h"]))
+	for h in CityLots.heroes():
+		CityBuilding.struct_material(CityLots.cm(h.get("ground_h", 430)), CityLots.cm(h.get("floor_h", 380)))
+		CityBuilding.window_material(CityLots.cm(h.get("ground_h", 430)), CityLots.cm(h.get("floor_h", 380)))
 	var us := Time.get_ticks_usec() - t0
 	stats["warm_usec"] = us
 	return us
@@ -236,10 +289,22 @@ func setup(p_plan: Dictionary, p_visual: bool, p_key: int) -> void:
 	key = p_key
 	name = "City"
 	_steps.clear()
-	if not (plan.get("cols", []) as Array).is_empty():
-		_steps.append(["colliders", null])
+	for i0 in range(0, (plan.get("cols", []) as Array).size(), COLS_PER_STEP):
+		_steps.append(["colliders", i0])
+	var new_keys := {}
 	for b in plan.get("buildings", []):
+		# C1: a family key seen for the first time makes its ArrayMeshes in steps of its own (three stages, each
+		# ≤ ~1 ms), then the building step only instances them
+		if visual and int(b["k"]) == CityLots.Kind.BUILDING:
+			var mk := BuildingAssembler.key(str(b["fam"]), int(b["var"]), int(b["floors"]), int(b["pal"]), bool(b["ent"]))
+			if not new_keys.has(mk) and not BuildingAssembler.has_meshes(str(b["fam"]), int(b["var"]), int(b["floors"]), int(b["pal"]), bool(b["ent"])):
+				new_keys[mk] = true
+				_steps.append(["mesh", b])
 		_steps.append(["building", b])
+		if int(b["k"]) == CityLots.Kind.BUILDING and bool(b["ent"]):
+			_steps.append(["fitout", b])
+		elif int(b["k"]) == CityLots.Kind.HERO:
+			_steps.append(["hero", b])
 	for i in (plan.get("bridge", []) as Array).size():
 		_steps.append(["bridge", i])
 	if visual:
@@ -247,8 +312,11 @@ func setup(p_plan: Dictionary, p_visual: bool, p_key: int) -> void:
 			_steps.append(["multimesh", gk])
 		if not (plan.get("lamps", []) as Array).is_empty():
 			_steps.append(["lamps", null])
-		if not (plan.get("buildings", []) as Array).is_empty():
+		var nb := (plan.get("buildings", []) as Array).size()
+		if nb > 0:
 			_steps.append(["hlod", null])
+			for i0 in range(0, nb, LINKS_PER_STEP):
+				_steps.append(["hlod_link", i0])
 	_i = 0
 
 
@@ -256,9 +324,13 @@ func is_done() -> bool:
 	return _i >= _steps.size()
 
 
-## Kind of the next step (the streamer keeps one cost estimate per kind).
+## Kind of the next step (the streamer keeps one cost estimate per kind; a hero tower's steps are "hero:<kind>").
 func next_kind() -> String:
-	return str(_steps[_i][0]) if _i < _steps.size() else "done"
+	if _i >= _steps.size():
+		return "done"
+	if str(_steps[_i][0]) == "hero" and _hero != null:
+		return "hero:" + _hero.next_kind()
+	return str(_steps[_i][0])
 
 
 ## Runs one step; true when the chunk's city is complete.
@@ -269,7 +341,29 @@ func step() -> bool:
 	_i += 1
 	match str(s[0]):
 		"colliders":
-			add_child(_collider_body("CityProps", plan["cols"]))
+			var i0 := int(s[1])
+			var cols: Array = plan["cols"]
+			add_child(_collider_body("CityProps_%d" % (i0 / COLS_PER_STEP), cols.slice(i0, i0 + COLS_PER_STEP)))
+		"fitout":
+			_fitout(s[1])
+		"hero":
+			# one build step of the tower per streaming step; this step repeats until the tower is complete
+			if _hero != null and not _hero.build_step():
+				_i -= 1
+			elif _hero != null:
+				_register_hero(_hero)
+				_hero = null
+		"hlod_link":
+			if hlod != null:
+				var i0 := int(s[1])
+				for b in buildings.slice(i0, i0 + LINKS_PER_STEP):
+					if is_instance_valid(b) and b.get_node_or_null("CityBuilding") != null:
+						CityHlod.link(hlod, b)
+		"mesh":
+			# the family key's ArrayMeshes in stages (structure, glass, proxy + door): this step repeats until done
+			var e: Dictionary = s[1]
+			if not BuildingAssembler.mesh_stage(str(e["fam"]), int(e["var"]), int(e["floors"]), int(e["pal"]), bool(e["ent"])):
+				_i -= 1
 		"building":
 			_building(s[1])
 		"bridge":
@@ -281,8 +375,23 @@ func step() -> bool:
 				CityLights.instance.add_lamps(key, plan["lamps"])
 				_lamps_added = true
 		"hlod":
-			hlod = CityHlod.build_for(self)
+			var roots: Array[Node3D] = []
+			for b in buildings:
+				if is_instance_valid(b) and b.get_node_or_null("CityBuilding") != null:
+					roots.append(b)
+			hlod = CityHlod.make(self, roots)
 	return _i >= _steps.size()
+
+
+## Teardown (WorldChunk.teardown_step): frees the last child; a big one (a hero tower: ~900 nodes) leaves the tree
+## and is freed a few nodes per frame by CityWorld (freeing it at once is a 5–10 ms step).
+func free_last() -> void:
+	var c := get_child(get_child_count() - 1)
+	if c is HeroTower:
+		remove_child(c)
+		CityWorld.defer_free(c)
+	else:
+		c.free()
 
 
 ## Unloading (WorldChunk.begin_teardown): lamps out of CityLights, HLOD links cleared; the nodes are freed after.
@@ -291,13 +400,32 @@ func release() -> void:
 		CityLights.instance.remove_lamps(key)
 		_lamps_added = false
 	if hlod != null and is_inside_tree():
-		CityHlod.remove_from(self)
+		# the whole chunk is freed next: no need to unhook the pieces (CityHlod.remove_from walks every geometry);
+		# the HLOD goes first in the child list so it is freed last, after the pieces that point at it
+		move_child(hlod, 0)
 		hlod = null
+	if _hero != null:
+		_register_hero(_hero)   # (a tower unloaded half built)
+		_hero = null
 	for b in buildings:
 		if is_instance_valid(b):
 			var cb := b.get_node_or_null("CityBuilding")
 			if cb != null:
 				CityCut.unregister(cb as CityBuilding)
+			if b is HeroTower:
+				(b as HeroTower).release()
+	# C1: doors and containers leave the registry now (a quick reload of the chunk rebuilds them)
+	for n in _registered:
+		if is_instance_valid(n):
+			WorldRegistry.unregister(n)
+	_registered.clear()
+
+
+func _register_hero(ht: HeroTower) -> void:
+	for d in ht.doors:
+		_registered.append(d)
+	for lc in ht.loot:
+		_registered.append(lc)
 
 
 static func _box_shape(size: Vector3) -> BoxShape3D:
@@ -317,7 +445,11 @@ func _collider_body(n: String, boxes: Array, parent_xf: Transform3D = Transform3
 	for b in boxes:
 		var cs := CollisionShape3D.new()
 		var size: Vector3 = b[1]
-		if b.size() > 3 and str(b[3]) == "cyl":
+		if b.size() > 4 and str(b[3]) == "hull":
+			var hull := ConvexPolygonShape3D.new()
+			hull.points = b[4]
+			cs.shape = hull
+		elif b.size() > 3 and str(b[3]) == "cyl":
 			var cyl := CylinderShape3D.new()
 			cyl.radius = maxf(size.x, size.z) * 0.5
 			cyl.height = size.y
@@ -336,6 +468,16 @@ func _building(e: Dictionary) -> void:
 	var yaw := deg_to_rad(float(e["yaw"]))
 	var root: Node3D
 	var boxes: Array = []
+	if int(e["k"]) == CityLots.Kind.BUILDING:
+		_lot(e)
+		return
+	if int(e["k"]) == CityLots.Kind.HERO:
+		var ht := HeroTower.new()
+		ht.setup(e, visual)   # (the server builds it all here; a client in the "hero" steps that follow)
+		add_child(ht)
+		buildings.append(ht)
+		_hero = ht
+		return
 	if int(e["k"]) == CityLots.Kind.TOWER:
 		root = TowerAssembler.build(e) if visual else _bare_root("tower_%d" % int(e["id"]), e)
 		for b in TowerAssembler.collider_boxes(e):
@@ -393,6 +535,67 @@ func _building(e: Dictionary) -> void:
 				CityBuilding.apply_prop_materials(sm)
 				sm.transform = root.transform
 				add_child(sm)
+
+
+## C1: one family lot (BuildingAssembler): the root with its pieces, its colliders and, on an enterable ground floor,
+## the KitDoor (M6a, deterministic wid); the loot containers, the server's shelter area and CityBuilding.attach
+## follow in the lot's "fitout" step (an enterable lot in one step was 1–3 ms).
+func _lot(e: Dictionary) -> void:
+	var p: Vector2 = e["pos"]
+	var root := BuildingAssembler.build(e, visual)
+	root.position = Vector3(p.x, float(e["y"]), p.y)
+	root.rotation.y = deg_to_rad(float(e["yaw"]))
+	var cols := BuildingAssembler.colliders(str(e["fam"]), int(e["var"]), int(e["floors"]), bool(e["ent"]))
+	root.add_child(_collider_body("ColBody", cols))
+	add_child(root)
+	buildings.append(root)
+	_lot_roots[int(e["id"])] = root
+	if bool(e["ent"]):
+		var leaf := root.get_node_or_null("Door_0") as Node3D
+		if leaf != null:
+			var d := KitDoor.new()
+			d.setup(leaf, KitDoor.wid_for(int(e.get("seed", 0)), int(e["wid"]), 0))
+			root.add_child(d)
+			_registered.append(d)
+	elif visual:
+		CityBuilding.attach(root)
+
+
+## The second step of an enterable lot: loot containers (LootSpawns), the shelter (server), CityBuilding.attach.
+func _fitout(e: Dictionary) -> void:
+	var root: Node3D = _lot_roots.get(int(e["id"]))
+	if root == null or not is_instance_valid(root):
+		return
+	var n0 := root.get_child_count()
+	LootSpawns.attach(root, root, int(e["wid"]), int(e.get("seed", 0)))
+	for i in range(n0, root.get_child_count()):
+		if root.get_child(i) is LootContainer:
+			_registered.append(root.get_child(i))
+	if Net.is_server:
+		_shelter(root, e)
+	if visual:
+		CityBuilding.attach(root)
+
+
+## Server: Player.in_house while inside an enterable ground floor (KitBuilding's shelter rule).
+func _shelter(root: Node3D, e: Dictionary) -> void:
+	var sz: Vector2 = e["size"]
+	var s := BuildingAssembler.spec(str(e["fam"]), int(e["var"]))
+	var top := float(s["ground_h"]) - 0.3
+	var area := Area3D.new()
+	area.name = "Shelter"
+	area.collision_layer = 32
+	area.collision_mask = 2
+	area.monitorable = false
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(sz.x - 0.7, top - 0.2, sz.y - 0.7)
+	cs.shape = box
+	cs.position = Vector3(0, 0.3 + (top - 0.2) * 0.5, 0)
+	area.add_child(cs)
+	root.add_child(area)
+	area.body_entered.connect(func(b: Node) -> void: KitBuilding._shelter_count(b, 1))
+	area.body_exited.connect(func(b: Node) -> void: KitBuilding._shelter_count(b, -1))
 
 
 func _bare_root(n: String, e: Dictionary) -> Node3D:

@@ -1,7 +1,7 @@
 class_name Mirador
 extends Node3D
-## Provisional mirador (C0; doc 09 §3.7 item 6, PLAN v3.4 «Miradores»): a marked point on a podium roof of Las
-## Torres. Holding V (the `shove` action: C1 gives miradores their own prompt) for HOLD seconds within `radius` of the
+## Mirador (C0 provisional, C1 definitive; doc 09 §3.7 item 6, PLAN v3.4 «Miradores»): a marked point on a podium
+## roof, a hero tower's roof, the Puente de Hierro, the valley's lookout tower and the Repetidor del Pico (C1). Holding V (the `shove` action: C1 gives miradores their own prompt) for HOLD seconds within `radius` of the
 ## mark, out of combat, hands the view to a mirador camera for DURATION seconds: pitch `pitch` (a low angle, the
 ## skyline above the frame's centre), FOV `fov`, far `far`, looking `look` degrees from north, the district
 ## silhouettes on, the «corte urbano» off (CityCut only writes its globals for the gameplay camera) and the fog
@@ -17,6 +17,9 @@ const FOG_SCALE := 0.14
 const COMBAT_RANGE := 25.0
 
 static var active_mirador: Mirador
+
+## C1: the view was taken (CityWorld records the map reveal for H5).
+signal used(m: Mirador)
 
 var rec: Dictionary = {}
 var look_deg: float = 90.0
@@ -169,6 +172,7 @@ func activate(p: Node3D = null) -> void:
 				dn.fog_color_override = CityWorld.NIGHT_FOG
 	if CityWorld.instance != null:
 		CityWorld.instance.set_skyline(true)
+	used.emit(self)
 
 
 func deactivate() -> void:

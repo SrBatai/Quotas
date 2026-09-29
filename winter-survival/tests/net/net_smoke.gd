@@ -39,8 +39,14 @@ func _initialize() -> void:
 		body_path = "res://tests/net/net_steps_h2.gd"
 	if str(opts["scenario"]) == "street":
 		body_path = "res://tests/net/net_steps_m6a.gd"   # M6a: kit doors replicated (C joins late)
+	if str(opts["scenario"]) == "village":
+		body_path = "res://tests/net/net_steps_m6b.gd"   # M6b: 2 players in 2 La Herrería houses: doors + containers
 	if str(opts["scenario"]) == "interest":
 		body_path = "res://tests/net/net_steps_interest.gd"   # spawns / teleports outside a peer's chunk interest
+	if str(opts["scenario"]) == "team":
+		body_path = "res://tests/net/net_steps_h3.gd"   # H3: a danger ping on every client, B's down → A ≤ 0.2 s, the blizzard countdown
+	if str(opts["scenario"]) == "tower":
+		body_path = "res://tests/net/net_steps_c1.gd"   # C1: 4 clients on 3 floors of a hero tower (doors, loot, vertical filter)
 	var script: GDScript = load(body_path)
 	if script == null or not script.can_instantiate():
 		print("FAIL: cannot load %s" % body_path)

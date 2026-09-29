@@ -182,7 +182,8 @@ static func _build() -> void:
 		var e: Dictionary = out[i]
 		var chain := chain_ids(e)
 		if e.get("camera", &"") == &"" and (str(e["id"]) == CITY_ID or chain.has(CITY_ID)):
-			e["camera"] = &"city"   # C28: the urban camera profile in Altavega (its districts, POIs and avenues)
+			# C28: the urban camera profile in Altavega (its districts, POIs and avenues); C1: per district
+			e["camera"] = CameraProfile.for_zone([str(e["id"])] + chain)
 		ranked.append([LocationInfo.order_key(e, chain.size()), i, e])
 	ranked.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0] or (a[0] == b[0] and a[1] < b[1]))
 	_list = []

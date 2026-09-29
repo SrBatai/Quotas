@@ -164,6 +164,7 @@ func _initialize() -> void:
 	checked += _check_city()
 	checked += _check_kit()
 	checked += _check_signs()
+	checked += _check_village()
 	print("== inspect_models: %d assets, %s" % [checked, "ALL OK" if _failures == 0 else "%d FAILURES" % _failures])
 	quit(0 if _failures == 0 else 1)
 
@@ -818,6 +819,48 @@ func _check_kit() -> int:
 				_fail(asset, p)
 			inst.free()
 			n += 1
+	return n
+
+
+## props/village/*.glb (M6b): the village / POI props — the A1 prop contract, MultiMesh-friendly: one mesh `Prop`
+## (one surface, no children), extras family "village", kind, col / col_center / col_size (+ cols, anchors), the
+## manifest entry, ≤ 1 800 tris; lamps carry LightAnchor, power poles WireA / WireB, the dumpster Loot.
+func _check_village() -> int:
+	var n := 0
+	var man: Dictionary = {}
+	if FileAccess.file_exists("res://assets/models/props/village/manifest.json"):
+		man = JSON.parse_string(FileAccess.get_file_as_string("res://assets/models/props/village/manifest.json"))
+	for name in _glbs("res://assets/models/props/village"):
+		var asset := "props/village/" + name.get_basename()
+		var inst := _load_scene(asset, "res://assets/models/props/village/" + name)
+		if inst == null:
+			continue
+		var problems: Array[String] = []
+		var tris := _tris(inst)
+		var prop := inst.get_node_or_null("Prop") as MeshInstance3D
+		if prop == null or inst.get_child_count() != 1 or prop.get_child_count() != 0 or prop.mesh == null:
+			problems.append("must be exactly one mesh Prop without children")
+		else:
+			if prop.mesh.get_surface_count() != 1:
+				problems.append("%d surfaces (1)" % prop.mesh.get_surface_count())
+			var ex: Dictionary = prop.get_meta("extras", {})
+			for k in ["family", "kind", "col", "col_center", "col_size", "height", "anchors", "cols"]:
+				if not ex.has(k):
+					problems.append("extras lack %s" % k)
+			var need := {"lamp_post": "LightAnchor", "power_pole": "WireA", "dumpster": "Loot"}.get(name.get_basename(), "") as String
+			if need != "" and not (ex.get("anchors", {}) as Dictionary).has(need):
+				problems.append("anchor %s missing" % need)
+			var rec: Dictionary = man.get(name.get_basename(), {})
+			if rec.is_empty() or int(rec.get("tris", -1)) != tris or str(rec.get("col", "")) != str(ex.get("col", "?")):
+				problems.append("manifest entry missing / differs (tris %d)" % tris)
+		if tris > 1800:
+			problems.append("%d tris > 1800" % tris)
+		if problems.is_empty():
+			print("OK   %-30s tris=%d" % [asset, tris])
+		for p in problems:
+			_fail(asset, p)
+		inst.free()
+		n += 1
 	return n
 
 

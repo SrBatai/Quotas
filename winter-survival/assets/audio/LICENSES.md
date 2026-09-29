@@ -542,6 +542,10 @@ Written by `tools/audio/build_audio.py` from the recipes in `tools/audio/recipes
 | `ui/pickup_01.ogg` | `kenney_rpgaudio/handleSmallLeather.ogg` |
 | `ui/pickup_02.ogg` | `kenney_rpgaudio/handleSmallLeather2.ogg` |
 | `ui/pickup_03.ogg` | `kenney_rpgaudio/cloth4.ogg` |
+| `ui/ping_01.ogg` | original (CC0) |
+| `ui/ping_danger_01.ogg` | original (CC0) |
+| `ui/radio_static_01.ogg` | original (CC0) |
+| `ui/radio_static_02.ogg` | original (CC0) |
 | `ui/tab_01.ogg` | `kenney_rpgaudio/bookFlip1.ogg` |
 | `ui/tab_02.ogg` | `kenney_rpgaudio/bookFlip2.ogg` |
 | `ui/tab_03.ogg` | `kenney_rpgaudio/bookFlip3.ogg` |

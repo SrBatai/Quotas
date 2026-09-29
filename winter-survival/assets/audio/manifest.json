@@ -1,7 +1,7 @@
 {
  "version": 1,
  "generator": "tools/audio/build_audio.py",
- "total_bytes": 8370014,
+ "total_bytes": 8402115,
  "files": {
   "ambience/blizzard.ogg": {
    "cat": "amb_layer",
@@ -3131,6 +3131,46 @@
    "lufs": -25.2,
    "peak": -1.0,
    "bytes": 5639,
+   "module": "ui"
+  },
+  "ui/ping_01.ogg": {
+   "cat": "ui",
+   "ch": 1,
+   "dur": 0.493,
+   "loop": false,
+   "lufs": -26.8,
+   "peak": -1.0,
+   "bytes": 5296,
+   "module": "ui"
+  },
+  "ui/ping_danger_01.ogg": {
+   "cat": "ui",
+   "ch": 1,
+   "dur": 0.256,
+   "loop": false,
+   "lufs": -22.0,
+   "peak": -10.7,
+   "bytes": 5236,
+   "module": "ui"
+  },
+  "ui/radio_static_01.ogg": {
+   "cat": "ui",
+   "ch": 1,
+   "dur": 0.85,
+   "loop": false,
+   "lufs": -25.0,
+   "peak": -14.3,
+   "bytes": 10370,
+   "module": "ui"
+  },
+  "ui/radio_static_02.ogg": {
+   "cat": "ui",
+   "ch": 1,
+   "dur": 0.95,
+   "loop": false,
+   "lufs": -25.0,
+   "peak": -15.1,
+   "bytes": 11199,
    "module": "ui"
   },
   "ui/tab_01.ogg": {
@@ -6318,6 +6358,10 @@
   "ui/pickup_03.ogg": [
    "kenney_rpgaudio/cloth4.ogg"
   ],
+  "ui/ping_01.ogg": [],
+  "ui/ping_danger_01.ogg": [],
+  "ui/radio_static_01.ogg": [],
+  "ui/radio_static_02.ogg": [],
   "ui/tab_01.ogg": [
    "kenney_rpgaudio/bookFlip1.ogg"
   ],

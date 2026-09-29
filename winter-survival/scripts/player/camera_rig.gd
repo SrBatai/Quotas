@@ -145,7 +145,7 @@ func _update_profile(delta: float) -> void:
 	var k := 1.0 - exp(-delta / CameraProfile.BLEND_TAU)
 	pitch_deg = lerpf(pitch_deg, profile.pitch_deg, k)
 	pitch.rotation_degrees.x = pitch_deg
-	camera.far = lerpf(camera.far, profile.far, k)
+	camera.far = lerpf(camera.far, target_far(), k)
 
 
 ## Switches profile (blended). The zoom is clamped into the new range.
@@ -164,7 +164,17 @@ func snap_profile() -> void:
 		set_profile(profile_override)
 	pitch_deg = profile.pitch_deg
 	pitch.rotation_degrees.x = pitch_deg
-	camera.far = profile.far
+	camera.far = target_far()
+
+
+## C1 «far dinámico»: the profile's far, raised when the frame's top edge would not reach the ground (zoomed out on
+## a roof or a tower floor: the street is far below; CameraProfile.far_for). Outside the city profiles: the profile's.
+func target_far() -> float:
+	if profile.id == &"default" or player == null or World.instance == null or not World.instance.is_configured:
+		return profile.far
+	var p := player.global_position
+	var drop := p.y - World.instance.get_height(p.x, p.z)
+	return CameraProfile.far_for(profile.far, dist, pitch_deg, camera.fov, drop)
 
 
 func shake(strength: float) -> void:

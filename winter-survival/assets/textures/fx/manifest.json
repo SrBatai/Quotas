@@ -1,0 +1,90 @@
+{
+ "_doc": "G2b particle sprites (tools/fetch_fx_sprites.py). CC0 1.0: no attribution required; credited anyway.",
+ "pack": {
+  "title": "Particle Pack",
+  "version": "1.1",
+  "author": "Kenney (www.kenney.nl)",
+  "license": "CC0-1.0",
+  "official_url": "https://kenney.nl/assets/particle-pack",
+  "license_file": "LICENSE-kenney-particle-pack.txt"
+ },
+ "fetched_from": {
+  "repo": "https://github.com/series-ai/jam-ready-assets",
+  "commit": "f8206b38e4355a8b2a490e3032000d2a84883a0f",
+  "path": "kenney-particle-pack/2D/misc",
+  "via": "git-lfs (media.githubusercontent.com)",
+  "custody": "third-party curated mirror (the same as A1's city kits); LFS oid = upstream file hash"
+ },
+ "files": [
+  {
+   "file": "License.txt",
+   "sha256": "7a026aade177ce497b0b925849ddb9f142417e29f877baca99ef816b4481843e"
+  },
+  {
+   "file": "PNG (Transparent)/smoke_01.png",
+   "sha256": "e8724c219e8d35859167fc0a7e207e13c72ccf0c29704909b9bb3d3dc71c6cf7"
+  },
+  {
+   "file": "PNG (Transparent)/smoke_04.png",
+   "sha256": "2db2f69874cdb1e5203f2f86803d5debde30402590cf50a810afaba882184616"
+  },
+  {
+   "file": "PNG (Transparent)/smoke_07.png",
+   "sha256": "f7419fa4f11e346d0fb36a17ecbf616083c6962633c7847d92119c994ed9b4e4"
+  },
+  {
+   "file": "PNG (Transparent)/smoke_08.png",
+   "sha256": "eae1d92c205a2654254281d470ee70cce86cf4e8e849db29e4d5edff0f67c695"
+  },
+  {
+   "file": "PNG (Transparent)/flame_05.png",
+   "sha256": "4c5cc587260010e4bb58b03cc2561ca0e96409e7db25ea4183cd3fb1d0237dc8"
+  },
+  {
+   "file": "PNG (Transparent)/flame_06.png",
+   "sha256": "fc95ac4d0e61b22d079aeb5feabf2914d380858ad95852e5b1638ad820526948"
+  },
+  {
+   "file": "PNG (Transparent)/flame_01.png",
+   "sha256": "92a70bcb90b1e21c57b2dae42843135703b2e988abee97433f84c3119723d144"
+  },
+  {
+   "file": "PNG (Transparent)/flame_03.png",
+   "sha256": "366678a08a7d22ebb87baa7b42005aaaeb0fd51ab751f2d4e7c9edfa61a33e38"
+  }
+ ],
+ "outputs": [
+  {
+   "file": "res://assets/textures/fx/smoke_atlas.png",
+   "frames": [
+    "smoke_01",
+    "smoke_04",
+    "smoke_07",
+    "smoke_08"
+   ],
+   "frame_px": 128,
+   "grid": [
+    2,
+    2
+   ],
+   "sha256": "5688a25ead6efac388100acce65925c486281c768c1cb5585379bee7def60e33",
+   "modifications": "alpha x luminance normalised to the frame peak, RGB white, Lanczos to 128 px, 2 x 2 atlas"
+  },
+  {
+   "file": "res://assets/textures/fx/flame_atlas.png",
+   "frames": [
+    "flame_05",
+    "flame_06",
+    "flame_01",
+    "flame_03"
+   ],
+   "frame_px": 128,
+   "grid": [
+    2,
+    2
+   ],
+   "sha256": "54ff4dc2a76210065f57285557a7dbf37acdf073aa0787f8d934b578d86497b6",
+   "modifications": "alpha x luminance normalised to the frame peak, RGB white, Lanczos to 128 px, 2 x 2 atlas"
+  }
+ ]
+}

@@ -195,7 +195,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 						outfits.append(c.get("outfit"))
 				Chat.instance.send("/give hacha 1")
 				print("multi: local peer %d (outfit %d) sees %d remote players (outfits %s); net role=%s rtt=%.0f" % [Net.local_peer_id(), player.outfit, others, outfits, Net.role, float(Net.stats["rtt"])])
-		if preset.begins_with("hud_"):   # H1: HUD v2 presets (tests/hud_shots.gd)
+		if preset.begins_with("hud_") or preset == "downed_coop":   # H1: HUD v2 presets (tests/hud_shots.gd); H3: downed_coop
 			await (load("res://tests/hud_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if preset.begins_with("zone_"):   # H2: zone title / highway sign presets (tests/h2_shots.gd)
 			await (load("res://tests/h2_shots.gd").new()).setup(tree, preset, game, world, player, inv)
@@ -205,6 +205,12 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			await (load("res://tests/c0_shots.gd").new()).setup(tree, preset, game, world, player, inv)
 		if preset.begins_with("street_") or preset == "house_inside":   # M6a: the kit test street (tests/m6a_shots.gd)
 			await (load("res://tests/m6a_shots.gd").new()).setup(tree, preset, game, world, player, inv)
+		if preset.begins_with("m6b_"):   # M6b: La Herrería and its POIs (tests/m6b_shots.gd)
+			await (load("res://tests/m6b_shots.gd").new()).setup(tree, preset, game, world, player, inv)
+		if preset.begins_with("c1_"):   # C1: Altavega's districts, towers, bridge, control (tests/c1_shots.gd)
+			await (load("res://tests/c1_shots.gd").new()).setup(tree, preset, game, world, player, inv)
+		if preset.begins_with("g2b_"):   # G2b: atmosphere presets + the 8 h × 3 weathers sheet (tests/g2b_shots.gd)
+			await (load("res://tests/g2b_shots.gd").new()).setup(tree, preset, game, world, player, inv, out_path, flags)
 		if flags.has("noshadow"):
 			(world.get_node("Sun") as DirectionalLight3D).shadow_enabled = false
 		var dn: DayNight = world.get_node("DayNight")
@@ -237,7 +243,7 @@ func run(p_tree: SceneTree, p_preset: String, p_out: String) -> void:
 			player.input.scripted_move = Vector2(1, 0)
 			player.input.scripted_run = _flag_value("walk", "walk") == "run"
 	# let particles / shadows settle (the H1 HUD presets are frozen at their frame: 24 are enough)
-	for i in (24 if preset.begins_with("hud_") or preset.begins_with("zone_") else 90):
+	for i in (24 if preset.begins_with("hud_") or preset.begins_with("zone_") or preset == "downed_coop" else 90):
 		await tree.process_frame
 	await RenderingServer.frame_post_draw
 	var img := tree.root.get_viewport().get_texture().get_image()

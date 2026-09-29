@@ -13,6 +13,8 @@ extends RefCounted
 ##           → POI pads                            PoiRegistry.PADS (circles; W1 also rects and fixed heights)
 ##           → road beds                           macro_roads.json, smoothed longitudinal profile, 7 m shoulders
 ##                                                 (per road in W1); none on the W1 ice (the bridges are C1 POIs)
+##   M6b: Settlements.stamp adds the villages' streets as roads (add_road) and their lots / hand-made POIs as
+##   oriented rect pads (add_pad, levelled at the street), after the macro roads.
 ##
 ## The world height is defined on the 1 m integer grid (`sample`); between samples it is bilinear (`height_at`),
 ## which is what the chunk meshes / HeightMapShape3D show (to < 1 cm). `surface_*` returns the CUSTOM0 mask:
@@ -52,6 +54,7 @@ var _pad_h := PackedFloat32Array()
 var _pad_hs := PackedVector2Array()
 var _pad_b := PackedFloat32Array()
 var _pad_reach := PackedFloat32Array()
+var _pad_rot := PackedVector2Array()      # M6b: (cos, sin) of an oriented rect pad (Settlements); (1, 0) otherwise
 var _water_bbox: Array[Rect2] = []
 # road segments: parallel arrays (ax, az, bx, bz, s0, len, road index)
 var _seg := PackedFloat32Array()    # 6 floats per segment
@@ -66,6 +69,7 @@ var _road_pts: Array[PackedVector2Array] = []
 var _road_len := PackedFloat32Array()
 var _furniture: Array[int] = []           # roads with snow poles or guardrails (W1)
 var _seg_bbox: Array[Rect2] = []
+var _road_src: Array[Dictionary] = []     # the road records (macro_roads.json + M6b streets), by road index
 
 
 static func create(seed_value: int, p_macro: MacroMap) -> HeightFunction:
@@ -104,9 +108,11 @@ func _setup(seed_value: int, p_macro: MacroMap) -> void:
 			_pad_hs.append(Vector2.ZERO)
 			_pad_b.append(0.0)
 		_pad_reach.append(PoiRegistry.pad_reach(i))
+		_pad_rot.append(Vector2(1.0, 0.0))
 		var hp: Vector2 = pad.get("h_at", c)
 		_pad_h.append(float(pad["h"]) if pad.has("h") else base_height(hp.x, hp.y))
 	_build_roads()
+	Settlements.stamp(self)   # M6b: village streets + lot / POI pads (pure, from the seed)
 
 
 # ------------------------------------------------------------------ components
@@ -138,74 +144,101 @@ func _build_roads() -> void:
 	if macro == null:
 		return
 	for r in macro.roads:
-		var pts: PackedVector2Array = r["points"]
-		var ri := _road_hw.size()
-		_road_hw.append(float(r["width"]) * 0.5)
-		_road_kind.append(int(ROAD_KINDS.get(str(r["kind"]), 1)))
-		_road_shoulder.append(float(r.get("shoulder", ROAD_SHOULDER)))
-		_road_name.append(str(r.get("name", "")))
-		var smooth_n := int(r.get("smooth", ROAD_PROFILE_SMOOTH))
-		# resample the centreline every ROAD_PROFILE_STEP m and smooth the natural height along it
-		var total := 0.0
-		for i in pts.size() - 1:
-			total += pts[i].distance_to(pts[i + 1])
-		var n := int(ceil(total / ROAD_PROFILE_STEP)) + 1
-		var raw := PackedFloat32Array()
-		raw.resize(n)
-		# W1: over the W1 ice the profile is the straight line between the banks (the future bridge deck)
-		var wet := PackedByteArray()
-		wet.resize(n)
-		var any_wet := false
-		var rbb := Rect2(pts[0], Vector2.ZERO)
-		for p in pts:
-			rbb = rbb.expand(p)
-		var wprims := water_prims_in(rbb.grow(ROAD_WATER_FADE + 1.0))
-		for k in n:
-			var p := _point_at(pts, minf(float(k) * ROAD_PROFILE_STEP, total))
-			raw[k] = base_height(p.x, p.y)
-			if not wprims.is_empty() and water_sdf(wprims, p.x, p.y).x < ROAD_WATER_FADE:
-				wet[k] = 1
-				any_wet = true
-		if any_wet:
-			_bridge_fill(raw, wet)
-		# W1 roads ("pads": true) run level over the W1 pads they cross (the pad stays flat under the road)
-		var fixed := PackedFloat32Array()
-		if bool(r.get("pads", false)):
-			fixed = _pad_heights_along(pts, n, total, rbb)
-		var prof := PackedFloat32Array()
-		prof.resize(n)
-		for k in n:
-			var acc := 0.0
-			var cnt := 0
-			for o in range(-smooth_n, smooth_n + 1):
-				var q := clampi(k + o, 0, n - 1)
-				acc += raw[q]
-				cnt += 1
-			prof[k] = acc / float(cnt)
-		if not fixed.is_empty():
-			_fix_pads(prof, fixed)
-		var grade := float(r.get("max_grade", 0.0))
-		if grade > 0.0:
-			_limit_grade(prof, grade * ROAD_PROFILE_STEP, fixed)
-		_road_prof.append(prof)
-		var reach := _road_hw[ri] + _road_shoulder[ri] + 1.0
-		var bb := Rect2(pts[0], Vector2.ZERO)
-		var s0 := 0.0
-		for i in pts.size() - 1:
-			var a := pts[i]
-			var b := pts[i + 1]
-			var l := a.distance_to(b)
-			_seg.append_array(PackedFloat32Array([a.x, a.y, b.x, b.y, s0, l]))
-			_seg_road.append(ri)
-			var sb := Rect2(a, Vector2.ZERO).expand(b).grow(reach)
-			_seg_bbox.append(sb)
-			bb = bb.merge(sb)
-			s0 += l
-		_road_bbox.append(bb)
-		_road_pts.append(pts)
-		_road_len.append(total)
-		if float(r.get("poles", 0.0)) > 0.0 or not (r.get("guard", []) as Array).is_empty():
-			_furniture.append(ri)
+		add_road(r)
+
+
+## Adds a road bed (a macro_roads.json record, or an M6b village street from Settlements.stamp): smoothed profile of
+## the natural ground, shoulders, segments. M6b extras: "pin_start" / "pin_end" (m) pin the profile's ends to a
+## height (a street joining a road) over PIN_RAMP samples. Returns the road index.
+const PIN_RAMP := 5
+func add_road(r: Dictionary) -> int:
+	var pts: PackedVector2Array = r["points"]
+	var ri := _road_hw.size()
+	_road_src.append(r)
+	_road_hw.append(float(r["width"]) * 0.5)
+	_road_kind.append(int(ROAD_KINDS.get(str(r["kind"]), 1)))
+	_road_shoulder.append(float(r.get("shoulder", ROAD_SHOULDER)))
+	_road_name.append(str(r.get("name", "")))
+	var smooth_n := int(r.get("smooth", ROAD_PROFILE_SMOOTH))
+	# resample the centreline every ROAD_PROFILE_STEP m and smooth the natural height along it
+	var total := 0.0
+	for i in pts.size() - 1:
+		total += pts[i].distance_to(pts[i + 1])
+	var n := int(ceil(total / ROAD_PROFILE_STEP)) + 1
+	var raw := PackedFloat32Array()
+	raw.resize(n)
+	# W1: over the W1 ice the profile is the straight line between the banks (the future bridge deck)
+	var wet := PackedByteArray()
+	wet.resize(n)
+	var any_wet := false
+	var rbb := Rect2(pts[0], Vector2.ZERO)
+	for p in pts:
+		rbb = rbb.expand(p)
+	var wprims := water_prims_in(rbb.grow(ROAD_WATER_FADE + 1.0))
+	for k in n:
+		var p := _point_at(pts, minf(float(k) * ROAD_PROFILE_STEP, total))
+		raw[k] = base_height(p.x, p.y)
+		if not wprims.is_empty() and water_sdf(wprims, p.x, p.y).x < ROAD_WATER_FADE:
+			wet[k] = 1
+			any_wet = true
+	if any_wet:
+		_bridge_fill(raw, wet)
+	# W1 roads ("pads": true) run level over the W1 pads they cross (the pad stays flat under the road)
+	var fixed := PackedFloat32Array()
+	if bool(r.get("pads", false)):
+		fixed = _pad_heights_along(pts, n, total, rbb)
+	var prof := PackedFloat32Array()
+	prof.resize(n)
+	for k in n:
+		var acc := 0.0
+		var cnt := 0
+		for o in range(-smooth_n, smooth_n + 1):
+			var q := clampi(k + o, 0, n - 1)
+			acc += raw[q]
+			cnt += 1
+		prof[k] = acc / float(cnt)
+	if not fixed.is_empty():
+		_fix_pads(prof, fixed)
+	for end in ["pin_start", "pin_end"]:
+		if r.has(end):
+			for q in mini(PIN_RAMP, n):
+				var kq := q if end == "pin_start" else n - 1 - q
+				prof[kq] = lerpf(float(r[end]), prof[kq], smooth(0.0, float(PIN_RAMP), float(q)))
+	var grade := float(r.get("max_grade", 0.0))
+	if grade > 0.0:
+		_limit_grade(prof, grade * ROAD_PROFILE_STEP, fixed)
+	_road_prof.append(prof)
+	var reach := _road_hw[ri] + _road_shoulder[ri] + 1.0
+	var bb := Rect2(pts[0], Vector2.ZERO)
+	var s0 := 0.0
+	for i in pts.size() - 1:
+		var a := pts[i]
+		var b := pts[i + 1]
+		var l := a.distance_to(b)
+		_seg.append_array(PackedFloat32Array([a.x, a.y, b.x, b.y, s0, l]))
+		_seg_road.append(ri)
+		var sb := Rect2(a, Vector2.ZERO).expand(b).grow(reach)
+		_seg_bbox.append(sb)
+		bb = bb.merge(sb)
+		s0 += l
+	_road_bbox.append(bb)
+	_road_pts.append(pts)
+	_road_len.append(total)
+	if float(r.get("poles", 0.0)) > 0.0 or not (r.get("guard", []) as Array).is_empty():
+		_furniture.append(ri)
+	return ri
+
+
+## M6b: an oriented rect pad (Settlements: a village lot, a hand-made POI yard): flat at `h` inside the rect of half
+## size `half` around `c` turned by `rot` (radians, about +Y: local x along (cos, sin)), blended out over `blend` m.
+func add_pad(c: Vector2, half: Vector2, rot: float, h: float, blend: float) -> void:
+	_pad_c.append(c)
+	_pad_r.append(0.0)
+	_pad_hs.append(half)
+	_pad_b.append(blend)
+	_pad_reach.append(half.length() + blend)
+	_pad_rot.append(Vector2(cos(rot), sin(rot)))
+	_pad_h.append(h)
 
 
 ## Replaces the samples flagged `wet` by the straight line between the dry samples around them (bridge decks).
@@ -246,7 +279,7 @@ func _pad_heights_along(pts: PackedVector2Array, n: int, total: float, bbox: Rec
 	out.resize(n)
 	out.fill(NAN)
 	var near: Array[int] = []
-	for i in range(PoiRegistry.M3_PAD_COUNT, _pad_c.size()):
+	for i in range(PoiRegistry.M3_PAD_COUNT, PoiRegistry.PADS.size()):
 		if bbox.grow(_pad_reach[i]).has_point(_pad_c[i]):
 			near.append(i)
 	if near.is_empty():
@@ -380,8 +413,15 @@ func eval(x: float, z: float, ctx: Dictionary) -> Vector3:
 				h = lerpf(h, _pad_h[i], smooth(r, r * 0.6, d))
 		else:
 			var hs := _pad_hs[i]
-			var qx := absf(x - _pad_c[i].x) - hs.x
-			var qz := absf(z - _pad_c[i].y) - hs.y
+			var px := x - _pad_c[i].x
+			var pz := z - _pad_c[i].y
+			var ro := _pad_rot[i]
+			if ro.y != 0.0:   # M6b oriented pad: into its frame
+				var lx := px * ro.x + pz * ro.y
+				pz = pz * ro.x - px * ro.y
+				px = lx
+			var qx := absf(px) - hs.x
+			var qz := absf(pz) - hs.y
 			var d := Vector2(maxf(qx, 0.0), maxf(qz, 0.0)).length() + minf(maxf(qx, qz), 0.0)
 			var bw := _pad_b[i]
 			if d < bw:
@@ -570,7 +610,7 @@ func furniture_roads() -> Array[int]:
 
 ## Furniture data of road `ri`: {"hw", "length", "bbox", "poles", "guard"}.
 func furniture_of(ri: int) -> Dictionary:
-	var r: Dictionary = macro.roads[ri]
+	var r: Dictionary = _road_src[ri]
 	return {"hw": _road_hw[ri], "length": _road_len[ri], "bbox": _road_bbox[ri], "poles": float(r.get("poles", 0.0)),
 		"guard": r.get("guard", []), "pole_model": str(r.get("pole_model", ""))}
 
@@ -594,7 +634,7 @@ func road_count() -> int:
 
 
 func road_info(ri: int) -> Dictionary:
-	var r: Dictionary = macro.roads[ri]
+	var r: Dictionary = _road_src[ri]
 	return {"id": str(r["id"]), "name": _road_name[ri], "kind": str(r["kind"]), "hw": _road_hw[ri], "length": _road_len[ri],
 		"points": _road_pts[ri], "profile": _road_prof[ri]}
 
@@ -614,7 +654,11 @@ func pads_in(rect: Rect2) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	for i in _pad_c.size():
 		if rect.grow(_pad_reach[i]).has_point(_pad_c[i]):
-			out.append_array(PackedFloat32Array([_pad_c[i].x, _pad_c[i].y, _pad_r[i], _pad_hs[i].x, _pad_hs[i].y]))
+			var hs := _pad_hs[i]
+			var ro := _pad_rot[i]
+			if ro.y != 0.0:   # M6b oriented pad: its axis-aligned bounds (the scatter keeps a little more clear)
+				hs = Vector2(absf(ro.x) * hs.x + absf(ro.y) * hs.y, absf(ro.y) * hs.x + absf(ro.x) * hs.y)
+			out.append_array(PackedFloat32Array([_pad_c[i].x, _pad_c[i].y, _pad_r[i], hs.x, hs.y]))
 	return out
 
 

@@ -17,8 +17,23 @@
 # in-game zone steps run inside the smoke test) and the `discovery` scenario (group discovery across a restart) on both
 # stores. M6a: the kit street checks (headless), the street bench (citycut_probe + interior shadow, xvfb) and the
 # `street` scenario (replicated kit doors, late joiner).
+# C1: the city generator reproducible (tools/gen_city.gd --check), the C1 city checks (headless; they replace the C0
+# ones: the lot file is v1), the corte urbano probe at 10 seeded points of the four districts (xvfb), the `tower`
+# scenario (4 clients on 3 floors of a hero tower: doors, a container, the vertical interest filter ≥ 30 %), the urban
+# perf walk (--cpu --route=city at 15 m/s) and the city horde (perf_horde --city: 150 walkers + 300 statues).
+# M6b: the La Herrería checks (generator, stamps, residents, zones, built chunks; headless), the `village` scenario
+# (2 players in 2 houses: doors + containers coherent, the plan hash equal on the server and both clients) and the
+# village drive (perf walk --cpu --route=m6b: own frame p99 ≤ 16 ms, 0 frames > 33 ms caused by the village or by
+# streaming, the site builders ≤ 16 ms in any frame). The in-game village steps
+# (residents by land use, locked doors, the shop alarm, loot by use) run inside the smoke test.
 # S1: the audio unit test (event table, files, licences, budgets, voice budget; the in-game audio steps — listener,
 # gunfire at the muzzle, loops, ambience beds by place, 50-zombie voice budget — run inside the smoke test).
+# H3: the notify router unit test (P0–P3, precedence, queue, merge, cooldown, hazard stack), the `downed_coop`
+# coverage moment (≤ 3 %, gated like idle) and the `team` scenario (a danger ping on every client, B's down reaches A
+# ≤ 0.2 s after the server, the blizzard countdown); the in-game H3 steps (a simulated P0) run inside the smoke test.
+# G2b: the atmosphere checks (headless; LUTs reproducible with tools/make_luts.py --check) and the G2b bench (blizzard
+# vs day frame ratio in the city on lavapipe, LUT blend in the frame loop, compat vs Forward+ fog depth); --shots adds
+# the 8 hours × 3 weathers contact sheet (g2b_sheet).
 # On a shared machine pin it: taskset -c 0,1 tests/run_all.sh
 # Exit code != 0 if anything fails.
 set -uo pipefail
@@ -57,6 +72,10 @@ step "unit tests (H2: zone tracker — zigzag 0 changes, 12 m / 1.5 s, district 
 godot --headless --path . -s tests/unit/zone_tracker_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "ZONE TRACKER TEST FAILED"; status=1; }
 
+step "unit tests (H3: notify router — P0 in the world / on the vital, P1–P2 line, P3 pickup line, precedence after 1.2 s, back to the queue, queue of 6, merge, cooldown, co-op filter, zone crossing, P0 sound + caption, hazard stack)"
+godot --headless --path . -s tests/unit/notify_router_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "NOTIFY ROUTER TEST FAILED"; status=1; }
+
 step "unit tests (S1: audio — event table valid, every event the code plays has a stream or a documented silence, files load mono / stereo with sane length and peaks, licences, variations, ≤ 10.5 MB, voice budget / loops / layering in the AudioManager)"
 godot --headless --path . -s tests/unit/audio_test.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|== " | tail -n 5
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "AUDIO TEST FAILED"; status=1; }
@@ -76,9 +95,9 @@ else
   echo "xvfb-run not found: perf probe skipped"
 fi
 
-step "hud coverage (H1: idle HUD ≤ 3 % of 1920 × 1080, HUD layer only over black / white; xvfb + Compatibility)"
+step "hud coverage (H1: idle HUD ≤ 3 % of 1920 × 1080, HUD layer only over black / white; H3: downed_coop ≤ 3 % too; xvfb + Compatibility)"
 if command -v xvfb-run > /dev/null; then
-  if tests/run_hud_coverage.sh --moments=idle,action,zone,blizzard,info > /tmp/ventisca_hud_cov_all.log 2>&1; then
+  if tests/run_hud_coverage.sh --moments=idle,action,zone,blizzard,info,downed_coop > /tmp/ventisca_hud_cov_all.log 2>&1; then
     grep -E "^coverage |ok   |HUD COVERAGE" /tmp/ventisca_hud_cov_all.log
   else
     grep -E "^coverage |FAIL|SCRIPT ERROR|HUD COVERAGE" /tmp/ventisca_hud_cov_all.log | head -n 20; status=1
@@ -91,6 +110,22 @@ step "render checks (W0 + G2a: corte urbano maths, city building contract, POI c
 godot --headless --path . -s tests/render_checks.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== render checks" | tail -n 12
 [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "RENDER CHECKS FAILED"; status=1; }
 
+step "G2b checks (atmosphere: LUTs + CPU blend ≤ 0.1 ms / 0 at rest, grade weights, overcast, fog layers + volumetric policy, thaw, wind materials, sprites, beacons / smoke / flocks / cables; headless) + LUTs and sprites reproducible"
+godot --headless --path . -s tests/g2b_checks.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|info|== g2b checks" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "G2B CHECKS FAILED"; status=1; }
+python3 tools/make_luts.py --check || { echo "LUTS NOT REPRODUCIBLE"; status=1; }
+
+step "G2b bench (blizzard in the C0 city ≤ +25 % over the day, Forward+ on lavapipe; LUT step in the frame loop; compat keeps the fog depth of Forward+ ≥ 80 %; xvfb)"
+if command -v xvfb-run > /dev/null; then
+  if tests/run_g2b_bench.sh gate > /tmp/ventisca_g2b_all.log 2>&1; then
+    grep -E "city frame ms|ratio |  ok|depth compat|G2B BENCH" /tmp/ventisca_g2b_all.log
+  else
+    grep -E "FAIL|SCRIPT ERROR|city frame ms|ratio |depth compat|G2B BENCH" /tmp/ventisca_g2b_all.log | head -n 20; status=1
+  fi
+else
+  echo "xvfb-run not found: G2b bench skipped"
+fi
+
 step "city bench (W0 + G2a: player visible through the cut at 16-50 m, shadows kept, draw-call budgets; xvfb + Compatibility)"
 if command -v xvfb-run > /dev/null; then
   if tests/run_city_bench.sh gate > /tmp/ventisca_city_all.log 2>&1; then
@@ -102,9 +137,13 @@ else
   echo "xvfb-run not found: city bench skipped"
 fi
 
-step "C0 city (Escaparate de Altavega: lot file v0 + hashes, tower assembler, city chunks → CityBuilding / CityHlod, jam, bridge, mirador stair, silhouettes; headless)"
-godot --headless --path . -s tests/c0_city.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== [0-9]+ checks|info city step" | tail -n 12
-[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "C0 CITY FAILED"; status=1; }
+step "C1 city generator reproducible (tools/gen_city.gd --check rebuilds data/world/city/altavega_lots.json byte for byte)"
+godot --headless --path . -s tools/gen_city.gd ++ --check 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "check|SCRIPT ERROR|FAIL" | tail -n 3
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "CITY GENERATOR CHECK FAILED"; status=1; }
+
+step "C1 city (Altavega: lot file v1, districts / zone titles / street graph, families + city contract, streaming of the 4 districts, hero towers: stairs, doors, loot, roof, NavFloorTile + stair links, vertical filter, floor population, dressing digest, silhouettes, frozen statues; headless)"
+godot --headless --path . -s tests/c1_city.gd ++ --no-gen 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== [0-9]+ checks" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "C1 CITY FAILED"; status=1; }
 
 step "C0 corte urbano probe (5 fixed points of the superblock LT-01 at 24 / 38 m: player ≥ 99 %, all ≥ 95 % readable; xvfb + Compatibility)"
 if command -v xvfb-run > /dev/null; then
@@ -112,6 +151,12 @@ if command -v xvfb-run > /dev/null; then
     grep -E "^  (gran_via|west_street|back_street|plaza|mirador|overall)|CITYCUT" /tmp/ventisca_citycut_all.log
   else
     grep -E "FAIL|SCRIPT ERROR|CITYCUT|^  (gran_via|west_street|back_street|plaza|mirador|overall)" /tmp/ventisca_citycut_all.log | head -n 20; status=1
+  fi
+  step "C1 corte urbano probe (10 seeded sidewalk points of the 4 districts of Altavega at 24 / 38 m: player + zombies ≥ 95 % readable; xvfb + Compatibility)"
+  if tests/run_citycut_probe.sh --points=c1 > /tmp/ventisca_citycut_c1_all.log 2>&1; then
+    grep -E "^  (casco|ensanche|barriada|las_torres|overall)|CITYCUT" /tmp/ventisca_citycut_c1_all.log
+  else
+    grep -E "FAIL|SCRIPT ERROR|CITYCUT|^  (casco|ensanche|barriada|las_torres|overall)" /tmp/ventisca_citycut_c1_all.log | head -n 30; status=1
   fi
   step "C0 perf probe altavega_c0 (day + night: ≤ 700 draw calls in Compatibility; RENDER=forward: ≤ 1 000)"
   for h in 11 22.5; do
@@ -145,6 +190,10 @@ if command -v xvfb-run > /dev/null; then
 else
   echo "xvfb-run not found: street bench skipped"
 fi
+
+step "M6b checks (La Herrería: 15–20 buildings / ≥ 6 enterable, OBB lots 400–900 m², plan hash, level pads, residents by land use, zones, built chunks; headless)"
+godot --headless --path . -s tests/m6b_checks.gd 2>&1 | grep -v -E "ALSA lib|pulse|XDG_RUNTIME|libudev|udev" | grep -E "FAIL|SCRIPT ERROR|== m6b checks" | tail -n 12
+[ "${PIPESTATUS[0]}" -eq 0 ] || { echo "M6B CHECKS FAILED"; status=1; }
 
 step "net test (M1: 1 headless server + 4 headless clients, soak 90 s)"
 if tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90 > /tmp/ventisca_net_all.log 2>&1; then
@@ -206,11 +255,35 @@ else
   grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_street_all.log | cut -c1-220 | head -n 30; status=1
 fi
 
+step "net test village (M6b: A and B in two La Herrería houses open their doors and containers; each sees the other's door and finds the other's container as it was left; plan hash equal on the server and both clients)"
+if NET_TEST_OUT=/tmp/ventisca_net_village tests/net/run_net_test.sh --clients 2 --duration 90 --soak 120 --scenario village --port 7917 > /tmp/ventisca_net_village_all.log 2>&1 \
+    && [ "$(grep -h '\[SETTLEMENT\] plans\|\[SETTLEMENT\] client plans' /tmp/ventisca_net_village/*.log | grep -o 'plans [0-9a-f]*' | sort -u | wc -l)" = "1" ]; then
+  grep -E "RESULT|NET TEST" /tmp/ventisca_net_village_all.log | cut -c1-220
+  grep -h "\[SETTLEMENT\] plans" /tmp/ventisca_net_village/server.log | head -n 1
+else
+  grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_village_all.log | cut -c1-220 | head -n 30
+  grep -h "SETTLEMENT\] .*plans" /tmp/ventisca_net_village/*.log | head -n 4; status=1
+fi
+
 step "net test interest (replicated nodes spawned / moved outside a peer's chunk interest — late joiner, 3 jumps in and out, a wolf on one side only: no 'Ignoring delta' on any client)"
 if NET_TEST_OUT=/tmp/ventisca_net_interest tests/net/run_net_test.sh --clients 2 --duration 40 --soak 60 --scenario interest --port 7887 > /tmp/ventisca_net_interest_all.log 2>&1; then
   grep -E "RESULT|NET TEST" /tmp/ventisca_net_interest_all.log | cut -c1-220
 else
   grep -E "RESULT|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_interest_all.log | cut -c1-220 | head -n 30; status=1
+fi
+
+step "net test team (H3: 4 clients, a horde around — a danger ping on every client, B's down reaches A ≤ 0.2 s after the server with the one indicator + ui_mate_down, the P0 ends on revive, the blizzard warning's countdown everywhere)"
+if NET_TEST_OUT=/tmp/ventisca_net_team tests/net/run_net_test.sh --clients 4 --duration 55 --soak 75 --scenario team --port 7897 > /tmp/ventisca_net_team_all.log 2>&1; then
+  grep -E "RESULT|A: B down|NET TEST" /tmp/ventisca_net_team_all.log | cut -c1-240
+else
+  grep -E "RESULT|A: B down|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_team_all.log | cut -c1-240 | head -n 30; status=1
+fi
+
+step "net test tower (C1: 4 clients on floors 2, 2, 3 and 8 of the Edificio Meridiano — stair doors and a desk container coherent everywhere; the vertical interest filter cuts the zombie downstream ≥ 30 % for every client)"
+if NET_TEST_OUT=/tmp/ventisca_net_tower tests/net/run_net_test.sh --clients 4 --duration 240 --soak 260 --scenario tower --port 7927 > /tmp/ventisca_net_tower_all.log 2>&1; then
+  grep -E "RESULT|zombie downstream|NET TEST" /tmp/ventisca_net_tower_all.log /tmp/ventisca_net_tower/client_*.log | cut -c1-240
+else
+  grep -E "RESULT|zombie downstream|!!|FAIL|SCRIPT ERROR|NET TEST" /tmp/ventisca_net_tower_all.log /tmp/ventisca_net_tower/client_*.log | cut -c1-240 | head -n 30; status=1
 fi
 
 step "determinism (M3 + W1: 60 chunks in the 4 quadrants, server path vs client path, two processes)"
@@ -246,11 +319,32 @@ else
   grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_c0_all.log | head -n 20; status=1
 fi
 
+step "perf walk --cpu C1 (the urban walk: Carretera del Puerto → Gran Vía → Puente de Hierro → Las Torres → two manzanas of the ensanche, 15 m/s; streaming work p99 ≤ 2 ms, 0 hitches)"
+if tests/run_perf_walk.sh --cpu --route=city --speed=15 --out=tests/perf/walk_cpu_city.json > /tmp/ventisca_walk_city_all.log 2>&1; then
+  grep -E "streaming work|frames over|chunks  |memory  |PERF WALK" /tmp/ventisca_walk_city_all.log
+else
+  grep -E "frame ms|streaming ms|chunks  |memory  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_city_all.log | head -n 20; status=1
+fi
+
+step "perf walk --cpu M6b (the La Herrería drive at 25 m/s: the Valdenieve road, the Calle Mayor, the sawmill lane and yard, the branches; own frame p99 ≤ 16 ms, 0 frames > 33 ms caused by the village / streaming)"
+if tests/run_perf_walk.sh --cpu --route=m6b --out=tests/perf/walk_cpu_m6b.json > /tmp/ventisca_walk_m6b_all.log 2>&1; then
+  grep -E "frame ms|streaming work|chunks  |memory  |village  |ok   frame_own|ok   frames_over_33ms|ok   village|PERF WALK" /tmp/ventisca_walk_m6b_all.log | cut -c1-260
+else
+  grep -E "frame ms|streaming ms|chunks  |memory  |village  |FAIL|SCRIPT ERROR|PERF WALK" /tmp/ventisca_walk_m6b_all.log | cut -c1-400 | head -n 20; status=1
+fi
+
 step "perf horde (M4: dedicated server, 4 bots, 200 zombies: median busy tick ≤ 8 ms, p99 reported)"
 if tests/run_perf_horde.sh > /tmp/ventisca_horde_all.log 2>&1; then
   grep -E "tick ms|zombies |net |routes |PERF HORDE" /tmp/ventisca_horde_all.log
 else
   grep -E "tick ms|FAIL|SCRIPT ERROR|PERF HORDE" /tmp/ventisca_horde_all.log | head -n 20; status=1
+fi
+
+step "perf horde city (C1: 4 bots in Las Torres, 150 walkers off the building footprints + 300 frozen statues, the city streamed on the server: median busy tick ≤ 8 ms)"
+if tests/run_perf_horde.sh --city --port=7937 --out=tests/perf/horde_city.json > /tmp/ventisca_horde_city_all.log 2>&1; then
+  grep -E "tick ms|zombies |net |routes |PERF HORDE" /tmp/ventisca_horde_city_all.log
+else
+  grep -E "tick ms|FAIL|SCRIPT ERROR|PERF HORDE" /tmp/ventisca_horde_city_all.log | head -n 20; status=1
 fi
 
 if [ "$WALK_RENDER" -eq 1 ]; then
@@ -270,6 +364,7 @@ if [ "$SHOTS" -eq 1 ]; then
   step "screenshots"
   tests/run_screenshots.sh "${SHOTS_DIR:-/tmp/ventisca_shots}" > /tmp/ventisca_shots_all.log 2>&1 || status=1
   tests/run_city_bench.sh shots "${SHOTS_DIR:-/tmp/ventisca_shots}/city" >> /tmp/ventisca_shots_all.log 2>&1 || status=1
+  tests/run_screenshots.sh "${SHOTS_DIR:-/tmp/ventisca_shots}/g2b" g2b_sheet >> /tmp/ventisca_shots_all.log 2>&1 || status=1
   grep -E "screenshot .* ->" /tmp/ventisca_shots_all.log
 fi
 

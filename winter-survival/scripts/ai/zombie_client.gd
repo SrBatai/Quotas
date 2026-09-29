@@ -26,6 +26,8 @@ var world: World
 ## Test hooks.
 var packets: int = 0
 var snap_entries: int = 0
+## C1 (net scenario `tower`): zombie bytes received (snapshots + reliable records).
+var bytes_in: int = 0
 var events: Dictionary = {}       # event code -> count
 var died_ids: Dictionary = {}     # id -> true (every zombie seen dying)
 var fx_count: Dictionary = {}     # fx code -> count
@@ -108,6 +110,7 @@ func on_packet(bytes: PackedByteArray) -> void:
 	if bytes.is_empty():
 		return
 	packets += 1
+	bytes_in += bytes.size()
 	var now := Time.get_ticks_msec() / 1000.0
 	if bytes[0] == ZombieNet.PKT_ZSNAP:
 		var d := ZombieNet.decode_snapshot(bytes)

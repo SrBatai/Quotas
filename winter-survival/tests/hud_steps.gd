@@ -367,20 +367,19 @@ func _zones(hud: Hud) -> void:
 # ------------------------------------------------------------------ notifications: banner queue, feed merge
 func _notifications(hud: Hud) -> void:
 	var r := hud.router
-	r.queue.clear()
-	r.current = {}
+	r.clear_all()
 	r.push({"priority": 2, "key": "a", "body": "Aviso A", "seconds": 3.0})
 	advance(hud, 0.4)
 	var a_on: bool = r.current.get("key", "") == "a"
 	advance(hud, 1.0)
-	r.push({"priority": 0, "key": "p0", "body": "Urgente", "seconds": 2.0})
+	r.push({"priority": 0, "key": "p0", "body": "Urgente", "target": &"world", "seconds": 2.0})
 	advance(hud, 0.4)
-	var p0_on: bool = r.current.get("key", "") == "p0" and r.queue.size() == 1 and r.queue[0]["key"] == "a"
+	# H3: a P0 is never on the line — it takes the attention (the P2 yields and goes back to the queue)
+	var p0_on: bool = r.current.is_empty() and r.p0.has("p0") and r.queue.size() == 1 and r.queue[0]["key"] == "a"
 	for i in 9:
 		r.push({"priority": 2, "key": "k%d" % i, "body": "n%d" % i, "seconds": 1.0})
-	check(a_on and p0_on and r.queue.size() == UiTokens.NOTIFY_QUEUE, "banner: P0 pre-empts a P2 shown > 1.2 s (it goes back to the queue); queue capped at 6")
-	r.queue.clear()
-	r.current = {}
+	check(a_on and p0_on and r.queue.size() == UiTokens.NOTIFY_QUEUE, "line: a P0 (in the world, not on the line) pre-empts a P2 shown > 1.2 s (it goes back to the queue); queue capped at 6")
+	r.clear_all()
 	advance(hud, 0.5)
 	# legacy notices are classified
 	var before: Dictionary = r.counts.duplicate()
@@ -400,8 +399,7 @@ func _notifications(hud: Hud) -> void:
 	check(fd.lines.size() == 1 and fd.text_of(fd.lines[0]) == "Madera +3 (5)" and fd.merges >= 1, "pickups merge: «%s»" % (fd.text_of(fd.lines[0]) if not fd.lines.is_empty() else "-"))
 	advance(hud, 6.0)
 	check(fd.lines.is_empty(), "the side stack empties after its read time")
-	r.queue.clear()
-	r.current = {}
+	r.clear_all()
 	advance(hud, 1.0)
 
 
@@ -538,7 +536,7 @@ func _cpu(hud: Hud) -> void:
 	var nodes: Array = []
 	for n: Node in [hud, hud.vis, hud.team, hud.accent, hud.input, hud.world_layer, hud.mission_line, hud.mission_list,
 			hud.hazard, hud.vitals, hud.info_block, hud.feed, hud.zone_title, hud.banner, hud.hotbar, hud.downed,
-			hud.router, hud.zones, hud.map_screen, hud.map_screen.fog]:
+			hud.router, hud.zones, hud.map_screen, hud.map_screen.fog, hud.captions, hud.pings, hud.hit_dir, hud.ui_audio]:
 		if n.has_method("_process"):
 			nodes.append(n)
 	# a busy moment: vitals, the mission line, the edge marker and Info all on

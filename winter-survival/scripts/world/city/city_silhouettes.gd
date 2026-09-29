@@ -8,8 +8,9 @@ extends Node3D
 ## 70–95 m and it looks 30° down): only the miradores and the main menu turn this layer on (`visible`).
 ## Generated from the rules of the lot file (`silhouettes`: grids, block sizes, floors, landmarks) with the lot
 ## file's own seed — the same skyline in every world — and heights from the HeightFunction on a 64 m grid. The
-## geometry is built off the main thread (WorkerThreadPool) and uploaded when ready (`ready_meshes` signal); C1's
-## tools/gen_city.gd will bake these from the real lots instead.
+## geometry is built off the main thread (WorkerThreadPool) and uploaded when ready (`ready_meshes` signal). C1:
+## districts of kind `lots` are the real generated lots (CityLots: rotated footprints to their tops, the podiums,
+## the A1 towers and the hero towers), ≈ 3 000 boxes.
 
 signal built()
 
@@ -81,6 +82,12 @@ func _build_data() -> void:
 		var wall := Color(str(d.get("wall", "#707070")))
 		var roof := Color(str(d.get("roof", "#E0E4EA")))
 		var boxes: Array = []
+		if str(d["kind"]) == "lots":
+			# C1: the real lots of the generated district (rotated footprints extruded to their tops)
+			var nb := _lots(g, str(d.get("district", d["id"])), wall, roof)
+			boxes_total += nb
+			(res["districts"] as Array).append({"id": str(d["id"]), "solid": g.solid(), "glass": g.glass(), "boxes": nb, "tris": g.tris})
+			continue
 		match str(d["kind"]):
 			"towers":
 				boxes = _towers(d, seed_v)
@@ -348,6 +355,62 @@ func _slabs(d: Dictionary, seed_v: int) -> Array:
 	return out
 
 
+## C1: every generated lot of a district as an oriented box to its top (+ the podiums, towers and heroes of Las Torres).
+func _lots(g: _Geo, district: String, wall: Color, roof: Color) -> int:
+	var di := CityGen.DISTRICT_IDS.find(district)
+	var n := 0
+	var tint := {"casco": Color("#B89A78"), "ensanche": Color("#A99C88"), "bloque": Color("#8E6252"), "caseta": Color("#7E806E")}
+	for id in CityLots.building_ids():
+		var b := CityLots.building(int(id))
+		if int(b["district"]) != di:
+			continue
+		var q := CityLots.obb(b["pos"], b["size"], float(b["yaw"]))
+		var fam := str(b["fam"])
+		var top := BuildingAssembler.top(fam, int(b["var"]), int(b["floors"]))
+		g.obox(q, _base(_bounds(q)), top + 1.5, tint.get(fam, wall), roof, fam != "caseta")
+		n += 1
+	if district == "las_torres":
+		var fams := CityLots.families()
+		for p in CityLots.podiums():
+			var c := CityLots.v2(p["pos"])
+			var sz := CityLots.v2(p["size"])
+			var r := Rect2(c - sz * 0.5, sz)
+			var pb := _base(r)
+			g.box(r, pb, CityLots.podium_roof(p) + 2.5, Color("#7C848E"), roof, true)
+			n += 1
+		for t in CityLots.towers():
+			var pod := CityLots.podium(int(t["on"]))
+			if pod.is_empty():
+				continue
+			var fam: Dictionary = fams.get(str(t["family"]), {})
+			var c := CityLots.v2(t["pos"])
+			var ps := CityLots.v2(fam.get("proxy", [1500, 1500]))
+			if int(t.get("yaw", 0)) % 180 != 0:
+				ps = Vector2(ps.y, ps.x)
+			var r := Rect2(c - ps * 0.5, ps)
+			var pc := CityLots.v2(pod["pos"])
+			var ps2 := CityLots.v2(pod["size"])
+			var y0 := _base(Rect2(pc - ps2 * 0.5, ps2)) + 1.5 + CityLots.podium_roof(pod)
+			g.box(r, y0, CityLots.cm(fam.get("roof_z", 6000)) + CityLots.tower_shift(t), Color("#56606E"), roof, true)
+			n += 1
+		for h in CityLots.heroes():
+			var q := CityLots.obb(CityLots.v2(h["pos"]), CityLots.v2(h["size"]), float(h.get("yaw", 0.0)))
+			var hh := HeroTower.level(int(h["floors"]), CityLots.cm(h.get("ground_h", 430)), CityLots.cm(h.get("floor_h", 380))) + HeroTower.PARAPET
+			g.obox(q, _base(_bounds(q)), hh + 1.5, Color("#4E5968"), roof, true)
+			if str(h.get("crown", "")) == "helipad":
+				var c := CityLots.v2(h["pos"])
+				g.box(Rect2(c - Vector2(0.6, 0.6), Vector2(1.2, 1.2)), _base(_bounds(q)) + hh + 1.5, 16.0, Color("#B04030"), Color("#B04030"), false)
+			n += 1
+	return n
+
+
+static func _bounds(q: PackedVector2Array) -> Rect2:
+	var r := Rect2(q[0], Vector2.ZERO)
+	for p in q:
+		r = r.expand(p)
+	return r
+
+
 static func _hits(r: Rect2, list: Array[Rect2]) -> bool:
 	for e in list:
 		if e.intersects(r):
@@ -455,6 +518,27 @@ class _Geo:
 				tris += 2
 		# roof (snow)
 		_tri_quad(st, Vector3(c[0].x, y1, c[0].y), Vector3(c[3].x, y1, c[3].y), Vector3(c[2].x, y1, c[2].y), Vector3(c[1].x, y1, c[1].y), rl)
+		tris += 2
+
+	## An oriented box: the quad `q` (CityLots.obb order: NW, NE, SE, SW in the building frame) extruded from y0 by h.
+	func obox(q: PackedVector2Array, y0: float, h: float, wall: Color, roof: Color, glass: bool) -> void:
+		var y1 := y0 + h
+		var wl := wall.srgb_to_linear()
+		var rl := roof.srgb_to_linear()
+		var band := minf(y0 + 1.5 + FLOOR_BAND + 3.0, y1)
+		for k in 4:
+			var a: Vector2 = q[k]
+			var b: Vector2 = q[(k + 1) % 4]
+			if glass and h > 8.0:
+				_wall(st, a, b, y0, band, wl)
+				_wall(gl, a, b, band, y1 - 0.8, Color(0.2, 0.25, 0.3))
+				_wall(st, a, b, y1 - 0.8, y1, wl)
+				_n_glass += 2
+				tris += 6
+			else:
+				_wall(st, a, b, y0, y1, wl)
+				tris += 2
+		_tri_quad(st, Vector3(q[0].x, y1, q[0].y), Vector3(q[3].x, y1, q[3].y), Vector3(q[2].x, y1, q[2].y), Vector3(q[1].x, y1, q[1].y), rl)
 		tris += 2
 
 	## Outward wall a→b (the rect corners run NW → NE → SE → SW: the outside is to the left of a→b seen from above).

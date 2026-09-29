@@ -237,13 +237,15 @@ func teleport(args: PackedStringArray, from_peer: int) -> String:
 
 
 ## Server: moves a player (the chunks under the destination are built first). Returns the final position.
-static func teleport_player(p: Player, x: float, z: float) -> Vector3:
+static func teleport_player(p: Player, x: float, z: float, y: float = NAN) -> Vector3:
 	var world := p.get_tree().get_first_node_in_group("world") as World
 	var c := WorldConst.clamp_playable(x, z, 2.0)   # W1: per-axis walls (−1450 … +4420 m)
 	x = c.x
 	z = c.y
 	world.ensure_area(Vector3(x, 0.0, z), 1)
 	var pos := Vector3(x, world.get_height(x, z) + 0.3, z)
+	if not is_nan(y):
+		pos.y = y + 0.3   # C1: onto a floor of a building (the chunk is built by ensure_area: its colliders exist)
 	p.position = pos
 	p.net_position = pos
 	p.velocity = Vector3.ZERO

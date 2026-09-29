@@ -2,7 +2,8 @@ class_name InfoBlock
 extends Control
 ## Time, temperature and the group, top right (docs/research/10_hud_ux.md §V.3 "Hora y temperatura", §V.4.8,
 ## mockup v2_f): "Día 9 · 15:20 · anochece 20:00" / "−19 °C · sentida −12 °C", a 300 px hairline and, with Info,
-## the group on one line ("● Ana 84 m · ● Leo 212 m"); H2: with Info also where you are ("Las Torres · Altavega",
+## the group on one line ("● Ana 84 m · ● Leo 212 m"; H3: a skull and the seconds left for a downed one, a heart / a
+## thermometer for a hurt / cold one, from the replicated team block); H2: with Info also where you are ("Las Torres · Altavega",
 ## §V.4.4: the zone title fades with no handoff, the location is asked for with Info). Shows with Info, 4 s at dawn /
 ## dusk, and 4 s when the
 ## feels-like temperature moves ≥ 5 °C (element `clock`; the "Completo" preset keeps it). Right-aligned to the
@@ -101,14 +102,23 @@ func _draw() -> void:
 	var cb := bool(UiSettings.get_value("colorblind"))
 	for i in range(team.mates.size() - 1, -1, -1):
 		var m: Dictionary = team.mates[i]
+		var down := bool(m.get("downed", false))
 		var d := UiTokens.distance(float(m["dist"]))
+		if down:
+			d += " · %d s" % int(m.get("bleed", 0))   # H3: the downed one says how long she has left
 		var nm := str(m["name"])
 		var wd := UiStyle.text_width(&"text_num", d)
 		var wn := UiStyle.text_width(&"whisper", nm + " ")
 		x -= wd
-		UiStyle.draw_text(self, &"text_num", Vector2(x, 94.0 + gy), d, UiTokens.INK_70)
+		UiStyle.draw_text(self, &"text_num", Vector2(x, 94.0 + gy), d, UiTokens.ACCENT_TEXT if down else UiTokens.INK_70)
 		x -= wn
-		UiStyle.draw_text(self, &"whisper", Vector2(x, 94.0 + gy), nm + " ", UiTokens.INK)
+		UiStyle.draw_text(self, &"whisper", Vector2(x, 94.0 + gy), nm + " ", UiTokens.ACCENT_TEXT if down else UiTokens.INK)
+		# H3: the state before the name — skull (down, in the accent), heart (hurt < 25 %), thermometer (cold)
+		if down or bool(m.get("hurt", false)):
+			var ic := "skull" if down else ("thermo" if bool(m.get("cold", false)) else "heart")
+			var col := UiTokens.ACCENT if down else (UiTokens.COLD if ic == "thermo" else UiTokens.BLOOD)
+			x -= 16.0
+			Whisper.draw_icon(self, ic, Vector2(x + 6.0, 88.0 + gy), 14.0, col)
 		x -= 14.0
 		draw_circle(Vector2(x + 3.5, 88.0 + gy), UiTokens.PLAYER_DOT * 0.5 + 1.0, Color(0, 0, 0, 0.4))
 		draw_circle(Vector2(x + 3.5, 88.0 + gy), UiTokens.PLAYER_DOT * 0.5, UiTokens.player_color(int(m["color"]), cb))

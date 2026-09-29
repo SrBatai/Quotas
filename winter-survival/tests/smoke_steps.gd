@@ -483,6 +483,11 @@ func run(p_tree: SceneTree) -> void:
 	await (load("res://tests/h2_smoke_steps.gd").new()).run(self, tree, game, world, player)
 	# 20. S1 — audio: listener, gunfire at the muzzle, loops, ambience beds by place, zombie voice budget (tests/s1_audio_smoke_steps.gd)
 	await (load("res://tests/s1_audio_smoke_steps.gd").new()).run(self, tree, game, world, player)
+	# 21. H3 — notices, hazards and the group: a simulated P0 (a teammate down), the 60 s blizzard warning, pings,
+	# hit direction, the reticle / ammo hooks (tests/h3_smoke_steps.gd)
+	await (load("res://tests/h3_smoke_steps.gd").new()).run(self, tree, game, world, player)
+	# 22. M6b — La Herrería: built chunks, residents by land use, locked doors, the shop alarm, loot by use (tests/m6b_smoke_steps.gd)
+	await (load("res://tests/m6b_smoke_steps.gd").new()).run(self, tree, game, world, player)
 	print("== %d checks, %s" % [_checks, "FAILED" if _failed else "ALL PASSED"])
 	tree.quit(1 if _failed else 0)
 

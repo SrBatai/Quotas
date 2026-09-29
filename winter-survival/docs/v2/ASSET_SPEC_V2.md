@@ -1762,3 +1762,92 @@ una superficie `window`, AO horneada, presupuesto) y `_check_signs` (glifos y ta
 plantas; faltan `house_small_C`, `house_two_story_B`, `garage`, `barn`, `sawmill_shed`, `gas_station`,
 `house_hunter`, `a_frame`. 5. Ventanas sin versión rota / tapiada (`Wall_Broken_2`, `Wall_Boarded_2`, `Shutter`,
 `Planks`). 6. Muebles nuevos de §9 como cajas decorativas fusionadas (sin `Fridge` con puerta ni partes móviles).
+
+---
+
+## M6b — La Herrería: plantillas nuevas y props de pueblo (Opus)
+
+Arte de M6b (PLAN §7 M6b «Opus»): las plantillas del kit que faltaban para la aldea y sus POIs, y el juego de props de
+calle, gasolinera, granja y aserradero. Se regenera con `cd blender && python3 build_all.py --only m6b`
+(`kits/build_buildings.py` + `props/build_village_props.py`, y los verificadores).
+
+### M6b.1 Plantillas nuevas (`blender/kits/templates/*.json`, copia en `data/buildings/templates/`)
+
+| Plantilla | Huella | Plantas | Estilos | Tris | Qué es |
+|---|---|---|---|---|---|
+| `house_small_C` | 8 × 8 | 1, porche de 2 celdas, dos aguas 33° | `brick` / `wood_blue` | 13 814 / 13 972 | salón‑cocina delante, dormitorio y trastero detrás, puerta trasera |
+| `house_two_story_B` | 8 × 10 | 2, escalera recta al oeste | `brick` / `wood_blue` | 24 754 / 25 838 | la planta de `house_two_story_A` en espejo, tejado 40°, porche de 2 celdas (también casa de la granja) |
+| `garage` | 8 × 10 | 1, plano con peto | `brick` / `concrete` | 9 496 / 8 266 | taller mecánico: **portón** al sur, puerta lateral, oficina al fondo, rótulo en el peto |
+| `gas_station` | 10 × 8 | 1, plano con peto | `brick` / `concrete` | 10 494 / 9 388 | la tienda de la gasolinera: dos escaparates y la puerta al surtidor, almacén detrás |
+| `sawmill_shed` | 12 × 16 | 1, dos aguas 28° | `wood_blue` / `brick` | 15 490 / 16 108 | nave del aserradero: portones sur y norte, oficina en la esquina NO, rótulo en el hastial |
+| `barn` | 12 × 16 | 1, dos aguas 42° | `wood_red` | 13 982 | granero: portones sur y norte, guadarnés al fondo |
+
+Novedades del kit (`lib/kit.py`, aditivas): el hueco **`garage`** (portón de 3,0 × 2,6 m en un módulo de 4 m, lista
+`garages` de la plantilla como `shops`): **dos hojas** `Door_<n>` (extras `kind` = `garage`, `hinge` L / R, `width`
+1,52) con la bisagra en su jamba exterior, que se tocan en el centro sin rendija; y el estilo **`wood_red`** (tablilla
+roja de granero con molduras blancas). Presupuestos por plantilla (`budget`: 13 000–26 500). `verify_kits.py`: la losa
+del tejado de un edificio de **tejado plano** se busca desde puntos encerrados por el peto, no «cubiertos» (encima solo
+hay cielo; la tienda de M6a pasaba por el único punto de la rejilla bajo su caja de ventilación).
+
+### M6b.2 Props de pueblo (`res://assets/models/props/village/<id>.glb` + `.import` + `manifest.json`)
+
+Contrato de prop de A1, apto para MultiMesh: **un** nodo malla `Prop` (una superficie `palette_vcol`, sin hijos, sin
+anclas como nodos ni `Col*`), frente −Y Blender = +Z Godot, origen en el centro de la base a nivel de suelo (postes: la
+base del poste; enterrados hasta −0,2 m). Extras de `Prop` (coordenadas Godot): `family` = `village`, `kind`,
+`height`, `radius`, `col` (`box` | `cylinder`), `col_center`, `col_size` ([ancho, alto, fondo] o [diámetro, alto]),
+`cols` ([[centro, tamaño], …]: varias cajas que **sustituyen** a `col`, p. ej. las columnas de la marquesina) y
+`anchors` ({nombre: [x, y, z]}). Los tramos (vallas, barricadas, jersey) miden 2 m a lo largo de X (x −1 … +1) con su
+cara «de fuera» hacia +Z y se encadenan cada 2 m. Las farolas **no** llevan material emisivo: de noche las iluminan los
+halos y charcos de `VillageLights` (y luces reales en Forward+).
+
+| Prop | kind | Tris | Alto | Colisión | Anclas |
+|---|---|---|---|---|---|
+| `lamp_post` | lamp | 234 | 6,10 | cylinder [0,22, 6,0] | LightAnchor, LightPool |
+| `power_pole` | pole | 376 | 8,00 | cylinder [0,28, 8,0] | WireA, WireB (extremos de la cruceta: el código tiende los cables) |
+| `mailbox` | mailbox | 212 | 1,42 | box [0,3, 1,4, 0,55] | — |
+| `bench` | bench | 508 | 0,87 | box [1,9, 0,85, 0,52] | — |
+| `trash_can` | bin | 136 | 1,05 | cylinder [0,46, 1,0] | — |
+| `dumpster` | dumpster | 292 | 1,34 | box [1,45, 1,26, 1,1] | Loot (delante: contenedor de botín) |
+| `bus_stop` | bus_stop | 280 | 2,52 | 3 cajas (fondo y laterales) | Seat |
+| `hydrant` | hydrant | 192 | 0,83 | cylinder [0,34, 0,8] | — |
+| `fence_wood_2` / `fence_wire_2` / `fence_chain_2` | fence | 392 / 217 / 512 | 1,15 / 1,30 / 1,90 | box del tramo | — |
+| `barricade_wood` / `_sandbags` / `_wire` / `_jersey` | barricade | 336 / 1 040 / 694 / 280 | 1,14 / 0,68 / 0,92 / 0,84 | box del tramo | — |
+| `tire_stack`, `pallet`, `crate`, `barrel`, `shopping_cart` | — | 496, 336, 240, 162, 584 | 0,85, 0,17, 0,82, 0,94, 1,08 | box / cylinder | — |
+| `fuel_pump` | pump | 454 | 2,11 | box [1,0, 2,05, 0,5] | — |
+| `gas_sign` | gas_sign | 416 | 7,28 | 2 cajas (postes) | — |
+| `gas_canopy` | canopy | 1 136 | 5,54 | 4 cajas (columnas) | LightAnchor |
+| `silo` | silo | 1 212 | 13,10 | cylinder [5,4, 11,0] | — |
+| `tractor` | tractor | 1 012 | 2,77 | box [2,3, 2,6, 3,8] | — |
+| `hay_bale`, `hay_round` | hay | 168, 288 | 0,77, 1,52 | box | — |
+| `sawmill_saw` | saw | 800 | 3,50 | 8 cajas (línea, cabezal, postes del tejadillo) | — |
+| `log_pile`, `lumber_stack` | logs / lumber | 912, 564 | 1,53, 0,51 | box | — |
+
+Presupuestos (`props/build_village_props.py::BUDGETS`): mobiliario de calle ≤ 700 tris (§13 decía 20–300 en v2.0; con
+nieve y AO de v2.1, como los props de A1 de 160–1 400), barricada de sacos 1 100, marquesina 1 400, silo 1 500,
+tractor 1 800, línea de sierra 1 600. Los **restos de coche** son los de A1 (`city/vehicles/<modelo>_<variante>`:
+sedán, furgoneta, pick‑up, SUV, taxi, camión de caja; variantes `snowed` / `crashed` / `doors` / `burnt`) con el
+contenedor de botín en su ancla `Loot`: no se modelan de nuevo.
+
+### M6b.3 Verificación
+
+- `verify_assets.py --only props/village/`: **ALL OK** (30): un solo objeto `Prop`, una superficie, extras (familia,
+  altura = cima, `col` / `col_size` / `col_center` dentro del asset, `cols`, anclas dentro), la entrada del manifiesto
+  igual a los extras y a los tris, el alto esperado de `M6B_PROPS`, sin caras traseras visibles desde la cámara del
+  juego, AO horneada, paleta.
+- `verify_kits.py house_small_C house_two_story_B garage gas_station sawmill_shed barn` (+ `shop_general` tras el
+  cambio de la prueba de losa): **ALL OK** (13): cerrado / losa / corte dentro de la huella por planta, proxy y
+  metadatos, portones, anclas de cartel, caras traseras por planta, presupuesto de la plantilla.
+- Godot 4.7.2 en un proyecto de trabajo (`scratchpad/art_proj_m6b`): importación sin `ERROR`, `tests/inspect_models.gd`
+  (+ `_check_village`: un `Prop`, una superficie, extras, anclas `LightAnchor` / `WireA` / `Loot`, manifiesto):
+  **304 assets ALL OK**.
+
+### M6b.4 Desviaciones y pendiente
+
+1. `gas_station` es solo la tienda (10 × 8); la **marquesina** (12 × 8) es el prop `gas_canopy` que el POI coloca
+   delante (§8.5 la juntaba con la tienda: así la tienda cumple el contrato de corte y la marquesina es un solo draw
+   call). 2. `sawmill_shed` mide 12 × 16 (§8.5: 10 × 12) para que quepan dos portones y la oficina. 3. `barn` solo en
+   `wood_red`. 4. No se entregan `house_hunter` ni `a_frame` (la cabaña del claro sigue siendo la del slice: su
+   sustitución toca los tests del claro y no la pide la ficha de M6b; queda para M9a) ni `farmhouse` / `workshop` /
+   `bar` / `cabin_small` de §8.5 M6b: la granja usa `house_two_story_B`, el bar es `shop_general` con otro rótulo y
+   otras tablas de botín, el taller es `garage`. 5. Sin versión «ruina» ni ventanas tapiadas (M6a.6). 6. Señales de
+   stop / ceda: las de A1 (`city/props/sign_stop`); placas de calle y S‑500 de M6a.

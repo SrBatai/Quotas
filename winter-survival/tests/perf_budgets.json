@@ -72,6 +72,43 @@
     "missing_ground_frames_max": 0,
     "rss_mb_max": 2560
   },
+  "perf_walk_cpu_city": {
+    "_doc": "C1 (PLAN C1 perf_walk urbano): tests/perf_walk.gd --cpu --route=city --speed=15 — the Carretera del Puerto, the Gran Vía between the casco viejo and the barriada, the Puente de Hierro, Las Torres and two manzanas of the ensanche (2.3 km at 15 m/s) with the C1 lots (families built from cached arrays, hero towers set up over several frames). Same streaming gates as perf_walk_cpu (work time with the scheduler probe).",
+    "stream_ms_p99_max": 2.0,
+    "stream_ms_p999_max": 2.5,
+    "frames_over_stream_budget_pct_max": 1.5,
+    "stream_ms_max": 8.0,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
+  "perf_walk_city": {
+    "_doc": "C1: tests/perf_walk.gd render mode --route=city --speed=15 (RENDER=forward for the Forward+ numbers). PLAN C1: <= 1000 draw calls typical (median), no frame over 33 ms caused by streaming, p99 <= 16 ms on real hardware (a software GPU makes every frame slow: the frame p99 is reported, not gated here).",
+    "draw_calls_p50_max": 1000,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
+  "perf_walk_cpu_m6b": {
+    "_doc": "M6b (PLAN §7 M6b perf_drive): tests/perf_walk.gd --cpu --route=m6b — the village drive at 25 m/s built from the seed's plan (Settlements): off the Valdenieve road into the Calle Mayor of La Herrería to its end, back, down the sawmill lane into the Aserradero yard and back, the Calle de la Fragua when drawn (~0.9 km). Headless with the client's visual path (KitBuildings, props, cars, lamps) forced on. The streaming gates of perf_walk_cpu plus the whole frame: frame_own = wall − the main thread's run-queue wait (SchedProbe; the dedicated test boxes are shared, ARQ v2 §8.10): p99 <= 16 ms; village_ms = the SettlementChunk builders' work in a frame (wall − run-queue wait, like stream_work) (one budget of 2.5 ms or one building per frame over all the site chunks): max <= 16 ms; frames_over_33ms_village = own-time hitches the site builders caused (not a hitch without them, or > 25 % of it): 0. frames_over_33ms_own is reported (the OS / page faults on a loaded box make isolated stalls outside the game's work).",
+    "stream_ms_p99_max": 2.0,
+    "stream_ms_p999_max": 2.5,
+    "frames_over_stream_budget_pct_max": 1.5,
+    "stream_ms_max": 8.0,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560,
+    "frame_own_ms_p99_max": 16.0,
+    "village_ms_max": 16.0,
+    "frames_over_33ms_village_max": 0
+  },
+  "perf_walk_m6b": {
+    "_doc": "M6b: tests/perf_walk.gd render mode --route=m6b (RENDER=forward for the Forward+ numbers, alto). PLAN M6b: <= 800 draw calls typical (median) driving through the village; missing ground 0. A software GPU makes every frame slow: the frame p99 is reported, not gated here (the CPU side is gated by perf_walk_cpu_m6b).",
+    "draw_calls_p50_max": 800,
+    "frames_over_33ms_streaming_max": 0,
+    "missing_ground_frames_max": 0,
+    "rss_mb_max": 2560
+  },
   "perf_horde": {
     "_doc": "tests/perf_horde.gd (PLAN M4, R1, ARQ v2 §16.6): headless dedicated server, 4 bot players walking and swinging around the clearing, 200 zombies (L0 bodies + L1), director/residents off. tick = the server's busy time per physics tick (probe at the first _physics_process to probe at the last _process: scripts + Jolt step + navigation + idle), NOT the engine's TIME_*_PROCESS monitors (those are the max over the last second). Gated: median <= 8 ms; p99, the ZombieSystem / ZombieNet shares and the bench bandwidth per bot are reported.",
     "tick_ms_p50_max": 8.0

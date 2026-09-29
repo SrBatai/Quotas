@@ -7,13 +7,15 @@ extends SceneTree
 ## Deterministic: fixed clock, no weather / snowfall particles, physics of the player off, the camera placed on its
 ## follow target (no easing), static stand-ins.
 ##   xvfb-run -a godot --path . --rendering-method gl_compatibility -s tests/citycut_probe.gd ++ [--json=path] [--shots=dir]
+## C1: ++ --points=c1 [--seed=1337] — 10 seeded sidewalk points of the four districts of Altavega (PLAN C1): gate =
+## player + zombies ≥ 95 % readable overall; views with the player under 99 % visible are reported.
 ## (tests/run_citycut_probe.sh). Exit code 0 = pass.
 
 var _body: RefCounted
 
 
 func _initialize() -> void:
-	var opts := {"json": "", "shots": ""}
+	var opts := {"json": "", "shots": "", "points": "c0", "seed": "1337"}   # C1: --points=c1 [--seed=n]
 	for a in OS.get_cmdline_user_args():
 		for k in opts.keys():
 			if a.begins_with("--%s=" % k):

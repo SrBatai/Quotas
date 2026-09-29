@@ -76,6 +76,7 @@ IWALL_T = 0.12
 DOOR_W, DOOR_H = 1.0, 2.2
 WIN_W, WIN_H, SILL = 1.2, 1.2, 0.9
 SHOP_W, SHOP_H, SHOP_SILL = 3.2, 2.2, 0.35
+GARAGE_W, GARAGE_H = 3.0, 2.6    # M6b: portón (two swinging leaves) on a 4 m module
 STUB_H = 0.6
 RISERS = 17
 RISE = STOREY / RISERS
@@ -110,6 +111,13 @@ STYLES = {
                    floor="wood_light", floor_seam="wood", chimney="brick_dark", chimney_band="concrete",
                    gable="brick", porch="wood_dark", post="paint_white", course="brick_dark", band="concrete",
                    parapet="brick", coping="concrete"),
+    # M6b: barn red lap siding with white trims (barn, farm sheds)
+    "wood_red": Style("wood_red", finish="lap", wall="paint_red", trim="paint_white", interior="wood_light",
+                      wainscot="wood", found="stone", found_top="stone_dark", roof="roof", seam="roof_seam",
+                      roof_pattern="seams", fascia="paint_white", door="paint_red", door_panel="wood_dark",
+                      frame="paint_white", floor="wood", floor_seam="wood_dark", chimney="brick",
+                      chimney_band="stone_dark", gable="lap", porch="wood", post="paint_white", band="paint_white",
+                      parapet="paint_red", coping="paint_white", course="brick_dark"),
     "concrete": Style("concrete", finish="panel", wall="concrete", trim="concrete_dark", interior="plaster",
                       wainscot="wood", found="concrete_dark", found_top="concrete_dark", roof="roof",
                       seam="roof_seam", roof_pattern="tiles", fascia="concrete_dark", door="metal_blue",
@@ -206,6 +214,8 @@ def opening_of(kind, a, b, z0):
         return (c - DOOR_W / 2, c + DOOR_W / 2, z0, z0 + DOOR_H)
     if kind == "shop":
         return (c - SHOP_W / 2, c + SHOP_W / 2, z0 + SHOP_SILL, z0 + SHOP_SILL + SHOP_H)
+    if kind == "garage":
+        return (c - GARAGE_W / 2, c + GARAGE_W / 2, z0, z0 + GARAGE_H)
     return None
 
 
@@ -1343,6 +1353,11 @@ def _openings(tpl, d, k=0):
             ci = sp["pos"][0] if d in "SN" else sp["pos"][1]
             out[ci] = ("shop", sp)
             out[ci + 1] = ("shop+", sp)
+    for sp in tpl.get("garages", []):                         # M6b: portón, two leaves on a 4 m module
+        if sp["dir"] == d and sp.get("floor", 0) == k:
+            ci = sp["pos"][0] if d in "SN" else sp["pos"][1]
+            out[ci] = ("garage", sp)
+            out[ci + 1] = ("garage+", sp)
     return out
 
 
@@ -1468,7 +1483,7 @@ def build(tpl, style_name):
                 a, b = fac.cells[ci]
                 kind, spec = ops.get(ci, ("wall", None))
                 span = 1
-                if kind == "shop":
+                if kind in ("shop", "garage"):
                     span = 2
                     b = fac.cells[ci + 1][1]
                 if d in "SN":
@@ -1489,8 +1504,17 @@ def build(tpl, style_name):
                 solid.append((a, b, hole, kind))
                 if kind == "door":
                     door_specs.append((fac, hole, spec))
+                elif kind == "garage":
+                    # two leaves, each hinged at its outer jamb ("L" / "R" seen from outside)
+                    right = (-fac.n).cross(Vector((0, 0, 1)))
+                    left_is_u0 = right.dot(fac.udir) > 0
+                    cm = (hole[0] + hole[1]) / 2
+                    # (the halves overlap 2 cm past the middle so the two closed leaves meet without a slit)
+                    for hh, at_u0 in (((hole[0], cm + 0.02, hole[2], hole[3]), True), ((cm - 0.02, hole[1], hole[2], hole[3]), False)):
+                        hinge = "L" if at_u0 == left_is_u0 else "R"
+                        door_specs.append((fac, hh, dict(spec, kind="garage", exterior=True, hinge=hinge)))
                 ci += span
-            door_holes = [h for (_a, _b, h, kd) in solid if kd == "door"]
+            door_holes = [h for (_a, _b, h, kd) in solid if kd in ("door", "garage")]
             facade_bands(fac, walls[d], s, door_holes, stub=False)
             facade_bands(fac, stubs[d], s, door_holes, stub=True)
             if d in "SN":
@@ -1711,7 +1735,7 @@ def _wall(ctx, fac, g, a, b, kind, hole, stub, seed):
     slab_boxes(fac, g.flat, a, b, z0, zt, cut, s)
     holes = []
     if cut is not None:
-        m = 0.12 if kind in ("door", "shop") else (0.1 if s.finish == "lap" else 0.12)
+        m = 0.12 if kind in ("door", "shop", "garage") else (0.1 if s.finish == "lap" else 0.12)
         if kind == "shop":
             m = 0.18
         holes = [(cut[0] - m, cut[1] + m, cut[2] - (0.25 if kind == "window" else (0.1 if kind == "shop" else 0.0)),
@@ -1719,12 +1743,12 @@ def _wall(ctx, fac, g, a, b, kind, hole, stub, seed):
     finish(fac, g, a, b, z0, zt, holes, s, ctx.rnd, stub=stub)
     if stub:
         stub_cap(fac, g, a, b, zt, s, cut)
-        if kind == "door":
+        if kind in ("door", "garage"):
             door_trim_stub(fac, g, hole, s, zt)
         return
     if kind == "window":
         window_trim(fac, g, hole, s, seed, ctx.panes, g.name, fac.k)
-    elif kind == "door":
+    elif kind in ("door", "garage"):
         door_trim(fac, g, hole, s, seed)
     elif kind == "shop":
         shop_trim(fac, g, hole, s, seed, ctx.panes, g.name, fac.k)

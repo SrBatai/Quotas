@@ -37,6 +37,9 @@ var doors: Array[KitDoor] = []
 var containers: int = 0
 var floors: int = 1
 var built: bool = false
+## M6b (settlements): {"use", "locked" (exterior doors locked: a non-enterable house), "alarm" (exterior doors may
+## ring: KitDoor.alarm_roll), "tables" (loot tables by use: LootSpawns.attach remap)}. Set before entering the tree.
+var opts: Dictionary = {}
 
 
 static func wid_for(p_seed: int, street_id: String, index: int) -> int:
@@ -111,6 +114,10 @@ func _doors(wid: int) -> void:
 	for i in leaves.size():
 		var d := KitDoor.new()
 		d.setup(leaves[i], KitDoor.wid_for(seed_v, wid, i))
+		if d.exterior and bool(opts.get("locked", false)):
+			d.locked = true
+		if d.exterior and bool(opts.get("alarm", false)):
+			d.alarm_armed = KitDoor.alarm_roll(int(d.get_meta("wid", 0)))
 		model.add_child(d)
 		doors.append(d)
 
@@ -139,7 +146,7 @@ func _windows() -> void:
 ## Loot containers of the spawns (LootSpawns: same wids on every peer), each under the Interior<k> of its storey.
 func _loot(wid: int) -> void:
 	var before := get_child_count()
-	containers = LootSpawns.attach(self, model, wid, seed_v)
+	containers = LootSpawns.attach(self, model, wid, seed_v, opts.get("tables", {}))
 	var made: Array[Node] = []
 	for i in range(before, get_child_count()):
 		made.append(get_child(i))
@@ -150,6 +157,9 @@ func _loot(wid: int) -> void:
 		var interior := model.get_node_or_null("Interior%d" % k)
 		if interior != null:
 			c.reparent(interior, true)
+			# M6b fix: leaving the tree on the reparent dropped its wid from the registry (WorldRegistry.register
+			# erases on tree_exited): the server then refused to open it («no_existe»)
+			WorldRegistry.register(c)
 
 
 ## Signs of the Spawn_Sign_<n> anchors: house number / shop name boards, parented to their cut group.

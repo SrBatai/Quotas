@@ -279,3 +279,15 @@ city_power_rect={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
+thaw_a={
+"type": "mat4",
+"value": Projection(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+thaw_b={
+"type": "mat4",
+"value": Projection(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+}
+thaw_info={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}

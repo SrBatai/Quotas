@@ -18,6 +18,8 @@ const VALLEY_LIMIT := 1152.0
 ## its stamp (3.5 m half width + 7 m shoulders) and scatter clearance reach chunks 34…41 of row 18, and the pass
 ## cutting of the macro map (tools/gen_macro_map.gd PASS_*, from x = 960 m) the three chunks beside its last
 ## valley stretch. [cx, cz]
+## M6b: margin (m) around the sites' bounds (pad blend 5–10 m + street shoulders).
+const M6B_MARGIN := 12.0
 const PUERTO_CHUNKS := [[34, 18], [35, 18], [36, 18], [37, 18], [38, 18], [39, 18], [40, 18], [41, 18],
 	[40, 17], [41, 17], [41, 19]]
 
@@ -122,6 +124,14 @@ func run(p_tree: SceneTree) -> void:
 	var allowed := {}
 	for p in PUERTO_CHUNKS:
 		allowed["%d,%d" % [int(p[0]), int(p[1])]] = true
+	# M6b: the chunks of La Herrería, the sawmill, the Gasolinera Norte and the Granja del Molino — their closed bounds in
+	# data/buildings/{settlements,pois}/*.json (+ M6B_MARGIN of pad blend / road shoulder; tests/m6b_checks.gd checks
+	# every stamp lies inside them): the only other valley chunks allowed to change (terrain stamps, scatter kept off)
+	for rb in Settlements.all_bounds():
+		var g := rb.grow(M6B_MARGIN)
+		for cz2 in range(WorldConst.chunk_of(g.position.y), WorldConst.chunk_of(g.end.y) + 1):
+			for cx2 in range(WorldConst.chunk_of(g.position.x), WorldConst.chunk_of(g.end.x) + 1):
+				allowed["%d,%d" % [cx2, cz2]] = true
 	var bad: Array[String] = []
 	var changed_allowed: Array[String] = []
 	var raw_only := 0
@@ -147,7 +157,7 @@ func run(p_tree: SceneTree) -> void:
 			continue
 		bad.append("%s changed (%s; entries %d -> %d)" % [k, ",".join(diff), int(b["n"]), int(a["n"])])
 	var unchanged_allowed := allowed.size() - changed_allowed.size()
-	print("valley unchanged: %d chunks (%d..%d), %d identical, %d on the Carretera del Puerto list changed (%d listed, %d of them unchanged), %d raw-bit only (tolerant), %d FAILED (%d ms)" % [
+	print("valley unchanged: %d chunks (%d..%d), %d identical, %d on the allowed lists changed (Carretera del Puerto + M6b sites: %d listed, %d of them unchanged), %d raw-bit only (tolerant), %d FAILED (%d ms)" % [
 		got.size(), r.x, r.y, same, changed_allowed.size(), allowed.size(), unchanged_allowed, raw_only, bad.size(), Time.get_ticks_msec() - t0])
 	for s in bad.slice(0, 40):
 		print("  FAIL: " + s)

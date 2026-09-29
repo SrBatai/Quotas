@@ -74,9 +74,10 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	WorldState.instance.set_time(2, 11.0)
 	WorldState.instance.running = false
 	var pm: PlayerManager = game.get_node("PlayerManager")
+	_city = bool(opts.get("city", false))
 	for k in BOTS.size():
 		var b := pm.spawn_player(1001 + k, "bot%d" % (k + 1), "perfbot%d" % k)
-		var p: Vector3 = BOTS[k]
+		var p: Vector3 = BOTS[k] + (CITY_CENTRE if _city else Vector3.ZERO)
 		p.y = world.get_height(p.x, p.z) + 0.2
 		b.position = p
 		b.net_position = p
@@ -94,7 +95,12 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		await tree.process_frame
 		waited += 1
 	var n := int(opts["zombies"])
+	if _city and not opts.has("zombies_set"):
+		n = mini(n, 150)
 	_fill(sys, n)
+	if _city:
+		_statues(sys, int(opts.get("statues", 300)))
+		n += int(opts.get("statues", 300))
 	print("== perf horde: %d zombies, %d bots, navmesh regions %d (bake max %d ms)" % [sys.count_alive(), bots.size(), sys.nav.regions.size(), int(sys.nav.stats["bake_usec_max"]) / 1000])
 	tree.physics_frame.connect(_on_physics)
 	var first := Probe.new()
@@ -217,9 +223,49 @@ func _on_physics() -> void:
 		_net_us.append(float(ZombieNet.instance.stats["usec"]))
 
 
-## Keeps `n` zombies alive around the clearing (8–70 m from the bots' centre).
+## C1: the city bench's centre (the Gran Vía between LT-01 and Torre Albo) and its statues (frozen records).
+const CITY_CENTRE := Vector3(2690.0, 0.0, -384.0)
+var _city: bool = false
+var _n_statues: int = 0
+
+
+## 300 frozen records 20–110 m around the bots, off the building footprints (no body, no thought: statues).
+func _statues(sys: ZombieSystem, count: int) -> void:
+	var made := 0
+	var tries := 0
+	while made < count and tries < count * 8:
+		tries += 1
+		var a := WorldConst.unit(WorldConst.hash64(4242, tries, 1)) * TAU
+		var r := 20.0 + WorldConst.unit(WorldConst.hash64(4242, tries, 2)) * 90.0
+		var p := CITY_CENTRE + Vector3(cos(a) * r, 0.0, sin(a) * r)
+		if CityLots.occupied(p.x, p.z, 0.8):
+			continue
+		var i := sys.spawn(ZombieKinds.Kind.FROZEN, p, a, ZombieKinds.State.FROZEN)
+		if i >= 0:
+			sys.chunk[i] = -2
+			made += 1
+	_n_statues = made
+
+
+## Keeps `n` zombies alive around the clearing (8–70 m from the bots' centre); C1 city mode: around the Gran Vía
+## bench (6–34 m: inside the L0 radius of the bots), off the building footprints.
 func _fill(sys: ZombieSystem, n: int) -> void:
-	var missing := n - sys.count_alive()
+	var missing := n + _n_statues - sys.count_alive()
+	if _city:
+		var tries := 0
+		while missing > 0 and tries < 400:
+			tries += 1
+			# within the L0 radius (40 m) of the bots: the city horde is 150 BODIES (L0), not L1 records
+			var a := randf() * TAU
+			var r := 6.0 + randf() * 28.0
+			var p := CITY_CENTRE + Vector3(cos(a) * r, 0.0, sin(a) * r)
+			if CityLots.occupied(p.x, p.z, 0.8):
+				continue
+			var i := sys.spawn(ZombieKinds.Kind.WALKER, p, a, ZombieKinds.State.IDLE)
+			if i >= 0:
+				sys.chunk[i] = -2
+				missing -= 1
+		return
 	if missing > 0:
 		var made := sys.spawn_ring(Vector3(1.0, 0.0, 1.0), missing, 10.0, 70.0, ZombieKinds.Kind.WALKER)
 		for i in made:
@@ -236,7 +282,7 @@ func _bots_act(sys: ZombieSystem, now: float) -> void:
 			b.state.stats.revive(null)
 		b.state.health = Balance.HEALTH_MAX
 		var a := now * 0.7 + float(k) * 1.6
-		var home: Vector3 = BOTS[k]
+		var home: Vector3 = BOTS[k] + (CITY_CENTRE if _city else Vector3.ZERO)
 		var to_home := home - b.global_position
 		var mv := Vector2(cos(a), sin(a)) * 0.6 + Vector2(to_home.x, to_home.z).limit_length(1.0) * 0.4
 		b.net._last_cmd = {"seq": 0, "move": mv.limit_length(1.0), "aim_yaw": atan2(mv.x, mv.y), "aim": b.global_position, "btn": 0, "slot": 0, "flags": 0}

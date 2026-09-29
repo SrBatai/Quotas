@@ -1,0 +1,350 @@
+{
+ "id": "sawmill_shed",
+ "kind": "industrial",
+ "style": [
+  "wood_blue",
+  "brick"
+ ],
+ "footprint": [
+  12,
+  16
+ ],
+ "floors": 1,
+ "budget": 24000,
+ "rooms": [
+  {
+   "name": "nave",
+   "set": "workshop",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  },
+  {
+   "name": "office",
+   "set": "office",
+   "cells": [
+    [
+     0,
+     6
+    ],
+    [
+     2,
+     7
+    ]
+   ]
+  }
+ ],
+ "garages": [
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    2,
+    7
+   ],
+   "dir": "N"
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    5,
+    4
+   ],
+   "dir": "E",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    5
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    7
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    5,
+    1
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    5,
+    2
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    5,
+    6
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    0,
+    7
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    0,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    5,
+    0
+   ],
+   "dir": "S"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 6,
+   "from": 0,
+   "to": 1,
+   "doors": [
+    1
+   ]
+  },
+  {
+   "axis": "y",
+   "at": 2,
+   "from": 6,
+   "to": 7,
+   "doors": []
+  }
+ ],
+ "roof": {
+  "kind": "gable",
+  "ridge": "y",
+  "pitch": 28,
+  "overhang": 0.5
+ },
+ "signs": [
+  {
+   "kind": "shop",
+   "dir": "S",
+   "at": 0.0,
+   "z": 3.55,
+   "d": 0.035,
+   "width": 2.6,
+   "cap": 0.38,
+   "group": "Roof"
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "counter",
+   "pos": [
+    11.6,
+    5.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    11.6,
+    11.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    1.2,
+    1.2
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    0.5,
+    4.2
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    11.72,
+    13.4
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    9.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "desk_block",
+   "pos": [
+    1.6,
+    15.45
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    3.72,
+    14.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    8.4,
+    15.45
+   ],
+   "yaw": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "sawmill",
+   "pos": [
+    11.5,
+    8.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Container",
+   "table": "sawmill",
+   "pos": [
+    0.5,
+    6.6
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Container",
+   "table": "sawmill",
+   "pos": [
+    3.0,
+    15.5
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    1.6,
+    14.8
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    11.6,
+    5.0,
+    0.92
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    11.6,
+    11.0,
+    0.92
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    6.0,
+    4.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    6.0,
+    10.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    2.0,
+    14.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    6.0,
+    7.0
+   ],
+   "yaw": 30
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    8.4,
+    12.5
+   ],
+   "yaw": 200
+  }
+ ]
+}

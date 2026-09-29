@@ -38,6 +38,8 @@ var _lights: Array[OmniLight3D] = []
 var _real_lit: Dictionary = {}          # lamp index -> true while a real light sits on it
 var _t: float = 0.0
 var _by_owner: Dictionary = {}          # owner key (chunk) -> Array[Dictionary] of its lamps (C0 streaming)
+var _rows_by_owner: Dictionary = {}     # owner key -> [pool rows, halo rows, power rev] (C1: made once per owner)
+static var _power_rev: int = 0          # bumped by every power change (the cached rows hold the lamps' power)
 
 
 func _enter_tree() -> void:
@@ -63,11 +65,30 @@ func add_lamps(owner: int, list: Array) -> void:
 	for l in list:
 		own.append({"pos": l[0], "ground": float(l[1]), "power": float(l[2]), "color": LAMP_COLOR})
 	_by_owner[owner] = own
+	# C1: the owner's buffer rows are made once (and again only after a power change); the MultiMesh buffers are
+	# the owners' rows concatenated (the street dressing puts hundreds of lamps in the loaded chunks: a per-lamp
+	# rebuild on every chunk load / unload was milliseconds of streaming)
+	_rows_by_owner[owner] = _rows_of(own)
 	_rebuild_owned()
+
+
+static func _rows_of(own: Array) -> Array:
+	var pb := PackedFloat32Array()
+	var hb := PackedFloat32Array()
+	pb.resize(own.size() * 16)
+	hb.resize(own.size() * 16)
+	for i in own.size():
+		var l: Dictionary = own[i]
+		var pos: Vector3 = l["pos"]
+		var c := _custom_of(l)
+		_row(pb, i * 16, Vector3(pos.x, float(l["ground"]) + 0.04, pos.z), c)
+		_row(hb, i * 16, pos, c)
+	return [pb, hb, _power_rev]
 
 
 ## C0: the chunk unloaded: its lamps leave the set.
 func remove_lamps(owner: int) -> void:
+	_rows_by_owner.erase(owner)
 	if _by_owner.erase(owner):
 		_rebuild_owned()
 
@@ -76,11 +97,36 @@ func _rebuild_owned() -> void:
 	lamps.clear()
 	var keys := _by_owner.keys()
 	keys.sort()
+	var pb := PackedFloat32Array()
+	var hb := PackedFloat32Array()
 	for k in keys:
-		for l in _by_owner[k]:
-			lamps.append(l)
-	build()
+		lamps.append_array(_by_owner[k])
+		var rows: Array = _rows_by_owner.get(k, [])
+		if rows.size() == 3 and int(rows[2]) != _power_rev:
+			rows = _rows_of(_by_owner[k])
+			_rows_by_owner[k] = rows
+		if rows.size() == 3:
+			pb.append_array(rows[0])
+			hb.append_array(rows[1])
+	if pb.size() != lamps.size() * 16:
+		build()   # (lamps added through add_lamp as well: the per-lamp path)
+	else:
+		_build_from(pb, hb)
 	_t = 0.0
+
+
+## The MultiMeshes from ready buffers (the owners' rows): what build() makes, without the per-lamp loop.
+func _build_from(pb: PackedFloat32Array, hb: PackedFloat32Array, pool_radius: float = 6.5, halo_size: float = 1.1) -> void:
+	if pools == null:
+		pools = _mm_node("Pools", POOL_MAT)
+		halos = _mm_node("Halos", HALO_MAT)
+	_real_lit = {}
+	pools.multimesh = _multimesh(pool_radius * 2.0, true)
+	halos.multimesh = _multimesh(halo_size, false)
+	if lamps.is_empty():
+		return
+	pools.multimesh.buffer = pb
+	halos.multimesh.buffer = hb
 
 
 # ------------------------------------------------------------------ globals
@@ -97,6 +143,7 @@ static func set_sky(night: float, hours: float) -> void:
 ## Grid power where the power map does not reach (0 = blackout, 1 = powered).
 static func set_grid_power(p: float) -> void:
 	_power = clampf(p, 0.0, 1.0)
+	_power_rev += 1
 	_push()
 
 
@@ -114,6 +161,7 @@ static func _push() -> void:
 
 ## Creates the power map over [x0, x0 + w] × [z0, z0 + d] at `cell` m per texel, filled with `fill`.
 static func create_power_map(x0: float, z0: float, w: float, d: float, cell: float = 8.0, fill: float = 1.0) -> void:
+	_power_rev += 1
 	var sx := clampi(int(ceil(w / cell)), 1, 1024)
 	var sz := clampi(int(ceil(d / cell)), 1, 1024)
 	_map = Image.create(sx, sz, false, Image.FORMAT_R8)
@@ -124,6 +172,7 @@ static func create_power_map(x0: float, z0: float, w: float, d: float, cell: flo
 
 ## Paints a world-space rectangle of the power map (a grid sector, or a generator-powered block = 1).
 static func paint_power(x0: float, z0: float, x1: float, z1: float, value: float) -> void:
+	_power_rev += 1
 	if _map == null:
 		return
 	var sx := _map.get_width()
@@ -150,6 +199,7 @@ static func power_at(p: Vector3) -> float:
 
 
 static func clear_power_map() -> void:
+	_power_rev += 1
 	_map = null
 	_tex = null
 	_rect = Vector4.ZERO
@@ -219,7 +269,10 @@ static func _row(b: PackedFloat32Array, o: int, p: Vector3, c: Color) -> void:
 
 ## INSTANCE_CUSTOM of lamp i for light_pool.gdshader: rgb tint, a = intensity × power at the lamp (negative = flicker).
 func lamp_custom(i: int) -> Color:
-	var l: Dictionary = lamps[i]
+	return _custom_of(lamps[i])
+
+
+static func _custom_of(l: Dictionary) -> Color:
 	var p := float(l["power"])
 	var pw := power_at(l["pos"])
 	var col: Color = l["color"]

@@ -64,6 +64,9 @@ static func compute(p_hf: HeightFunction, cx: int, cz: int) -> int:
 	var b := p_hf.macro.biome_at(c.x, c.z)
 	var n := 0
 	if absf(c.x) <= VALLEY_SQUARE and absf(c.z) <= VALLEY_SQUARE:
+		var site_n := Settlements.resident_target(seed_v, cx, cz)
+		if site_n >= 0:
+			return site_n   # M6b: the village / POI residents by land use (buildings + streets)
 		# the M4 formula (PopulationManager.target_of before W1)
 		match b:
 			MacroMap.Biome.DENSE_FOREST, MacroMap.Biome.FOREST:

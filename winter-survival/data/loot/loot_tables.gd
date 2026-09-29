@@ -55,6 +55,39 @@ const TABLES := {
 		{"id": &"municion_9mm", "w": 30, "n": [4, 12]}, {"id": &"pistola", "w": 20, "n": [1, 1]}, {"id": &"cartuchos", "w": 15, "n": [2, 6]},
 		{"id": &"escopeta", "w": 8, "n": [1, 1]}, {"id": &"vendas", "w": 10, "n": [1, 2]}, {"id": &"municion_357", "w": 8, "n": [2, 6]},
 		{"id": &"revolver", "w": 4, "n": [1, 1]}]},
+	# M6b village / POI tables by building use (GDD §9.2: tienda, bar, taller, aserradero, granja; cars and dumpsters
+	# outside). Items of the current Items.DB: nails, fuel, parts, chains and blueprints arrive with M7 / M8.
+	&"shop": {"chance": 0.7, "count": [1, 3], "entries": [
+		{"id": &"lata_judias", "w": 22, "n": [1, 3]}, {"id": &"lata_sopa", "w": 20, "n": [1, 3]}, {"id": &"chocolate", "w": 18, "n": [1, 3]},
+		{"id": &"carne_seca", "w": 10, "n": [1, 2]}, {"id": &"cinta", "w": 8, "n": [1, 1]}, {"id": &"vendas", "w": 8, "n": [1, 2]},
+		{"id": &"analgesicos", "w": 5, "n": [1, 2]}, {"id": &"bengala", "w": 5, "n": [1, 1]}, {"id": &"lata_vacia", "w": 4, "n": [1, 2]}]},
+	&"bar": {"chance": 0.65, "count": [1, 3], "entries": [
+		{"id": &"lata_judias", "w": 12, "n": [1, 2]}, {"id": &"lata_sopa", "w": 10, "n": [1, 2]}, {"id": &"chocolate", "w": 20, "n": [1, 3]},
+		{"id": &"carne_seca", "w": 16, "n": [1, 3]}, {"id": &"analgesicos", "w": 6, "n": [1, 2]}, {"id": &"cuchillo", "w": 5, "n": [1, 1]},
+		{"id": &"bate", "w": 4, "n": [1, 1]}, {"id": &"bengala", "w": 4, "n": [1, 1]}, {"id": &"municion_9mm", "w": 4, "n": [2, 6]},
+		{"id": &"revolver", "w": 1, "n": [1, 1]}]},
+	&"garage": {"chance": 0.7, "count": [1, 3], "entries": [
+		{"id": &"cinta", "w": 20, "n": [1, 2]}, {"id": &"palanca", "w": 12, "n": [1, 1]}, {"id": &"aceite_arma", "w": 10, "n": [1, 1]},
+		{"id": &"cuerda", "w": 10, "n": [1, 2]}, {"id": &"bengala", "w": 8, "n": [1, 2]}, {"id": &"lata_vacia", "w": 10, "n": [1, 3]},
+		{"id": &"machete", "w": 3, "n": [1, 1]}, {"id": &"hacha", "w": 4, "n": [1, 1]}, {"id": &"bate", "w": 4, "n": [1, 1]},
+		{"id": &"guantes", "w": 6, "n": [1, 1]}]},
+	&"sawmill": {"chance": 0.75, "count": [1, 3], "entries": [
+		{"id": &"madera", "w": 35, "n": [2, 6]}, {"id": &"cuerda", "w": 20, "n": [1, 2]}, {"id": &"cinta", "w": 10, "n": [1, 1]},
+		{"id": &"hacha", "w": 10, "n": [1, 1]}, {"id": &"machete", "w": 4, "n": [1, 1]}, {"id": &"palanca", "w": 6, "n": [1, 1]},
+		{"id": &"guantes", "w": 8, "n": [1, 1]}, {"id": &"bengala", "w": 4, "n": [1, 1]}, {"id": &"carne_seca", "w": 3, "n": [1, 2]}]},
+	&"farm": {"chance": 0.7, "count": [1, 3], "entries": [
+		{"id": &"carne_seca", "w": 18, "n": [1, 3]}, {"id": &"lata_judias", "w": 15, "n": [1, 2]}, {"id": &"cuerda", "w": 12, "n": [1, 2]},
+		{"id": &"madera", "w": 10, "n": [1, 4]}, {"id": &"hacha", "w": 6, "n": [1, 1]}, {"id": &"guantes", "w": 8, "n": [1, 1]},
+		{"id": &"gorro", "w": 6, "n": [1, 1]}, {"id": &"abrigo", "w": 5, "n": [1, 1]}, {"id": &"cartuchos", "w": 5, "n": [2, 5]},
+		{"id": &"escopeta", "w": 2, "n": [1, 1]}]},
+	&"car": {"chance": 0.5, "count": [1, 2], "entries": [
+		{"id": &"chocolate", "w": 20, "n": [1, 2]}, {"id": &"cinta", "w": 12, "n": [1, 1]}, {"id": &"bengala", "w": 12, "n": [1, 2]},
+		{"id": &"analgesicos", "w": 8, "n": [1, 2]}, {"id": &"vendas", "w": 10, "n": [1, 2]}, {"id": &"lata_vacia", "w": 10, "n": [1, 2]},
+		{"id": &"guantes", "w": 6, "n": [1, 1]}, {"id": &"gorro", "w": 6, "n": [1, 1]}, {"id": &"municion_9mm", "w": 5, "n": [2, 6]},
+		{"id": &"pistola", "w": 1, "n": [1, 1]}]},
+	&"dumpster": {"chance": 0.4, "count": [1, 2], "entries": [
+		{"id": &"lata_vacia", "w": 30, "n": [1, 3]}, {"id": &"cinta", "w": 10, "n": [1, 1]}, {"id": &"cuerda", "w": 8, "n": [1, 1]},
+		{"id": &"madera", "w": 12, "n": [1, 3]}, {"id": &"lata_sopa", "w": 8, "n": [1, 1]}, {"id": &"guantes", "w": 4, "n": [1, 1]}]},
 	&"military": {"chance": 0.8, "count": [1, 3], "entries": [
 		{"id": &"racion", "w": 30, "n": [1, 3]}, {"id": &"cartuchos", "w": 15, "n": [3, 8]}, {"id": &"municion_308", "w": 12, "n": [3, 8]},
 		{"id": &"botiquin", "w": 8, "n": [1, 1]}, {"id": &"abrigo", "w": 8, "n": [1, 1]}, {"id": &"rifle", "w": 4, "n": [1, 1]},
@@ -86,4 +119,10 @@ static func model_for(id: StringName, loose: bool) -> String:
 			return "footlocker"
 		&"house_kitchen":
 			return "kitchen_cabinet"
+		&"bar":
+			return "fridge"
+		&"garage", &"sawmill":
+			return "locker"
+		&"farm":
+			return "footlocker"
 	return "crate"

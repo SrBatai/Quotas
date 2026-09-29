@@ -153,8 +153,12 @@ def cut_ready_problems(shell, tpl, expect):
             out.append("storey %d: no interior point" % k)
         elif esc:
             out.append("storey %d: %d of %d rays escape (not closed)" % (k, esc, 16 * len(pts)))
+    flat = tpl.get("roof", {}).get("kind", "gable") == "flat"
     for k, z in enumerate(expect["levels"]):
-        pts = CR.interior_points(bvh, mn, mx, z + 0.3, reach, 6, covered=True)
+        # M6b: above a flat roof's slab there is only sky (inside the parapet): enclosed, not covered (M6a's shop
+        # passed on the single grid point under its vent box)
+        top_flat = flat and k == len(expect["levels"]) - 1
+        pts = CR.interior_points(bvh, mn, mx, z + 0.3, reach, 6, covered=not top_flat)
         ok = 0
         for p in pts:
             loc, nrm, _i, _d = bvh.ray_cast(p, Vector((0, 0, -1)), 2.0)

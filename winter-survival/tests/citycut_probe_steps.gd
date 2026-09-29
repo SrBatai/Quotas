@@ -36,6 +36,8 @@ var cut: CityCut
 var key_player: MeshInstance3D
 var zombies: Array[Node3D] = []
 var _mats: Dictionary = {}
+var points: Dictionary = POINTS
+var below_99: int = 0
 
 
 func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
@@ -62,7 +64,10 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 		print("FAIL: no local player / world")
 		tree.quit(1)
 		return
-	print("== citycut probe altavega_c0 (%s, %s, preset %s)" % [RenderingServer.get_current_rendering_method(), RenderingServer.get_current_rendering_driver_name(), Quality.preset])
+	# C1 (--points=c1): 10 seeded points on the sidewalks of the four districts instead of the 5 of LT-01
+	if str(opts.get("points", "c0")) == "c1":
+		points = c1_points(int(opts.get("seed", "1337")))
+	print("== citycut probe altavega_%s (%s, %s, preset %s): %d points" % [str(opts.get("points", "c0")), RenderingServer.get_current_rendering_method(), RenderingServer.get_current_rendering_driver_name(), Quality.preset, points.size()])
 	_freeze()
 	sil = world.get_node_or_null("Silhouettes") as Silhouettes
 	cut = world.get_node_or_null("CityCut") as CityCut
@@ -85,7 +90,7 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	print("  point        dist profile   player vis/read   zombies vis/read  n   (no cut: player / zombies)")
 	var tot_ref := 0
 	var tot_read := 0
-	for pname in POINTS:
+	for pname in points:
 		for dist in ZOOMS:
 			await _view(str(pname), float(dist))
 			var r: Dictionary = results[results.size() - 1]
@@ -95,6 +100,8 @@ func run(p_tree: SceneTree, p_opts: Dictionary) -> void:
 	var pass_o := overall >= 0.95
 	ok = ok and pass_o
 	print("  overall readable (player + zombies, %d views): %.1f %%   %s" % [results.size(), overall * 100.0, "ok" if pass_o else "FAIL (< 95 %)"])
+	if below_99 > 0:
+		print("  info %d views with the player under 99 %% visible (C1: reported, the gate is the overall readability)" % below_99)
 	results.append({"overall_readable": snappedf(overall, 0.0001)})
 	if str(opts["json"]) != "":
 		var f := FileAccess.open(str(opts["json"]), FileAccess.WRITE)
@@ -146,7 +153,7 @@ func _freeze() -> void:
 
 
 func _view(pname: String, dist: float) -> void:
-	var pt: Vector2 = POINTS[pname]
+	var pt: Vector2 = points[pname]
 	var y := world.get_height(pt.x, pt.y)
 	var roof := _roof_at(pt)
 	if not is_nan(roof):
@@ -212,12 +219,55 @@ func _view(pname: String, dist: float) -> void:
 		"camera_inside": cut.camera_building.root.name if cut.camera_building != null else ""}
 	results.append(r)
 	var pass_p := float(r["player_visible"]) >= 0.99 or lost <= PIXEL_SLACK
-	if not pass_p:
+	# C1 (--points=c1): the PLAN C1 gate is the overall readability (≥ 95 %) over the 10 seeded points; a view under
+	# the C0 per-view rule is reported ("below 99 %"), not failed
+	var c1 := str(opts.get("points", "c0")) == "c1"
+	if not pass_p and c1:
+		below_99 += 1
+	if not pass_p and not c1:
 		ok = false
 		img.save_png("/tmp/ventisca_citycut_%s_%d.png" % [pname, int(dist)])
 	print("  %-12s %4.0f %-9s %5.1f %% / %5.1f %%    %5.1f %% / %5.1f %%   %d   (%5.1f %% / %5.1f %%)  %s  %s" % [pname, dist, r["profile"],
 		100.0 * float(r["player_visible"]), 100.0 * float(r["player_readable"]), 100.0 * float(r["zombies_visible"]), 100.0 * float(r["zombies_readable"]),
-		zombies.size(), 100.0 * float(r["nocut_player_visible"]), 100.0 * float(r["nocut_zombies_visible"]), r["camera_inside"], "ok" if pass_p else "FAIL"])
+		zombies.size(), 100.0 * float(r["nocut_player_visible"]), 100.0 * float(r["nocut_zombies_visible"]), r["camera_inside"], "ok" if pass_p else ("below 99 %" if c1 else "FAIL")])
+
+
+## C1 (PLAN C1 «citycut_probe 10 puntos aleatorios ≥ 95 %»): 10 points drawn with `seed_v` on the sidewalks of the
+## four districts (casco viejo 3, ensanche 3, barriada 2, Las Torres 2), each with a building within 12 m (where the
+## corte urbano matters) and none within 0.8 m.
+static func c1_points(seed_v: int) -> Dictionary:
+	var quota := {"casco_viejo": 3, "ensanche": 3, "barriada": 2, "las_torres": 2}
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var out := {}
+	for d in CityLots.districts():
+		var dname := str(d["district"])
+		var walks: Array = []
+		for sg in CityLots.segments_in(CityLots.rect_of(d["rect"])):
+			var mid: Vector2 = ((sg[0] as Vector2) + (sg[1] as Vector2)) * 0.5
+			if int(sg[3]) == 1 and (sg[0] as Vector2).distance_to(sg[1]) > 6.0 and CityLots.district_at(mid.x, mid.y) == dname:
+				walks.append(sg)
+		var n := 0
+		var guard := 0
+		while n < int(quota.get(dname, 0)) and guard < 500 and not walks.is_empty():
+			guard += 1
+			var sg: Array = walks[rng.randi_range(0, walks.size() - 1)]
+			var p: Vector2 = (sg[0] as Vector2).lerp(sg[1] as Vector2, rng.randf_range(0.2, 0.8))
+			if CityLots.district_at(p.x, p.y) != dname or CityLots.occupied(p.x, p.y, 0.8) or not CityLots.occupied(p.x, p.y, 12.0):
+				continue
+			# not behind a bench / a parked car / a lamp of the street dressing (the probe measures the cut)
+			var clear := true
+			for e in CityLots.items_near(seed_v, Rect2(p - Vector2(4, 4), Vector2(8, 8))):
+				if e.has("model"):
+					var sz := CityLots.model_size(str(e["model"]))
+					if (e["pos"] as Vector2).distance_to(p) < maxf(sz.x, sz.z) * 0.5 + 1.2:
+						clear = false
+						break
+			if not clear:
+				continue
+			n += 1
+			out["%s_%d" % [dname, n]] = p.snapped(Vector2(0.1, 0.1))
+	return out
 
 
 ## Roof height under a point on a podium (the mirador), NAN on the street.
@@ -245,8 +295,8 @@ func _place_zombies(pos: Vector3, on_roof: bool, pt: Vector2) -> void:
 		var clear := true
 		for e in near:
 			var k := int(e["k"])
-			if k == CityLots.Kind.PODIUM or k == CityLots.Kind.BRIDGE:
-				continue
+			if k == CityLots.Kind.PODIUM or k == CityLots.Kind.BRIDGE or k == CityLots.Kind.BUILDING or k == CityLots.Kind.HERO:
+				continue   # C1 lots and hero towers: their footprints (CityLots.occupied above)
 			if k == CityLots.Kind.TOWER:
 				var fam: Dictionary = CityLots.families()[str(e["family"])]
 				if (e["pos"] as Vector2).distance_to(q) < CityLots.cm(fam["base"][0]) * 0.75 + 1.0:

@@ -1,4 +1,5 @@
-"""UI of the HUD «Susurro» and the few music stingers (S1; docs/research/10_hud_ux.md appendix §5.6).
+"""UI of the HUD «Susurro» and the few music stingers (S1; docs/research/10_hud_ux.md appendix §5.6); H3 adds the radio
+static and the two pings at the end (build_h3, own seed).
 
 UI: soft, short, organic — wood ticks, paper, a felt-muted string, cold glass — never a beep: every tone has an
 inharmonic partial set, a noise attack and a quick natural decay, and they sit at −22 LUFS (momentary) under the
@@ -174,3 +175,38 @@ def build(out):
     p = pad(rng, [82.4, 123.5], d, 0.4, 3.0, bright=700)
     x = A.mix((np.stack([felt_hit(rng, 41.0)] * 2, axis=1), 0, -2), (p, 0, 0))
     out("music/stinger_death", stereo_room(x, rng, -8), "stinger", gain_db=-4.0)
+    # --- H3 (appended last with its own seed: the files above stay byte-identical)
+    build_h3(out)
+
+
+def radio_static(rng, dur: float = 0.9) -> np.ndarray:
+    """Hand-radio static: squelch opening click, band-limited hiss with a fluttering level and a far carrier that
+    drifts in and out (no voice), squelch tail at the end. Soft: it sits under the game (−22 LUFS momentary)."""
+    n = A.n_of(dur)
+    t = np.arange(n) / A.SR
+    hiss = A.bp(A.noise(n, rng, "white"), 450, 3400, 2)
+    flutter = 0.55 + 0.45 * np.abs(np.sin(2 * np.pi * rng.uniform(7.5, 11.0) * t + rng.uniform(0, 6.28)))
+    flutter *= 0.8 + 0.2 * np.sin(2 * np.pi * rng.uniform(1.5, 2.5) * t)
+    hiss *= flutter
+    carrier = np.sin(2 * np.pi * (rng.uniform(820, 900) + 18 * np.sin(2 * np.pi * 0.9 * t)) * t)
+    carrier *= A.env_points(n, [(0, 0), (0.25 * dur, 0.0), (0.45 * dur, 0.18), (0.7 * dur, 0.05), (dur, 0)])
+    body = (hiss + carrier * 0.6) * A.env_points(n, [(0, 0), (0.02, 1), (dur - 0.12, 0.85), (dur - 0.04, 0.2), (dur, 0)])
+    click_n = A.n_of(0.012)
+    click = A.bp(A.noise(click_n, rng), 900, 6000) * np.hanning(click_n) * 2.2
+    tail_n = A.n_of(0.05)
+    tail = A.bp(A.noise(tail_n, rng), 1200, 5000) * A.env_exp(tail_n, 0.012, 0.001) * 1.6
+    y = A.mix((body / (np.max(np.abs(body)) + 1e-9), 0, 0), (click, 0.0, -2), (tail, dur - 0.06, -4))
+    return A.bp(A.saturate(y, 1.3), 300, 3800, 2)
+
+
+def build_h3(out):
+    """H3 UI cues (own work, CC0): radio static for a teammate still down (repeats soft every 10 s), the place ping
+    (a wooden tick and a small cold glass) and the danger ping (two short falling radio blips); the pings are 3D
+    (positioned at the ping), so mono like the rest of the UI."""
+    rng = np.random.default_rng(6611)
+    for i in range(2):
+        out(f"ui/radio_static_{i + 1:02d}", radio_static(rng, 0.85 + 0.1 * i), "ui", gain_db=-3.0)
+    out("ui/ping_01", A.mix((wood_tick(rng, 1700, 0.05), 0, -10), (glass(rng, 1568.0, 0.9, 0.9), 0.01, 0),
+                            (glass(rng, 2093.0, 0.6, 0.5), 0.07, -8)), "ui", gain_db=-1.0)
+    out("ui/ping_danger_01", A.mix((radio_blip(rng, 660, 0.09), 0, 0), (radio_blip(rng, 494, 0.11), 0.13, -1),
+                                   (glass(rng, 988.0, 0.4, 0.12), 0.0, -14)), "ui", gain_db=0.0)

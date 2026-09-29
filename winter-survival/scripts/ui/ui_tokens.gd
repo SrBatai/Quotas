@@ -90,6 +90,9 @@ const DIAMOND_INLINE := 8.0
 const RING := 40.0
 const RING_STROKE := 2.0
 const RING_DOWNED := 46.0
+## Ground ring around a downed teammate: radius in metres (mockup v2_e: ≈ 150–170 px wide at the default zoom, around the
+## body; H3 measured the moment at ≤ 3 % coverage with it).
+const DOWNED_RING_M := 0.95
 const STAMINA_RING := 26.0
 const EDGE_ARROW := 6.0
 const HOTBAR_STROKE := Vector2(22.0, 2.0)
@@ -175,6 +178,44 @@ const NOTIFY_PREEMPT_AFTER := 1.2
 const NOTIFY_REFRESH_WINDOW := 10.0
 const NOTIFY_KEY_COOLDOWN := 8.0
 const PICKUP_LINES := 4
+
+# ------------------------------------------------------------------ H3: notices, hazards, group, pings, captions
+## A P0 owns the attention this long: the P1 / P2 line waits (or yields, if it was shown > 1.2 s), then resumes
+## 300 ms later. The P0 itself stays in the world / on the vital while its condition lasts.
+const P0_ATTENTION := 3.0
+const NOTIFY_GAP := 0.3
+## A teammate still down: soft radio static every 10 s (appendix §5.6 "se repite suave cada 10 s mientras dure").
+const MATE_DOWN_REPEAT := 10.0
+## Sound captions (§V.7: imprescindibles for P0 with a hidden HUD): 3 s each, 3 lines at most, bottom centre.
+const T_CAPTION := [0.2, 3.0, 0.6]
+const CAPTION_LINES := 3
+const CAPTION_MERGE := 1.5
+## Hazard stack: at most 2 entries drawn (the top one in full for 5 s, then icon + time); the last 15 s pulse.
+const HAZARD_VISIBLE := 2
+const HAZARD_ENDING := 15.0
+## Pings (appendix §6.4.3): danger 8 s with a countdown ring, place 30 s in the player's colour; 3 live per player;
+## the server accepts them within 150 m of the sender, 3 per 2 s.
+const PING_DANGER_SECONDS := 8.0
+const PING_PLACE_SECONDS := 30.0
+const PING_PER_PLAYER := 3
+const PING_RANGE := 150.0
+const PING_DOUBLE_CLICK := 0.3
+const PING_SIZE := 14.0
+## Directional damage: an attack sound / shot / swing counts as the source of a hit this long after it.
+const HIT_SOURCE_WINDOW := 0.7
+const HIT_MELEE_RANGE := 4.0
+const HIT_SHOT_RADIUS := 1.6
+## Heartbeat (AudioManager.heartbeat): own health below 25 → 0.35 … 1; a teammate bleeding out → 0.22.
+const HEARTBEAT_MATE := 0.22
+## Firearm reticle bands (M5 hook, §V.2.2 semantic tints): green < 4°, amber 4–8°, red > 8°, grey = ally in the line.
+const RETICLE_GREEN := Color("#9DE07F")
+const RETICLE_AMBER := Color("#F2C46A")
+const RETICLE_RED := Color("#F07A86")
+const RETICLE_GREY := Color(0.80, 0.82, 0.85, 0.75)
+const RETICLE_STROKE := 1.5
+## Ammo on the hotbar line: shown on a shot / reload / jam / weapon change for 3 s, held while jammed, reloading or
+## with a quarter of the magazine or less.
+const AMMO_LOW_FRACTION := 0.25
 
 
 ## Adaptive scrim alpha from the background luma (§V.2.3): α = mix(0.18, 0.45, smoothstep(0.35, 0.80, luma)).

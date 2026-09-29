@@ -300,36 +300,81 @@ static func bridge_segment(b: Dictionary, x0: float, x1: float, ends: Vector2) -
 		cols.append([mid + bas * Vector3(0, -depth * 0.5, 0), Vector3(length, depth, hw * 2.0), bas])
 		for sgn: float in [-1.0, 1.0]:
 			cols.append([mid + Vector3(0, par * 0.5, sgn * (hw - 0.2)), Vector3(length, par, 0.4), bas])
-	# the truss (Warren, panels of 8 m) and portal bracing, over [t0, t1] ∩ [x0, x1]
+	# C1: the iron truss — a bowstring (arched top chord) over each span between the abutments and the piers, with
+	# hangers every 4 m, Pratt diagonals, wind bracing and cross beams overhead where the arch clears 4.6 m;
+	# masonry piers with cutwaters up- and downstream
 	var ta := maxf(x0, t0)
 	var tb := minf(x1, t1)
 	if tb - ta > 0.01:
 		var deck := CityLots.cm(b["deck_y"])
-		var panel := 8.0
-		for sgn: float in [-1.0, 1.0]:
-			var zt := zc + sgn * (hw + 0.3)
-			block_x(ir, ta, tb, deck - 0.2, deck - 0.2, zt, 0.5, 0.7, COL_IRON)                  # bottom chord
-			block_x(ir, ta, tb, deck + th - 0.5, deck + th - 0.5, zt, 0.5, 0.6, COL_IRON)       # top chord
-			var k0 := int(ceil((ta - t0) / panel))
-			var k1 := int(floor((tb - t0) / panel))
-			for k in range(k0, k1 + 1):
-				var px := t0 + float(k) * panel
-				block(ir, Vector3(px, deck - 0.2, zt), Vector3(0.35, th, 0.35), COL_IRON, COL_SNOW)   # post
-				if k < k1 or px + panel <= tb + 0.01:
-					var up := k % 2 == 0
-					var xa2 := px
-					var xb2 := minf(px + panel, tb)
-					strut(ir, Vector3(xa2, deck + (0.2 if up else th - 0.6), zt), Vector3(xb2, deck + (th - 0.6 if up else 0.2), zt), 0.3, COL_IRON)
-				if k % 2 == 0:
-					# portal bracing overhead: a cross beam between the two top chords
-					if sgn > 0.0:
-						block(ir, Vector3(px, deck + th - 0.6, zc), Vector3(0.4, 0.5, hw * 2.0 + 0.6), COL_IRON, COL_SNOW)
-			cols.append([Vector3((ta + tb) * 0.5, deck + th * 0.5, zt), Vector3(tb - ta, th, 0.6), Basis.IDENTITY])
-		# piers (masonry) at the listed x
+		var breaks: Array = [t0]
+		for pxv in b.get("piers", []):
+			breaks.append(CityLots.cm(pxv))
+		breaks.append(t1)
+		breaks.sort()
+		for si in breaks.size() - 1:
+			var sa: float = breaks[si]
+			var sb: float = breaks[si + 1]
+			var ca := maxf(sa, ta)
+			var cb := minf(sb, tb)
+			if cb - ca < 0.01:
+				continue
+			var top_at := func(x: float) -> float:
+				var u := clampf((x - sa) / (sb - sa), 0.0, 1.0)
+				return deck + 1.3 + (th - 1.3) * pow(4.0 * u * (1.0 - u), 0.7)
+			for sgn: float in [-1.0, 1.0]:
+				var zt := zc + sgn * (hw + 0.3)
+				block_x(ir, ca, cb, deck - 0.2, deck - 0.2, zt, 0.55, 0.75, COL_IRON)          # bottom chord (girder)
+				var x := ca
+				while x < cb - 0.01:
+					var xn := minf(x + 2.0, cb)
+					strut(ir, Vector3(x, top_at.call(x), zt), Vector3(xn, top_at.call(xn), zt), 0.55, COL_IRON)   # arch
+					x = xn
+				var k0 := int(ceil((ca - sa) / 4.0 - 0.001))
+				var k1 := int(floor((cb - sa) / 4.0 + 0.001))
+				for k in range(k0, k1 + 1):
+					var px := sa + float(k) * 4.0
+					if px < ca - 0.01 or px > cb + 0.01:
+						continue
+					var tp: float = top_at.call(px)
+					block(ir, Vector3(px, deck + 0.1, zt), Vector3(0.22, tp - deck - 0.1, 0.22), COL_IRON, COL_SNOW)   # hanger
+					var nx := px + 4.0
+					if nx <= cb + 0.01:
+						# Pratt diagonal: from the top on the span-end side to the bottom toward the centre
+						var mid := (sa + sb) * 0.5
+						if px + 2.0 < mid:
+							strut(ir, Vector3(px, tp - 0.3, zt), Vector3(nx, deck + 0.3, zt), 0.16, COL_IRON)
+						else:
+							strut(ir, Vector3(px, deck + 0.3, zt), Vector3(nx, float(top_at.call(nx)) - 0.3, zt), 0.16, COL_IRON)
+					if sgn > 0.0 and k % 2 == 0 and tp - deck > 4.6:
+						# overhead cross beam and a knee of wind bracing to the next one
+						block(ir, Vector3(px, tp - 0.55, zc), Vector3(0.35, 0.4, hw * 2.0 + 0.6), COL_IRON, COL_SNOW)
+						var nx2 := px + 8.0
+						if nx2 <= cb + 0.01 and float(top_at.call(nx2)) - deck > 4.6:
+							var ya := tp - 0.45
+							var yb := float(top_at.call(nx2)) - 0.45
+							_strut_xz(ir, Vector3(px, ya, zc - hw), Vector3(nx2, yb, zc + hw), 0.12, COL_IRON)
+							_strut_xz(ir, Vector3(px, ya, zc + hw), Vector3(nx2, yb, zc - hw), 0.12, COL_IRON)
+				cols.append([Vector3((ca + cb) * 0.5, deck + th * 0.5, zt), Vector3(cb - ca, th, 0.6), Basis.IDENTITY])
+		# piers (masonry) at the listed x, with cutwaters up- and downstream (the river runs along z)
 		for pxv in b.get("piers", []):
 			var pxm := CityLots.cm(pxv)
 			if pxm >= x0 and pxm < x1:
-				block(st, Vector3(pxm, bottom, zc), Vector3(4.0, deck - CityLots.cm(b.get("deck_thickness", 140)) - bottom, hw * 2.0 + 2.0), COL_STONE, COL_SNOW)
+				var ptop := deck - CityLots.cm(b.get("deck_thickness", 140))
+				block(st, Vector3(pxm, bottom, zc), Vector3(4.0, ptop - bottom, hw * 2.0 + 2.0), COL_STONE, COL_SNOW)
+				block(st, Vector3(pxm, ptop - 0.6, zc), Vector3(4.6, 0.6, hw * 2.0 + 2.6), COL_STONE.lightened(0.1), COL_SNOW)   # cap
+				for sz: float in [-1.0, 1.0]:
+					var z0 := zc + sz * (hw + 1.0)
+					var apex := Vector3(pxm, 0.0, zc + sz * (hw + 4.0))
+					var l := Vector3(pxm - 2.0, 0.0, z0)
+					var r := Vector3(pxm + 2.0, 0.0, z0)
+					var yt := ptop - 1.8
+					for e in [[l, apex], [apex, r]]:
+						var ea: Vector3 = e[0]
+						var eb: Vector3 = e[1]
+						var n := (eb - ea).cross(Vector3.UP).normalized() * sz
+						_q(st, Vector3(ea.x, bottom, ea.z), Vector3(eb.x, bottom, eb.z), Vector3(eb.x, yt, eb.z), Vector3(ea.x, yt, ea.z), n, COL_STONE, 0.95)
+					_q(st, Vector3(l.x, yt, l.z), Vector3(r.x, yt, r.z), Vector3(apex.x, yt, apex.z), Vector3(apex.x, yt, apex.z), Vector3.UP, COL_SNOW, 1.0)
 				cols.append([Vector3(pxm, (deck + bottom) * 0.5, zc), Vector3(4.0, deck - bottom, hw * 2.0 + 2.0), Basis.IDENTITY])
 	# abutment faces where the truss meets the embankments
 	for ax in [t0, t1]:
@@ -483,6 +528,14 @@ static func block_x(st: SurfaceTool, xa: float, xb: float, ya: float, yb: float,
 	_q(st, Vector3(xa, ya + h, z1), Vector3(xb, yb + h, z1), Vector3(xb, yb + h, z0), Vector3(xa, ya + h, z0), Vector3.UP, COL_SNOW, 1.0)
 	_q(st, Vector3(xa, ya, z0), Vector3(xa, ya, z1), Vector3(xa, ya + h, z1), Vector3(xa, ya + h, z0), Vector3.LEFT, col, 1.0)
 	_q(st, Vector3(xb, yb, z0), Vector3(xb, yb, z1), Vector3(xb, yb + h, z1), Vector3(xb, yb + h, z0), Vector3.RIGHT, col, 1.0)
+
+
+## A thin strut between two points at different z (wind bracing overhead): a flat bar `s` wide, both faces.
+static func _strut_xz(st: SurfaceTool, a: Vector3, b: Vector3, s: float, col: Color) -> void:
+	var d := (b - a).normalized()
+	var side := d.cross(Vector3.UP).normalized() * s * 0.5
+	_quad(st, a - side, b - side, b + side, a + side, col, 1.0)
+	_quad(st, a - side, a + side, b + side, b - side, col, 0.8)
 
 
 ## A square-section strut between two points (truss diagonals), `s` thick.

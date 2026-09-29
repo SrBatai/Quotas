@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/world_vcol_cable.gdshader" id="1"]
+
+[resource]
+resource_name = "world_vcol_cable"
+shader = ExtResource("1")
+shader_parameter/wind_height = 30.0
+shader_parameter/snow_base = 0.0

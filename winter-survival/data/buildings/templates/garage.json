@@ -1,0 +1,273 @@
+{
+ "id": "garage",
+ "kind": "garage",
+ "style": [
+  "brick",
+  "concrete"
+ ],
+ "footprint": [
+  8,
+  10
+ ],
+ "floors": 1,
+ "budget": 14000,
+ "rooms": [
+  {
+   "name": "workshop",
+   "set": "workshop",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     3,
+     3
+    ]
+   ]
+  },
+  {
+   "name": "office",
+   "set": "office",
+   "cells": [
+    [
+     0,
+     4
+    ],
+    [
+     3,
+     4
+    ]
+   ]
+  }
+ ],
+ "garages": [
+  {
+   "pos": [
+    1,
+    0
+   ],
+   "dir": "S"
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    3,
+    2
+   ],
+   "dir": "E",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "L"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    3,
+    0
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    1,
+    4
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    2,
+    4
+   ],
+   "dir": "N"
+  },
+  {
+   "pos": [
+    3,
+    4
+   ],
+   "dir": "E"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "x",
+   "at": 4,
+   "from": 0,
+   "to": 3,
+   "doors": [
+    0
+   ]
+  }
+ ],
+ "roof": {
+  "kind": "flat",
+  "parapet": 0.9
+ },
+ "signs": [
+  {
+   "kind": "shop",
+   "dir": "S",
+   "at": 0.0,
+   "z": 3.42,
+   "d": 0.02,
+   "width": 2.4,
+   "cap": 0.36
+  }
+ ],
+ "furniture": [
+  {
+   "kind": "counter",
+   "pos": [
+    0.4,
+    3.2
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    0.4,
+    5.6
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    7.72,
+    5.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    7.72,
+    6.6
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    5.6,
+    7.45
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "desk_block",
+   "pos": [
+    3.0,
+    9.45
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    7.72,
+    8.8
+   ],
+   "yaw": -90
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "garage",
+   "pos": [
+    0.5,
+    1.4
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Container",
+   "table": "garage",
+   "pos": [
+    2.2,
+    7.45
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Container",
+   "table": "garage",
+   "pos": [
+    5.6,
+    9.5
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Furniture",
+   "furniture": "chair",
+   "pos": [
+    3.0,
+    8.8
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    0.4,
+    3.2,
+    0.92
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    7.72,
+    5.0,
+    1.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    4.0,
+    3.5,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    4.0,
+    9.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    4.0,
+    4.5
+   ],
+   "yaw": 150
+  }
+ ]
+}

@@ -108,6 +108,13 @@ func _ready() -> void:
 	flames = make_emitter(24, 0.7, 0.16 * scale_factor, Vector3.UP, 12.0, 1.0 * scale_factor, 1.4 * scale_factor,
 		Vector3.ZERO, 0.8 * scale_factor, 1.1 * scale_factor, sc, g, 0.26, true)
 	flames.name = "Flames"
+	if FxSprites.has_sprites():
+		# G2b: Kenney flame tongues (flipbook, random frame and spin) instead of soft dots: fewer, larger sprites
+		flames.amount = 16
+		flames.draw_pass_1 = make_quad(0.62, FxSprites.flame_material())
+		FxSprites.randomize_frames(flames.process_material as ParticleProcessMaterial, 40.0)
+		(flames.process_material as ParticleProcessMaterial).angle_min = -12.0
+		(flames.process_material as ParticleProcessMaterial).angle_max = 12.0
 	add_child(flames)
 
 	var ssc := Curve.new()
@@ -120,6 +127,13 @@ func _ready() -> void:
 		Vector3(0.2, 0.25, 0.1), 0.5 * scale_factor, 0.8 * scale_factor, ssc, sg, 0.6, false)
 	smoke.name = "Smoke"
 	smoke.position = Vector3(0, 0.5 * scale_factor, 0)
+	if FxSprites.has_sprites():
+		# G2b: lit Kenney smoke puffs that drift downwind (FxSprites.wind_gravity, refreshed in _process)
+		smoke.draw_pass_1 = make_quad(1.0, FxSprites.smoke_material())
+		smoke.lifetime = 3.2
+		smoke.amount = 18
+		FxSprites.randomize_frames(smoke.process_material as ParticleProcessMaterial, 30.0)
+		smoke.visibility_aabb = AABB(Vector3(-8, -1, -8), Vector3(16, 12, 16))
 	add_child(smoke)
 
 	light = LightFlicker.new()
@@ -133,6 +147,19 @@ func _ready() -> void:
 	light.position = Vector3(0, 1.0 * scale_factor, 0)
 	add_child(light)
 	set_active(_active)
+
+
+var _wind_t: float = 0.0
+
+
+func _process(delta: float) -> void:
+	if not _active or smoke == null:
+		return
+	_wind_t -= delta
+	if _wind_t > 0.0:
+		return
+	_wind_t = 0.5
+	(smoke.process_material as ParticleProcessMaterial).gravity = FxSprites.wind_gravity(0.25, 0.7 * scale_factor)
 
 
 func set_active(value: bool) -> void:

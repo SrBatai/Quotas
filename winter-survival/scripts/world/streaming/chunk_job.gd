@@ -111,6 +111,12 @@ func run() -> void:
 	if visual and not cancelled:
 		_build_mesh(ox, oz, hb, nb)
 		_build_multimesh(ox, oz)
+	# C1: the big temporaries are released here, in the worker, before the flag (not while the main thread may
+	# already be waiting for this task to return)
+	all_proc = []
+	blk = {}
+	hb = PackedFloat32Array()
+	sb = PackedInt32Array()
 	usec = Time.get_ticks_usec() - t0
 	finished = true
 
@@ -188,6 +194,8 @@ func _paint_city(ox: int, oz: int, rect: Rect2) -> void:
 					surface[k] = (s & 0x00FF00) | 230 | (a << 24)
 				elif (s & 255) < 64:
 					surface[k] = (s & 0x00FF00) | (204 << 16)
+	# C1: the generated city's street segments (roads, sidewalks, plazas; CityLots.paint_chunk)
+	surface = CityLots.paint_chunk(surface, ox, oz, N)
 
 
 # ------------------------------------------------------------------ terrain mesh arrays

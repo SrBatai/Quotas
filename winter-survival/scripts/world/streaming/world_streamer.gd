@@ -110,6 +110,7 @@ func _exit_tree() -> void:
 		if j.task_id >= 0:
 			WorkerThreadPool.wait_for_task_completion(j.task_id)
 	_jobs.clear()
+	_finished_seen.clear()
 
 
 # ------------------------------------------------------------------ queries
@@ -317,13 +318,29 @@ func is_busy() -> bool:
 	return not _jobs.is_empty() or not _ready_jobs.is_empty() or not _building.is_empty()
 
 
+## C1: frames between seeing a job's `finished` flag and releasing its task (see _collect_jobs).
+const REAP_FRAMES := 2
+var _finished_seen: Dictionary = {}   # key -> frames since its job's `finished` was first seen
+
+
 func _collect_jobs() -> void:
 	for k in _jobs.keys():
 		var j: ChunkJob = _jobs[k]
-		if j.finished:
-			WorkerThreadPool.wait_for_task_completion(j.task_id)
-			_jobs.erase(k)
-			_finish_job(j)
+		if not j.finished:
+			continue
+		# C1: the worker sets `finished` as the last statement of run() but still has to return from it (locals
+		# freed, the pool's bookkeeping); a main thread that waits at once blocks until the worker is done — or until
+		# the OS gives the worker back its CPU (an 8.6 ms "blocked" collect in the W1 walk, with the heavier city
+		# jobs). The task is released REAP_FRAMES frames after the flag was first seen: by then it has returned and
+		# the wait only takes the pool's mutex once.
+		var seen := int(_finished_seen.get(k, 0)) + 1
+		if seen <= REAP_FRAMES:
+			_finished_seen[k] = seen
+			continue
+		_finished_seen.erase(k)
+		WorkerThreadPool.wait_for_task_completion(j.task_id)
+		_jobs.erase(k)
+		_finish_job(j)
 
 
 func _finish_job(j: ChunkJob) -> void:
@@ -464,6 +481,7 @@ func ensure_loaded(pos: Vector3, radius: int = 1) -> int:
 		if _jobs.has(k):
 			started.append(_jobs[k])
 			_jobs.erase(k)
+			_finished_seen.erase(k)
 		else:
 			var j := _make_job(k)
 			if threads_ok():

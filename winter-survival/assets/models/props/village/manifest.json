@@ -1,0 +1,903 @@
+{
+ "barrel": {
+  "anchors": {},
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   0.44,
+   0.0
+  ],
+  "col_size": [
+   0.6,
+   0.88
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.94,
+  "kind": "barrel",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/barrel.glb",
+  "radius": 0.3,
+  "tris": 162
+ },
+ "barricade_jersey": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.4,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   0.8,
+   0.6
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.843,
+  "kind": "barricade",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/barricade_jersey.glb",
+  "radius": 1.107,
+  "tris": 280
+ },
+ "barricade_sandbags": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.32,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   0.64,
+   0.6
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.679,
+  "kind": "barricade",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/barricade_sandbags.glb",
+  "radius": 1.02,
+  "tris": 1040
+ },
+ "barricade_wire": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.45,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   0.9,
+   0.9
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.921,
+  "kind": "barricade",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/barricade_wire.glb",
+  "radius": 1.064,
+  "tris": 694
+ },
+ "barricade_wood": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.6,
+   0.05
+  ],
+  "col_size": [
+   2.1,
+   1.2,
+   0.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.143,
+  "kind": "barricade",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/barricade_wood.glb",
+  "radius": 1.233,
+  "tris": 336
+ },
+ "bench": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.425,
+   0.03
+  ],
+  "col_size": [
+   1.9,
+   0.85,
+   0.52
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.867,
+  "kind": "bench",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/bench.glb",
+  "radius": 0.95,
+  "tris": 508
+ },
+ "bus_stop": {
+  "anchors": {
+   "Seat": [
+    0.0,
+    0.47,
+    -0.37
+   ]
+  },
+  "col": "box",
+  "col_center": [
+   0.0,
+   1.15,
+   -0.62
+  ],
+  "col_size": [
+   3.2,
+   2.3,
+   0.2
+  ],
+  "cols": [
+   [
+    [
+     0.0,
+     1.15,
+     -0.62
+    ],
+    [
+     3.2,
+     2.3,
+     0.2
+    ]
+   ],
+   [
+    [
+     -1.43,
+     1.15,
+     -0.05
+    ],
+    [
+     0.2,
+     2.3,
+     1.3
+    ]
+   ],
+   [
+    [
+     1.43,
+     1.15,
+     -0.05
+    ],
+    [
+     0.2,
+     2.3,
+     1.3
+    ]
+   ]
+  ],
+  "family": "village",
+  "height": 2.521,
+  "kind": "bus_stop",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/bus_stop.glb",
+  "radius": 2.336,
+  "tris": 280
+ },
+ "crate": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.38,
+   0.0
+  ],
+  "col_size": [
+   0.8,
+   0.76,
+   0.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.819,
+  "kind": "crate",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/crate.glb",
+  "radius": 0.4,
+  "tris": 240
+ },
+ "dumpster": {
+  "anchors": {
+   "Loot": [
+    0.0,
+    0.0,
+    0.95
+   ]
+  },
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.63,
+   0.0
+  ],
+  "col_size": [
+   1.45,
+   1.26,
+   1.1
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.336,
+  "kind": "dumpster",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/dumpster.glb",
+  "radius": 0.74,
+  "tris": 292
+ },
+ "fence_chain_2": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.95,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   1.9,
+   0.08
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.9,
+  "kind": "fence",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/fence_chain_2.glb",
+  "radius": 1.115,
+  "tris": 512
+ },
+ "fence_wire_2": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.6,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   1.2,
+   0.1
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.3,
+  "kind": "fence",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/fence_wire_2.glb",
+  "radius": 1.247,
+  "tris": 217
+ },
+ "fence_wood_2": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.55,
+   -0.02
+  ],
+  "col_size": [
+   2.0,
+   1.1,
+   0.14
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.15,
+  "kind": "fence",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/fence_wood_2.glb",
+  "radius": 1.177,
+  "tris": 392
+ },
+ "fuel_pump": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   1.0,
+   0.0
+  ],
+  "col_size": [
+   1.0,
+   2.05,
+   0.5
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 2.109,
+  "kind": "pump",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/fuel_pump.glb",
+  "radius": 0.728,
+  "tris": 454
+ },
+ "gas_canopy": {
+  "anchors": {
+   "LightAnchor": [
+    0.0,
+    4.5,
+    0.0
+   ]
+  },
+  "col": "box",
+  "col_center": [
+   0.0,
+   2.3,
+   0.0
+  ],
+  "col_size": [
+   8.4,
+   4.6,
+   4.8
+  ],
+  "cols": [
+   [
+    [
+     -4.0,
+     2.3,
+     2.2
+    ],
+    [
+     0.4,
+     4.6,
+     0.4
+    ]
+   ],
+   [
+    [
+     -4.0,
+     2.3,
+     -2.2
+    ],
+    [
+     0.4,
+     4.6,
+     0.4
+    ]
+   ],
+   [
+    [
+     4.0,
+     2.3,
+     2.2
+    ],
+    [
+     0.4,
+     4.6,
+     0.4
+    ]
+   ],
+   [
+    [
+     4.0,
+     2.3,
+     -2.2
+    ],
+    [
+     0.4,
+     4.6,
+     0.4
+    ]
+   ]
+  ],
+  "family": "village",
+  "height": 5.545,
+  "kind": "canopy",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/gas_canopy.glb",
+  "radius": 6.02,
+  "tris": 1136
+ },
+ "gas_sign": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   2.3,
+   0.0
+  ],
+  "col_size": [
+   2.0,
+   4.6,
+   0.2
+  ],
+  "cols": [
+   [
+    [
+     -0.9,
+     2.3,
+     0.0
+    ],
+    [
+     0.2,
+     4.6,
+     0.2
+    ]
+   ],
+   [
+    [
+     0.9,
+     2.3,
+     0.0
+    ],
+    [
+     0.2,
+     4.6,
+     0.2
+    ]
+   ]
+  ],
+  "family": "village",
+  "height": 7.284,
+  "kind": "gas_sign",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/gas_sign.glb",
+  "radius": 1.3,
+  "tris": 416
+ },
+ "hay_bale": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.35,
+   0.0
+  ],
+  "col_size": [
+   1.2,
+   0.7,
+   0.9
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.769,
+  "kind": "hay",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/hay_bale.glb",
+  "radius": 0.6,
+  "tris": 168
+ },
+ "hay_round": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.75,
+   0.0
+  ],
+  "col_size": [
+   1.2,
+   1.5,
+   1.5
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.521,
+  "kind": "hay",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/hay_round.glb",
+  "radius": 0.755,
+  "tris": 288
+ },
+ "hydrant": {
+  "anchors": {},
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   0.4,
+   0.0
+  ],
+  "col_size": [
+   0.34,
+   0.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.83,
+  "kind": "hydrant",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/hydrant.glb",
+  "radius": 0.2,
+  "tris": 192
+ },
+ "lamp_post": {
+  "anchors": {
+   "LightAnchor": [
+    0.0,
+    5.62,
+    1.3
+   ],
+   "LightPool": [
+    0.0,
+    0.02,
+    1.3
+   ]
+  },
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   3.0,
+   0.0
+  ],
+  "col_size": [
+   0.22,
+   6.0
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 6.1,
+  "kind": "lamp",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/lamp_post.glb",
+  "radius": 1.573,
+  "tris": 234
+ },
+ "log_pile": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.75,
+   0.0
+  ],
+  "col_size": [
+   4.2,
+   1.5,
+   1.9
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.534,
+  "kind": "logs",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/log_pile.glb",
+  "radius": 2.136,
+  "tris": 912
+ },
+ "lumber_stack": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.215,
+   0.0
+  ],
+  "col_size": [
+   3.6,
+   0.43,
+   1.2
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.506,
+  "kind": "lumber",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/lumber_stack.glb",
+  "radius": 1.8,
+  "tris": 564
+ },
+ "mailbox": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.7,
+   0.02
+  ],
+  "col_size": [
+   0.3,
+   1.4,
+   0.55
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.42,
+  "kind": "mailbox",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/mailbox.glb",
+  "radius": 0.308,
+  "tris": 212
+ },
+ "pallet": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.07,
+   0.0
+  ],
+  "col_size": [
+   1.2,
+   0.14,
+   0.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.175,
+  "kind": "pallet",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/pallet.glb",
+  "radius": 0.6,
+  "tris": 336
+ },
+ "power_pole": {
+  "anchors": {
+   "WireA": [
+    0.0,
+    7.78,
+    0.8
+   ],
+   "WireB": [
+    0.0,
+    7.78,
+    -0.8
+   ]
+  },
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   4.0,
+   0.0
+  ],
+  "col_size": [
+   0.28,
+   8.0
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 8.0,
+  "kind": "pole",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/power_pole.glb",
+  "radius": 0.979,
+  "tris": 376
+ },
+ "sawmill_saw": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.5,
+   0.7,
+   0.0
+  ],
+  "col_size": [
+   7.0,
+   1.4,
+   2.6
+  ],
+  "cols": [
+   [
+    [
+     -0.4,
+     0.7,
+     0.0
+    ],
+    [
+     8.0,
+     1.4,
+     1.6
+    ]
+   ],
+   [
+    [
+     1.7,
+     0.8,
+     0.5
+    ],
+    [
+     2.4,
+     1.6,
+     2.6
+    ]
+   ],
+   [
+    [
+     -4.2,
+     1.6,
+     1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ],
+   [
+    [
+     -4.2,
+     1.6,
+     -1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ],
+   [
+    [
+     3.2,
+     1.6,
+     1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ],
+   [
+    [
+     3.2,
+     1.6,
+     -1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ],
+   [
+    [
+     -0.5,
+     1.6,
+     1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ],
+   [
+    [
+     -0.5,
+     1.6,
+     -1.6
+    ],
+    [
+     0.16,
+     3.2,
+     0.16
+    ]
+   ]
+  ],
+  "family": "village",
+  "height": 3.501,
+  "kind": "saw",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/sawmill_saw.glb",
+  "radius": 4.4,
+  "tris": 800
+ },
+ "shopping_cart": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   0.55,
+   0.0
+  ],
+  "col_size": [
+   0.56,
+   1.1,
+   1.1
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.08,
+  "kind": "cart",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/shopping_cart.glb",
+  "radius": 0.58,
+  "tris": 584
+ },
+ "silo": {
+  "anchors": {},
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   5.5,
+   0.0
+  ],
+  "col_size": [
+   5.4,
+   11.0
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 13.1,
+  "kind": "silo",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/silo.glb",
+  "radius": 3.578,
+  "tris": 1212
+ },
+ "tire_stack": {
+  "anchors": {},
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   0.4,
+   0.0
+  ],
+  "col_size": [
+   0.72,
+   0.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 0.85,
+  "kind": "tires",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/tire_stack.glb",
+  "radius": 0.404,
+  "tris": 496
+ },
+ "tractor": {
+  "anchors": {},
+  "col": "box",
+  "col_center": [
+   0.0,
+   1.3,
+   0.4
+  ],
+  "col_size": [
+   2.3,
+   2.6,
+   3.8
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 2.768,
+  "kind": "tractor",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/tractor.glb",
+  "radius": 2.2,
+  "tris": 1012
+ },
+ "trash_can": {
+  "anchors": {},
+  "col": "cylinder",
+  "col_center": [
+   0.0,
+   0.5,
+   0.0
+  ],
+  "col_size": [
+   0.46,
+   1.0
+  ],
+  "cols": [],
+  "family": "village",
+  "height": 1.05,
+  "kind": "bin",
+  "node": "Prop",
+  "path": "res://assets/models/props/village/trash_can.glb",
+  "radius": 0.259,
+  "tris": 136
+ }
+}

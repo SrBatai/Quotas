@@ -15,6 +15,10 @@ extends Control
 ##   (26 px, only below 100, fades 1 s after refilling);
 ## - interaction prompts within 2.5 m, anchored 1.2 m above the object, with the device glyph and a hold ring;
 ##   the mouse keeps the context label next to the cursor (appendix §6.9).
+## H3: the damage arc comes only from `Events.player_hit_from` (HitDirection resolves the attacker); pings (danger ▲
+## with its 8 s countdown ring, place ⚑ in the player's colour, name · distance; off screen only with Info, faint on
+## the rail); the P0 notices of the NotifyRouter that live in the world at a point (thin ice "!" at the feet); the
+## downed indicator records when it was first drawn (`downed_seen`: the ≤ 0.2 s gate of the `team` net scenario).
 
 const PERIOD := 1.0 / 30.0
 const RAIL_X := 40.0
@@ -30,6 +34,14 @@ var last_edge: Dictionary = {}
 var edge_count: int = 0
 var prompt_text: String = ""
 var downed_drawn: int = 0
+## H3: peer -> Time.get_ticks_msec() when its downed indicator (world or edge) was first drawn; cleared when up.
+var downed_seen: Dictionary = {}
+## H3: ping id -> true once drawn on screen; P0 world markers drawn.
+var pings_drawn: Dictionary = {}
+var p0_drawn: int = 0
+## H3 (set by the HUD): the pings model and the router (P0 in the world).
+var pings: Node
+var router: Node
 
 var _acc: float = 0.0
 var _t: float = 0.0
@@ -49,7 +61,6 @@ var _placement_text: String = ""
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	Events.player_damaged.connect(_on_damaged)
 	Events.player_hit_from.connect(_on_hit_from)
 	Events.objective_updated.connect(_on_objective)
 	Events.hover_changed.connect(func(t: String) -> void: _cursor_text = t)
@@ -91,6 +102,11 @@ func screen_dir(from: Vector3, to: Vector3) -> Vector2:
 	var cam := _cam()
 	if cam == null:
 		return Vector2.RIGHT
+	return dir_on_screen(cam, from, to)
+
+
+## Screen direction (unit, y down) of `to` seen from `from` with the camera's yaw and the 48° pitch (captions, rail).
+static func dir_on_screen(cam: Camera3D, from: Vector3, to: Vector3) -> Vector2:
 	var right := cam.global_basis.x
 	right.y = 0.0
 	var fwd := -cam.global_basis.z
@@ -180,43 +196,12 @@ func _exclusions() -> Array:
 
 
 # ------------------------------------------------------------------ events
-func _on_damaged(amount: float, _source: StringName) -> void:
-	if _t - _last_hit_t < 0.06:
-		return   # offline: the sim signal and the owner fx arrive together
-	_last_hit_t = _t
-	var p := GameFlow.local_player() as Player
-	if p == null:
-		return
-	var ang := NAN
-	var src := _nearest_attacker(p.global_position)
-	if src != Vector3.INF:
-		ang = _ground_angle(p.global_position, src)
-	_hits.append({"t": _t, "angle": ang, "amount": amount})
-
-
 func _on_hit_from(dir: Vector3, amount: float) -> void:
 	var p := GameFlow.local_player() as Player
-	if p == null:
+	if p == null or dir.length() < 0.001:
 		return
 	_hits.append({"t": _t, "angle": _ground_angle(p.global_position, p.global_position + dir), "amount": amount})
 	_last_hit_t = _t
-
-
-func _nearest_attacker(me: Vector3) -> Vector3:
-	var best := Vector3.INF
-	var bd := 4.0
-	if ZombieClient.instance != null:
-		var z := ZombieClient.instance.nearest_to(me, bd)
-		if z != null:
-			best = z.render_pos
-			bd = Vector2(best.x - me.x, best.z - me.z).length()
-	for w in get_tree().get_nodes_in_group("wolves"):
-		var q := (w as Node3D).global_position
-		var d := Vector2(q.x - me.x, q.z - me.z).length()
-		if d < bd:
-			bd = d
-			best = q
-	return best
 
 
 ## Angle (rad) on the screen ground ellipse from `a` toward `b`.
@@ -274,6 +259,14 @@ func _process(delta: float) -> void:
 		for id in _mate_a.keys():
 			if not seen.has(id):
 				_mate_a.erase(id)
+		for id in downed_seen.keys():
+			var still := false
+			for m: Dictionary in team.mates:
+				var o2 := TeamTracker.player_of(m)
+				if o2 != null and o2.peer_id == int(id) and bool(m["downed"]):
+					still = true
+			if not still:
+				downed_seen.erase(id)
 	_acc += delta
 	if _acc >= PERIOD or delta == 0.0:   # 30 Hz; every frame while the clock is frozen (time_scale 0)
 		_acc = 0.0
@@ -446,6 +439,9 @@ func _draw() -> void:
 					tx = tx.substr(0, 41) + "…"
 				var tw := UiStyle.text_width(&"whisper", tx)
 				UiStyle.draw_text(self, &"whisper", Vector2(q.x - tw * 0.5, q.y - 12.0), tx, UiTokens.INK, HORIZONTAL_ALIGNMENT_LEFT, -1.0, a)
+	# --- H3: pings and the P0 notices that live in the world
+	_draw_pings(p, info)
+	_draw_p0(p)
 	# --- interaction prompt (within 2.5 m) / cursor context label (mouse)
 	_draw_prompt(p)
 	# --- the one edge marker (+ faint destinations with Info)
@@ -477,9 +473,11 @@ func _draw_downed(me: Player, m: Dictionary, is_accent: bool) -> void:
 	if not _on_screen(ground, 0.0):
 		return
 	downed_drawn += 1
-	var rx := _ground_rx(o.global_position, 1.6)
+	if not downed_seen.has(o.peer_id):
+		downed_seen[o.peer_id] = Time.get_ticks_msec()
+	var rx := _ground_rx(o.global_position, UiTokens.DOWNED_RING_M)
 	Whisper.ground_ellipse(self, ground, rx, Color(col, 0.85), 1.5)
-	var c := ground + Vector2(0, rx * UiTokens.GROUND_RATIO + 50.0)
+	var c := ground + Vector2(0, rx * UiTokens.GROUND_RATIO + 28.0)
 	var maxb := Balance.DOWNED_BLEED
 	var frac := clampf(float(m["bleed"]) / maxb, 0.0, 1.0)
 	var being_revived := o.revive_by != 0
@@ -560,6 +558,9 @@ func _draw_edge(p: Player, feet: Vector2, acc: Dictionary, info: bool) -> void:
 			var txt := UiTokens.distance(d)
 			if kind == &"downed":
 				txt = "%s %d s · %s" % [str(acc["label"]), _bleed_of(acc), txt]
+				var dp: Variant = acc.get("player")
+				if dp != null and is_instance_valid(dp) and not downed_seen.has((dp as Player).peer_id):
+					downed_seen[(dp as Player).peer_id] = Time.get_ticks_msec()
 			elif info or kind == &"heat":
 				txt = "%s · %s" % [str(acc["label"]), txt]
 			# arrow outside, diamond, then the text toward the inside of the screen
@@ -590,3 +591,104 @@ func _draw_edge(p: Player, feet: Vector2, acc: Dictionary, info: bool) -> void:
 				continue
 			var rp2 := rail_point(origin, screen_dir(me, tp))
 			Whisper.diamond(self, rp2, 9.0, UiTokens.INK_50, false)
+
+
+# ------------------------------------------------------------------ H3: pings and world P0
+## Pings (appendix §6.4.3): danger = ▲ in `blood` with a countdown ring (8 s); place = ⚑ in the player's colour
+## (30 s); "Ana · 40 m" under it. On screen always; off screen only with Info, as a faint mark on the rail (the one
+## edge marker stays the accent's, §V.1 rule 5).
+func _draw_pings(p: Player, info: bool) -> void:
+	if pings == null:
+		return
+	var list: Array = pings.get("live")
+	if list.is_empty():
+		return
+	var me := p.global_position
+	var origin := project(me)
+	if origin == Vector2.INF:
+		origin = size * 0.5
+	var cb := bool(UiSettings.get_value("colorblind"))
+	var now := float(pings.get("clock"))
+	for g: Dictionary in list:
+		var pos: Vector3 = g["pos"]
+		var q := project(pos + Vector3(0, 1.0, 0))
+		var danger: bool = g["kind"] == &"danger"
+		var col: Color = UiTokens.BLOOD if danger else UiTokens.player_color(int(g.get("color", 0)), cb)
+		var left := clampf((float(g["until"]) - now) / maxf(float(g["seconds"]), 0.1), 0.0, 1.0)
+		var fade := clampf((float(g["until"]) - now) / 0.6, 0.0, 1.0) * clampf((now - float(g["born"])) / 0.2, 0.0, 1.0)
+		if _on_screen(q, 30.0):
+			pings_drawn[int(g["id"])] = true
+			if danger:
+				_alert_glyph(q, col, fade)
+				Whisper.ring(self, q, UiTokens.PING_SIZE * 2.6, left, col, 1.5, fade, true)
+			else:
+				_flag_glyph(q, col, fade)
+			var d := Vector2(pos.x - me.x, pos.z - me.z).length()
+			var nm := str(g.get("name", ""))
+			var dist := UiTokens.distance(d)
+			var nw := UiStyle.text_width(&"name", nm + " ") if nm != "" else 0.0
+			var dw := UiStyle.text_width(&"name", dist)
+			var x0 := q.x - (nw + dw) * 0.5
+			if nm != "":
+				UiStyle.draw_text(self, &"name", Vector2(x0, q.y + 30.0), nm, UiTokens.player_text_color(int(g.get("color", 0))), HORIZONTAL_ALIGNMENT_LEFT, -1.0, fade)
+			UiStyle.draw_text(self, &"name", Vector2(x0 + nw, q.y + 30.0), dist, UiTokens.INK, HORIZONTAL_ALIGNMENT_LEFT, -1.0, fade)
+		elif info:
+			var rp := rail_point(origin, screen_dir(me, pos))
+			if danger:
+				_alert_glyph(rp, Color(col, 0.7), fade * 0.8, 0.7)
+			else:
+				Whisper.diamond(self, rp, 9.0, Color(col, 0.6), false, fade)
+
+
+## ▲ with a "!" drawn with lines (Barlow has the glyph, but a drawn one keeps the stroke of the line icons).
+func _alert_glyph(c: Vector2, col: Color, a: float, k: float = 1.0) -> void:
+	var h := UiTokens.PING_SIZE * k
+	var pts := PackedVector2Array([c + Vector2(0, -h), c + Vector2(h * 0.95, h * 0.72), c + Vector2(-h * 0.95, h * 0.72), c + Vector2(0, -h)])
+	var sh := PackedVector2Array()
+	for v in pts:
+		sh.append(v + Vector2(0, 1))
+	draw_polyline(sh, Color(0, 0, 0, 0.5 * a), 3.5, true)
+	draw_polyline(pts, Color(col, col.a * a), 1.8, true)
+	draw_line(c + Vector2(0, -h * 0.42), c + Vector2(0, h * 0.18), Color(col, col.a * a), 1.8, true)
+	draw_circle(c + Vector2(0, h * 0.44), 1.3 * k, Color(col, col.a * a))
+
+
+## ⚑ (a pole and a small pennant) in the player's colour.
+func _flag_glyph(c: Vector2, col: Color, a: float) -> void:
+	var h := UiTokens.PING_SIZE
+	var base := c + Vector2(-h * 0.35, h * 0.8)
+	var top := c + Vector2(-h * 0.35, -h * 0.9)
+	draw_line(base + Vector2(0, 1), top + Vector2(0, 1), Color(0, 0, 0, 0.5 * a), 3.0, true)
+	draw_line(base, top, Color(col, col.a * a), 1.6, true)
+	var flag := PackedVector2Array([top, top + Vector2(h * 1.1, h * 0.35), top + Vector2(0, h * 0.75)])
+	draw_colored_polygon(flag, Color(col, 0.85 * col.a * a))
+	draw_arc(base, h * 0.55, 0.0, TAU, 20, Color(col, 0.5 * a), 1.2, true)
+
+
+## P0 notices in the world with a point (thin ice underfoot: "!" and the words at the feet; a teammate's downed
+## P0 has its own indicator, so it is skipped here).
+func _draw_p0(p: Player) -> void:
+	if router == null:
+		return
+	var list: Array = router.call("p0_world")
+	for e: Dictionary in list:
+		if int(e.get("peer", 0)) != 0:
+			continue   # a teammate's P0: the downed indicator draws it
+		var pos: Vector3 = e.get("pos", p.global_position)
+		var q := project(pos + Vector3(0, 0.1, 0))
+		if not _on_screen(q, 20.0):
+			continue
+		p0_drawn += 1
+		var pl := 0.7 + 0.3 * UiMotion.pulse(_t, 1.0)
+		var rx := _ground_rx(pos, 1.3)
+		Whisper.ground_ellipse(self, q, rx, Color(UiTokens.WARN, 0.8 * pl), 1.5)
+		var c := q + Vector2(0, rx * UiTokens.GROUND_RATIO + 26.0)
+		_alert_glyph(c, UiTokens.WARN, 1.0, 0.9)
+		var title := str(e.get("title", ""))
+		var body := str(e.get("body", ""))
+		var tw := UiStyle.text_width(&"smallcaps", title)
+		UiStyle.draw_text(self, &"smallcaps", Vector2(c.x - tw * 0.5, c.y + 34.0), title, UiTokens.WARN)
+		var sub := body.substr(body.find(" · ") + 3) if body.contains(" · ") else ""
+		if sub != "":
+			var sw := UiStyle.text_width(&"whisper", sub)
+			UiStyle.draw_text(self, &"whisper", Vector2(c.x - sw * 0.5, c.y + 58.0), sub, UiTokens.INK)

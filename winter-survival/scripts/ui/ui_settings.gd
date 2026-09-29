@@ -34,7 +34,10 @@ const DEFAULTS := {
 	"text_bg": &"auto",        # "Fondo del texto": auto (adaptive scrim) | opaque (70 %)
 	"colorblind": false,       # marker shapes per kind + Okabe–Ito player colours
 	"elements": {},            # per element override: {&"vitals": &"always", …}
+	"captions": &"p0",         # H3 sound captions with direction: p0 (default: the critical ones) | all | off
+	"p0_banner": false,        # H3 «Banner P0 mínimo» (PLAN R29 plan B): P0 notices also on the 3 s line
 }
+const CAPTION_MODES := [&"p0", &"all", &"off"]
 
 static var _instance: UiSettings
 
@@ -108,6 +111,9 @@ func _coerce(key: String, v: Variant) -> Variant:
 			return w if HUD_WIDTHS.has(w) else &"16:9"
 		"text_bg":
 			return &"opaque" if str(v) == "opaque" else &"auto"
+		"captions":
+			var c := StringName(str(v))
+			return c if CAPTION_MODES.has(c) else &"p0"
 		"ui_scale":
 			return snappedf(clampf(float(v), UiTokens.UI_SCALE_MIN, UiTokens.UI_SCALE_MAX), 0.05)
 		"screen_margin":

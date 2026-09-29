@@ -7,6 +7,8 @@ extends SceneTree
 ## ZombieNet's own µs, move_and_slide, route queries and the bytes per bot. Writes tests/perf/horde.json,
 ## checks tests/perf_budgets.json "perf_horde" (median tick ≤ 8 ms; p99 is reported).
 ## Usage: tests/run_perf_horde.sh [--zombies=200] [--seconds=20] [--nocheck]
+## C1: --city (perf_horde_city): the bots on the Gran Vía in Las Torres among the jam, --zombies walkers kept alive
+## around them off the building footprints (default 150) + --statues frozen records (default 300) up to 110 m.
 ## Experiments: HORDE_NOBENCH=1 (no packet building for the bots), HORDE_BODIES=n (cap the L0 body pool).
 ## The tick is the server's busy time per physics tick (probes from the first physics callback to the last process
 ## callback); the engine's TIME_*_PROCESS monitors are maxima over one second and are only reported.
@@ -27,6 +29,10 @@ func _initialize() -> void:
 			opts["port"] = int(a.substr(7))
 		elif a == "--nocheck":
 			opts["check"] = false
+		elif a == "--city":
+			opts["city"] = true   # C1 perf_horde_city: 150 L0 walkers + 300 frozen statues + 4 bots in Las Torres
+		elif a.begins_with("--statues="):
+			opts["statues"] = int(a.substr(10))
 	var script: GDScript = load("res://tests/perf_horde_steps.gd")
 	if script == null or not script.can_instantiate():
 		print("FAIL: cannot load perf_horde_steps.gd")

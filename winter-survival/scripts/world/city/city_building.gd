@@ -396,7 +396,8 @@ static func validate(p_root: Node3D, strict: bool = true) -> PackedStringArray:
 			continue
 		var n := canonical(String(c.name))
 		var t := (c as Node3D).transform
-		if n.begins_with("Col") or n.begins_with("Spawn_") or n.begins_with("Door_") or n.begins_with("Window_") or n.ends_with("Anchor"):
+		if n.begins_with("Col") or n.begins_with("Spawn_") or n.begins_with("Door_") or n.begins_with("Window_") or n.ends_with("Anchor") \
+				or n.begins_with("KitDoor_") or n.begins_with("loot_") or n == "Shelter" or n.begins_with("Stair") or n.begins_with("Floors"):
 			continue
 		if absf(t.origin.y) > 0.001:
 			out.append("%s: local y offset %.3f (pieces keep the building base at y = 0)" % [n, t.origin.y])

@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://c14vwj0fxklim"
+path="res://.godot/imported/noche_ciudad.png-365a8ec44f64955eeee5bedbbca7f2d4.image"
+
+[deps]
+
+source_file="res://assets/luts/noche_ciudad.png"
+dest_files=["res://.godot/imported/noche_ciudad.png-365a8ec44f64955eeee5bedbbca7f2d4.image"]
+
+[params]
+

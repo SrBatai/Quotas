@@ -2,7 +2,8 @@ class_name HudSettingsPanel
 extends PanelContainer
 ## "Interfaz y accesibilidad" (docs/research/10_hud_ux.md §V.7, appendix §5.7–5.8): HUD preset (Mínimo /
 ## Estándar / Completo), UI scale 80–150 %, screen margin, HUD width on wide screens, Info as hold or toggle,
-## reduced motion, reduced flashes, text weight, text background and colour-blind marker shapes. Every change is
+## reduced motion, reduced flashes, text weight, text background, colour-blind marker shapes and (H3) sound
+## captions with direction and the optional minimal P0 banner. Every change is
 ## saved at once (UiSettings, user://settings.cfg [hud]) and the HUD follows live.
 
 signal back()
@@ -34,6 +35,8 @@ func _ready() -> void:
 	_toggle("Texto reforzado (más grueso)", "text_bold")
 	_option("Fondo del texto", "text_bg", [[&"auto", "Automático"], [&"opaque", "Opaco"]])
 	_toggle("Marcadores y colores para daltonismo", "colorblind")
+	_option("Rótulos de sonido (con dirección)", "captions", [[&"p0", "Avisos críticos"], [&"all", "Todos"], [&"off", "No"]])
+	_toggle("Aviso crítico también en la línea central", "p0_banner")
 	vb.add_child(UiTheme.spacer(4, 6))
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 10)
