@@ -1,0 +1,140 @@
+{
+ "assets": {
+  "bare_tree_hd": {
+   "file": "bare_tree_hd.glb",
+   "height_m": 6.4,
+   "multimesh": true,
+   "replaces": "assets/models/dead_tree.glb",
+   "tris": 2086
+  },
+  "cabin_hd": {
+   "anchors": [
+    "DoorAnchor",
+    "LanternSocket"
+   ],
+   "collision": "Col*-convcolonly boxes + ColSteps (as cabin.glb)",
+   "file": "cabin_hd.glb",
+   "note": "WallRight now also has a window (WindowsRight, child of WallRight).",
+   "parts": {
+    "Chimney": 1690,
+    "Floor": 1898,
+    "Porch": 6254,
+    "Roof": 8392,
+    "WallBack": 368,
+    "WallFront": 1988,
+    "WallLeft": 1456,
+    "WallRight": 1212,
+    "WindowsFront": 2,
+    "WindowsLeft": 2,
+    "WindowsRight": 2
+   },
+   "pivot": "footprint centre z=0; porch/door toward +Z Godot (place with rotation 0)",
+   "replaces": "assets/models/cabin.glb",
+   "surfaces": 11,
+   "tris": 23264
+  },
+  "footprint_hd": {
+   "file": "footprint_hd.glb",
+   "note": "one boot print, toe toward +Z Godot, rim 5.5 cm; sits on the surface (no hole needed)",
+   "tris": 84
+  },
+  "pine_hd_a": {
+   "file": "pine_hd_a.glb",
+   "height_m": 7.45,
+   "multimesh": true,
+   "replaces": "assets/models/pine_a|b|c.glb",
+   "tris": 1125
+  },
+  "pine_hd_b": {
+   "file": "pine_hd_b.glb",
+   "height_m": 6.15,
+   "multimesh": true,
+   "replaces": "assets/models/pine_a|b|c.glb",
+   "tris": 873
+  },
+  "survivor_hd_brown": {
+   "file": "chars/survivor_hd_brown.glb",
+   "import": "char template (.import next to the .glb): BoneMap res://assets/hd/rig/humanoid_bonemap.tres -> GeneralSkeleton; plays anims/humanoid_loco.glb",
+   "outfits": [
+    "Outfit_backpack_m"
+   ],
+   "parts": {
+    "Body": 2226,
+    "Outfit_backpack_m": 424
+   },
+   "replaces": "assets/models/chars/survivor_*.glb",
+   "skeleton": "identical to survivor_*.glb (lib/rig.py, 27 bones)",
+   "skirt_blend_vertices": 76,
+   "tris": 2650
+  },
+  "survivor_hd_navy": {
+   "file": "chars/survivor_hd_navy.glb",
+   "import": "char template (.import next to the .glb): BoneMap res://assets/hd/rig/humanoid_bonemap.tres -> GeneralSkeleton; plays anims/humanoid_loco.glb",
+   "outfits": [
+    "Outfit_backpack_m"
+   ],
+   "parts": {
+    "Body": 2226,
+    "Outfit_backpack_m": 424
+   },
+   "replaces": "assets/models/chars/survivor_*.glb",
+   "skeleton": "identical to survivor_*.glb (lib/rig.py, 27 bones)",
+   "skirt_blend_vertices": 76,
+   "tris": 2650
+  },
+  "survivor_hd_olive": {
+   "file": "chars/survivor_hd_olive.glb",
+   "import": "char template (.import next to the .glb): BoneMap res://assets/hd/rig/humanoid_bonemap.tres -> GeneralSkeleton; plays anims/humanoid_loco.glb",
+   "outfits": [
+    "Outfit_backpack_m"
+   ],
+   "parts": {
+    "Body": 2226,
+    "Outfit_backpack_m": 424
+   },
+   "replaces": "assets/models/chars/survivor_*.glb",
+   "skeleton": "identical to survivor_*.glb (lib/rig.py, 27 bones)",
+   "skirt_blend_vertices": 76,
+   "tris": 2650
+  },
+  "survivor_hd_rust": {
+   "file": "chars/survivor_hd_rust.glb",
+   "import": "char template (.import next to the .glb): BoneMap res://assets/hd/rig/humanoid_bonemap.tres -> GeneralSkeleton; plays anims/humanoid_loco.glb",
+   "outfits": [
+    "Outfit_backpack_m"
+   ],
+   "parts": {
+    "Body": 2226,
+    "Outfit_backpack_m": 424
+   },
+   "replaces": "assets/models/chars/survivor_*.glb",
+   "skeleton": "identical to survivor_*.glb (lib/rig.py, 27 bones)",
+   "skirt_blend_vertices": 76,
+   "tris": 2650
+  },
+  "terrain_tile_hd": {
+   "extent_m": [
+    -20.0,
+    -26.0,
+    24.0,
+    18.0
+   ],
+   "file": "terrain_tile_hd.glb",
+   "note": "look-dev reference for terrain.gdshader/terrain_chunk: smooth normals, 0.4 m grid, path/berms/snowbanks/drifts; Footprints = rim-ring prints on the path",
+   "parts": {
+    "Footprints": 2184,
+    "Terrain": 24200
+   },
+   "placement": "origin = cabin_hd origin (cabin plot flattened to z=0; porch steps at Godot (0.9, 0, 5.35))",
+   "tris": 26384
+  }
+ },
+ "conventions": {
+  "COLOR_0": "RGBA. RGB = palette colour stored LINEAR (+0.5/255 bias, as the game). A = baked ambient occlusion (1 = open sky, 0 = fully occluded).",
+  "front": "-Y Blender = +Z Godot (MODEL_FRONT), metres, origin at footprint centre z=0",
+  "materials": "palette_vcol (+ window on the glass objects)",
+  "normals": "custom normals exported: snow/fabric/bark smooth, hard surfaces flat faces with a 1.5-3 cm chamfer (hardened normals). Do NOT force flat normals in the shader (no dFdx/dFdy normal).",
+  "palette": "v2.1, see docs/research/05_graficos_arte.md section 4.1",
+  "shader_hint": "world_vcol.gdshader: `AO = COLOR.a; AO_LIGHT_AFFECT = 0.35;` (or ALBEDO *= mix(1.0, COLOR.a, 0.6) for a stylised darker crease look). StandardMaterial3D ignores the alpha (opaque)."
+ }
+}

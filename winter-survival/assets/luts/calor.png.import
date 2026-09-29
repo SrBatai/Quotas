@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://b102tm5m417yt"
+path="res://.godot/imported/calor.png-c28948649ce5e7f047519ea8ffb67d17.image"
+
+[deps]
+
+source_file="res://assets/luts/calor.png"
+dest_files=["res://.godot/imported/calor.png-c28948649ce5e7f047519ea8ffb67d17.image"]
+
+[params]
+

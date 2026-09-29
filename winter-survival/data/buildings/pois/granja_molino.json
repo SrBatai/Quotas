@@ -1,0 +1,42 @@
+{
+ "id": "granja_molino",
+ "name": "Granja del Molino",
+ "kind": "poi",
+ "milestone": "M6b",
+ "doc": "Hand-made POI (PLAN §7 M6b «poi/farm_molino»; GDD §4.3 granjas: house, barn, silo, tractor, fences; food, fuel, tools; 2–5 zombies): built on the H2 zone «GRANJA DEL MOLINO» (-128, -896) r 100, where the farm track (macro_roads granja_molino) ends at (-128, -880). Local +Z = the yard's front toward the track (south). The zone centre stays in the open yard.",
+ "center": [-128.0, -900.0],
+ "yaw": 0.0,
+ "bounds": [-176, -948, 124, 80],
+ "pads": [{"c": [0.0, -6.0], "half": [38, 26], "rot": 0, "blend": 10, "h_at": [-128.0, -880.0]}],
+ "buildings": [
+  {"template": "house_two_story_B", "style": "wood_blue", "pos": [-21.0, -6.0], "yaw": 90, "use": "farmhouse", "shop": "", "number": 1, "enterable": true, "residents": 2, "tables": {"house": "farm"}},
+  {"template": "barn", "style": "wood_red", "pos": [20.0, -12.0], "yaw": -90, "use": "barn", "shop": "", "enterable": true, "residents": 2}
+ ],
+ "items": [
+  {"k": "prop", "model": "props/village/silo", "pos": [33.0, -27.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/silo", "pos": [33.0, -18.0], "yaw": 60},
+  {"k": "prop", "model": "props/village/tractor", "pos": [4.0, -16.0], "yaw": 200},
+  {"k": "prop", "model": "props/village/hay_bale", "pos": [8.0, 4.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/hay_bale", "pos": [9.4, 4.2], "yaw": 8},
+  {"k": "prop", "model": "props/village/hay_bale", "pos": [8.6, 5.6], "yaw": -6},
+  {"k": "prop", "model": "props/village/hay_round", "pos": [26.0, 6.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/hay_round", "pos": [30.0, 10.0], "yaw": 70},
+  {"k": "prop", "model": "props/village/hay_round", "pos": [34.0, 3.0], "yaw": 20},
+  {"k": "prop", "model": "props/village/barrel", "pos": [11.0, -22.0], "yaw": 0},
+  {"k": "prop", "model": "props/village/barrel", "pos": [12.0, -22.6], "yaw": 25},
+  {"k": "prop", "model": "props/village/pallet", "pos": [-6.0, -22.0], "yaw": 5},
+  {"k": "prop", "model": "props/village/crate", "pos": [-5.0, -20.4], "yaw": 30},
+  {"k": "prop", "model": "props/village/mailbox", "pos": [3.2, 17.0], "yaw": 0},
+  {"k": "car", "model": "city/vehicles/pickup_snowed", "pos": [-9.0, 6.0], "yaw": 30, "table": "car"},
+  {"k": "container", "model": "props/village/dumpster", "pos": [-32.0, -20.0], "yaw": 90, "table": "farm"},
+  {"k": "lamp", "model": "props/village/lamp_post", "pos": [-9.0, -10.0], "yaw": 90, "power": -1.0},
+  {"k": "sign", "model": "signs/sign_street", "pos": [5.0, 19.0], "yaw": 45, "text": "Granja del Molino", "back": "Granja del Molino"},
+  {"k": "fence", "model": "props/village/fence_wood_2", "run": [[-36.0, 18.0], [-4.0, 18.0]]},
+  {"k": "fence", "model": "props/village/fence_wood_2", "run": [[4.0, 18.0], [38.0, 18.0]]},
+  {"k": "fence", "model": "props/village/fence_wood_2", "run": [[38.0, 18.0], [38.0, -2.0]]},
+  {"k": "fence", "model": "props/village/fence_wire_2", "run": [[40.0, 16.0], [64.0, 16.0]]},
+  {"k": "fence", "model": "props/village/fence_wire_2", "run": [[64.0, 16.0], [64.0, -24.0]]},
+  {"k": "fence", "model": "props/village/fence_wire_2", "run": [[64.0, -24.0], [40.0, -24.0]]}
+ ],
+ "outdoor": [2, 3]
+}

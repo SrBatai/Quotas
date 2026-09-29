@@ -1,0 +1,522 @@
+name: VENTISCA
+
+# Tests the Godot project headless and exports playable desktop builds
+# (Windows + Linux) as downloadable workflow artifacts.
+on:
+  pull_request:
+    paths:
+      - "winter-survival/**"
+      - ".github/workflows/ventisca.yml"
+  push:
+    branches: [main]
+    paths:
+      - "winter-survival/**"
+      - ".github/workflows/ventisca.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ventisca-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.7.2"
+
+jobs:
+  test:
+    name: Headless tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55   # W0: + city bench under xvfb (software rasterisers); W1: 6.5 km perf walk, 4-client far, valley hashes
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      - name: Parse check
+        run: godot --headless --path . -s tests/parse_check.gd
+
+      - name: Smoke test (single player, in-process server)
+        run: tests/run_smoke.sh
+
+      - name: Art contract (ASSET_SPEC v2)
+        run: |
+          godot --headless --path . -s tests/inspect_models.gd ++ --quiet | tee /tmp/inspect.log
+          grep -q "ALL OK" /tmp/inspect.log
+
+      - name: Net test (1 dedicated server + 4 clients)
+        run: tests/net/run_net_test.sh --clients 4 --duration 60 --soak 90
+
+      - name: Net test shared world (3 clients, late join)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_sw
+        run: tests/net/run_net_test.sh --clients 3 --duration 60 --soak 90 --scenario shared_world --port 7787
+
+      - name: Net test far (W1, 4 clients in the 4 quadrants up to 5 km apart, chunk interest, server RSS ≤ 400 MB)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_far
+        run: tests/net/run_net_test.sh --clients 4 --duration 40 --soak 55 --scenario far --port 7797
+
+      # A late joiner, jumps in and out of another peer's chunk interest and a wolf on one side only: the runner fails
+      # on any ERROR:, e.g. "Ignoring delta for non-authority or invalid synchronizer" from a filter installed too late
+      - name: Net test interest (spawns and moves outside a peer's chunk interest)
+        run: tests/net/run_net_test.sh --clients 2 --duration 40 --soak 60 --scenario interest --port 7887
+
+      - name: Net test zombies (M4, 4 clients, combat, downed/revive, ff, pvp, bandwidth)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_zombies
+        run: tests/net/run_net_test.sh --clients 4 --duration 62 --soak 70 --scenario zombies --port 7807
+
+      - name: World determinism (60 chunks in the 4 quadrants, server path vs client path)
+        run: tests/run_determinism.sh
+
+      - name: W1 world checks (6 km grid and walls, macro 768², 20 banner points, ice, pads, roads, population 96²)
+        run: |
+          godot --headless --path . -s tests/w1_world.gd 2>&1 | tee /tmp/w1_world.log
+          grep -q "ALL PASSED" /tmp/w1_world.log
+
+      - name: W1 «el valle no cambia» (valley chunk hashes = pre-W1, closed Carretera del Puerto list)
+        run: |
+          godot --headless --path . -s tests/valley_unchanged.gd 2>&1 | tee /tmp/valley.log
+          grep -q "VALLEY UNCHANGED OK" /tmp/valley.log
+
+      - name: W1 macro map reproducible (tools/gen_macro_map.gd --check)
+        run: |
+          godot --headless --path . -s tools/gen_macro_map.gd ++ --check 2>&1 | tee /tmp/macro.log
+          grep -q "identical" /tmp/macro.log
+
+      # Timing-based: shared CI runners add scheduling noise, so this reports but does not block.
+      # The blocking perf gates run locally in tests/run_all.sh.
+      - name: Streaming perf walk, CPU, W1 6.5 km (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu
+
+      - name: Horde perf, 200 zombies + 4 bots (informational)
+        continue-on-error: true
+        run: tests/run_perf_horde.sh
+
+      - name: Persistence unit test
+        run: |
+          godot --headless --path . -s tests/unit/persistence_test.gd 2>&1 | tee /tmp/persistence.log
+          grep -q "ALL PASSED" /tmp/persistence.log
+
+      # S1: event table valid, every event the code plays has a stream or a documented silence, every file loads
+      # (mono 3D / stereo beds, sane length, peaks ≤ −1 dBFS), licences cover them, variations, ≤ 10.5 MB, the
+      # AudioManager's voice budget / loops / gunshot layering (the in-game audio steps run inside the smoke test)
+      - name: Audio unit test (S1)
+        run: |
+          godot --headless --path . -s tests/unit/audio_test.gd 2>&1 | tee /tmp/audio.log
+          grep -q "ALL PASSED" /tmp/audio.log
+
+      - name: Render checks (W0 + G2a, headless)
+        run: godot --headless --path . -s tests/render_checks.gd
+
+      # The city bench renders: software GL (llvmpipe) and Vulkan (lavapipe) under xvfb.
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
+
+      # Blocking: the player stays visible through the «corte urbano» (16–50 m, default / city / rooftop profiles,
+      # inside a building), the cut keeps the tower shadows, draw calls / primitives within doc 08 budgets.
+      # Frame timings are printed only (software rasteriser).
+      - name: City bench gate (W0, Compatibility on llvmpipe)
+        run: tests/run_city_bench.sh gate
+
+      # M6a: the kit test street (buildings, CutawayManager storeys, doors, signs, wids) and its bench: player ≥ 99 %
+      # visible / zombies ≥ 95 % readable through the corte urbano, a cut house interior in shadow ±5 %.
+      - name: M6a kit street checks (headless)
+        run: godot --headless --path . -s tests/m6a_checks.gd
+
+      - name: M6a street bench gate (Compatibility on llvmpipe)
+        run: tests/run_street_bench.sh gate
+
+      # M6b: La Herrería (generator: 15–20 buildings / ≥ 6 enterable, OBB lots, plan hash, level pads, residents by
+      # land use, zones, built chunks) — the in-game steps and the `village` net scenario run in tests/run_all.sh.
+      - name: M6b La Herrería checks (headless)
+        run: godot --headless --path . -s tests/m6b_checks.gd
+
+      # Timing-based: Forward+ on lavapipe, cut on / evaluate-only / off / G1 material.
+      - name: City bench perf, Forward+ on lavapipe (informational)
+        continue-on-error: true
+        env:
+          RENDER: forward
+        run: tests/run_city_bench.sh perf
+
+  m5:
+    name: M5 server (SQLite, firearms, restart, dedicated server + Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      # R6: the only third-party addon, pinned (v4.9) and checked by SHA-256; the zip is cached by the script's hash
+      - name: Cache godot-sqlite
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ventisca
+          key: godot-sqlite-${{ hashFiles('winter-survival/tools/fetch_godot_sqlite.sh') }}
+
+      - name: Fetch godot-sqlite (pinned + SHA-256)
+        run: tools/fetch_godot_sqlite.sh
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      - name: Unit tests (SqliteBackend, schema 3 + migrations, crash mid-batch; loot, firearms)
+        run: |
+          for t in persistence_m5_test m5_units_test; do
+            godot --headless --path . -s tests/unit/$t.gd 2>&1 | tee /tmp/$t.log
+            grep -q "ALL PASSED" /tmp/$t.log
+          done
+
+      - name: Net test hitscan (150 ms RTT ± 20, 2 % loss; lag compensation, dry fire)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_hitscan
+        run: tests/net/run_net_test.sh --clients 2 --duration 25 --soak 38 --scenario hitscan --port 7837 --net-sim 150,20,2
+
+      - name: Restart scenario (SQLite store, SE quadrant, world_version 2)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_restart_sqlite
+        run: tests/net/run_restart_test.sh --backend sqlite --port 7827
+
+      - name: Restart scenario (JSON file store)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_restart_file
+        run: tests/net/run_restart_test.sh --backend file --port 7847
+
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-server
+
+      - name: Install export templates (linux_release only)
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -j -q /tmp/templates.tpz templates/version.txt templates/linux_release.x86_64 -d "$dest"
+          rm /tmp/templates.tpz
+
+      - name: Export the dedicated server (preset "Dedicated Server")
+        run: server/build_server.sh export/server
+
+      - name: Exported server on SQLite starts, saves and shuts down cleanly
+        env:
+          NET_BACKEND: sqlite
+          SERVER_BIN: export/server/ventisca_server.x86_64
+          NET_TEST_OUT: /tmp/ventisca_server_quick
+        run: tests/net/run_net_test.sh --quick --port 17777
+
+      - name: Docker image (build, start, admin status, graceful stop)
+        run: |
+          docker build -t ventisca-server:ci -f server/Dockerfile export/server
+          docker run -d --name ventisca -p 7777:7777/udp -v ventisca-data:/data ventisca-server:ci
+          for i in $(seq 1 60); do docker logs ventisca 2>&1 | grep -q "\[NET\] READY" && break; sleep 1; done
+          docker exec ventisca /srv/ventisca/admin.sh status
+          docker exec ventisca /srv/ventisca/admin.sh dbinfo | grep -q "backend=sqlite"
+          docker stop ventisca
+          docker logs ventisca 2>&1 | grep -q "save-and-quit: shutting down"
+          test "$(docker inspect ventisca --format '{{.State.ExitCode}}')" = "0"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-server-linux
+          path: winter-survival/export/server/
+          retention-days: 30
+
+  h2:
+    name: H2 zones (zone tracker, names, group discovery across a restart)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Cache godot-sqlite
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ventisca
+          key: godot-sqlite-${{ hashFiles('winter-survival/tools/fetch_godot_sqlite.sh') }}
+
+      - name: Fetch godot-sqlite (pinned + SHA-256)
+        run: tools/fetch_godot_sqlite.sh
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # hysteresis (zigzag = 0 changes, 12 m / 1.5 s = 1), district over city, cooldowns and the queue of 1, combat /
+      # P0 deferral, exit line, highway sign for a scripted fast mover, zone_entered → camera profile, W1's 20 points,
+      # discovery store (schema 3 on memory / JSON / SQLite + migration from 2), names test (C36)
+      - name: Zone tracker unit test
+        run: |
+          godot --headless --path . -s tests/unit/zone_tracker_test.gd 2>&1 | tee /tmp/zone_tracker.log
+          grep -q "ALL PASSED" /tmp/zone_tracker.log
+
+      - name: Discovery scenario (SQLite store; A discovers, B sees the feed + compact title, C after a restart)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_discovery_sqlite
+        run: tests/net/run_discovery_test.sh --backend sqlite --port 7857
+
+      - name: Discovery scenario (JSON file store)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_discovery_file
+        run: tests/net/run_discovery_test.sh --backend file --port 7867
+
+  h3:
+    name: H3 notices, hazards and group (notify router, team scenario, downed_coop coverage)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # P0 in the world / on the vital (never a banner), P1–P2 the 3 s line, P3 the pickup line; precedence after
+      # 1.2 s, back to the queue, attention window, queue of 6, merge / refresh, 8 s cooldown keys, co-op filter,
+      # zone-title crossing, legacy notices, P0 sound + caption, the HazardStack (blizzard, Gran Ventisca, E1 / E2 kinds)
+      - name: Notify router unit test
+        run: |
+          godot --headless --path . -s tests/unit/notify_router_test.gd 2>&1 | tee /tmp/notify_router.log
+          grep -q "ALL PASSED" /tmp/notify_router.log
+
+      # 4 clients with a horde around: a danger ping on every client (world + sound + P2 line), B's down reaches A
+      # (the one indicator + ui_mate_down) ≤ 0.2 s after the server, the P0 ends when A revives B; the blizzard
+      # warning's 60 s countdown from the server on every client
+      - name: Net test team (H3, 4 clients)
+        env:
+          NET_TEST_OUT: /tmp/ventisca_net_team
+        run: tests/net/run_net_test.sh --clients 4 --duration 55 --soak 75 --scenario team --port 7897
+
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri
+
+      - name: HUD coverage, idle and downed_coop ≤ 3 % (Compatibility on llvmpipe)
+        run: tests/run_hud_coverage.sh --moments=idle,downed_coop
+
+  city:
+    name: C1 Altavega (generator, districts, families, hero towers, corte urbano, draw calls, tower scenario, city perf)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # C1: tools/gen_city.gd rebuilds data/world/city/altavega_lots.json (city_version 1) byte for byte from
+      # data/world/city/districts.json + the macro map (the layout is seed-independent; the dressing is seeded)
+      - name: City generator reproducible (gen_city --check)
+        run: |
+          godot --headless --path . -s tools/gen_city.gd ++ --check 2>&1 | tee /tmp/gen_city.log
+          grep -q "gen_city --check: identical" /tmp/gen_city.log
+
+      # lot file v1 + hashes, districts / zone titles / street graph, families (city contract, budgets), streaming of
+      # the four districts (CityCut, doors, loot, painted streets), Control del Puerto, hero towers (stairs, doors,
+      # containers, roof by physics rays), NavFloorTile + stair links, vertical filter, floor population, lot dressing
+      # digest, silhouettes of the real lots, frozen statues bake. (tests/c0_city.gd skips itself on the v1 file.)
+      - name: C1 city checks (headless)
+        run: |
+          godot --headless --path . -s tests/c1_city.gd ++ --no-gen 2>&1 | tee /tmp/c1_city.log
+          grep -q "ALL PASSED" /tmp/c1_city.log
+
+      # 4 clients on floors 2, 2, 3 and 8 of the Edificio Meridiano: stair doors + a desk container coherent on every
+      # client; the vertical interest filter cuts each client's zombie downstream ≥ 30 %
+      - name: Net scenario tower (4 clients in a hero tower)
+        run: tests/net/run_net_test.sh --clients 4 --duration 240 --soak 260 --scenario tower --port 7927
+
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
+
+      # Blocking: player ≥ 99 % visible at 5 fixed points of the superblock (24 / 38 m), player + zombies ≥ 95 % readable
+      - name: Corte urbano probe in Las Torres (Compatibility on llvmpipe)
+        run: tests/run_citycut_probe.sh
+
+      # Blocking (PLAN C1): player + zombies ≥ 95 % readable over 10 seeded sidewalk points of the casco viejo, the
+      # ensanche, the barriada and Las Torres at 24 / 38 m (views with the player under 99 % visible are reported)
+      - name: Corte urbano probe, 10 random points of the four districts (Compatibility on llvmpipe)
+        run: tests/run_citycut_probe.sh --points=c1
+
+      # Blocking (counts, not timings): ≤ 700 draw calls in Compatibility, day and night
+      - name: Perf probe altavega_c0, day and night (draw-call budgets, Compatibility)
+        run: |
+          tests/run_perf.sh --scene=altavega_c0 --hour=11 --label=altavega_c0_day --out=tests/perf/altavega_c0_day.json
+          tests/run_perf.sh --scene=altavega_c0 --hour=22.5 --label=altavega_c0_night --out=tests/perf/altavega_c0_night.json
+
+      # R23: PCSS penumbra of the same tower at the origin and at 2.7 km (Forward+ on lavapipe), ≤ 3 %
+      - name: PCSS far from the origin (Forward+ on lavapipe)
+        run: tests/run_pcss_probe.sh
+
+      # Timing-based: shared CI runners add scheduling noise, so these report but do not block.
+      - name: Streaming perf walk, CPU, Carretera del Puerto → Las Torres (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu --route=c0
+
+      - name: Urban perf walk, CPU, Carretera del Puerto → Gran Vía → ensanche at 15 m/s (informational)
+        continue-on-error: true
+        run: tests/run_perf_walk.sh --cpu --route=city --speed=15 --out=tests/perf/walk_cpu_city.json
+
+      - name: Perf horde city, 150 walkers + 300 statues + 4 bots in Las Torres (informational)
+        continue-on-error: true
+        run: tests/run_perf_horde.sh --city --out=tests/perf/horde_city.json
+
+  g2b:
+    name: G2b Atmósfera (LUTs + CPU blend, fog layers, wind, thaw, life; blizzard cost in the city, compat depth)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Import project
+        run: godot --headless --path . --import || true
+
+      # the 8 LUTs are rebuilt from tools/make_luts.py and must match the files (pixels within 1/255)
+      - name: LUTs reproducible
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-numpy python3-pil
+          python3 tools/make_luts.py --check
+
+      # LUT files, CPU blend exact and ≤ 0.1 ms per frame (median; 0 at rest), grade weights, overcast, DayNight hooks
+      # (fog layers, volumetric only on alto and in a blizzard or at night, compat depth boost), thaw, wind, sprites, life
+      - name: G2b checks (headless)
+        run: |
+          godot --headless --path . -s tests/g2b_checks.gd 2>&1 | tee /tmp/g2b_checks.log
+          grep -q "== g2b checks: .*, 0 failed" /tmp/g2b_checks.log
+
+      - name: Install xvfb + Mesa software drivers
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri mesa-vulkan-drivers
+
+      # Blocking: the fog makes the far third of the city frame foggier than the near third in both renderers, and
+      # Compatibility (no volumetrics) keeps ≥ 80 % of Forward+'s depth — night, dusk, blizzard
+      - name: Compat keeps the depth (Compatibility on llvmpipe vs Forward+ on lavapipe)
+        run: tests/run_g2b_bench.sh depth /tmp/g2b_depth
+
+      # A ratio of two interleaved measurements, but still software rendering on a shared runner: reports, does not block
+      - name: Blizzard vs day in the C0 city, Forward+ on lavapipe (≤ +25 %, informational)
+        continue-on-error: true
+        run: tests/run_g2b_bench.sh ratio 3
+
+  export:
+    name: Desktop builds
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: winter-survival
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          curl -sSL -o /tmp/godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          sudo install -m 755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+
+      - name: Cache export templates
+        id: templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-templates-${{ env.GODOT_VERSION }}-desktop-web
+
+      - name: Install export templates
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o /tmp/templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          unzip -j -q /tmp/templates.tpz \
+            templates/version.txt \
+            templates/linux_release.x86_64 \
+            templates/windows_release_x86_64.exe \
+            templates/windows_release_x86_64_console.exe \
+            templates/web_nothreads_release.zip \
+            -d "$dest"
+          rm /tmp/templates.tpz
+
+      - name: Fetch godot-sqlite (hosting from the game uses the SQLite store)
+        run: tools/fetch_godot_sqlite.sh
+
+      - name: Export Windows and Linux
+        run: |
+          godot --headless --path . --import || true
+          mkdir -p export/windows export/linux
+          godot --headless --path . --export-release "Windows" export/windows/Ventisca.exe
+          godot --headless --path . --export-release "Linux" export/linux/ventisca.x86_64
+          cp README.md export/windows/LEEME.md
+          cp README.md export/linux/LEEME.md
+          ls -la export/windows export/linux
+
+      - name: Check the Linux build boots headless
+        run: timeout 60 ./export/linux/ventisca.x86_64 --headless --quit-after 300
+
+      - name: Check the exported dedicated server starts and shuts down cleanly
+        run: SERVER_BIN=export/linux/ventisca.x86_64 tests/net/run_net_test.sh --quick --port 17777
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-windows
+          path: winter-survival/export/windows/
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventisca-linux
+          path: winter-survival/export/linux/
+          retention-days: 30

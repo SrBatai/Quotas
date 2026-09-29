@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA · Hoja de componentes ESCARCHA</title>
+<link rel="stylesheet" href="hud.css">
+<style>
+  body { background: #0A0F17; }
+  .under { position: absolute; inset: 0; background: url('bg/day.jpg') center / cover; filter: blur(3px) brightness(.72) saturate(.85); }
+  .under2 { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,12,20,.2), rgba(8,12,20,.1)); }
+  h1 { position: absolute; left: 56px; top: 30px; font: 700 34px/1 "Barlow Condensed"; letter-spacing: .1em; text-transform: uppercase; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+  h1 span { font: 500 20px/1 Barlow; letter-spacing: 0; text-transform: none; color: var(--text-2); margin-left: 14px; }
+  .card { position: absolute; padding: 16px 18px; }
+  .card h2 { font: 600 16px/1 "Barlow Condensed"; letter-spacing: .2em; text-transform: uppercase; color: #FFE38A; margin-bottom: 12px; }
+  .sw { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px 8px; }
+  .sw div { font: 500 13px/1.25 Barlow; color: var(--text-2); }
+  .sw i { display: block; height: 30px; margin-bottom: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+  .sw b { display: block; color: var(--text-1); font-weight: 600; font-size: 13px; }
+  .ty > div { display: flex; align-items: baseline; gap: 14px; padding: 4px 0; border-bottom: 1px solid rgba(220,235,250,.07); }
+  .ty .m { font: 500 13px/1 Barlow; color: var(--text-3); width: 128px; flex: none; }
+  .mk { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px 8px; text-align: center; }
+  .mk .c { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 14px/1.2 Barlow; color: var(--text-2); }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .lab { font: 500 13px/1.2 Barlow; color: var(--text-3); margin-top: 6px; }
+  .mini .mate { padding: 6px 12px 7px 8px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="under"></div><div class="under2"></div>
+  <h1>ESCARCHA · hoja de componentes <span>tokens a 1920×1080, escala de UI 100 % · paneles de cristal oscuro con bisel de 8 px · un solo acento cálido</span></h1>
+
+  <!-- paleta -->
+  <div class="card glass strong" style="left:56px;top:86px;width:560px">
+    <h2>Color</h2>
+    <div class="sw">
+      <div><i style="background:#0B111A"></i><b>ink‑900</b>#0B111A</div>
+      <div><i style="background:#1B2736"></i><b>ink‑700</b>#1B2736</div>
+      <div><i style="background:#34465C"></i><b>slate‑500</b>#34465C</div>
+      <div><i style="background:#8FA6C0"></i><b>mist‑300</b>#8FA6C0</div>
+      <div><i style="background:#DCEBFA"></i><b>frost‑100</b>#DCEBFA</div>
+      <div><i style="background:#F3F8FD"></i><b>snow‑50</b>#F3F8FD</div>
+      <div><i style="background:#FFB454"></i><b>ember</b>#FFB454</div>
+      <div><i style="background:#F0566A"></i><b>health</b>#F0566A</div>
+      <div><i style="background:linear-gradient(90deg,#FF8A3D,#F2D3A0,#7FD3FF)"></i><b>warmth</b>3 tramos</div>
+      <div><i style="background:#E3C98A"></i><b>hunger</b>#E3C98A</div>
+      <div><i style="background:#EDE7D2"></i><b>stamina</b>#EDE7D2</div>
+      <div><i style="background:#9FE2FF"></i><b>cold</b>#9FE2FF</div>
+      <div><i style="background:#FF4F45"></i><b>danger</b>#FF4F45</div>
+      <div><i style="background:#FFD34D"></i><b>caution</b>#FFD34D</div>
+      <div><i style="background:#5FE3C0"></i><b>radio</b>#5FE3C0</div>
+      <div><i style="background:#7BE3A8"></i><b>ok</b>#7BE3A8</div>
+      <div><i style="background:linear-gradient(90deg,#7CC8FF 25%,#C9A6FF 25% 50%,#9DE07F 50% 75%,#FF9FC6 75%)"></i><b>jugadores</b>P1–P4</div>
+      <div><i style="background:rgba(10,16,25,.62)"></i><b>glass</b>#0A1019 62 %</div>
+    </div>
+  </div>
+
+  <!-- tipografía -->
+  <div class="card glass strong ty" style="left:56px;top:452px;width:560px">
+    <h2>Tipografía (OFL, incluidas en el repo)</h2>
+    <div><span class="m">Display 72 · Cond 700</span><span style="font:700 50px/1 'Barlow Condensed';letter-spacing:.06em">DISTRITO</span><span class="c3" style="font-size:13px">(tarjeta de zona 92)</span></div>
+    <div><span class="m">Title 28 · Cond 600</span><span class="t-title">La voz del repetidor</span></div>
+    <div><span class="m">Head 22 · Cond 600</span><span class="t-head">Secundarias</span></div>
+    <div><span class="m">Body L 20 · 500</span><span class="t-body-l">Sigue las huellas hasta la aldea</span></div>
+    <div><span class="m">Body 18 · 400</span><span class="t-body c2">Calor −1,9 / s · entra en un refugio</span></div>
+    <div><span class="m">Eyebrow 16 · Cond</span><span class="t-eyebrow ember">Objetivo actualizado</span></div>
+    <div><span class="m">Números · tnum</span><span class="num" style="font:600 24px Barlow">−18 °C · 1,4 km · 12/15 · 6:40</span></div>
+    <div><span class="m">Mundo · Stencil</span><span style="font:800 30px/1 Stencil;letter-spacing:.06em;color:#E8D9A8">ZONA DE EVACUACIÓN</span></div>
+    <div style="border:0"><span class="m">Mapa · Caveat</span><span style="font:600 28px/1 Caveat;color:#E9DFC6">¡mucho zombi! ojo al hielo</span></div>
+  </div>
+
+  <!-- marcadores -->
+  <div class="card glass strong" style="left:656px;top:86px;width:600px">
+    <h2>Marcadores (mundo y borde)</h2>
+    <div class="mk" id="mk"></div>
+  </div>
+
+  <!-- constantes -->
+  <div class="card glass strong" style="left:656px;top:398px;width:600px">
+    <h2>Constantes · estados</h2>
+    <div class="row" style="gap:22px;align-items:flex-end">
+      <div style="text-align:center"><div class="ring dim" id="g1"></div><div class="lab">estable (30 %)</div></div>
+      <div style="text-align:center"><div class="ring" id="g2"></div><div class="lab" style="margin-top:30px">cambia (4 s)</div></div>
+      <div style="text-align:center"><div class="ring" id="g3" style="filter:drop-shadow(0 0 10px rgba(240,86,106,.6))"></div><div class="lab" style="margin-top:30px">bajo &lt; 25 %</div></div>
+      <div style="text-align:center"><div class="ring" id="g4" style="filter:drop-shadow(0 0 12px rgba(127,211,255,.7))"></div><div class="lab" style="margin-top:30px">Calor &lt; 30</div></div>
+      <div style="text-align:center"><svg width="68" height="68" viewBox="-34 -34 68 68"><circle r="17" fill="none" stroke="rgba(237,231,210,.18)" stroke-width="4"/><circle r="17" fill="none" stroke="#EDE7D2" stroke-width="4" stroke-dasharray="${0}" id="st" transform="rotate(-90)" stroke-linecap="round"/></svg><div class="lab">aguante (junto al personaje)</div></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div class="status glass"><svg class="i cold"><use href="#i-drop"/></svg>Mojado <b class="num">40 %</b></div>
+      <div class="status glass"><svg class="i danger"><use href="#i-blood"/></svg>Sangrado<span class="pips" style="color:var(--danger)"><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="status glass"><svg class="i" style="color:#FFB0A0"><use href="#i-fever"/></svg>Fiebre</div>
+      <div class="status glass"><svg class="i" style="color:var(--caution)"><use href="#i-bandage"/></svg>Malherido</div>
+      <div class="status glass"><svg class="i cold"><use href="#i-frostbite"/></svg>Congelación</div>
+      <div class="status glass"><svg class="i c2"><use href="#i-weight"/></svg>Sobrepeso</div>
+    </div>
+  </div>
+
+  <!-- prompts -->
+  <div class="card glass strong" style="left:656px;top:676px;width:600px">
+    <h2>Avisos de interacción</h2>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="row">
+        <div class="glass strong" style="display:flex;align-items:center;gap:10px;padding:7px 14px 7px 8px"><span class="key">E</span><span class="t-body-l">Recoger leña</span><span class="c3 num">×2</span></div>
+        <div class="glass strong" style="display:flex;align-items:center;gap:10px;padding:7px 14px 7px 8px"><span class="pad a">A</span><span class="t-body-l">Registrar armario</span></div>
+      </div>
+      <div class="row">
+        <div class="glass strong" style="display:flex;align-items:center;gap:10px;padding:7px 14px 7px 8px"><div class="hold"><svg width="40" height="40"><circle cx="20" cy="20" r="17" fill="none" stroke="rgba(220,235,250,.2)" stroke-width="3"/><circle cx="20" cy="20" r="17" fill="none" stroke="#FFB454" stroke-width="3" stroke-dasharray="64 200"/></svg><span class="pad x">X</span></div><span class="t-body-l">Reanimar a Ana</span><span class="c3 num">60 %</span></div>
+        <div class="glass" style="display:flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;opacity:.75"><svg class="i s28 c3"><use href="#i-lock"/></svg><span class="t-body-l c2">Forzar puerta</span><span class="c3">· necesitas una palanca</span></div>
+      </div>
+      <div class="lab">Mantener: anillo ámbar 0→100 % con la duración real (reanimar 4 s, forzar 2,5 s); opción «pulsar para alternar» en Accesibilidad.</div>
+    </div>
+  </div>
+
+  <!-- avisos -->
+  <div class="card glass strong" style="left:1296px;top:86px;width:568px">
+    <h2>Avisos centrales P0–P2</h2>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="banner p0 glass strong" style="position:relative;left:0;top:0;transform:none;min-width:0"><div class="bico" style="width:52px"><svg class="i s32"><use href="#i-skull"/></svg></div><div class="bbody" style="padding:9px 14px"><div class="btitle" style="font-size:24px">Ana está derribada · <span class="num">38 s</span></div><div class="bsub" style="font-size:16px">P0 · interrumpe · dura mientras dure</div></div><div class="btimer"><i style="width:63%"></i></div></div>
+      <div class="banner glass strong" style="position:relative;left:0;top:0;transform:none;min-width:0"><div class="bico" style="width:52px;background:var(--caution);color:#1a1606;clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)"><svg class="i s32"><use href="#i-storm"/></svg></div><div class="bbody" style="padding:9px 14px"><div class="btitle" style="font-size:24px;color:#FFF1C2">Se acerca una ventisca</div><div class="bsub" style="font-size:16px">P1 · 4 s · <span class="num">60 s</span> de aviso</div></div></div>
+      <div class="banner glass strong" style="position:relative;left:0;top:0;transform:none;min-width:0"><div class="bico" style="width:52px;background:var(--ember);color:#1a1206;clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)"><svg class="i s32"><use href="#i-check"/></svg></div><div class="bbody" style="padding:9px 14px"><div class="btitle" style="font-size:24px;color:#FFE7C4">Misión completada</div><div class="bsub" style="font-size:16px">P1 · 4 s · recompensa: plano «Radio portátil»</div></div></div>
+      <div class="banner glass strong" style="position:relative;left:0;top:0;transform:none;min-width:0"><div class="bico" style="width:52px;background:var(--slate-500);color:var(--frost-100);clip-path:polygon(8px 0,100% 0,100% 100%,0 100%,0 8px)"><svg class="i s28"><use href="#i-people"/></svg></div><div class="bbody" style="padding:9px 14px"><div class="btitle" style="font-size:22px;color:var(--text-1)">Leo e Iker se han unido</div><div class="bsub" style="font-size:16px">P2 · 3 s · agrupado</div></div></div>
+    </div>
+  </div>
+
+  <!-- peligros -->
+  <div class="card glass strong" style="left:1296px;top:476px;width:568px">
+    <h2>Peligros del entorno</h2>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="hazard forecast glass" style="padding:7px 14px 8px 12px"><div class="ico" style="width:32px;height:32px"><svg class="i s20"><use href="#i-icestorm"/></svg></div><div class="txt"><div class="name" style="font-size:18px;color:var(--text-2)">Tormenta de hielo</div><div class="sub">previsto · suelo resbaladizo, ramas caen</div></div><div class="num c2" style="font:600 18px Barlow">~2 h</div></div>
+      <div class="hazard soon glass strong"><div class="ico"><svg class="i s28"><use href="#i-crack"/></svg></div><div class="txt"><div class="name">Hielo fino</div><div class="sub">inminente · no corras ni lleves peso</div></div><div class="timer num" style="color:var(--caution)">6 m</div><div class="stripe"></div></div>
+      <div class="hazard active glass strong"><div class="ico"><svg class="i s28"><use href="#i-storm"/></svg></div><div class="txt"><div class="name">Ventisca</div><div class="sub">activo · visibilidad 6 m</div></div><div class="timer cold num">2:40</div><div class="stripe"></div></div>
+      <div class="hazard soon glass strong"><div class="ico"><svg class="i s28"><use href="#i-boltoff"/></svg></div><div class="txt"><div class="name">Zona sin electricidad</div><div class="sub">de zona · se mantiene mientras estés dentro</div></div><div class="stripe"></div></div>
+    </div>
+  </div>
+
+  <!-- compañeros -->
+  <div class="card glass strong mini" style="left:1296px;top:822px;width:568px">
+    <h2>Compañeros · estados</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="mate glass"><div class="av" style="background:var(--p-ana);width:36px;height:36px;font-size:18px">A</div><div><div class="nm" style="font-size:18px">Ana</div><div class="bars"><div class="bar seg" style="width:120px;height:5px"><i style="width:100%;background:var(--health)"></i></div></div></div><div class="dist" style="font-size:16px">84 m</div></div>
+      <div class="mate glass downed"><div class="av" style="background:#FF4F45;width:36px;height:36px"><svg class="i s20"><use href="#i-skull"/></svg></div><div><div class="nm" style="font-size:18px">Ana <span style="font-size:13px;color:var(--danger);letter-spacing:.12em">DERRIBADA</span></div><div class="num" style="font:500 15px Barlow;color:#FFB9B0;margin-top:5px">38 s</div></div><div class="dist" style="font-size:16px">12 m</div></div>
+      <div class="mate glass"><div class="av" style="background:var(--p-leo);width:36px;height:36px;font-size:18px">L</div><div><div class="nm" style="font-size:18px">Leo <svg class="i s16 cold"><use href="#i-snow"/></svg></div><div class="bars"><div class="bar" style="width:120px;height:3px"><i style="width:18%;background:var(--warm-cold)"></i></div></div></div><div class="dist" style="font-size:16px">240 m</div></div>
+      <div class="mate glass" style="opacity:.55"><div class="av" style="background:var(--p-iker);width:36px;height:36px;font-size:18px">I</div><div><div class="nm" style="font-size:18px">Iker</div><div style="font:500 15px Barlow;color:var(--text-3);margin-top:5px">reconectando <span class="num">0:42</span></div></div><div class="dist" style="font-size:16px">—</div></div>
+    </div>
+  </div>
+</div>
+<script src="icons.js"></script>
+<script>
+  const P = (color, icon, rot, fill, dash) => `<svg width="60" height="60" viewBox="-30 -30 60 60" style="overflow:visible">
+    ${rot === null ? '' : `<g transform="rotate(${rot})"><path d="M0 -29 L8 -19 L-8 -19Z" fill="${color}"/></g>`}
+    <circle r="19" fill="${fill || 'rgba(10,16,25,.8)'}" stroke="${color}" stroke-width="2" ${dash ? 'stroke-dasharray="5 3"' : ''}/>
+    <use href="#i-${icon}" x="-10" y="-10" width="20" height="20" style="color:${color}" fill="currentColor"/></svg>`;
+  const cells = [
+    [P('#FFB454', 'diamond', 45), 'Principal<br>(borde)'],
+    [P('#DCEBFA', 'diamond-o', 45), 'Secundaria'],
+    [P('#5FE3C0', 'hex', 45), 'Dinámica<br><span class="num">⏱ 6:40</span>'],
+    [P('#FFB454', 'diamond-o', 45, null, true), 'Agrupado<br><span class="num">×2</span>'],
+    [P('#7CC8FF', 'people', 45), 'Compañera'],
+    [P('#FF4F45', 'alert', null), 'Ping peligro<br><span class="num">8 s</span>'],
+    [P('#C9A6FF', 'flag', null), 'Ping lugar<br><span class="num">30 s</span>'],
+    [P('#FF4F45', 'skull', null, 'rgba(40,6,10,.9)'), 'Derribada'],
+    [P('#FF9F43', 'house', null), 'Calor cercano<br>(Calor &lt; 30)'],
+    [`<div style="height:60px;display:grid;place-items:center"><div class="glass strong" style="padding:5px 10px;font:600 17px Barlow"><span style="color:var(--ember)">▲</span> 2 plantas</div></div>`, 'Altura<br>(&lt; 60 m)'],
+  ];
+  document.getElementById('mk').innerHTML = cells.map(c => `<div class="c">${c[0]}<div>${c[1]}</div></div>`).join('');
+  document.getElementById('g1').innerHTML = ringSvg(.9, '#F0566A', 68, 6) + ic('heart');
+  document.getElementById('g2').innerHTML = ringSvg(.62, '#FF8A3D', 68, 6) + ic('thermo') + `<span class="val">62 <span style="color:var(--cold)">↓</span></span>`;
+  document.getElementById('g3').innerHTML = ringSvg(.2, '#F0566A', 68, 6) + ic('heart') + `<span class="val" style="color:#FF8C9A">20</span>`;
+  document.getElementById('g4').innerHTML = ringSvg(.14, '#7FD3FF', 68, 6) + ic('thermo', 'cold') + `<span class="val cold">14 ↓</span>`;
+  document.getElementById('st').setAttribute('stroke-dasharray', `${2 * Math.PI * 17 * .55} 999`);
+</script>
+</body>
+</html>

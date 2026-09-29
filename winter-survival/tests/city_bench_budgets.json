@@ -1,0 +1,6 @@
+{
+  "_doc": "tests/city_bench_steps.gd perf mode (W0 + G2a): the city bench street canyon (12 buildings, 9 cars, 10 lamps, player + 12 zombies), camera at 24 m with the city profile, day 11:00 and night 22:30, cut on. Draw calls / primitives are blocking (doc 08 §5.1-5.3, doc 09 §7.1: Forward+ <= 1000 typical, Compatibility <= 700; Web <= 500 / 350 k tris is reported). Frame / render times come from software rasterisers (lavapipe / llvmpipe): informative only, like perf_probe's enforce_gpu=false; the cut cost is compared with doc 09's <= 10 % of the frame.",
+  "forward": {"draw_calls_max": 1000, "primitives_max": 1500000, "cut_cost_pct_info": 10.0},
+  "compat": {"draw_calls_max": 700, "primitives_max": 1500000, "cut_cost_pct_info": 10.0},
+  "web_info": {"draw_calls_max": 500, "primitives_max": 350000}
+}

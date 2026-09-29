@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://4hdkfmkt78lp"
+path="res://.godot/imported/apagon.png-ebb932ae00033cf92870ba6d14586bc6.image"
+
+[deps]
+
+source_file="res://assets/luts/apagon.png"
+dest_files=["res://.godot/imported/apagon.png-ebb932ae00033cf92870ba6d14586bc6.image"]
+
+[params]
+

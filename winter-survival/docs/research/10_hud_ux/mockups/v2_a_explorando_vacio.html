@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Explorando (reposo)</title>
+<link rel="stylesheet" href="hud_v2.css">
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg2/day.jpg')"></div>
+  <div class="cine fx"></div>
+
+  <!-- ÚNICO elemento en reposo: la barra rápida plegada en una tira de 10 trazos (ranura activa más clara) -->
+  <div class="strip"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+  <div class="note tag" style="left:64px;top:44px">
+    <b>v2 · explorando, en reposo</b><br>HUD visible: <b id="cov">—</b> de la pantalla (medido; objetivo &lt; 3 %)<br>
+    Todo lo demás aparece al cambiar o al pedirlo (mantener Tab / D‑pad ↑)</div>
+</div>
+<script src="icons_v2.js"></script>
+<script>
+  fetch('coverage.json').then(r => r.json()).then(j => { if (j.v2_a_explorando_vacio) document.getElementById('cov').textContent = j.v2_a_explorando_vacio.box_pct.toFixed(2).replace('.', ',') + ' %'; }).catch(() => {});
+</script>
+</body>
+</html>

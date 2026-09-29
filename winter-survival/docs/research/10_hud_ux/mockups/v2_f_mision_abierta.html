@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Misiones (a petición)</title>
+<link rel="stylesheet" href="hud_v2.css">
+<style>
+  .veilL { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(90deg, rgba(4,8,14,.74) 0, rgba(4,8,14,.62) 26%, rgba(4,8,14,.34) 42%, rgba(4,8,14,0) 58%),
+                linear-gradient(270deg, rgba(4,8,14,.40) 0, rgba(4,8,14,0) 22%); }
+  .ml { position: absolute; left: 96px; top: 150px; width: 640px; }
+  .grp { margin-top: 30px; }
+  .grp:first-of-type { margin-top: 0; }
+  .gh { display: flex; align-items: center; gap: 12px; }
+  .gh .hair { flex: 1; }
+  .m { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 14px; align-items: baseline; margin-top: 14px; }
+  .m .t { font: 300 26px/1.2 Barlow; color: var(--ink); }
+  .m .x { font: 300 18px/1 Barlow; color: var(--ink-70); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .st { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 14px; align-items: baseline; margin-top: 10px; padding-left: 36px; }
+  .st .t { font: 300 20px/1.3 Barlow; color: var(--ink-90); }
+  .st.done .t { color: var(--ink-50); text-decoration: line-through; text-decoration-color: rgba(243,248,253,.35); }
+  .sub { display: grid; grid-template-columns: 1fr auto; column-gap: 14px; padding-left: 72px; margin-top: 6px; font: 300 18px/1.35 Barlow; color: var(--ink-70); }
+  .sub span:nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+  .sm { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 14px; align-items: baseline; margin-top: 12px; }
+  .sm .t { font: 300 20px/1.3 Barlow; color: var(--ink-90); }
+  .sm .x { font: 300 18px/1 Barlow; color: var(--ink-70); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .quote { margin: 12px 0 0 72px; font: italic 300 18px/1.45 Barlow; color: var(--ink-70); }
+  .foot { position: absolute; left: 96px; bottom: 60px; display: flex; gap: 26px; align-items: center; font: 300 18px/1 Barlow; color: var(--ink-70); }
+  .foot > span { display: inline-flex; gap: 9px; align-items: center; }
+  .info { position: absolute; right: 64px; top: 56px; text-align: right; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg2/day.jpg')"></div>
+  <div class="cine fx"></div>
+  <div class="veilL veil"></div>
+
+  <!-- lista de misiones: mientras se mantiene Tab / D‑pad ↑ (o alternar en Accesibilidad). Sin panel. -->
+  <div class="ml w">
+    <div class="grp">
+      <div class="gh"><span class="sc t16" style="color:var(--ink-70)">misiones</span><div class="hair l"></div><span class="sc t16 num" style="color:var(--ink-50)">día 9 · 15:20</span></div>
+      <div class="m"><span class="dia f" style="color:var(--accent);transform:rotate(45deg) translate(3px,-2px)"></span><span class="t">La voz del repetidor</span><span class="x sc">seguida</span></div>
+      <div class="st done"><svg class="li s16" style="color:var(--ink-50)"><use href="#l-check"/></svg><span class="t">Escucha la radio de la cabaña</span><span></span></div>
+      <div class="st"><span class="dia" style="color:var(--accent);width:9px;height:9px;transform:rotate(45deg) translate(2px,-1px)"></span><span class="t" style="color:var(--ink)">Consigue 3 componentes de radio</span><span class="x num" style="color:var(--accent)">0/3</span></div>
+      <div class="sub"><span style="color:var(--ink-90)">Presa · sala de turbinas</span><span style="color:var(--ink-90)">900 m</span><span>Hospital San Rafael · Valdenieve</span><span>1,4 km</span><span>Comisaría · Valdenieve</span><span>1,5 km</span></div>
+      <div class="quote">«…convoy de evacuación en el puente norte. Traed bengalas…»</div>
+    </div>
+    <div class="grp">
+      <div class="gh"><span class="sc t16" style="color:var(--ink-70)">encargos</span><div class="hair l"></div></div>
+      <div class="sm"><span class="dia" style="color:var(--ink-70);width:9px;height:9px;transform:rotate(45deg) translate(2px,-1px)"></span><span class="t">Agua limpia para Marta <span class="dim2">· El Molino</span></span><span class="x num">2/4 · 780 m</span></div>
+      <div class="sm"><span class="dia" style="color:var(--ink-70);width:9px;height:9px;transform:rotate(45deg) translate(2px,-1px)"></span><span class="t">Combustible para el generador</span><span class="x num">1/2 · 510 m</span></div>
+    </div>
+    <div class="grp">
+      <div class="gh"><span class="sc t16" style="color:var(--ink-70)">en la radio</span><div class="hair l"></div></div>
+      <div class="sm"><svg class="li s16" style="color:var(--ink-70)"><use href="#l-truck"/></svg><span class="t">Convoy militar detenido en la N‑140</span><span class="x num">quedan 6:40 · 1,9 km</span></div>
+      <div class="sm"><svg class="li s16" style="color:var(--ink-70)"><use href="#l-radio"/></svg><span class="t">Llamada de socorro <span class="dim2">· zona aproximada</span></span><span class="x num">quedan 18:00</span></div>
+    </div>
+  </div>
+
+  <!-- a petición también: estado del entorno y del grupo, una línea cada uno -->
+  <div class="scrim" style="left:1360px;top:-20px;width:640px;height:230px;--sa:.36"></div>
+  <div class="info w">
+    <div class="t18 reg num" style="color:var(--ink)">Día 9 · 15:20 <span style="color:var(--ink-70)">· anochece 20:00</span></div>
+    <div class="t18 light num" style="margin-top:6px">−19 °C <span style="color:var(--ink-70)">· sentida −12 °C</span></div>
+    <div class="hair r" style="width:300px;margin:12px 0 12px auto"></div>
+    <div class="t18 light" style="display:flex;gap:18px;justify-content:flex-end;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:7px"><i style="width:7px;height:7px;border-radius:50%;background:#7CC8FF"></i>Ana <span class="num dim">84 m</span></span>
+      <span style="display:inline-flex;align-items:center;gap:7px"><i style="width:7px;height:7px;border-radius:50%;background:#C9A6FF"></i>Leo <span class="num dim">212 m</span></span>
+    </div>
+  </div>
+
+  <!-- con la lista abierta: el objetivo seguido en el borde (ámbar) + los demás lugares como puntos tenues -->
+  <div class="edge w" style="left:40px;top:830px;color:var(--accent)">
+    <svg width="14" height="14" viewBox="-7 -7 14 14" style="overflow:visible;transform:rotate(-40deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))"><path d="M-6 0 L2 -6 L2 6Z" fill="currentColor"/></svg>
+    <span class="dia f" style="color:var(--accent)"></span><span class="t18 num reg" style="color:var(--ink)">Presa · 900 m</span>
+  </div>
+  <div class="scrim" style="left:1080px;top:-10px;width:200px;height:90px;--sa:.34"></div>
+  <div class="mk w" style="left:1180px;top:34px;color:var(--ink-90)"><span class="dia" style="width:9px;height:9px"></span><span class="t16 reg num" style="color:var(--ink)">Valdenieve · 1,4 km</span></div>
+  <div class="mk w" style="left:1868px;top:720px;color:var(--ink-70)"><svg class="li s16"><use href="#l-truck"/></svg><span class="t16 light num" style="color:var(--ink-90)">1,9 km</span></div>
+
+  <div class="foot w">
+    <span><span class="gp">Y</span>seguir otra</span>
+    <span><span class="kc">↑↓</span>elegir</span>
+    <span><span class="kc">M</span>mapa</span>
+    <span style="color:var(--ink-50)">suelta Tab para cerrar</span>
+  </div>
+</div>
+<script src="icons_v2.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+{
+ "id": "barn",
+ "kind": "barn",
+ "style": [
+  "wood_red"
+ ],
+ "footprint": [
+  12,
+  16
+ ],
+ "floors": 1,
+ "budget": 24000,
+ "rooms": [
+  {
+   "name": "barn",
+   "set": "barn",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     5,
+     7
+    ]
+   ]
+  }
+ ],
+ "garages": [
+  {
+   "pos": [
+    2,
+    0
+   ],
+   "dir": "S"
+  },
+  {
+   "pos": [
+    2,
+    7
+   ],
+   "dir": "N"
+  }
+ ],
+ "doors": [
+  {
+   "pos": [
+    0,
+    5
+   ],
+   "dir": "W",
+   "kind": "door",
+   "exterior": true,
+   "hinge": "R"
+  }
+ ],
+ "windows": [
+  {
+   "pos": [
+    0,
+    1
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    0,
+    3
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    5,
+    1
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    5,
+    3
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    5,
+    5
+   ],
+   "dir": "E"
+  },
+  {
+   "pos": [
+    0,
+    7
+   ],
+   "dir": "W"
+  },
+  {
+   "pos": [
+    5,
+    7
+   ],
+   "dir": "E"
+  }
+ ],
+ "partitions": [
+  {
+   "axis": "y",
+   "at": 2,
+   "from": 4,
+   "to": 7,
+   "doors": [
+    5
+   ]
+  },
+  {
+   "axis": "x",
+   "at": 4,
+   "from": 0,
+   "to": 1,
+   "doors": []
+  }
+ ],
+ "roof": {
+  "kind": "gable",
+  "ridge": "y",
+  "pitch": 42,
+  "overhang": 0.5
+ },
+ "furniture": [
+  {
+   "kind": "crates",
+   "pos": [
+    11.5,
+    2.4
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    11.5,
+    9.0
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "shelf",
+   "pos": [
+    0.28,
+    14.2
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "counter",
+   "pos": [
+    2.0,
+    15.6
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "crates",
+   "pos": [
+    8.4,
+    15.45
+   ],
+   "yaw": 0
+  }
+ ],
+ "spawns": [
+  {
+   "kind": "Container",
+   "table": "farm",
+   "pos": [
+    0.5,
+    13.0
+   ],
+   "yaw": 90
+  },
+  {
+   "kind": "Container",
+   "table": "farm",
+   "pos": [
+    11.5,
+    12.6
+   ],
+   "yaw": -90
+  },
+  {
+   "kind": "Loot",
+   "pos": [
+    2.0,
+    15.6,
+    0.92
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    6.0,
+    5.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Light",
+   "pos": [
+    6.0,
+    12.0,
+    2.7
+   ]
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    7.0,
+    6.0
+   ],
+   "yaw": 0
+  },
+  {
+   "kind": "Zombie",
+   "pos": [
+    2.0,
+    12.4
+   ],
+   "yaw": 90
+  }
+ ]
+}

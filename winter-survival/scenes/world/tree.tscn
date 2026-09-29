@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/world/tree.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/components/interactable.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/components/fuel_burner.gd" id="3"]
+[ext_resource type="Script" path="res://scripts/components/storage.gd" id="4"]
+
+[node name="Tree" type="StaticBody3D"]
+script = ExtResource("1")
+collision_layer = 65
+collision_mask = 0
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+
+[node name="Interactable" type="Area3D" parent="."]
+script = ExtResource("2")

@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://fbl1wcvtlm8l"
+path="res://.godot/imported/dia_claro.png-736f53dfdbe6aaa3f4be62457ff70bd8.image"
+
+[deps]
+
+source_file="res://assets/luts/dia_claro.png"
+dest_files=["res://.godot/imported/dia_claro.png-736f53dfdbe6aaa3f4be62457ff70bd8.image"]
+
+[params]
+

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>VENTISCA v2 · Noche en ventisca</title>
+<link rel="stylesheet" href="hud_v2.css">
+<style>
+  .fog { position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle at 958px 640px, rgba(120,140,172,0) 0, rgba(120,140,172,.10) 150px, rgba(112,132,166,.50) 430px, rgba(104,124,160,.72) 820px, rgba(98,118,154,.80) 1300px); }
+  .glow { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+    background: radial-gradient(circle at 975px 628px, rgba(255,170,90,.26) 0, rgba(255,170,90,.10) 120px, transparent 260px); }
+  .frost { position: absolute; inset: 0; pointer-events: none; background: url('frost_v2.svg') center / 100% 100% no-repeat; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg" style="background-image:url('bg2/night.jpg');filter:saturate(.8) brightness(.9)"></div>
+  <div class="fog fx"></div>
+  <div class="glow fx"></div>
+  <svg id="snow" width="1920" height="1080" style="position:absolute;inset:0"></svg>
+  <!-- viñeta de escarcha en los bordes de la pantalla («la interfaz también tiene frío»), intensidad = 1 − Calor/40 -->
+  <div class="frost fx" style="opacity:.62"></div>
+
+  <!-- anillo de sonido del GDD (zombi fuera del cono, solo se oye): elemento del mundo, tenue -->
+  <svg style="position:absolute;left:0;top:0" width="1920" height="1080" class="fx">
+    <ellipse cx="1488" cy="792" rx="92" ry="68" fill="none" stroke="rgba(255,140,120,.45)" stroke-width="1.5"/>
+    <ellipse cx="1488" cy="792" rx="58" ry="43" fill="none" stroke="rgba(255,140,120,.28)" stroke-width="1"/>
+  </svg>
+
+  <div class="scrim" style="left:930px;top:520px;width:220px;height:110px;--sa:.5"></div>
+  <div class="scrim" style="left:1255px;top:795px;width:200px;height:100px;--sa:.32"></div>
+  <div class="scrim" style="left:1440px;top:10px;width:540px;height:150px;--sa:.55"></div>
+  <div class="scrim" style="left:-110px;top:900px;width:600px;height:250px;--sa:.66"></div>
+  <!-- lo único que importa ahora: la fuente de calor más cercana (el ámbar pasa del objetivo al calor) -->
+  <div class="mk w" style="left:1030px;top:560px;color:var(--accent)">
+    <span class="dia f" style="color:var(--accent)"></span>
+    <span class="t18 reg" style="color:#FFE2BD">refugio <span class="num" style="margin-left:6px;color:var(--ink-90)">4 m</span></span>
+  </div>
+
+  <!-- compañera lejos en la ventisca: nombre y distancia, sin marco -->
+  <div class="mk w" style="left:1352px;top:840px">
+    <span style="width:7px;height:7px;border-radius:50%;background:#7CC8FF;box-shadow:0 0 6px rgba(124,200,255,.8)"></span>
+    <span class="t16 reg" style="color:#BFE3FF">Ana <span class="num" style="color:var(--ink-90)">18 m</span></span>
+  </div>
+
+  <!-- peligro: una línea corta, arriba a la derecha -->
+  <div class="w" style="position:absolute;right:64px;top:56px;text-align:right">
+    <div class="t18 reg" style="display:flex;align-items:center;gap:10px;justify-content:flex-end;color:var(--ink)">
+      <svg class="li s16 cold"><use href="#l-snow"/></svg><span class="sc cold" style="letter-spacing:.18em">ventisca</span>
+      <span style="color:var(--ink-70)">·</span><span>visibilidad 6 m</span><span style="color:var(--ink-70)">·</span><span class="num">2:40</span></div>
+    <div class="hair r" style="width:260px;margin:9px 0 0 auto"></div>
+  </div>
+
+  <!-- constantes: solo el Calor, bajo -->
+  <div style="position:absolute;left:64px;bottom:52px;display:flex;align-items:center;gap:12px" class="w">
+    <div class="tring" id="r-warm"></div>
+    <div>
+      <div class="t22 num reg" style="line-height:1;color:var(--ink)">14 <span class="cold" style="font-size:18px">↓</span></div>
+      <div class="sc t16" style="margin-top:4px;color:#D4F0FF;font-weight:500">te estás congelando</div>
+    </div>
+  </div>
+
+  <div class="strip"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</div>
+<script src="icons_v2.js"></script>
+<script>
+  (function () {
+    let s = 0x2468; const R = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    let h = '<defs><filter id="bl"><feGaussianBlur stdDeviation="2.2"/></filter></defs>';
+    for (let i = 0; i < 1400; i++) {
+      const x = R() * 2000 - 40, y = R() * 1120 - 20, L = 8 + R() * 34, a = .16 + R() * .5, w = .8 + R() * 1.7;
+      h += `<line x1="${x}" y1="${y}" x2="${x + L * .945}" y2="${y + L * .324}" stroke="rgba(235,244,255,${a})" stroke-width="${w}" stroke-linecap="round"/>`;
+    }
+    for (let i = 0; i < 34; i++) h += `<circle cx="${R() * 1920}" cy="${R() * 1080}" r="${3 + R() * 6}" fill="rgba(240,248,255,${.22 + R() * .35})" filter="url(#bl)"/>`;
+    document.getElementById('snow').innerHTML = h;
+  })();
+  document.getElementById('r-warm').innerHTML = thinRing(.14, '#A6DCF5') + li('thermo', 's16', 'color:#CFEFFF');
+</script>
+</body>
+</html>

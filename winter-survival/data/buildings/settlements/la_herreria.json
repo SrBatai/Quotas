@@ -1,0 +1,51 @@
+{
+ "id": "la_herreria",
+ "name": "La Herrería",
+ "kind": "village",
+ "milestone": "M6b",
+ "doc": "Procedural village of La Herrería (PLAN §4.3 / §7 M6b; W1 region «LA HERRERÍA» (-704, -768) r 170 of PoiRegistry.REGIONS; macro map row 6: v = village at column 6, S = the sawmill at column 7, the Valdenieve road along row 7). Read by SettlementGen (scripts/world/settlement/settlement_gen.gd): a main street that leaves the Valdenieve road at `main.from` and climbs north, 1–2 branches (the sawmill lane toward the hand-made POI `aserradero` is always one of them), OBB lots of 400–900 m² along both sides, land use 80/10/5/5 (ARQ v2 §9.1 aldea) with the reserved uses first, templates by style. Compass angles: 0 = north (−Z), 90 = east (+X). Metres, world x / z.",
+ "region": "LA HERRERÍA",
+ "zone": "la_herreria",
+ "circle": [-704, -768, 170],
+ "bounds": [-884, -884, 236, 234],
+ "avoid_roads": ["valdenieve"],
+ "avoid_margin": 11.0,
+ "main": {"from": [-752.0, -676.1], "dir": [-8, 8], "length": [172, 192], "bend": 7, "width": 6.0, "shoulder": 3.0, "name": "Calle Mayor"},
+ "branches": [
+  {"name": "Camino del Aserradero", "to": [-676.0, -772.0], "at": [0.3, 0.6], "width": 5.0, "shoulder": 3.0},
+  {"name": "Calle de la Fragua", "side": "west", "chance": 0.65, "at": [0.35, 0.8], "dir_jitter": 16, "length": [62, 86], "width": 5.0, "shoulder": 3.0}
+ ],
+ "keepout": [],
+ "lots": {"area": [400, 900], "front": [16, 23], "depth": [24, 32], "gap": [0.5, 2.5], "start_gap": 9.0, "end_gap": 4.0, "sidewalk": 1.6, "setback": [0.8, 2.4], "backyard": 3.0, "side_yard": 3.6},
+ "buildings": [15, 19],
+ "enterable_min": 6,
+ "enterable_house": 0.45,
+ "empty": 0.05,
+ "reserved": [
+  {"use": "bar", "template": "shop_general", "style": "wood_blue", "shop": "Bar La Fragua", "tables": {"*": "bar"}, "alarm": true},
+  {"use": "shop", "template": "shop_general", "style": "brick", "shop": "Ultramarinos Pilar", "tables": {"gas_station": "shop", "house": "shop"}, "alarm": true},
+  {"use": "garage", "template": "garage", "style": "brick", "shop": "Taller Mecánico", "tables": {}}
+ ],
+ "houses": [
+  {"template": "house_small_A", "w": 3},
+  {"template": "house_small_B", "w": 3},
+  {"template": "house_small_C", "w": 3},
+  {"template": "house_two_story_A", "w": 2},
+  {"template": "house_two_story_B", "w": 2}
+ ],
+ "residents": {"house": [1, 2], "house_locked": [0, 1], "shop": [1, 2], "bar": [2, 3], "garage": [1, 2], "street": [1, 2]},
+ "props": {
+  "lamp": "props/village/lamp_post", "lamp_spacing": [26, 32],
+  "pole": "props/village/power_pole", "pole_spacing": [30, 36],
+  "mailbox": "props/village/mailbox",
+  "fences": ["props/village/fence_wood_2", "props/village/fence_wire_2", "props/village/fence_chain_2"], "fence_chance": 0.5,
+  "hydrant": "props/village/hydrant", "hydrants": 2,
+  "bench": "props/village/bench", "trash_can": "props/village/trash_can", "dumpster": "props/village/dumpster",
+  "bus_stop": "props/village/bus_stop", "cart": "props/village/shopping_cart",
+  "tires": "props/village/tire_stack", "pallet": "props/village/pallet", "crate": "props/village/crate", "barrel": "props/village/barrel",
+  "barricades": ["props/village/barricade_wood", "props/village/barricade_sandbags", "props/village/barricade_wire", "props/village/barricade_jersey"],
+  "stop": "city/props/sign_stop"
+ },
+ "cars": {"count": [3, 5], "models": ["sedan", "van", "pickup", "suv", "taxi"], "variants": ["snowed", "snowed", "crashed", "doors", "burnt"], "table": "car"},
+ "signs": {"entry": "La Herrería", "lamp_power": {"on": 0.7, "flicker": 0.15}}
+}

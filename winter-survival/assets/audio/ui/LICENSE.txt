@@ -1,0 +1,9 @@
+VENTISCA — placeholder UI sounds (assets/audio/ui/)
+
+ui_zone_discover.wav
+  Zone discovered (H2; docs/research/10_hud_ux.md appendix §5.6): a breath of wind and a low glass bell, 1.8 s,
+  mono 16-bit 32 kHz. Synthesised from scratch by tools/gen_ui_sounds.py (filtered noise + additive sine partials,
+  fixed seed; no samples or third-party material). Own work of the VENTISCA project.
+
+Licence: CC0 1.0 Universal (public domain dedication) — https://creativecommons.org/publicdomain/zero/1.0/
+These are placeholders: the final UI sound set may replace them under the same event names (AudioManager).

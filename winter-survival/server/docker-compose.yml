@@ -1,0 +1,22 @@
+# VENTISCA dedicated server with Docker Compose (M5). From the repository root:
+#   server/build_server.sh && docker compose -f server/docker-compose.yml up -d --build
+#   docker compose -f server/docker-compose.yml exec ventisca /srv/ventisca/admin.sh status
+#   docker compose -f server/docker-compose.yml stop      # graceful: save-and-quit, up to 30 s
+# Edit the world / rules in the volume: /data/server.cfg (created on the first start), then restart.
+services:
+  ventisca:
+    build:
+      context: ../export/server
+      dockerfile: ../../server/Dockerfile
+    image: ventisca-server:latest
+    container_name: ventisca
+    ports:
+      - "7777:7777/udp"
+    volumes:
+      - ventisca-data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      - VENTISCA_SERVER_CFG=/data/server.cfg
+volumes:
+  ventisca-data:

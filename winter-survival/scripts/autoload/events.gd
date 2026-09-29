@@ -1,0 +1,83 @@
+extends Node
+## Global signal bus. No logic lives here.
+
+# time & weather
+signal time_changed(day: int, hour: float, is_night: bool)
+signal day_started(day: int)
+signal night_started(day: int)
+signal weather_changed(weather: StringName)
+signal blizzard_warning(seconds: float)
+signal world_ready()
+signal region_changed(region_name: String)
+# player
+signal stat_changed(stat: StringName, value: float, max_value: float)
+signal player_damaged(amount: float, source: StringName)
+signal player_died(cause: StringName)
+signal shelter_changed(inside: bool)
+signal torch_toggled(lit: bool)
+signal tool_changed(tool_id: StringName)
+signal camera_shake(strength: float)
+signal camera_yaw_changed(yaw_deg: float)
+signal hover_changed(label: String)
+signal placement_mode(active: bool)
+# inventory & crafting
+signal inventory_changed()
+signal item_picked_up(item_id: StringName, amount: int)
+signal item_consumed(item_id: StringName)
+signal crafted(recipe_id: StringName)
+signal craft_failed(reason: String)
+signal storage_opened(storage: Node)
+signal storage_closed()
+# world objects
+signal tree_hit(tree: Node, hits: int, total: int)
+signal tree_felled(variant: String)
+signal campfire_placed(campfire: Node)
+signal campfire_lit(campfire: Node)
+signal campfire_extinguished(campfire: Node)
+signal stove_fueled()
+signal stove_changed(lit: bool)
+signal wolf_spawned(wolf: Node)
+signal wolf_died(wolf: Node)
+# quests & flow
+signal quest_updated(state: Dictionary)
+signal quest_step_completed(step_index: int)
+signal quest_day_completed(day: int)
+signal notify(text: String, seconds: float)
+signal game_paused(paused: bool)
+signal game_over(days: int, hours: int, cause: StringName)
+signal game_won(days: int)
+# network / multiplayer (M1)
+signal local_player_ready(player: Node)
+signal player_respawned()
+signal chat_message(who: String, text: String)
+signal hit_result(victim_peer: int, blocked: bool, reason: String)
+signal interact_result(wid: int, action: StringName, ok: bool, reason: String)
+signal deer_died(deer: Node)
+# M4 combat (presentation, owner client)
+signal melee_result(mode: int, ok: bool, hits: int, kills: int, reason: String)
+signal local_swing(clip: StringName)
+# H1 HUD «Susurro» (docs/research/10_hud_ux.md §8.5 / §V.8; presentation, owner client)
+signal location_entered(info: Dictionary)   # ZoneTracker: {id, name, kind, parent, facts, first_visit, card: none|full|compact|sign}
+signal location_left(id: StringName)
+signal notify_ex(n: Dictionary)   # NotifyRouter: {priority 0–3, key, title, body, seconds, channel &"banner"|&"feed"}
+signal mission_state(missions: Array)   # MissionLog: the mission list after a change (Missions model)
+signal objective_updated(mission_id: StringName, step_id: StringName, what: StringName)   # new|progress|completed|mission_done|mission_new
+signal hazard_changed(kind: StringName, state: StringName, data: Dictionary)   # forecast|soon|active|end
+signal status_changed(status: StringName, severity: float)   # bleeding / wet / … for the vitals (0 = gone)
+signal player_hit_from(dir: Vector3, amount: float)   # local player hit; world direction toward the attacker
+signal hud_info(active: bool)   # Info (hud_info: Tab / D-pad up held, or toggled)
+# H2 zones (docs/research/10_hud_ux.md appendix §6.1, PLAN C35 / C28; presentation, owner client)
+signal zone_entered(info: Dictionary)   # ZoneTracker: a zone confirmed (12 m / 1.5 s), outside combat: {id, name, kind, camera, first_visit, chain}; CameraRig picks its profile
+signal zone_discovered(zone_id: StringName, by_name: String, own: bool)   # ZoneDiscovery: the server recorded a discovery (own = by the local player)
+# M5 firearms / loot (presentation; the reticle and ammo HUD of H3 read these — ARQ v2 §15.5 note)
+signal weapon_state_changed(data: Dictionary)   # owner: {w, ammo, mag, reserve, jammed, reload_left, reload_total, unjam_left, spread, weight}
+signal reticle_changed(spread_deg: float, band: StringName, aim_point: Vector3, radius_m: float)   # owner, ≤ 30 Hz; spread < 0 = no firearm
+signal fire_result(seq: int, ok: bool, reason: String, hits: int, kills: int, crit: bool)   # owner: the server's verdict
+signal local_shot(weapon: StringName, spread_deg: float)   # owner: predicted shot (muzzle flash / recoil at once)
+signal shot_fired(shooter_peer: int, weapon: StringName, origin: Vector3, ends: PackedVector3Array, flags: int)   # every client in reach
+signal projectile_spawned(kind: int, from: Vector3, to: Vector3, flight: float, shooter_peer: int)   # arrow / can / flare
+signal loot_opened(wid: int, table: StringName, items: int)   # owner: a loot container opened (first roll or not)
+# H3 notices, hazards and group (docs/research/10_hud_ux.md appendix §6.4.3, §6.5, §6.8, §8.5; presentation, clients)
+signal ping_placed(id: int, peer: int, kind: StringName, pos: Vector3, seconds: float)   # HudNet: a replicated ping (place | danger)
+signal teammate_state(peer: int, state: Dictionary)   # HudNet: {health, warmth, bleed, downed, dead, in_house, t_ms} of a teammate
+signal p0_notice(n: Dictionary, on: bool)   # NotifyRouter: a P0 started / ended (shown in the world or on the vital, never a banner)

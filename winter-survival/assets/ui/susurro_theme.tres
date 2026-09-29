@@ -1,0 +1,161 @@
+[gd_resource type="Theme" format=3]
+
+[ext_resource type="FontFile" path="res://assets/fonts/barlow/Barlow-Light.ttf" id="1_0wkq3"]
+[ext_resource type="FontFile" path="res://assets/fonts/barlow/Barlow-Regular.ttf" id="2_5r2fv"]
+[ext_resource type="FontFile" path="res://assets/fonts/barlow_condensed/BarlowCondensed-ExtraLight.ttf" id="3_pleyj"]
+
+[sub_resource type="FontVariation" id="FontVariation_qbhtr"]
+base_font = ExtResource("1_0wkq3")
+opentype_features = {
+1953396077: 1
+}
+
+[sub_resource type="FontVariation" id="FontVariation_5m85c"]
+base_font = ExtResource("1_0wkq3")
+
+[sub_resource type="FontVariation" id="FontVariation_vxeqs"]
+base_font = ExtResource("2_5r2fv")
+opentype_features = {
+1953396077: 1
+}
+
+[sub_resource type="FontVariation" id="FontVariation_udj32"]
+base_font = ExtResource("2_5r2fv")
+opentype_features = {
+1664250723: 1,
+1936548720: 1
+}
+spacing_glyph = 3
+
+[sub_resource type="FontVariation" id="FontVariation_nibjv"]
+base_font = ExtResource("2_5r2fv")
+opentype_features = {
+1664250723: 1,
+1936548720: 1
+}
+spacing_glyph = 8
+
+[sub_resource type="FontVariation" id="FontVariation_2yarj"]
+base_font = ExtResource("1_0wkq3")
+opentype_features = {
+1953396077: 1
+}
+spacing_glyph = 2
+
+[sub_resource type="FontVariation" id="FontVariation_r6kyo"]
+base_font = ExtResource("3_pleyj")
+spacing_glyph = 32
+
+[resource]
+default_font = SubResource("FontVariation_5m85c")
+default_font_size = 18
+Label/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+Label/colors/font_shadow_color = Color(0, 0, 0, 0.55)
+Label/constants/shadow_offset_x = 0
+Label/constants/shadow_offset_y = 1
+Label/constants/shadow_outline_size = 1
+LabelListDetail/base_type = &"Label"
+LabelListDetail/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.7)
+LabelListDetail/font_sizes/font_size = 18
+LabelListDetail/fonts/font = SubResource("FontVariation_qbhtr")
+LabelListMission/base_type = &"Label"
+LabelListMission/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelListMission/font_sizes/font_size = 26
+LabelListMission/fonts/font = SubResource("FontVariation_5m85c")
+LabelListStep/base_type = &"Label"
+LabelListStep/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelListStep/font_sizes/font_size = 20
+LabelListStep/fonts/font = SubResource("FontVariation_qbhtr")
+LabelMain/base_type = &"Label"
+LabelMain/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelMain/font_sizes/font_size = 22
+LabelMain/fonts/font = SubResource("FontVariation_5m85c")
+LabelMeta/base_type = &"Label"
+LabelMeta/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.7)
+LabelMeta/font_sizes/font_size = 16
+LabelMeta/fonts/font = SubResource("FontVariation_qbhtr")
+LabelNum/base_type = &"Label"
+LabelNum/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelNum/font_sizes/font_size = 22
+LabelNum/fonts/font = SubResource("FontVariation_vxeqs")
+LabelSmallCaps/base_type = &"Label"
+LabelSmallCaps/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelSmallCaps/font_sizes/font_size = 16
+LabelSmallCaps/fonts/font = SubResource("FontVariation_udj32")
+LabelWhisper/base_type = &"Label"
+LabelWhisper/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelWhisper/font_sizes/font_size = 18
+LabelWhisper/fonts/font = SubResource("FontVariation_5m85c")
+LabelZoneEyebrow/base_type = &"Label"
+LabelZoneEyebrow/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.7)
+LabelZoneEyebrow/font_sizes/font_size = 16
+LabelZoneEyebrow/fonts/font = SubResource("FontVariation_nibjv")
+LabelZoneFacts/base_type = &"Label"
+LabelZoneFacts/colors/font_color = Color(0.9529, 0.9725, 0.9922, 0.92)
+LabelZoneFacts/font_sizes/font_size = 19
+LabelZoneFacts/fonts/font = SubResource("FontVariation_2yarj")
+LabelZoneTitle/base_type = &"Label"
+LabelZoneTitle/colors/font_color = Color(0.9647059, 0.98039216, 0.99607843, 1)
+LabelZoneTitle/font_sizes/font_size = 76
+LabelZoneTitle/fonts/font = SubResource("FontVariation_r6kyo")
+Susurro/colors/accent = Color(1, 0.7058824, 0.32941177, 1)
+Susurro/colors/blood = Color(0.9411765, 0.47843137, 0.5254902, 1)
+Susurro/colors/cold = Color(0.6509804, 0.8627451, 0.9607843, 1)
+Susurro/colors/hair = Color(0.9529, 0.9725, 0.9922, 0.38)
+Susurro/colors/ink = Color(0.9529, 0.9725, 0.9922, 0.92)
+Susurro/colors/ink_30 = Color(0.9529, 0.9725, 0.9922, 0.32)
+Susurro/colors/ink_50 = Color(0.9529, 0.9725, 0.9922, 0.52)
+Susurro/colors/ink_70 = Color(0.9529, 0.9725, 0.9922, 0.7)
+Susurro/colors/player_0 = Color(0.4862745, 0.78431374, 1, 1)
+Susurro/colors/player_1 = Color(0.7882353, 0.6509804, 1, 1)
+Susurro/colors/player_2 = Color(0.6156863, 0.8784314, 0.49803922, 1)
+Susurro/colors/player_3 = Color(1, 0.62352943, 0.7764706, 1)
+Susurro/colors/scrim = Color(0.015686275, 0.03137255, 0.05490196, 1)
+Susurro/colors/shadow = Color(0, 0, 0, 0.55)
+Susurro/colors/warn = Color(0.9490196, 0.8352941, 0.5411765, 1)
+Susurro/constants/curve_in = 1
+Susurro/constants/curve_out = 2
+Susurro/constants/curve_trans = 1
+Susurro/constants/edge_in_ms = 240
+Susurro/constants/edge_out_ms = 600
+Susurro/constants/edge_read_ms = 5000
+Susurro/constants/hazard_in_ms = 300
+Susurro/constants/hazard_out_ms = 800
+Susurro/constants/hazard_read_ms = 5000
+Susurro/constants/hotbar_in_ms = 180
+Susurro/constants/hotbar_out_ms = 600
+Susurro/constants/hotbar_read_ms = 3000
+Susurro/constants/info_in_ms = 160
+Susurro/constants/info_out_ms = 300
+Susurro/constants/info_read_ms = 0
+Susurro/constants/move_max = 6
+Susurro/constants/objective_in_ms = 320
+Susurro/constants/objective_out_ms = 1000
+Susurro/constants/objective_read_ms = 5000
+Susurro/constants/pickup_in_ms = 200
+Susurro/constants/pickup_out_ms = 600
+Susurro/constants/pickup_read_ms = 2500
+Susurro/constants/safe_x = 64
+Susurro/constants/safe_y = 52
+Susurro/constants/scrim_luma_hi_pct = 80
+Susurro/constants/scrim_luma_lo_pct = 35
+Susurro/constants/scrim_max_pct = 45
+Susurro/constants/scrim_min_pct = 18
+Susurro/constants/shadow_offset_y = 1
+Susurro/constants/shadow_size = 1
+Susurro/constants/size_main = 22
+Susurro/constants/size_min = 16
+Susurro/constants/size_text = 18
+Susurro/constants/size_zone_title = 76
+Susurro/constants/vital_in_ms = 240
+Susurro/constants/vital_out_ms = 800
+Susurro/constants/vital_read_ms = 4000
+Susurro/constants/weight_default = 300
+Susurro/constants/weight_smallcaps = 400
+Susurro/constants/weight_title = 200
+Susurro/constants/zone_first_in_ms = 1400
+Susurro/constants/zone_first_out_ms = 1600
+Susurro/constants/zone_first_read_ms = 4000
+Susurro/constants/zone_reentry_in_ms = 600
+Susurro/constants/zone_reentry_out_ms = 500
+Susurro/constants/zone_reentry_read_ms = 1400

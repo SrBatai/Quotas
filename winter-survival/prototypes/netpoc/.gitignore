@@ -1,0 +1,3 @@
+.godot/
+*.log
+!server_4_clients.log

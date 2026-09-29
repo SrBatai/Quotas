@@ -1,0 +1,42 @@
+{
+ "a_hud_dia": {
+  "ink_pct": 14.92,
+  "box_pct": 16.31
+ },
+ "b_hud_noche_ventisca": {
+  "ink_pct": 18.38,
+  "box_pct": 22.74
+ },
+ "d_misiones_marcadores": {
+  "ink_pct": 17.16,
+  "box_pct": 20.2
+ },
+ "e_avisos_coop": {
+  "ink_pct": 18.59,
+  "box_pct": 24.62
+ },
+ "v2_a_explorando_vacio": {
+  "ink_pct": 0.04,
+  "box_pct": 0.05
+ },
+ "v2_b_accion": {
+  "ink_pct": 0.79,
+  "box_pct": 2.2
+ },
+ "v2_c_titulo_zona_solo": {
+  "ink_pct": 0.91,
+  "box_pct": 1.73
+ },
+ "v2_d_noche_ventisca": {
+  "ink_pct": 0.41,
+  "box_pct": 1.32
+ },
+ "v2_e_coop_derribado": {
+  "ink_pct": 0.32,
+  "box_pct": 2.96
+ },
+ "v2_f_mision_abierta": {
+  "ink_pct": 2.38,
+  "box_pct": 6.34
+ }
+}

@@ -1,0 +1,8 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://assets/shaders/world_vcol_foliage.gdshader" id="1"]
+
+[resource]
+resource_name = "world_vcol_foliage"
+shader = ExtResource("1")
+shader_parameter/wind_height = 8.0

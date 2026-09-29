@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://bh2ewiqgre5aq"
+path="res://.godot/imported/nublado.png-daa0c93f07e6ff946275e37d0ffcc75e.image"
+
+[deps]
+
+source_file="res://assets/luts/nublado.png"
+dest_files=["res://.godot/imported/nublado.png-daa0c93f07e6ff946275e37d0ffcc75e.image"]
+
+[params]
+

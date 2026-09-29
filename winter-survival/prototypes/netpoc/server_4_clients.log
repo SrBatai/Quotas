@@ -1,0 +1,47 @@
+Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
+
+[SERVER] t=  0.00 listening UDP 7777 | display=headless | dedicated_server feature=false | godot=4.7.2-stable (official) | friendly_fire=false
+[SERVER] t=  1.62 auth OK peer 805303126 name=A
+[SERVER] t=  1.63 peer_connected 805303126 -> spawning player
+[SERVER] t=  2.65 request_interact from 805303126 target=door_1 dist=1.00 -> OK
+[SERVER] t=  2.65 chat <A> hola desde A
+[SERVER] t=  3.57 auth OK peer 124220201 name=C
+[SERVER] t=  3.58 peer_connected 124220201 -> spawning player
+[SERVER] t=  3.60 request_hit_player from 805303126 on 124220201 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  3.68 auth OK peer 1241772427 name=B
+[SERVER] t=  3.70 peer_connected 1241772427 -> spawning player
+[SERVER] t=  3.70 auth OK peer 1149147209 name=D
+[SERVER] t=  3.73 peer_connected 1149147209 -> spawning player
+[SERVER] t=  4.58 request_interact from 124220201 target=door_1 dist=1.00 -> OK
+[SERVER] t=  4.58 chat <C> hola desde C
+[SERVER] t=  4.72 request_interact from 1241772427 target=door_1 dist=1.00 -> OK
+[SERVER] t=  4.72 chat <B> hola desde B
+[SERVER] t=  4.74 request_interact from 1149147209 target=door_1 dist=1.00 -> OK
+[SERVER] t=  4.74 chat <D> hola desde D
+[SERVER] t=  5.00 alive wall=5.0s frames=303 physics_ticks=301 (expected~300) peers=4 net: out=4.3 kB/s in=2.2 kB/s (all peers, ENet payload+headers) players=["805303126@(5.2, 0.0, 0.0)", "124220201@(2.0, 0.0, 0.0)", "1241772427@(1.0, 0.0, 1.0)", "1149147209@(1.0, 0.0, -1.0)"]
+[SERVER] t=  5.08 request_hit_player from 124220201 on 805303126 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.08 request_hit_player from 124220201 on 1241772427 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.08 request_hit_player from 124220201 on 1149147209 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.22 request_hit_player from 1241772427 on 805303126 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.22 request_hit_player from 1241772427 on 124220201 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.22 request_hit_player from 1241772427 on 1149147209 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.24 request_hit_player from 1149147209 on 805303126 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.24 request_hit_player from 1149147209 on 124220201 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  5.24 request_hit_player from 1149147209 on 1241772427 dmg=10 -> BLOCKED (friendly_fire off)
+[SERVER] t=  6.65 request_interact from 805303126 target=door_1 dist=10.80 -> REJECT
+[SERVER] t=  6.65 chat <A> segundo mensaje de A
+[SERVER] t=  8.59 request_interact from 124220201 target=door_1 dist=8.06 -> REJECT
+[SERVER] t=  8.59 chat <C> segundo mensaje de C
+[SERVER] t=  8.72 request_interact from 1241772427 target=door_1 dist=9.00 -> REJECT
+[SERVER] t=  8.72 chat <B> segundo mensaje de B
+[SERVER] t=  8.73 request_interact from 1149147209 target=door_1 dist=6.93 -> REJECT
+[SERVER] t=  8.73 chat <D> segundo mensaje de D
+[SERVER] t= 10.00 alive wall=10.0s frames=603 physics_ticks=601 (expected~600) peers=4 net: out=12.6 kB/s in=5.3 kB/s (all peers, ENet payload+headers) players=["805303126@(14.7, 0.0, 0.0)", "124220201@(2.0, 0.0, 8.0)", "1241772427@(1.0, 0.0, 9.0)", "1149147209@(1.0, 0.0, 6.9)"]
+[SERVER] t= 15.02 alive wall=15.0s frames=904 physics_ticks=902 (expected~901) peers=4 net: out=14.9 kB/s in=5.1 kB/s (all peers, ENet payload+headers) players=["805303126@(-0.1, 0.0, 0.0)", "124220201@(2.0, 0.0, 8.0)", "1241772427@(1.0, 0.0, 9.0)", "1149147209@(1.0, 0.0, 6.9)"]
+[SERVER] t= 16.62 peer_disconnected 805303126
+[SERVER] t= 18.57 peer_disconnected 124220201
+[SERVER] t= 18.68 peer_disconnected 1241772427
+[SERVER] t= 18.70 peer_disconnected 1149147209
+[SERVER] t= 20.02 alive wall=20.0s frames=1204 physics_ticks=1202 (expected~1201) peers=0 net: out=8.5 kB/s in=3.1 kB/s (all peers, ENet payload+headers) players=[]
+[SERVER] t= 24.00 server done, quitting
+[SERVER] t= 24.02 notification: EXIT_TREE (normal quit path)

@@ -1,0 +1,248 @@
+/* VENTISCA · Sistema de interfaz «ESCARCHA» — maqueta HTML/CSS de referencia (no es código del juego).
+   Unidades: px a 1920×1080 con escala de UI 100 %. Los nombres de token coinciden con docs/research/10_hud_ux.md §5. */
+
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Medium.ttf"); font-weight: 500; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-SemiBold.ttf"); font-weight: 600; }
+@font-face { font-family: "Barlow"; src: url("fonts/Barlow-Bold.ttf"); font-weight: 700; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Medium.ttf"); font-weight: 500; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-SemiBold.ttf"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("fonts/BarlowCondensed-Bold.ttf"); font-weight: 700; }
+@font-face { font-family: "Stencil"; src: url("fonts/BigShouldersStencilDisplay-Var.ttf"); font-weight: 100 900; }
+@font-face { font-family: "Caveat"; src: url("fonts/Caveat-Var.ttf"); font-weight: 400 700; }
+
+:root {
+  /* tinta / pizarra (fríos) */
+  --ink-950: #070B11; --ink-900: #0B111A; --ink-850: #0F1722; --ink-800: #141E2B; --ink-700: #1B2736;
+  --ink-600: #243345; --slate-500: #34465C; --slate-400: #4E6379; --mist-300: #8FA6C0; --mist-200: #B7C7D9;
+  --frost-100: #DCEBFA; --snow-50: #F3F8FD;
+  /* texto */
+  --text-1: #F3F8FD; --text-2: #B7C7D9; --text-3: #8397AE; --text-off: #5C6E84;
+  /* acento cálido único */
+  --ember: #FFB454; --ember-hi: #FFD08A; --ember-lo: #E8922E; --ember-glow: rgba(255, 180, 84, .38);
+  /* semánticos */
+  --health: #F0566A; --warm-hot: #FF9F43; --warm-mid: #F2D3A0; --warm-cold: #7FD3FF; --hunger: #D8B26A;
+  --stamina: #EDE7D2; --danger: #FF4F45; --caution: #FFD34D; --radio: #5FE3C0; --cold: #9FE2FF; --ok: #7BE3A8;
+  /* jugadores */
+  --p-ana: #7CC8FF; --p-leo: #C9A6FF; --p-iker: #9DE07F; --p-mar: #FF9FC6;
+  /* superficies */
+  --glass: rgba(10, 16, 25, .60); --glass-strong: rgba(10, 16, 25, .80); --glass-edge: rgba(220, 235, 250, .17);
+  --glass-hi: rgba(220, 235, 250, .60); --scrim: rgba(5, 9, 15, .55);
+  --cut: 8px;
+  /* movimiento (para documentación; la maqueta es estática) */
+  --ease-out: cubic-bezier(.16, 1, .3, 1); --ease-in: cubic-bezier(.7, 0, .84, 0); --ease-std: cubic-bezier(.2, 0, 0, 1);
+  --safe-x: 56px; --safe-y: 44px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--ink-950); }
+body { font-family: "Barlow", sans-serif; color: var(--text-1); -webkit-font-smoothing: antialiased; position: relative; }
+
+.stage { position: absolute; inset: 0; overflow: hidden; }
+.bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.layer { position: absolute; inset: 0; pointer-events: none; }
+
+/* ---------- tipografía ---------- */
+.t-display { font: 700 72px/0.92 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; }
+.t-title { font: 600 28px/1.05 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; }
+.t-head { font: 600 22px/1.1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; }
+.t-body-l { font: 500 20px/1.3 "Barlow"; }
+.t-body { font: 400 18px/1.35 "Barlow"; }
+.t-eyebrow { font: 600 16px/1 "Barlow Condensed"; letter-spacing: .18em; text-transform: uppercase; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+.c1 { color: var(--text-1); } .c2 { color: var(--text-2); } .c3 { color: var(--text-3); }
+.ember { color: var(--ember); } .danger { color: var(--danger); } .cold { color: var(--cold); } .radio { color: var(--radio); }
+.shadow { text-shadow: 0 1px 2px rgba(0, 0, 0, .75), 0 0 10px rgba(0, 0, 0, .45); }
+
+/* ---------- panel de escarcha (bisel 8 px arriba‑izq. y abajo‑dcha.) ---------- */
+.glass { position: relative; isolation: isolate; }
+.glass::before { content: ""; position: absolute; inset: 0; z-index: -2; background: var(--glass-edge);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
+.glass::after { content: ""; position: absolute; inset: 1px; z-index: -1;
+  background: linear-gradient(90deg, transparent 3%, var(--glass-hi) 26%, var(--glass-hi) 74%, transparent 97%) top / 100% 1px no-repeat,
+              url("frost_grain.svg") center / 256px 256px, var(--glass);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15); backdrop-filter: blur(14px) saturate(1.15);
+  clip-path: polygon(calc(var(--cut) - 1px) 0, 100% 0, 100% calc(100% - var(--cut) + 1px), calc(100% - var(--cut) + 1px) 100%, 0 100%, 0 calc(var(--cut) - 1px)); }
+.glass.strong::after { background: linear-gradient(90deg, transparent 3%, var(--glass-hi) 26%, var(--glass-hi) 74%, transparent 97%) top / 100% 1px no-repeat,
+              url("frost_grain.svg") center / 256px 256px, var(--glass-strong); }
+.glass.nocut::before, .glass.nocut::after { clip-path: none; border-radius: 4px; }
+
+/* escarcha que invade los bordes del HUD cuando Calor < 30 (uniforme global ui_cold) */
+.frosted-edge { position: absolute; inset: 0; pointer-events: none; z-index: 3; opacity: var(--cold-amount, 0);
+  background: url("frost_tile.svg") 0 0 / 160px 160px;
+  -webkit-mask: linear-gradient(to right, #000, transparent 16px), linear-gradient(to left, #000, transparent 16px),
+                linear-gradient(to bottom, #000, transparent 12px), linear-gradient(to top, #000, transparent 12px);
+  mask: linear-gradient(to right, #000, transparent 16px), linear-gradient(to left, #000, transparent 16px),
+        linear-gradient(to bottom, #000, transparent 12px), linear-gradient(to top, #000, transparent 12px); }
+
+/* ---------- iconos ---------- */
+.i { width: 24px; height: 24px; fill: currentColor; flex: none; display: inline-block; vertical-align: middle; }
+.i.s16 { width: 16px; height: 16px; } .i.s18 { width: 18px; height: 18px; } .i.s20 { width: 20px; height: 20px; }
+.i.s28 { width: 28px; height: 28px; } .i.s32 { width: 32px; height: 32px; } .i.s40 { width: 40px; height: 40px; }
+
+/* ---------- glifos de mando / teclado ---------- */
+.pad { width: 30px; height: 30px; border-radius: 50%; display: inline-grid; place-items: center; flex: none;
+  font: 700 17px/1 "Barlow"; color: #0B111A; box-shadow: 0 1px 3px rgba(0, 0, 0, .5), inset 0 -2px 0 rgba(0, 0, 0, .18); }
+.pad.a { background: #7BC96F; } .pad.b { background: #EE6A5F; } .pad.x { background: #5FA8F0; } .pad.y { background: #F5CD47; }
+.pad.sm { width: 24px; height: 24px; font-size: 14px; }
+.pad.bumper { width: 42px; border-radius: 8px; background: var(--frost-100); font-size: 14px; }
+.key { min-width: 30px; height: 30px; padding: 0 8px; border-radius: 6px; display: inline-grid; place-items: center; flex: none;
+  font: 700 16px/1 "Barlow"; color: #0B111A; background: linear-gradient(#F3F8FD, #C9D6E4); box-shadow: 0 2px 0 #7E90A6, 0 3px 6px rgba(0, 0, 0, .45); }
+
+/* ---------- barra de progreso ---------- */
+.bar { position: relative; height: 6px; background: rgba(220, 235, 250, .14); overflow: hidden; }
+.bar > i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ember); }
+.bar.seg { background: repeating-linear-gradient(90deg, rgba(220,235,250,.14) 0 16px, transparent 16px 18px); }
+.bar.seg > i { -webkit-mask: repeating-linear-gradient(90deg, #000 0 16px, transparent 16px 18px); mask: repeating-linear-gradient(90deg, #000 0 16px, transparent 16px 18px); }
+
+/* ---------- chips ---------- */
+.chip { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px 0 10px; font: 500 18px/1 "Barlow"; color: var(--text-1); }
+.chip .i { width: 20px; height: 20px; }
+.pips { display: inline-flex; gap: 3px; } .pips i { width: 6px; height: 14px; background: rgba(220, 235, 250, .22); transform: skewX(-12deg); }
+.pips i.on { background: currentColor; }
+
+/* ---------- entorno (arriba‑dcha.) ---------- */
+.env { position: absolute; right: var(--safe-x); top: var(--safe-y); width: 372px; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.env-main { display: flex; align-items: stretch; gap: 0; padding: 10px 14px 12px 16px; width: 100%; }
+.env-time { flex: 1; }
+.env-time .row { display: flex; align-items: baseline; gap: 10px; }
+.env-time .day { font: 600 18px/1 "Barlow Condensed"; letter-spacing: .16em; color: var(--text-2); text-transform: uppercase; white-space: nowrap; }
+.env-time .clock { font: 600 30px/1 "Barlow"; font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.daystrip { position: relative; height: 8px; margin-top: 9px; border-radius: 1px; overflow: visible;
+  background: linear-gradient(90deg, #D9A277 0%, #A9C8E0 5%, #A9C8E0 52%, #E0955E 56.5%, #4A4568 59.5%, #1C2A3F 62%, #1C2A3F 96%, #6B6A86 100%); }
+.daystrip .now { position: absolute; top: -5px; width: 2px; height: 18px; background: var(--snow-50); box-shadow: 0 0 6px rgba(255,255,255,.8); }
+.daystrip .tick { position: absolute; top: 12px; font: 500 14px/1 "Barlow"; color: var(--text-3); transform: translateX(-50%); white-space: nowrap; }
+.env-temp { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; padding-left: 16px; margin-left: 14px; border-left: 1px solid rgba(220,235,250,.14); min-width: 108px; }
+.env-temp .air { font: 600 30px/1 "Barlow"; font-variant-numeric: tabular-nums; }
+.env-temp .felt { font: 500 16px/1.1 "Barlow"; color: var(--text-2); margin-top: 6px; white-space: nowrap; }
+.north { position: absolute; right: -18px; bottom: -18px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.env-loc { display: flex; align-items: center; gap: 10px; padding: 8px 14px 9px 14px; }
+.env-loc .t-eyebrow { color: var(--text-3); letter-spacing: .14em; font-size: 15px; }
+
+/* ---------- avisos de peligro (píldoras) ---------- */
+.hazard { display: flex; align-items: center; gap: 12px; padding: 9px 14px 10px 12px; width: 100%; position: relative; }
+.hazard .ico { width: 38px; height: 38px; display: grid; place-items: center; flex: none; }
+.hazard .txt { flex: 1; min-width: 0; }
+.hazard .name { font: 700 20px/1 "Barlow Condensed"; letter-spacing: .1em; text-transform: uppercase; }
+.hazard .sub { font: 400 16px/1.15 "Barlow"; color: var(--text-2); margin-top: 4px; }
+.hazard .timer { font: 600 24px/1 "Barlow"; font-variant-numeric: tabular-nums; }
+.hazard.active .ico { background: var(--cold); color: var(--ink-900); clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px); }
+.hazard.active .name { color: var(--cold); }
+.hazard.soon .ico { color: var(--caution); border: 1.5px solid var(--caution); }
+.hazard.soon .name { color: var(--caution); }
+.hazard.forecast .ico { color: var(--text-2); border: 1.5px dashed rgba(220,235,250,.35); }
+.hazard .stripe { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 3px;
+  background: repeating-linear-gradient(-45deg, var(--cold) 0 8px, transparent 8px 14px); opacity: .9; }
+.hazard.soon .stripe { background: repeating-linear-gradient(-45deg, var(--caution) 0 8px, transparent 8px 14px); }
+
+/* ---------- rastreador de misiones (dcha.) ---------- */
+.tracker { position: absolute; right: var(--safe-x); top: 330px; width: 372px; }
+.trk { padding: 14px 16px 14px 16px; }
+.trk .kind { display: flex; align-items: center; gap: 8px; }
+.trk .kind .t-eyebrow { font-size: 15px; }
+.trk .mtitle { font: 600 26px/1.05 "Barlow Condensed"; letter-spacing: .05em; text-transform: uppercase; margin: 6px 0 10px; }
+.obj { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 10px; align-items: start; padding: 5px 0; }
+.obj .mark { width: 22px; height: 22px; display: grid; place-items: center; margin-top: 1px; }
+.obj .otext { font: 500 20px/1.25 "Barlow"; }
+.obj .ometa { font: 400 16px/1.25 "Barlow"; color: var(--text-2); margin-top: 3px; }
+.obj .ocount { font: 600 18px/1.3 "Barlow"; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.obj.done .otext { color: var(--text-3); text-decoration: line-through; text-decoration-color: rgba(183,199,217,.8); text-decoration-thickness: 1.5px; }
+.obj.next .otext { color: var(--text-3); font-weight: 400; font-size: 18px; }
+.trk-sep { height: 1px; margin: 10px 0 8px; background: linear-gradient(90deg, rgba(220,235,250,.22), rgba(220,235,250,0)); }
+.side { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 10px; align-items: center; padding: 5px 0; }
+.side .stext { font: 500 18px/1.25 "Barlow"; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side .smeta { font: 500 16px/1 "Barlow"; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- constantes (abajo‑izq.) ---------- */
+.vitals { position: absolute; left: var(--safe-x); bottom: var(--safe-y); display: flex; align-items: flex-end; gap: 14px; }
+.ring { position: relative; width: 68px; height: 68px; display: grid; place-items: center; }
+.ring svg.r { position: absolute; inset: 0; transform: rotate(-90deg); }
+.ring .i { width: 26px; height: 26px; position: relative; }
+.ring .val { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); font: 600 18px/1 "Barlow"; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ring.dim { opacity: .38; }
+.vit-label { font: 600 14px/1 "Barlow Condensed"; letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+.status-row { display: flex; gap: 6px; }
+.status { height: 34px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px 0 8px; font: 500 16px/1 "Barlow"; }
+.status .i { width: 20px; height: 20px; }
+
+/* ---------- barra rápida ---------- */
+.hotbar { position: absolute; left: 50%; bottom: var(--safe-y); transform: translateX(-50%); display: flex; gap: 6px; padding: 7px; }
+.slot { position: relative; width: 62px; height: 62px; background: rgba(8, 13, 20, .46); box-shadow: inset 0 0 0 1px rgba(220,235,250,.12); }
+.slot img { position: absolute; left: 7px; top: 6px; width: 48px; height: 48px; object-fit: contain; filter: drop-shadow(0 2px 2px rgba(0,0,0,.4)); }
+.slot .n { position: absolute; left: 5px; top: 3px; font: 600 13px/1 "Barlow"; color: var(--text-3); }
+.slot .q { position: absolute; right: 5px; bottom: 3px; font: 600 17px/1 "Barlow"; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000; }
+.slot .dur { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; background: rgba(220,235,250,.15); }
+.slot .dur i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ok); }
+.slot.sel { background: rgba(255, 180, 84, .13); box-shadow: inset 0 0 0 2px var(--ember), 0 0 18px rgba(255,180,84,.25); transform: translateY(-4px); }
+.slot.hand { width: 62px; }
+.slot.empty { background: rgba(8, 13, 20, .30); }
+.hotbar .gap { width: 6px; }
+.hot-name { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); text-align: center; white-space: nowrap; }
+
+/* ---------- equipado (abajo‑dcha.) ---------- */
+.equip { position: absolute; right: var(--safe-x); bottom: var(--safe-y); width: 300px; display: flex; align-items: center; gap: 14px; padding: 10px 16px 12px 12px; }
+.equip img { width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.equip .ename { font: 600 20px/1.1 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; }
+.equip .ammo { font: 600 34px/1 "Barlow"; font-variant-numeric: tabular-nums; }
+
+/* ---------- feed de objetos (abajo‑dcha., sobre «equipado») ---------- */
+.feed { position: absolute; right: var(--safe-x); bottom: 150px; width: 300px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.frow { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px 0 6px; min-width: 220px; }
+.frow img { width: 34px; height: 34px; object-fit: contain; }
+.frow .fn { font: 500 18px/1 "Barlow"; flex: 1; white-space: nowrap; }
+.frow .fq { font: 600 18px/1 "Barlow"; font-variant-numeric: tabular-nums; color: var(--ember); }
+.frow .ft { font: 400 16px/1 "Barlow"; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.frow.fade { opacity: .45; }
+
+/* ---------- banner central (avisos P0–P2) ---------- */
+.banner { position: absolute; left: 50%; top: 104px; transform: translateX(-50%); display: flex; align-items: stretch; gap: 0; min-width: 560px; }
+.banner .bico { width: 64px; display: grid; place-items: center; flex: none; }
+.banner .bbody { padding: 12px 22px 13px 18px; flex: 1; }
+.banner .btitle { font: 700 30px/1 "Barlow Condensed"; letter-spacing: .08em; text-transform: uppercase; }
+.banner .bsub { font: 500 18px/1.2 "Barlow"; color: var(--text-2); margin-top: 6px; }
+.banner .btimer { position: absolute; left: 1px; right: 1px; bottom: 1px; height: 3px; background: rgba(255,255,255,.1); }
+.banner .btimer i { position: absolute; left: 0; top: 0; bottom: 0; }
+.banner.p0 .bico { background: var(--danger); color: #1a0606; clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px); }
+.banner.p0 .btitle { color: #FFE9E6; }
+.banner.p0 .btimer i { background: var(--danger); }
+.banner.cold .bico { background: var(--cold); color: var(--ink-900); }
+.banner.cold .btimer i { background: var(--cold); }
+.queue { position: absolute; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; font: 500 15px/1 "Barlow"; color: var(--text-3); }
+.queue i { width: 16px; height: 3px; background: rgba(220,235,250,.35); }
+
+/* ---------- compañeros (arriba‑izq.) ---------- */
+.team { position: absolute; left: var(--safe-x); top: var(--safe-y); display: flex; flex-direction: column; gap: 8px; width: 330px; }
+.mate { display: grid; grid-template-columns: 46px 1fr auto; column-gap: 12px; align-items: center; padding: 8px 14px 9px 10px; }
+.mate .av { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font: 700 22px/1 "Barlow Condensed"; color: var(--ink-900); position: relative; }
+.mate .nm { font: 600 20px/1 "Barlow Condensed"; letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.mate .bars { margin-top: 7px; display: flex; flex-direction: column; gap: 4px; }
+.mate .dist { text-align: right; font: 600 18px/1 "Barlow"; font-variant-numeric: tabular-nums; color: var(--text-2); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.mate.downed::after { background: linear-gradient(90deg, rgba(120, 14, 20, .78), rgba(40, 8, 12, .70)); }
+.mate.downed::before { background: rgba(255, 79, 69, .75); }
+
+/* ---------- marcadores de mundo ---------- */
+.wm { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; }
+.wm .lbl { font: 600 18px/1 "Barlow"; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.5); }
+.wm .sub { font: 500 16px/1 "Barlow"; color: var(--text-2); white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.85); margin-top: 3px; }
+.wm .stem { width: 2px; height: 46px; background: linear-gradient(currentColor, rgba(255,255,255,0)); opacity: .85; }
+.ground { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; }
+.edge { position: absolute; display: flex; align-items: center; gap: 8px; transform: translate(-50%, -50%); }
+.edge .pin { width: 44px; height: 44px; position: relative; display: grid; place-items: center; }
+.edge .pin svg.bgp { position: absolute; inset: -8px; width: 60px; height: 60px; overflow: visible; }
+.edge .plate { padding: 5px 10px 6px; background: rgba(10,16,25,.62); clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px); }
+.edge .elbl { font: 600 18px/1.05 "Barlow"; white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.85), 0 0 10px rgba(0,0,0,.55); }
+.edge .esub { font: 500 16px/1 "Barlow"; color: var(--text-2); white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,.85); }
+
+/* ---------- aviso de interacción ---------- */
+.prompt { position: absolute; display: flex; align-items: center; gap: 10px; padding: 7px 14px 7px 8px; transform: translate(-50%, -100%); white-space: nowrap; }
+.prompt .pt { font: 500 19px/1 "Barlow"; }
+.prompt .ps { font: 400 16px/1 "Barlow"; color: var(--text-3); }
+.hold { position: relative; width: 40px; height: 40px; display: grid; place-items: center; flex: none; }
+.hold svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+
+/* ---------- viñeta de frío / daño ---------- */
+.vig-cold { position: absolute; inset: 0; pointer-events: none; background: url("frost_screen.svg") center / 100% 100% no-repeat; }
+.vig-dmg { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 75% 70% at 50% 52%, transparent 64%, rgba(150, 10, 24, .30) 100%); }
+
+/* ---------- anotaciones de diseño (solo hojas de componentes) ---------- */
+.note { position: absolute; font: 500 15px/1.3 "Barlow"; color: #FFE38A; }
