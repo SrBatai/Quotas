@@ -123,14 +123,14 @@
 <div class="wrap">
   <header>
     <div>
-      <p class="eyebrow">Demo jugable · Altavega, zonas, sonido y la Calle Mayor · un jugador en el navegador</p>
+      <p class="eyebrow">Demo jugable · Altavega completa, La Herrería, atmósfera y sonido · un jugador en el navegador</p>
       <h1>VENTISCA</h1>
       <p class="lede">Sobrevive <strong>cinco días</strong> en un mundo helado de 6 × 6 km: leña, estufa, hacha y fogata, con lobos y zombis de noche. Se juega en el navegador con teclado y ratón.</p>
     </div>
     <div class="chips" aria-label="Datos de la versión">
       <span class="chip">Godot 4.7.2</span>
       <span class="chip">Web · Compatibility</span>
-      <span class="chip">~58 MB de descarga</span>
+      <span class="chip">~66 MB de descarga</span>
     </div>
   </header>
 
@@ -139,7 +139,7 @@
     <div class="cover" id="cover">
       <button class="play" id="play" type="button">Jugar la demo</button>
       <div class="bar" id="bar" hidden><span id="barFill"></span></div>
-      <p class="cover-note" id="note">Descarga unos 58 MB y arranca en el navegador. Día 1, 06:00, en la puerta de la cabaña.</p>
+      <p class="cover-note" id="note">Descarga unos 66 MB y arranca en el navegador. Día 1, 06:00, en la puerta de la cabaña.</p>
       <p class="error" id="error" hidden></p>
     </div>
   </div>
@@ -200,7 +200,10 @@
         <li><b>HUD nuevo «Susurro»:</b> mientras exploras la pantalla queda casi vacía; la vida, el calor y la barra aparecen solo cuando cambian. Mantén <kbd>Tab</kbd> para ver misiones, hora y temperatura, y pulsa <kbd>M</kbd> para el mapa de papel con niebla de guerra. En el menú de pausa, «Interfaz y accesibilidad» cambia el modo del HUD y el tamaño.</li>
         <li><b>Armas de fuego (M5):</b> pistola, revólver, escopeta, rifle de caza y arco. Apunta con el ratón: la retícula se cierra si estás quieto. <kbd>R</kbd> recarga y desencasquilla. Cada disparo hace ruido y atrae zombis; la munición escasea. Prueba <code>/give pistola 1</code> y <code>/give municion_9mm 30</code>. Los contenedores tienen botín.</li>
         <li><b>Mundo de 6 km (W1):</b> el valle de siempre, con la Carretera del Puerto hacia el este, sierras, el río Albo helado y la autovía A‑14. Prueba <code>/tp 1480 -384</code> (el puerto de montaña).</li>
-        <li><b>Altavega (C0):</b> la primera manzana de la ciudad, Las Torres, con el atasco de la Gran Vía, una ambulancia y un control militar. Sin red eléctrica: de noche solo hay luz cerca de los generadores. Sube a la azotea del zócalo por la escalera y mantén <kbd>V</kbd> un segundo para el mirador (<kbd>Q</kbd>/<kbd>E</kbd> giran la vista). Ve con <code>/tp 2688 -384</code>.</li>
+        <li><b>Altavega (C1):</b> la ciudad entera: casco viejo, ensanche, barriada y Las Torres, casi 3 000 edificios, el Control del Puerto y el Puente de Hierro. La Torre Albo (40 plantas) y el Edificio Meridiano (24) se suben por la escalera hasta la azotea; en los miradores mantén <kbd>V</kbd> un segundo (<kbd>Q</kbd>/<kbd>E</kbd> giran la vista). Sin red eléctrica: de noche solo hay luz cerca de los generadores. Atajos: <code>/tp 2690 -370</code> (Gran Vía, Torre Albo), <code>/tp 2003 -513</code> (casco viejo), <code>/tp 3003 -511</code> (ensanche), <code>/tp 1542 -384</code> (Control del Puerto).</li>
+        <li><b>La Herrería (M6b):</b> una aldea con bar, tienda y taller, casas que se abren (otras están cerradas con llave), coches abandonados con botín y alarmas en las tiendas; cerca, el aserradero, la gasolinera norte y la Granja del Molino. <code>/tp -704 -768</code> (aldea), <code>/tp -640 -768</code> (aserradero), <code>/tp 619 -388</code> (gasolinera).</li>
+        <li><b>Atmósfera (G2b):</b> niebla por capas, días nublados, humo en chimeneas y coches quemados, luces giratorias, cuervos, árboles y cables que se mueven con el viento y la nieve que se derrite junto al fuego.</li>
+        <li><b>Avisos (H3):</b> la ventisca se anuncia un minuto antes, un arco indica de dónde viene el daño y los avisos importantes aparecen en el mundo, no en carteles. <kbd>Clic central</kbd> marca un sitio (doble clic, un peligro).</li>
         <li><b>Calle Mayor de Santa María del Puerto (M6a):</b> siete edificios con interiores amueblados. Al entrar, las plantas de arriba y la pared de delante se recortan para verte dentro. Las puertas se abren con <kbd>R</kbd>. Ve con <code>/tp -128 3072</code>.</li>
         <li>Armas cuerpo a cuerpo: cuchillo (ejecuta en silencio a congelados), palanca, bate, bate con clavos, machete y hacha. Los golpes hacen ruido y atraen a otros zombis.</li>
         <li>En el navegador se usa el renderizador Compatibility: las sombras y la niebla se ven algo más simples que en la versión de escritorio.</li>
@@ -210,7 +213,7 @@
         <li>En el navegador el terreno se genera en el mismo hilo que el juego: al entrar en una zona nueva puede haber un tirón breve. En la versión de escritorio se genera en segundo plano.</li>
         <li><b>Sonido (S1):</b> disparos con eco según el sitio (bosque, campo abierto, ciudad o interior), pasos según el suelo, zombis, lobos y un ambiente que cambia con la zona, la hora, el viento y al entrar en un edificio. El volumen se ajusta en el menú de pausa (<kbd>Esc</kbd> → Sonido).</li>
       </ul>
-      <p class="meta">Build de la rama claude/winter-survival-game-txs1nx, commit 07c34c6.</p>
+      <p class="meta">Build de la rama claude/winter-survival-game-txs1nx, commit b0f1047.</p>
     </section>
   </div>
 </div>
